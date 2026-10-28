@@ -1,0 +1,128 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        cors-configurations:
+          '[/**]':
+            allowed-origins:
+              - "http://localhost:3000"
+              - "http://127.0.0.1:3000"
+            allowed-methods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+            allowed-headers:
+              - "*"
+            allow-credentials: true
+            max-age: 3600
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
+      routes:
+        # --- Identity Service ---
+        - id: identity-service
+          uri: ${IDENTITY_SERVICE_URL:http://localhost:8081}
+          predicates:
+            - Path=/api/v1/identity/**
+          filters:
+            - StripPrefix=3
+        - id: identity-service-health
+          uri: ${IDENTITY_SERVICE_URL:http://localhost:8081}
+          predicates:
+            - Path=/services/identity/health
+          filters:
+            - RewritePath=/services/identity/health, /health
+
+        # --- Organization Service ---
+        - id: organization-service
+          uri: ${ORGANIZATION_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/v1/organization/**
+          filters:
+            - StripPrefix=3
+        - id: organization-service-health
+          uri: ${ORGANIZATION_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/services/organization/health
+          filters:
+            - RewritePath=/services/organization/health, /health
+
+        # --- Order Service ---
+        - id: order-service
+          uri: ${ORDER_SERVICE_URL:http://localhost:8083}
+          predicates:
+            - Path=/api/v1/orders/**
+          filters:
+            - StripPrefix=3
+        - id: order-service-health
+          uri: ${ORDER_SERVICE_URL:http://localhost:8083}
+          predicates:
+            - Path=/services/orders/health
+          filters:
+            - RewritePath=/services/orders/health, /health
+
+        # --- Dispatch Service ---
+        - id: dispatch-service
+          uri: ${DISPATCH_SERVICE_URL:http://localhost:8084}
+          predicates:
+            - Path=/api/v1/dispatch/**
+          filters:
+            - StripPrefix=3
+        - id: dispatch-service-health
+          uri: ${DISPATCH_SERVICE_URL:http://localhost:8084}
+          predicates:
+            - Path=/services/dispatch/health
+          filters:
+            - RewritePath=/services/dispatch/health, /health
+
+        # --- Notification Service ---
+        - id: notification-service
+          uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8085}
+          predicates:
+            - Path=/api/v1/notifications/**
+          filters:
+            - StripPrefix=3
+        - id: notification-service-health
+          uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8085}
+          predicates:
+            - Path=/services/notifications/health
+          filters:
+            - RewritePath=/services/notifications/health, /health
+
+      httpclient:
+        connect-timeout: 5000
+        response-timeout: 10s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+      cors:
+        allowed-origins:
+          - "http://localhost:3000"
+          - "http://127.0.0.1:3000"
+        allowed-methods:
+          - GET
+          - OPTIONS
+        allowed-headers:
+          - "*"
+        allow-credentials: true
+  endpoint:
+    health:
+      show-details: always
+    gateway:
+      enabled: true
+
+logging:
+  level:
+    com.swiftdrop.gateway: DEBUG
+    org.springframework.cloud.gateway: INFO

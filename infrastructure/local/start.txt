@@ -1,0 +1,363 @@
+# SwiftDrop — Local Development Setup Guide
+**For All Group Members**
+
+## 1. Purpose
+
+This guide explains how every team member should configure and run the SwiftDrop delivery management platform in their local development environment.
+
+Our project consists of five Spring Boot microservices, PostgreSQL databases, a Next.js frontend, and supporting infrastructure managed through Docker.
+
+All members must follow the same setup process to reduce configuration errors and ensure that services can communicate correctly.
+
+## 2. Development Architecture
+
+We support three development modes:
+
+| Mode | Backend | Database | Purpose |
+|---|---|---|---|
+| Full Docker | All services in Docker | Local PostgreSQL | Run the complete system |
+| Hybrid development | Your service locally; other services in Docker | Local PostgreSQL | Recommended for daily development |
+| Cloud database testing | Your service locally or Docker | Neon PostgreSQL | Test against the shared cloud database |
+
+**Recommended approach:** Run your own backend service locally and keep the remaining services running in Docker. This lets you modify and debug your service without rebuilding its Docker image every time.
+
+## 3. Prerequisites
+
+Before starting, make sure you have installed:
+
+- Docker Desktop
+- Git
+- Java and Maven versions compatible with the project
+- Node.js and npm
+- An IDE such as IntelliJ IDEA or VS Code
+
+Verify the required tools:
+
+```bash
+docker --version
+docker compose version
+java -version
+mvn -version
+node --version
+npm --version
+```
+
+Clone the repository and navigate to the project root.
+
+## 4. Step 1 — Start the Local PostgreSQL Container
+
+First, start the PostgreSQL infrastructure using Docker Compose.
+
+Navigate to the directory containing the relevant Compose file. For example:
+
+```bash
+cd infrastructure/dev
+```
+
+Configure the `.env` file according to the project's `.env.example` file. Ensure that the PostgreSQL container name, username, password, and port mapping match the Compose configuration.
+
+Start PostgreSQL:
+
+```bash
+docker compose up -d
+```
+
+If the Compose file is located elsewhere, execute the command from that directory or specify the correct Compose file path.
+
+Verify that the container is running:
+
+```bash
+docker ps
+```
+
+Confirm that the PostgreSQL container named `swiftdrop-postgres` is running before proceeding.
+
+## 5. Step 2 — Create All Five Local Databases
+
+SwiftDrop uses a separate database for each microservice. Once PostgreSQL has started successfully, create the databases.
+
+Run the following command:
+
+```bash
+docker exec -it swiftdrop-postgres psql -U admin -d postgres \
+  -c "CREATE DATABASE identity_db;" \
+  -c "CREATE DATABASE organization_db;" \
+  -c "CREATE DATABASE order_db;" \
+  -c "CREATE DATABASE dispatch_db;" \
+  -c "CREATE DATABASE notification_db;"
+```
+
+The databases correspond to these services:
+
+| Database | Microservice |
+|---|---|
+| `identity_db` | Identity Service |
+| `organization_db` | Organization Service |
+| `order_db` | Order Service |
+| `dispatch_db` | Dispatch Service |
+| `notification_db` | Notification Service |
+
+Verify that all databases have been created:
+
+```bash
+docker exec -it swiftdrop-postgres \
+  psql -U admin -d postgres -c "\l"
+```
+
+**Important:** This is an initial setup command. If you run it again after the databases have already been created, PostgreSQL will report that they already exist. Do not drop or recreate databases containing work you need to preserve.
+
+## 6. Step 3 — Start the Backend Infrastructure
+
+After creating the databases, navigate to the development infrastructure directory:
+
+```bash
+cd infrastructure/dev
+```
+
+Configure the `.env` file correctly, then execute the project's provided startup script.
+
+For example, if the repository provides a script named `start.sh`:
+
+```bash
+bash start.sh
+```
+
+Use the actual script name supplied in the repository.
+
+This script should start the required backend containers and supporting infrastructure according to the project's configuration.
+
+Check the container status:
+
+```bash
+docker ps
+```
+
+If a service fails to start, inspect its logs:
+
+```bash
+docker logs <container-name>
+```
+
+For example:
+
+```bash
+docker logs swiftdrop-postgres
+```
+
+Do not assume a service is ready merely because its container exists. Confirm that it is running and healthy before debugging dependent services.
+
+## 7. Step 4 — Configure the Database Connection
+
+Each backend service must connect to its own database. The connection configuration depends on whether the backend runs on your machine or inside Docker.
+
+### Option A — Local PostgreSQL
+
+Use this option for normal development and hybrid development.
+
+For a backend running directly on your computer, the Identity Service connection should use the locally exposed PostgreSQL port:
+
+```yaml
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5437/identity_db
+    username: admin
+    password: ${DB_PASSWORD}
+```
+
+Replace the example password reference with the appropriate environment variable configured for your project.
+
+The other services should connect to their corresponding databases using the correct local port and credentials.
+
+**Check the actual port mapping in Docker Compose.** The port `5437` is only correct if your Compose configuration exposes PostgreSQL on that port.
+
+### Option B — Neon PostgreSQL
+
+Use Neon when you specifically need to test against the shared cloud database.
+
+The Identity Service connection should use the relevant Neon connection URL and credentials supplied through your team's approved configuration.
+
+```yaml
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+```
+
+Configure these variables with the appropriate Neon values in your local environment. Do not commit the connection string or credentials to Git.
+
+### Important Configuration Rules
+
+- Do not commit personal `.env` files or database passwords.
+- Do not overwrite shared configuration files simply to switch between local PostgreSQL and Neon.
+- Prefer environment variables or separate Spring profiles for switching database environments.
+- Never run database migrations against the shared Neon database unintentionally.
+- Do not run local and cloud migrations interchangeably without understanding which database your service is targeting.
+
+**Docker networking rule:** A Spring Boot application running locally can connect through `localhost` and the published PostgreSQL port. A backend running inside Docker should normally connect using the PostgreSQL Compose service name and the container's internal PostgreSQL port, usually `5432`.
+
+## 8. Step 5 — Run Your Individual Backend Service
+
+If you are developing a particular microservice, you do not need to run that service inside Docker.
+
+Navigate to your service directory from the repository root.
+
+For example, for the Identity Service:
+
+```bash
+cd services/identity-service
+```
+
+Start the Spring Boot application:
+
+```bash
+mvn spring-boot:run
+```
+
+Replace `identity-service` with the actual directory name of your assigned service.
+
+Before starting the application, ensure that:
+
+1. Your local PostgreSQL container is running.
+2. Your service's database has been created.
+3. The database URL points to the correct environment.
+4. Required environment variables are configured.
+5. The service's configured application port is available.
+6. Flyway migrations can execute successfully.
+
+If the project uses a Maven wrapper, you may use the repository's `./mvnw spring-boot:run` command instead, where supported.
+
+### Working with the Remaining Services
+
+For hybrid development:
+
+- Run your assigned microservice locally.
+- Leave the remaining microservices running in Docker.
+- Keep the local PostgreSQL infrastructure running.
+- Ensure that the other services can reach your locally running service if they need to call it.
+
+**Important:** A container cannot normally reach a service running on your host machine using `localhost`. If another Dockerized service must call your locally running backend, configure the appropriate host address and network routing for your operating system and Docker setup.
+
+## 9. Step 6 — Start the Frontend
+
+Open a new terminal and navigate to the frontend directory from the repository root:
+
+```bash
+cd frontend
+```
+
+Install the project dependencies:
+
+```bash
+npm install
+```
+
+You normally only need to install dependencies again when the dependency files change or your local installation needs to be restored.
+
+Start the Next.js development server:
+
+```bash
+npm run dev
+```
+
+Open the local URL printed in the terminal, commonly:
+
+```text
+http://localhost:3000
+```
+
+Ensure the frontend environment configuration points to the correct API Gateway URL.
+
+Do not hardcode service URLs throughout the frontend. Use the project's environment configuration and API client architecture.
+
+## 10. Step 7 — Run the Complete System in Hybrid Mode
+
+This is the recommended workflow when developing a single microservice while testing its integration with the rest of SwiftDrop.
+
+### Terminal 1 — Infrastructure and Remaining Services
+
+```bash
+cd infrastructure/dev
+```
+
+Run the project's startup script after configuring `.env`.
+
+Confirm that PostgreSQL and the required service containers are running.
+
+### Terminal 2 — Your Backend
+
+```bash
+cd services/<your-service>
+mvn spring-boot:run
+```
+
+Make sure your backend uses the local database configuration.
+
+### Terminal 3 — Frontend
+
+```bash
+cd frontend
+npm run dev
+```
+
+Open the frontend in your browser and test the relevant workflows.
+
+### Before Integration Testing
+
+Verify that:
+
+- Your service starts without database errors.
+- Your service's Flyway migrations complete successfully.
+- Your API endpoints return the expected responses.
+- The API Gateway routes requests to the correct backend.
+- The frontend points to the correct API Gateway.
+- Required downstream services are running and reachable.
+- No two services are trying to use the same host port.
+
+## 11. Common Problems and Troubleshooting
+
+| Problem | What to check |
+|---|---|
+| PostgreSQL container is not running | Run `docker ps` and inspect container logs. |
+| Database does not exist | Run the database creation command and verify the database name. |
+| Connection refused | Check PostgreSQL status, host, port mapping and credentials. |
+| Flyway migration fails | Inspect migration logs and check schema or migration version conflicts. |
+| Backend fails to start | Check Java/Maven versions, environment variables, database connectivity and port conflicts. |
+| Frontend cannot call the API | Verify API Gateway URL, CORS settings and backend status. |
+| Docker service cannot reach local backend | Configure the appropriate host address instead of using container `localhost`. |
+| Neon connection fails | Check the cloud connection string, credentials, SSL configuration and network access. |
+
+## 12. Team Development Rules
+
+All group members must follow these rules:
+
+1. **Keep service boundaries clear.** Modify only your assigned service unless the team agrees otherwise.
+2. **Use the correct database.** Each service owns its database and its Flyway migration scripts.
+3. **Use migrations for schema changes.** Do not depend on manually creating tables in individual environments.
+4. **Never commit secrets.** Keep database credentials, tokens and other sensitive values out of Git.
+5. **Follow the agreed Git workflow.** Create feature branches, test your changes and open pull requests against the agreed integration branch, `develop`.
+6. **Test before submitting.** Verify that your service starts, migrations run, and relevant endpoints work.
+7. **Coordinate API changes.** Notify the team when changing endpoint contracts, event schemas or service-to-service communication.
+8. **Do not change shared infrastructure casually.** Coordinate changes to Docker Compose, environment variables, ports and startup scripts.
+9. **Do not run destructive database commands on shared environments.** Confirm the target database before resetting or dropping anything.
+10. **Document configuration changes.** Update the relevant project documentation whenever the setup process changes.
+
+## 13. Quick Reference
+
+| Task | Command |
+|---|---|
+| Start PostgreSQL infrastructure | `docker compose up -d` |
+| Create databases | Run the SQL command in Section 5 |
+| Check containers | `docker ps` |
+| Inspect logs | `docker logs <container-name>` |
+| Run a backend locally | `mvn spring-boot:run` |
+| Install frontend dependencies | `npm install` |
+| Start frontend | `npm run dev` |
+
+## Final Recommendation
+
+For everyday development, use **local PostgreSQL + your backend running locally + the remaining services in Docker + the Next.js frontend running locally**.
+
+Use Neon only when shared cloud-database testing is required. Keep local and cloud configurations separate, use Flyway for schema management, and never commit database credentials to the repository.
+
+Following this workflow will help the entire SwiftDrop team develop independently while maintaining a consistent integration environment.
