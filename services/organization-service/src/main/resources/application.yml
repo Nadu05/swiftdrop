@@ -5,7 +5,7 @@ spring:
   application:
     name: organization-service
   datasource:
-    url: jdbc:postgresql://${NEON_HOST}:5432/swiftdrop_organization?sslmode=require
+    url: jdbc:postgresql://localhost:5437/organization_db
     username: ${NEON_USER}
     password: ${NEON_PASSWORD}
     hikari:
