@@ -997,3 +997,207 @@ body.dispatcher-scroll-lock {
     padding: 1.1rem 1.15rem;
   }
 }
+
+
+/* ==========================================================================
+   Dispatcher Overview Charts & Cards (Task 02)
+   ========================================================================== */
+
+.dispatcher-card {
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  padding: 1.35rem 1.5rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.dispatcher-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.dispatcher-card__title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+
+.dispatcher-card__subtitle {
+  font-size: 0.8125rem;
+  color: #64748b;
+  margin-top: 0.15rem;
+}
+
+/* 2-column charts layout */
+.dispatcher-charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+  width: 100%;
+}
+
+.dispatcher-chart-container {
+  min-width: 0;
+}
+
+/* Chart Tooltips */
+.dispatcher-chart-tooltip {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  font-size: 0.75rem;
+}
+
+.dispatcher-chart-tooltip__date {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.dispatcher-chart-tooltip__value {
+  color: #0f172a;
+}
+
+/* Donut Chart Layout & Center Text */
+.dispatcher-status-chart-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  min-height: 280px;
+}
+
+.dispatcher-donut-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dispatcher-donut-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  text-align: center;
+}
+
+.dispatcher-donut-center__count {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.dispatcher-donut-center__label {
+  font-size: 0.7rem;
+  color: #64748b;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 0.15rem;
+}
+
+/* Donut Chart Legend */
+.dispatcher-status-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  list-style: none;
+  min-width: 180px;
+  flex: 1;
+  max-width: 240px;
+}
+
+.dispatcher-status-legend__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.8125rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--radius-sm);
+  transition: background-color 0.15s ease;
+}
+
+.dispatcher-status-legend__item:hover {
+  background-color: #f8fafc;
+}
+
+.dispatcher-status-legend__indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dispatcher-status-legend__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dispatcher-status-legend__name {
+  color: #334155;
+  font-weight: 500;
+}
+
+.dispatcher-status-legend__values {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.dispatcher-status-legend__count {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.dispatcher-status-legend__percentage {
+  color: #94a3b8;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Responsive Charts Grid */
+@media (max-width: 1024px) {
+  .dispatcher-charts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .dispatcher-card {
+    padding: 1.15rem 1rem;
+  }
+
+  .dispatcher-status-chart-body {
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+  }
+
+  .dispatcher-status-legend {
+    width: 100%;
+    max-width: 100%;
+  }
+}
