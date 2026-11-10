@@ -9,14 +9,19 @@ import {
   GitBranch, 
   Box, 
   Server,
-  Layers
+  Layers,
+  PlusCircle,
+  Clock,
+  Compass
 } from 'lucide-react';
 
 const navItems = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { name: 'Track Parcel', href: '/tracking', icon: Compass },
+  { name: 'Book Delivery', href: '/book', icon: PlusCircle },
+  { name: 'My Deliveries', href: '/bookings', icon: Clock },
   { name: 'Service Health', href: '/health', icon: Activity },
   { name: 'API Tester', href: '/api-tester', icon: Terminal },
-  
 ];
 
 export default function Sidebar() {
