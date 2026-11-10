@@ -41,7 +41,17 @@ function getBreadcrumbsForPath(pathname: string | null): BreadcrumbSegment[] {
     return [
       ...base,
       { label: 'Branch Directory', href: '/organization/branches' },
-      { label: `Edit Branch #${editMatch[1]}` },
+      { label: `Branch #${editMatch[1]}`, href: `/organization/branches/${editMatch[1]}` },
+      { label: 'Edit' },
+    ];
+  }
+
+  const detailsMatch = pathname.match(/^\/organization\/branches\/([^/]+)$/);
+  if (detailsMatch && detailsMatch[1] !== 'create') {
+    return [
+      ...base,
+      { label: 'Branch Directory', href: '/organization/branches' },
+      { label: `Branch #${detailsMatch[1]}` },
     ];
   }
 

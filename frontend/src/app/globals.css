@@ -5123,3 +5123,479 @@ body.org-scroll-lock {
     flex: 1;
   }
 }
+
+
+/* ==========================================================================
+   Organization Admin Module (Member 04 — Phase 3: Branch Details & Status Dialog)
+   Scoped under .org-* classes, consistent with Figma Frame 20:843 design tokens.
+   ========================================================================== */
+
+.org-branch-name--link {
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.org-branch-name--link:hover {
+  color: var(--org-primary);
+  text-decoration: underline;
+}
+
+/* Status Action Button Variants */
+
+.org-btn--danger {
+  background: #dc2626;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.22);
+}
+
+.org-btn--danger:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.org-btn--success {
+  background: #16a34a;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(22, 163, 74, 0.22);
+}
+
+.org-btn--success:hover:not(:disabled) {
+  background: #15803d;
+}
+
+.org-btn--danger-outline {
+  background: #ffffff;
+  border-color: #fca5a5;
+  color: #b91c1c;
+}
+
+.org-btn--danger-outline:hover:not(:disabled) {
+  background: #fef2f2;
+  border-color: #f87171;
+  color: #991b1b;
+}
+
+.org-btn--success-outline {
+  background: #ffffff;
+  border-color: #86efac;
+  color: #15803d;
+}
+
+.org-btn--success-outline:hover:not(:disabled) {
+  background: #f0fdf4;
+  border-color: #4ade80;
+  color: #166534;
+}
+
+/* ---------- Branch Details View ---------- */
+
+.org-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+}
+
+.org-details-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  padding: 1.5rem;
+  background: var(--org-surface);
+  border: 1px solid var(--org-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+}
+
+.org-details-hero__left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.org-details-hero__avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: var(--org-pill-active-bg);
+  color: var(--org-primary);
+  flex-shrink: 0;
+}
+
+.org-details-hero__identity {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.org-details-hero__title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.org-details-hero__name {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--org-text);
+  letter-spacing: -0.02em;
+}
+
+.org-details-hero__meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  font-size: 0.8125rem;
+  color: var(--org-text-muted);
+}
+
+.org-details-hero__meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.org-details-hero__meta-item--mono {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.76rem;
+}
+
+.org-details-hero__meta-sep {
+  color: #cbd5e1;
+}
+
+.org-details-hero__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+/* Detail Cards Grid */
+
+.org-details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+  width: 100%;
+}
+
+.org-details-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  padding: 1.4rem 1.5rem;
+  background: var(--org-surface);
+  border: 1px solid var(--org-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+}
+
+.org-details-card--full {
+  grid-column: 1 / -1;
+}
+
+.org-details-card__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.org-details-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--org-pill-active-bg);
+  color: var(--org-primary);
+  flex-shrink: 0;
+}
+
+.org-details-card__title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--org-text);
+}
+
+.org-details-card__subtitle {
+  font-size: 0.78rem;
+  color: var(--org-text-muted);
+  margin-top: 0.1rem;
+}
+
+.org-details-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem 1.25rem;
+}
+
+.org-details-list--grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.org-details-list__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.75rem 0.9rem;
+  background: #f8fafc;
+  border: 1px solid #eef2f6;
+  border-radius: var(--radius-sm);
+}
+
+.org-details-list__term {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--org-text-muted);
+}
+
+.org-details-list__desc {
+  font-size: 0.85rem;
+  color: var(--org-text-secondary);
+  word-break: break-word;
+}
+
+.org-details-list__desc--strong {
+  font-weight: 700;
+  color: var(--org-text);
+}
+
+.org-details-list__desc--mono {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  font-size: 0.8125rem;
+}
+
+.org-details-list__desc--with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  font-size: 0.8125rem;
+}
+
+/* ---------- Branch Status Confirmation Dialog ---------- */
+
+.org-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.org-dialog {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--org-surface);
+  border: 1px solid var(--org-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 20px 44px rgba(15, 23, 42, 0.22);
+}
+
+.org-dialog__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.85rem;
+  padding: 1.25rem 1.4rem;
+  border-bottom: 1px solid var(--org-border);
+}
+
+.org-dialog__header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.org-dialog__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.org-dialog__icon--deactivate {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.org-dialog__icon--activate {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
+.org-dialog__title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--org-text);
+}
+
+.org-dialog__subtitle {
+  font-size: 0.78rem;
+  color: var(--org-text-muted);
+  margin-top: 0.1rem;
+}
+
+.org-dialog__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--org-text-muted);
+  cursor: pointer;
+}
+
+.org-dialog__close:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: var(--org-text);
+}
+
+.org-dialog__close:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.org-dialog__body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.35rem 1.4rem;
+}
+
+.org-dialog__branch-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  padding: 0.95rem 1.1rem;
+  background: #f8fafc;
+  border: 1px solid var(--org-border);
+  border-radius: var(--radius-sm);
+}
+
+.org-dialog__branch-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.org-dialog__branch-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.org-dialog__branch-icon {
+  color: var(--org-primary);
+}
+
+.org-dialog__branch-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--org-text);
+}
+
+.org-dialog__branch-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.76rem;
+  color: var(--org-text-muted);
+}
+
+.org-dialog__transition {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.org-dialog__transition-arrow {
+  color: #94a3b8;
+}
+
+.org-dialog__description {
+  font-size: 0.84rem;
+  color: var(--org-text-secondary);
+  line-height: 1.55;
+}
+
+.org-dialog__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  padding: 1rem 1.4rem;
+  background: #f8fafc;
+  border-top: 1px solid var(--org-border);
+}
+
+@media (max-width: 960px) {
+  .org-details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .org-details-list--grid-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .org-details-hero {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .org-details-hero__actions {
+    width: 100%;
+  }
+
+  .org-details-hero__actions .org-btn {
+    flex: 1;
+  }
+
+  .org-details-list,
+  .org-details-list--grid-3 {
+    grid-template-columns: 1fr;
+  }
+
+  .org-dialog__footer {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .org-dialog__footer .org-btn {
+    width: 100%;
+  }
+}

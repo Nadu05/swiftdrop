@@ -26,7 +26,6 @@ export interface BranchTableProps {
   onRetry: () => void;
   onEnableMockMode: () => void;
   onResetFilters: () => void;
-  onViewDetails: (branch: BranchResponse) => void;
   onToggleStatus: (branch: BranchResponse) => void;
 }
 
@@ -40,7 +39,6 @@ export default function BranchTable({
   onRetry,
   onEnableMockMode,
   onResetFilters,
-  onViewDetails,
   onToggleStatus,
 }: BranchTableProps) {
   return (
@@ -172,7 +170,12 @@ export default function BranchTable({
                     {/* Branch Name */}
                     <td data-label="Branch Name">
                       <div className="org-branch-name-cell">
-                        <span className="org-branch-name">{branch.name}</span>
+                        <Link
+                          href={`/organization/branches/${branch.id}`}
+                          className="org-branch-name org-branch-name--link"
+                        >
+                          {branch.name}
+                        </Link>
                         <span className="org-branch-coords">
                           ID #{branch.id} · {branch.latitude.toFixed(4)}, {branch.longitude.toFixed(4)}
                         </span>
@@ -240,16 +243,15 @@ export default function BranchTable({
                     {/* Available Actions */}
                     <td data-label="Actions" className="org-table__td--actions">
                       <div className="org-row-actions">
-                        <button
-                          type="button"
+                        <Link
+                          href={`/organization/branches/${branch.id}`}
                           className="org-action-btn"
-                          onClick={() => onViewDetails(branch)}
                           aria-label={`View details for ${branch.name}`}
                           title="View branch details"
                         >
                           <Eye size={14} aria-hidden="true" />
                           <span>View</span>
-                        </button>
+                        </Link>
 
                         <Link
                           href={`/organization/branches/${branch.id}/edit`}

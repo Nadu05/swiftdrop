@@ -14,6 +14,7 @@ import {
 import BranchSummaryCards from '@/components/organization/branches/BranchSummaryCards';
 import BranchFilters from '@/components/organization/branches/BranchFilters';
 import BranchTable from '@/components/organization/branches/BranchTable';
+import BranchStatusDialog from '@/components/organization/branches/BranchStatusDialog';
 import {
   calculateBranchSummaryMetrics,
   getBranches,
@@ -45,10 +46,14 @@ export default function OrganizationBranchesPage() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<BranchStatusFilter>('ALL');
 
-  // Confirmed operation toast banner when returning from Create or Edit page
+  // Confirmed operation toast banner (Create, Edit, Activate, Deactivate)
   const [successBanner, setSuccessBanner] = useState<string | null>(null);
 
-  // Phase boundary notice for Phase 3+ actions (View Details, Activate/Deactivate, sibling tabs)
+  // Branch selected for Activate / Deactivate confirmation modal
+  const [branchPendingStatusToggle, setBranchPendingStatusToggle] =
+    useState<BranchResponse | null>(null);
+
+  // Phase boundary notice for sibling tabs (Staff accounts, Roles & permissions, Audit log)
   const [phaseNotice, setPhaseNotice] = useState<string | null>(null);
 
   const formatTimestamp = () =>
@@ -157,20 +162,39 @@ export default function OrganizationBranchesPage() {
 
   const hasActiveFilters = searchQuery.trim().length > 0 || statusFilter !== 'ALL';
 
-  const handleViewDetails = (branch: BranchResponse) => {
-    // TODO (Phase 3): Connect Branch Details modal/page
-    setPhaseNotice(
-      `Branch details view for "${branch.name}" (${branch.code}) will be implemented in the next phase.`
-    );
-  };
+  const handleRequestToggleStatus = useCallback((branch: BranchResponse) => {
+    setBranchPendingStatusToggle(branch);
+  }, []);
 
-  const handleToggleStatus = (branch: BranchResponse) => {
-    // TODO (Phase 3): Connect Activate/Deactivate confirmation workflow via updateBranch(branch.id, { status })
-    const targetAction = branch.status === 'ACTIVE' ? 'Deactivation' : 'Activation';
-    setPhaseNotice(
-      `${targetAction} workflow for "${branch.name}" (${branch.code}) is scheduled for Phase 3 (PATCH /api/v1/organization/branches/${branch.id}).`
-    );
-  };
+  const handleStatusUpdated = useCallback(
+    async (updatedBranch: BranchResponse) => {
+      setBranchPendingStatusToggle(null);
+
+      // Immediately update local state so table row and summary cards reflect the confirmed change
+      setBranches((prev) =>
+        prev.map((item) => (item.id === updatedBranch.id ? updatedBranch : item))
+      );
+      setLastUpdated(formatTimestamp());
+
+      const actionWord =
+        updatedBranch.status === 'ACTIVE' ? 'activated' : 'deactivated';
+      setSuccessBanner(
+        `Branch "${updatedBranch.name}" (${updatedBranch.code}) has been ${actionWord} and is now ${updatedBranch.status}.`
+      );
+
+      // Re-fetch authoritative list from the backend when in live API mode
+      if (!isMockMode) {
+        try {
+          const freshList = await getBranches();
+          setBranches(freshList);
+          setLastUpdated(formatTimestamp());
+        } catch {
+          // Keep the confirmed updatedBranch in state if the background refresh fails
+        }
+      }
+    },
+    [isMockMode]
+  );
 
   return (
     <div className="org-page">
@@ -195,7 +219,7 @@ export default function OrganizationBranchesPage() {
         </div>
       )}
 
-      {/* Confirmed Create / Edit Operation Success Banner */}
+      {/* Confirmed Create / Edit / Status Operation Success Banner */}
       {successBanner && (
         <div className="org-success-banner" role="status" aria-live="polite">
           <div className="org-success-banner__left">
@@ -335,8 +359,15 @@ export default function OrganizationBranchesPage() {
         onRetry={handleSwitchToLiveApi}
         onEnableMockMode={handleEnableMockMode}
         onResetFilters={handleResetFilters}
-        onViewDetails={handleViewDetails}
-        onToggleStatus={handleToggleStatus}
+        onToggleStatus={handleRequestToggleStatus}
+      />
+
+      {/* Activate / Deactivate Confirmation Dialog */}
+      <BranchStatusDialog
+        branch={branchPendingStatusToggle}
+        isOpen={Boolean(branchPendingStatusToggle)}
+        onClose={() => setBranchPendingStatusToggle(null)}
+        onStatusUpdated={handleStatusUpdated}
       />
     </div>
   );

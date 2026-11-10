@@ -224,6 +224,22 @@ export async function updateBranch(
 }
 
 /**
+ * Activate or deactivate a branch using a status-only partial update.
+ *
+ * Confirmed Backend Contract (BranchController.update & BranchService.update):
+ * Endpoint: PATCH /api/v1/organization/branches/{id}
+ * Payload:  { "status": "ACTIVE" } or { "status": "INACTIVE" }
+ *
+ * Returns HTTP 200 OK with the updated `BranchResponse` DTO.
+ */
+export async function updateBranchStatus(
+  id: number,
+  status: BranchStatus
+): Promise<BranchResponse> {
+  return updateBranch(id, { status });
+}
+
+/**
  * Computes summary metrics strictly from real `BranchResponse` fields.
  */
 export function calculateBranchSummaryMetrics(
