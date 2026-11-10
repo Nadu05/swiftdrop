@@ -1,13 +1,22 @@
 'use client';
 
-import { Eye, Phone, ChevronLeft, ChevronRight, Bike, Car, Star } from 'lucide-react';
+import {
+  Eye,
+  Phone,
+  ChevronLeft,
+  ChevronRight,
+  Bike,
+  Car,
+  XCircle,
+} from 'lucide-react';
 import type { CourierProfile, CourierStatus } from './types';
 import { getInitials } from '../deliveries/courierUtils';
 
 interface CourierTableProps {
   couriers: CourierProfile[];
   isLoading?: boolean;
-  onViewProfile: (courier: CourierProfile) => void;
+  error?: string | null;
+  onViewDetails: (courier: CourierProfile) => void;
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
@@ -26,7 +35,7 @@ const statusBadgeConfig: Record<
     dot: '#22c55e',
   },
   BUSY: {
-    label: 'On Route',
+    label: 'On Delivery',
     bg: '#fffbeb',
     text: '#b45309',
     dot: '#f59e0b',
@@ -48,7 +57,8 @@ const statusBadgeConfig: Record<
 export default function CourierTable({
   couriers,
   isLoading = false,
-  onViewProfile,
+  error = null,
+  onViewDetails,
   currentPage,
   totalPages,
   onPageChange,
@@ -58,16 +68,16 @@ export default function CourierTable({
   return (
     <div className="dispatcher-card">
       <div className="dispatcher-table-container">
-        <table className="dispatcher-table" aria-label="Courier fleet directory">
+        <table className="dispatcher-table" aria-label="Couriers management directory">
           <thead>
             <tr>
-              <th>Courier</th>
-              <th>Vehicle &amp; Contact</th>
-              <th>Service Zone</th>
-              <th>Workload Capacity</th>
-              <th>Completed (Today / Total)</th>
-              <th>Rating</th>
-              <th>Status</th>
+              <th>Courier ID</th>
+              <th>Courier Name</th>
+              <th>Contact Number</th>
+              <th>Vehicle Type</th>
+              <th>Availability Status</th>
+              <th>Active Deliveries</th>
+              <th>Completed Deliveries</th>
               <th style={{ textAlign: 'right' }}>Actions</th>
             </tr>
           </thead>
@@ -81,6 +91,15 @@ export default function CourierTable({
                   </div>
                 </td>
               </tr>
+            ) : error ? (
+              <tr>
+                <td colSpan={8} className="dispatcher-table__empty text-rose-600 font-medium py-6">
+                  <div className="flex flex-col items-center gap-1">
+                    <XCircle size={20} />
+                    <span>{error}</span>
+                  </div>
+                </td>
+              </tr>
             ) : couriers.length === 0 ? (
               <tr>
                 <td colSpan={8} className="dispatcher-table__empty">
@@ -89,7 +108,7 @@ export default function CourierTable({
               </tr>
             ) : (
               couriers.map((courier) => {
-                const statusInfo = statusBadgeConfig[courier.status];
+                const statusInfo = statusBadgeConfig[courier.status] || statusBadgeConfig.AVAILABLE;
                 const percent = Math.min(
                   100,
                   Math.round((courier.activeDeliveries / courier.maxCapacity) * 100)
@@ -97,9 +116,16 @@ export default function CourierTable({
 
                 return (
                   <tr key={courier.id}>
-                    {/* Courier Name & Code */}
+                    {/* 1. Courier ID */}
                     <td>
-                      <div className="dispatcher-courier-profile-cell">
+                      <span className="dispatcher-tracking-number">
+                        {courier.courierCode}
+                      </span>
+                    </td>
+
+                    {/* 2. Courier Name */}
+                    <td>
+                      <div className="dispatcher-active-courier-cell">
                         <div className="dispatcher-courier-avatar" aria-hidden="true">
                           <span>{getInitials(courier.name)}</span>
                           <span
@@ -107,16 +133,31 @@ export default function CourierTable({
                             style={{ backgroundColor: statusInfo.dot }}
                           />
                         </div>
-                        <div className="dispatcher-courier-profile-info">
-                          <span className="dispatcher-courier-profile-name">{courier.name}</span>
-                          <span className="dispatcher-courier-profile-code font-mono">
-                            {courier.courierCode}
-                          </span>
+                        <div className="dispatcher-cell-stack">
+                          <span className="dispatcher-customer-name">{courier.name}</span>
+                          <span className="text-[11px] text-slate-500">{courier.zone.split(' - ')[0]}</span>
                         </div>
                       </div>
                     </td>
 
-                    {/* Vehicle & Contact */}
+                    {/* 3. Contact Number */}
+                    <td>
+                      <div className="dispatcher-cell-row">
+                        <a
+                          href={`tel:${courier.phone}`}
+                          className="dispatcher-courier-phone-btn"
+                          title={`Call ${courier.name}`}
+                          aria-label={`Call ${courier.name}`}
+                        >
+                          <Phone size={12} aria-hidden="true" />
+                        </a>
+                        <span className="text-xs text-slate-700 font-mono font-medium">
+                          {courier.phone}
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* 4. Vehicle Type */}
                     <td>
                       <div className="dispatcher-active-courier-cell">
                         <span className="dispatcher-courier-avatar-mini" aria-hidden="true">
@@ -124,19 +165,31 @@ export default function CourierTable({
                         </span>
                         <div className="dispatcher-cell-stack">
                           <span className="text-xs font-semibold text-slate-800">
+                            {courier.vehicleType}
+                          </span>
+                          <span className="text-[11px] text-slate-400 font-mono">
                             {courier.vehiclePlate}
                           </span>
-                          <span className="text-xs text-slate-400 font-mono">{courier.phone}</span>
                         </div>
                       </div>
                     </td>
 
-                    {/* Service Zone */}
+                    {/* 5. Availability Status */}
                     <td>
-                      <span className="dispatcher-city-tag">{courier.zone.split(' - ')[0]}</span>
+                      <span
+                        className="dispatcher-status-badge"
+                        style={{ backgroundColor: statusInfo.bg, color: statusInfo.text }}
+                      >
+                        <span
+                          className="dispatcher-status-dot"
+                          style={{ backgroundColor: statusInfo.dot }}
+                          aria-hidden="true"
+                        />
+                        {statusInfo.label}
+                      </span>
                     </td>
 
-                    {/* Workload Capacity Bar */}
+                    {/* 6. Active Deliveries */}
                     <td>
                       <div className="dispatcher-workload-bar-wrapper">
                         <div className="dispatcher-workload-bar-top">
@@ -154,7 +207,7 @@ export default function CourierTable({
                         >
                           <div
                             className={`dispatcher-workload-bar-fill ${
-                              percent >= 70
+                              percent >= 75
                                 ? 'dispatcher-workload-bar__fill--high'
                                 : percent >= 40
                                 ? 'dispatcher-workload-bar__fill--moderate'
@@ -166,64 +219,30 @@ export default function CourierTable({
                       </div>
                     </td>
 
-                    {/* Completed Today vs Lifetime */}
+                    {/* 7. Completed Deliveries */}
                     <td>
                       <div className="dispatcher-cell-stack">
                         <span className="text-xs font-bold text-slate-900">
                           {courier.completedToday} today
                         </span>
-                        <span className="text-xs text-slate-400">
+                        <span className="text-[11px] text-slate-500">
                           {courier.totalCompletedLifetime.toLocaleString()} total
                         </span>
                       </div>
                     </td>
 
-                    {/* Rating */}
-                    <td>
-                      <div className="flex items-center gap-1 text-xs font-bold text-amber-600">
-                        <Star size={13} fill="#d97706" color="#d97706" aria-hidden="true" />
-                        <span>{courier.rating.toFixed(1)}</span>
-                      </div>
-                    </td>
-
-                    {/* Status Badge */}
-                    <td>
-                      <span
-                        className="dispatcher-status-badge"
-                        style={{ backgroundColor: statusInfo.bg, color: statusInfo.text }}
-                      >
-                        <span
-                          className="dispatcher-status-dot"
-                          style={{ backgroundColor: statusInfo.dot }}
-                          aria-hidden="true"
-                        />
-                        {statusInfo.label}
-                      </span>
-                    </td>
-
-                    {/* Actions */}
+                    {/* 8. Actions */}
                     <td style={{ textAlign: 'right' }}>
-                      <div className="dispatcher-table-actions">
-                        <a
-                          href={`tel:${courier.phone}`}
-                          className="dispatcher-courier-phone-btn"
-                          title={`Call ${courier.name}`}
-                          aria-label={`Call ${courier.name}`}
-                        >
-                          <Phone size={12} aria-hidden="true" />
-                        </a>
-
-                        <button
-                          type="button"
-                          className="dispatcher-action-btn-secondary"
-                          onClick={() => onViewProfile(courier)}
-                          title="View courier profile"
-                          aria-label={`View profile for ${courier.name}`}
-                        >
-                          <Eye size={13} aria-hidden="true" />
-                          <span>Profile</span>
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        className="dispatcher-action-btn-secondary"
+                        onClick={() => onViewDetails(courier)}
+                        title="View courier details & workload"
+                        aria-label={`View details for ${courier.name}`}
+                      >
+                        <Eye size={13} aria-hidden="true" />
+                        <span>View Details</span>
+                      </button>
                     </td>
                   </tr>
                 );
@@ -278,4 +297,3 @@ export default function CourierTable({
     </div>
   );
 }
-

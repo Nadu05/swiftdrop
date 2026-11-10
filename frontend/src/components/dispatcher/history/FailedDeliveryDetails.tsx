@@ -31,36 +31,38 @@ export default function FailedDeliveryDetails({
   return (
     <div className="dispatcher-modal-section">
       <div className="dispatcher-modal-section-title">
-        <AlertTriangle size={16} className="text-rose-600" aria-hidden="true" />
-        <span className="text-rose-950 font-bold">Failed Delivery Investigation</span>
+        <AlertTriangle size={15} style={{ color: '#dc2626' }} aria-hidden="true" />
+        <span style={{ color: '#991b1b', fontWeight: 700 }}>Failed Delivery Investigation</span>
       </div>
 
-      <div className="p-4 rounded-xl bg-rose-50/70 border border-rose-200 space-y-3">
-        {/* Failure Reason */}
-        <div className="text-xs">
-          <span className="text-rose-800 font-semibold block mb-1">Documented Reason for Failure</span>
-          <div className="p-2.5 rounded-lg bg-white border border-rose-200 font-medium text-rose-900 leading-relaxed">
+      <div className="dispatcher-failure-box">
+        {/* Documented Reason */}
+        <div>
+          <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#991b1b', textTransform: 'uppercase', display: 'block', marginBottom: '0.35rem' }}>
+            Documented Reason for Failure
+          </span>
+          <div className="dispatcher-failure-reason-callout">
             {failureDetails.reason}
           </div>
         </div>
 
-        {/* Attempt info grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pt-1">
-          <div className="p-2.5 rounded-lg bg-white/80 border border-rose-100 flex items-center gap-2">
-            <Clock size={15} className="text-rose-600 flex-shrink-0" />
-            <div>
-              <span className="text-slate-500 block text-[11px]">Final Attempt Timestamp</span>
-              <span className="font-semibold text-slate-800">
+        {/* Stats Grid */}
+        <div className="dispatcher-failure-grid">
+          <div className="dispatcher-failure-stat">
+            <Clock size={16} style={{ color: '#dc2626', flexShrink: 0 }} aria-hidden="true" />
+            <div className="dispatcher-failure-stat-info">
+              <span className="dispatcher-failure-stat-label">Final Attempt Timestamp</span>
+              <span className="dispatcher-failure-stat-val">
                 {formatTimestamp(failureDetails.attemptTimestamp)}
               </span>
             </div>
           </div>
 
-          <div className="p-2.5 rounded-lg bg-white/80 border border-rose-100 flex items-center gap-2">
-            <RotateCcw size={15} className="text-rose-600 flex-shrink-0" />
-            <div>
-              <span className="text-slate-500 block text-[11px]">Cumulative Delivery Attempts</span>
-              <span className="font-bold text-slate-900">
+          <div className="dispatcher-failure-stat">
+            <RotateCcw size={16} style={{ color: '#dc2626', flexShrink: 0 }} aria-hidden="true" />
+            <div className="dispatcher-failure-stat-info">
+              <span className="dispatcher-failure-stat-label">Cumulative Attempts</span>
+              <span className="dispatcher-failure-stat-val">
                 {failureDetails.attemptsCount || deliveryAttempts} Attempts
               </span>
             </div>
@@ -68,21 +70,23 @@ export default function FailedDeliveryDetails({
         </div>
 
         {/* Courier field notes */}
-        <div className="text-xs pt-1">
-          <div className="flex items-center gap-1.5 text-rose-800 font-medium mb-1">
-            <FileWarning size={14} className="text-rose-600" />
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.7rem', fontWeight: 700, color: '#991b1b', textTransform: 'uppercase', marginBottom: '0.35rem' }}>
+            <FileWarning size={14} style={{ color: '#dc2626' }} aria-hidden="true" />
             <span>Courier Field Operational Notes</span>
           </div>
-          <div className="p-2.5 rounded-lg bg-white/90 border border-rose-200 text-slate-700 italic">
+          <div className="dispatcher-failure-notes-box">
             "{failureDetails.courierNotes}"
           </div>
         </div>
 
-        {/* Overall delivery notes */}
+        {/* Dispatcher Directives */}
         {deliveryNotes && (
-          <div className="text-xs pt-1">
-            <span className="text-slate-600 font-medium block mb-1">System / Dispatcher Directives</span>
-            <div className="p-2 rounded bg-white/70 border border-slate-200 text-slate-700">
+          <div>
+            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#475569', textTransform: 'uppercase', display: 'block', marginBottom: '0.3rem' }}>
+              System / Dispatcher Directives
+            </span>
+            <div style={{ padding: '0.65rem 0.85rem', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-sm)', fontSize: '0.75rem', color: '#475569' }}>
               {deliveryNotes}
             </div>
           </div>
@@ -91,4 +95,3 @@ export default function FailedDeliveryDetails({
     </div>
   );
 }
-
