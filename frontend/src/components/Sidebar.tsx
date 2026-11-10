@@ -10,12 +10,14 @@ import {
   Box, 
   Server,
   Layers,
-  PlusCircle
+  PlusCircle,
+  Clock
 } from 'lucide-react';
 
 const navItems = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Book Delivery', href: '/book', icon: PlusCircle },
+  { name: 'My Deliveries', href: '/bookings', icon: Clock },
   { name: 'Service Health', href: '/health', icon: Activity },
   { name: 'API Tester', href: '/api-tester', icon: Terminal },
 ];

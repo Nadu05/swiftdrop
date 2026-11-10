@@ -5,6 +5,15 @@
 
 export type ParcelSize = 'SMALL' | 'MEDIUM' | 'LARGE' | 'EXTRA_LARGE';
 
+export type OrderStatus =
+  | 'Created'
+  | 'Picked Up'
+  | 'In Transit'
+  | 'Out for Delivery'
+  | 'Delivered'
+  | 'Failed'
+  | string;
+
 /**
  * Request payload sent to POST /api/v1/orders/quote
  * Used to get an official price estimate before confirming a booking.
@@ -53,10 +62,35 @@ export interface CreateOrderRequest {
 export interface CreateOrderResponse {
   id: number | string;
   trackingNumber: string;
-  status: string;
+  status: OrderStatus;
   deliveryFee: number;
   currency: string;
   pickupAddress: string;
   dropoffAddress: string;
   createdAt: string;
+}
+
+/**
+ * Full Delivery Order representation returned by:
+ * GET /api/v1/orders (List)
+ * GET /api/v1/orders/{id} (Single Order Details)
+ */
+export interface DeliveryOrder {
+  id: number | string;
+  trackingNumber: string;
+  status: OrderStatus;
+  deliveryFee: number;
+  currency: string;
+  pickupAddress: string;
+  pickupContactName?: string;
+  pickupContactPhone?: string;
+  dropoffAddress: string;
+  dropoffContactName?: string;
+  dropoffContactPhone?: string;
+  parcelDescription?: string;
+  parcelSize?: ParcelSize;
+  weightKg?: number;
+  deliveryInstructions?: string;
+  createdAt: string;
+  updatedAt?: string;
 }

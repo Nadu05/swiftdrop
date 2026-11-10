@@ -3,7 +3,8 @@ import type {
   OrderQuoteRequest, 
   OrderQuoteResponse,
   CreateOrderRequest,
-  CreateOrderResponse
+  CreateOrderResponse,
+  DeliveryOrder
 } from '@/types/order.types';
 
 /**
@@ -88,5 +89,67 @@ export async function createOrder(
     throw new Error(
       'An unexpected error occurred while creating your delivery booking. Please try again.'
     );
+  }
+}
+
+/**
+ * Fetch all delivery orders belonging to the authenticated customer.
+ * 
+ * Endpoint: GET /api/v1/orders
+ * The backend Order Service automatically filters orders by the authenticated customer's JWT token.
+ *
+ * @returns List of DeliveryOrder objects
+ */
+export async function getCustomerOrders(): Promise<DeliveryOrder[]> {
+  try {
+    const response = await apiClient.get<DeliveryOrder[]>('/api/v1/orders');
+    return response.data;
+  } catch (error: any) {
+    if (error.response?.data?.message) {
+      throw new Error(error.response.data.message);
+    }
+    if (error.response?.status === 401) {
+      throw new Error('Your session has expired. Please sign in to view your delivery history.');
+    }
+    if (error.response?.status === 404) {
+      throw new Error('The Orders Service endpoint (/api/v1/orders) was not found on the backend Gateway.');
+    }
+    if (error.code === 'ECONNABORTED' || !error.response) {
+      throw new Error(
+        'Unable to reach the API Gateway or Order Service. Please check that the backend is running at http://localhost:8080.'
+      );
+    }
+    throw new Error('An unexpected error occurred while loading your delivery bookings. Please try again.');
+  }
+}
+
+/**
+ * Fetch individual order details by ID.
+ * 
+ * Endpoint: GET /api/v1/orders/{id}
+ *
+ * @param id The numeric ID or tracking number of the order
+ * @returns The full DeliveryOrder object
+ */
+export async function getOrderById(id: string | number): Promise<DeliveryOrder> {
+  try {
+    const response = await apiClient.get<DeliveryOrder>(`/api/v1/orders/${id}`);
+    return response.data;
+  } catch (error: any) {
+    if (error.response?.data?.message) {
+      throw new Error(error.response.data.message);
+    }
+    if (error.response?.status === 403) {
+      throw new Error('You do not have permission to view this order.');
+    }
+    if (error.response?.status === 404) {
+      throw new Error(`Order #${id} was not found.`);
+    }
+    if (error.code === 'ECONNABORTED' || !error.response) {
+      throw new Error(
+        'Unable to reach the API Gateway or Order Service. Please check that the backend is running at http://localhost:8080.'
+      );
+    }
+    throw new Error('An unexpected error occurred while loading the order details. Please try again.');
   }
 }
