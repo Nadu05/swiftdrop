@@ -35,7 +35,7 @@ const statusBadgeConfig: Record<
     dot: '#22c55e',
   },
   BUSY: {
-    label: 'On Route / Busy',
+    label: 'On Delivery',
     bg: '#fffbeb',
     text: '#b45309',
     dot: '#f59e0b',
@@ -89,22 +89,22 @@ export default function CourierDetailsModal({
 
   return (
     <div
-      className="dispatcher-modal-backdrop"
+      className="dispatcher-modal-overlay"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-labelledby="courier-details-title"
     >
       <div
-        className="dispatcher-modal-card"
+        className="dispatcher-modal-content"
         onClick={(e) => e.stopPropagation()}
         tabIndex={-1}
       >
         {/* Header */}
         <div className="dispatcher-modal-header">
           <div>
-            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-              <span className="font-mono text-xs font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+            <div className="dispatcher-modal-header-top" style={{ marginBottom: '0.4rem' }}>
+              <span className="dispatcher-tracking-number" style={{ fontSize: '0.8125rem' }}>
                 {courier.courierCode}
               </span>
               <span
@@ -138,44 +138,39 @@ export default function CourierDetailsModal({
           </button>
         </div>
 
-        {/* Modal Content */}
-        <div className="dispatcher-modal-content">
-          {/* Personal Information & Avatar Card */}
-          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-3.5">
-              <div
-                className="w-14 h-14 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-lg border-2 border-white shadow-sm relative flex-shrink-0"
-                aria-hidden="true"
-              >
+        {/* Modal Body */}
+        <div className="dispatcher-modal-body">
+          {/* 1. Personal Information Hero Card */}
+          <div className="dispatcher-courier-hero-card">
+            <div className="dispatcher-courier-hero-left">
+              <div className="dispatcher-courier-hero-avatar" aria-hidden="true">
                 <span>{getInitials(courier.name)}</span>
                 <span
-                  className="w-3.5 h-3.5 rounded-full absolute bottom-0 right-0 border-2 border-white"
+                  className="dispatcher-courier-hero-avatar__dot"
                   style={{ backgroundColor: statusInfo.dot }}
                 />
               </div>
 
-              <div>
-                <h3 className="text-base font-bold text-slate-900 leading-tight">
-                  {courier.name}
-                </h3>
-                <div className="flex items-center gap-2 text-xs text-slate-500 mt-1 flex-wrap">
-                  <span className="flex items-center gap-1 font-medium text-slate-700">
+              <div className="dispatcher-courier-hero-info">
+                <span className="dispatcher-courier-hero-name">{courier.name}</span>
+                <div className="dispatcher-courier-hero-meta">
+                  <span className="dispatcher-cell-row">
                     {courier.vehicleType === 'Van' ? <Car size={13} /> : <Bike size={13} />}
                     <span>{courier.vehicleType}</span>
                   </span>
                   <span>•</span>
-                  <span className="font-mono text-slate-600 font-semibold">{courier.vehiclePlate}</span>
+                  <span className="font-mono font-semibold text-slate-700">{courier.vehiclePlate}</span>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-1 text-sm font-bold text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200">
-              <Star size={16} fill="#d97706" color="#d97706" aria-hidden="true" />
+            <div className="dispatcher-courier-rating-badge">
+              <Star size={14} fill="#d97706" color="#d97706" aria-hidden="true" />
               <span>{courier.rating.toFixed(1)} / 5.0</span>
             </div>
           </div>
 
-          {/* Contact & Territory Information */}
+          {/* 2. Contact & Territory Information */}
           <div className="dispatcher-modal-section">
             <div className="dispatcher-modal-section-title">
               <MapPin size={15} aria-hidden="true" />
@@ -185,33 +180,34 @@ export default function CourierDetailsModal({
             <div className="dispatcher-details-grid">
               <div className="dispatcher-details-field">
                 <span className="dispatcher-details-label">Mobile Phone</span>
-                <div className="flex items-center gap-2 mt-0.5">
+                <div className="dispatcher-cell-row" style={{ marginTop: '0.15rem' }}>
                   <span className="dispatcher-details-value font-mono">{courier.phone}</span>
                   <a
                     href={`tel:${courier.phone}`}
-                    className="p-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                    className="dispatcher-courier-phone-btn"
                     title={`Call ${courier.name}`}
                   >
-                    <Phone size={13} aria-hidden="true" />
+                    <Phone size={11} aria-hidden="true" />
                   </a>
                 </div>
               </div>
 
               <div className="dispatcher-details-field">
                 <span className="dispatcher-details-label">Email Address</span>
-                <div className="flex items-center gap-2 mt-0.5">
+                <div className="dispatcher-cell-row" style={{ marginTop: '0.15rem' }}>
                   <span className="dispatcher-details-value">{courier.email}</span>
                   <a
                     href={`mailto:${courier.email}`}
-                    className="p-1 rounded bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+                    className="dispatcher-courier-phone-btn"
+                    style={{ background: '#f1f5f9', color: '#475569' }}
                     title={`Email ${courier.name}`}
                   >
-                    <Mail size={13} aria-hidden="true" />
+                    <Mail size={11} aria-hidden="true" />
                   </a>
                 </div>
               </div>
 
-              <div className="dispatcher-details-field col-span-2">
+              <div className="dispatcher-details-field" style={{ gridColumn: 'span 2' }}>
                 <span className="dispatcher-details-label">Primary Assigned Zone</span>
                 <span className="dispatcher-details-value text-blue-900 font-medium">
                   {courier.zone}
@@ -220,40 +216,40 @@ export default function CourierDetailsModal({
             </div>
           </div>
 
-          {/* Workload Monitoring Card Component */}
+          {/* 3. Workload Monitoring Card Component */}
           <CourierWorkloadCard courier={courier} />
 
-          {/* Delivery Performance Statistics */}
+          {/* 4. Delivery Performance Statistics */}
           <div className="dispatcher-modal-section">
             <div className="dispatcher-modal-section-title">
               <Package size={15} aria-hidden="true" />
               <span>Completed Delivery Statistics</span>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-                <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-1">
+            <div className="dispatcher-modal-stat-grid">
+              <div className="dispatcher-modal-stat-box">
+                <div className="dispatcher-modal-stat-label">
                   <CheckCircle2 size={13} className="text-emerald-600" />
                   <span>Delivered Today</span>
                 </div>
-                <span className="text-lg font-bold text-slate-900">
+                <span className="dispatcher-modal-stat-value">
                   {courier.completedToday} orders
                 </span>
               </div>
 
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-                <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-1">
+              <div className="dispatcher-modal-stat-box">
+                <div className="dispatcher-modal-stat-label">
                   <Calendar size={13} className="text-blue-600" />
                   <span>Lifetime Completed</span>
                 </div>
-                <span className="text-lg font-bold text-slate-900">
+                <span className="dispatcher-modal-stat-value">
                   {courier.totalCompletedLifetime.toLocaleString()} orders
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Relevant Delivery Assignments */}
+          {/* 5. Relevant Delivery Assignments */}
           {courier.assignedOrders && courier.assignedOrders.length > 0 && (
             <div className="dispatcher-modal-section">
               <div className="dispatcher-modal-section-title">
@@ -261,35 +257,44 @@ export default function CourierDetailsModal({
                 <span>Relevant Delivery Assignments ({courier.assignedOrders.length})</span>
               </div>
 
-              <div className="space-y-2">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {courier.assignedOrders.map((order) => (
-                  <div
-                    key={order.orderId}
-                    className="p-3 rounded-lg bg-white border border-slate-200 flex items-center justify-between gap-3 text-xs"
-                  >
+                  <div key={order.orderId} className="dispatcher-assigned-order-card">
                     <div className="dispatcher-cell-stack">
                       <div className="dispatcher-cell-row">
                         <span className="font-mono font-bold text-slate-900">{order.orderId}</span>
-                        <span className="font-mono text-blue-700 bg-blue-50 px-1.5 py-0.2 rounded border border-blue-100">
+                        <span className="dispatcher-tracking-number" style={{ fontSize: '0.75rem', color: '#2563eb' }}>
                           {order.trackingNumber}
                         </span>
                       </div>
-                      <span className="text-slate-600 mt-0.5">{order.destination}</span>
+                      <span className="text-slate-600" style={{ fontSize: '0.75rem', marginTop: '0.15rem' }}>
+                        {order.destination}
+                      </span>
                     </div>
 
-                    <div className="flex flex-col items-end gap-1">
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.2rem' }}>
                       <span
-                        className={`font-semibold px-2 py-0.5 rounded-full text-[11px] ${
-                          order.status === 'In Transit'
-                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                            : order.status === 'Delivered'
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : 'bg-blue-50 text-blue-700 border border-blue-200'
-                        }`}
+                        className="dispatcher-status-badge"
+                        style={{
+                          fontSize: '0.7rem',
+                          padding: '0.2rem 0.5rem',
+                          backgroundColor:
+                            order.status === 'In Transit'
+                              ? '#fffbeb'
+                              : order.status === 'Delivered'
+                              ? '#f0fdf4'
+                              : '#eff6ff',
+                          color:
+                            order.status === 'In Transit'
+                              ? '#b45309'
+                              : order.status === 'Delivered'
+                              ? '#15803d'
+                              : '#1d4ed8',
+                        }}
                       >
                         {order.status}
                       </span>
-                      <span className="text-[10px] text-slate-400">{order.assignedTime}</span>
+                      <span style={{ fontSize: '0.65rem', color: '#94a3b8' }}>{order.assignedTime}</span>
                     </div>
                   </div>
                 ))}
@@ -297,7 +302,7 @@ export default function CourierDetailsModal({
             </div>
           )}
 
-          {/* Shift Schedule */}
+          {/* 6. Shift Schedule */}
           <div className="dispatcher-modal-section">
             <div className="dispatcher-modal-section-title">
               <Clock size={15} aria-hidden="true" />
@@ -321,4 +326,3 @@ export default function CourierDetailsModal({
     </div>
   );
 }
-
