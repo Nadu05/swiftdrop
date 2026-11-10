@@ -2,116 +2,140 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { 
-  LayoutDashboard, 
-  Activity, 
-  Terminal, 
-  GitBranch, 
-  Box, 
-  Server,
-  Layers,
-  PlusCircle,
-  Clock,
-  Compass,
-  User
+import {
+  LayoutGrid,
+  ArrowDownRight,
+  Calendar,
+  ArrowUpRight,
+  Sparkles,
+  Target,
+  Columns,
+  Settings,
 } from 'lucide-react';
 
+/**
+ * SwiftDrop Navigation Sidebar
+ * 
+ * Accurately reproduces the visual design reference screenshot.
+ * The "Customers" tab opens the complete Member 06 Customer Portal (/customer/dashboard).
+ */
 const navItems = [
-  { name: 'Customer Dashboard', href: '/customer/dashboard', icon: LayoutDashboard },
-  { name: 'Book Delivery', href: '/book', icon: PlusCircle },
-  { name: 'My Deliveries', href: '/bookings', icon: Clock },
-  { name: 'Track Parcel', href: '/tracking', icon: Compass },
-  { name: 'My Profile', href: '/customer/profile', icon: User },
-  { name: 'Platform Overview', href: '/', icon: Layers },
-  { name: 'Service Health', href: '/health', icon: Activity },
-  { name: 'API Tester', href: '/api-tester', icon: Terminal },
+  { name: 'Overview', href: '/', icon: LayoutGrid },
+  { name: 'Incoming requests', href: '#', icon: ArrowDownRight },
+  { name: 'Order management', href: '#', icon: Calendar },
+  { name: 'Courier assignment', href: '#', icon: ArrowUpRight },
+  { name: 'Couriers', href: '#', icon: Sparkles },
+  { name: 'Customers', href: '/customer/dashboard', icon: Target },
+  { name: 'Reports', href: '#', icon: Columns },
+  { name: 'Settings', href: '#', icon: Settings },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
 
+  // Helper to determine if a route is currently active
+  const isItemActive = (href: string) => {
+    // If we are on customer dashboard or any customer-facing route, highlight Customers
+    if (href === '/customer/dashboard') {
+      return (
+        pathname.startsWith('/customer') ||
+        pathname.startsWith('/bookings') ||
+        pathname.startsWith('/book') ||
+        pathname.startsWith('/tracking')
+      );
+    }
+    if (href === '/') {
+      return pathname === '/';
+    }
+    return false;
+  };
+
   return (
-    <aside style={{
-      width: '260px',
-      background: 'rgba(11, 17, 33, 0.95)',
-      borderRight: '1px solid rgba(59, 130, 246, 0.15)',
-      display: 'flex',
-      flexDirection: 'column',
-      padding: '1.5rem 1rem',
-      gap: '2rem'
-    }}>
+    <aside
+      style={{
+        width: '240px',
+        minWidth: '240px',
+        background: '#0c1829',
+        borderRight: '1px solid rgba(255, 255, 255, 0.05)',
+        display: 'flex',
+        flexDirection: 'column',
+        padding: '1.75rem 1rem 1.5rem 1rem',
+        minHeight: '100vh',
+      }}
+    >
       {/* Brand Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0 0.5rem' }}>
-        <div style={{
-          width: '36px',
-          height: '36px',
-          borderRadius: '10px',
-          background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: '0 0 16px rgba(59, 130, 246, 0.4)'
-        }}>
-          <Box size={20} color="#ffffff" />
-        </div>
-        <div>
-          <h1 style={{ fontSize: '1.15rem', fontWeight: 800, letterSpacing: '-0.02em', color: '#ffffff' }}>
-            Swift<span style={{ color: '#60a5fa' }}>Drop</span>
-          </h1>
-          <p style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 500 }}>Microservices Platform</p>
+      <div style={{ padding: '0 0.5rem 1.25rem 0.5rem' }}>
+        <h1
+          style={{
+            fontSize: '1.4rem',
+            fontWeight: 700,
+            color: '#ffffff',
+            letterSpacing: '-0.02em',
+            margin: 0,
+            lineHeight: 1.2,
+          }}
+        >
+          SwiftDrop
+        </h1>
+        <div
+          style={{
+            fontSize: '0.625rem',
+            fontWeight: 700,
+            color: '#7088a8',
+            letterSpacing: '0.08em',
+            marginTop: '4px',
+            textTransform: 'uppercase',
+          }}
+        >
+          BRANCH OPERATIONS
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-        <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '0 0.5rem 0.4rem' }}>
-          Navigation
-        </div>
+      {/* Navigation List */}
+      <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginTop: '0.5rem' }}>
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href;
+          const active = isItemActive(item.href);
+
           return (
             <Link
-              key={item.href}
+              key={item.name}
               href={item.href}
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.75rem',
-                padding: '0.7rem 0.85rem',
-                borderRadius: '8px',
+                gap: '0.85rem',
+                padding: '0.65rem 0.95rem',
+                borderRadius: '9px',
                 fontSize: '0.875rem',
-                fontWeight: isActive ? 600 : 500,
-                color: isActive ? '#ffffff' : '#94a3b8',
-                background: isActive ? 'linear-gradient(90deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.05) 100%)' : 'transparent',
-                borderLeft: isActive ? '3px solid #3b82f6' : '3px solid transparent',
+                fontWeight: active ? 600 : 500,
+                color: active ? '#ffffff' : '#8da2be',
+                background: active ? '#1d3c6e' : 'transparent',
                 textDecoration: 'none',
-                transition: 'all 0.2s ease',
+                transition: 'background 0.15s ease, color 0.15s ease',
               }}
             >
-              <Icon size={18} color={isActive ? '#60a5fa' : '#64748b'} />
+              <Icon
+                size={17}
+                color={active ? '#38bdf8' : '#6b7f9e'}
+                style={{ flexShrink: 0 }}
+              />
               <span>{item.name}</span>
             </Link>
           );
         })}
       </nav>
 
-      {/* Infrastructure Status Summary */}
-      <div style={{ marginTop: 'auto', padding: '1rem', background: 'rgba(15, 23, 42, 0.6)', borderRadius: '10px', border: '1px solid rgba(59, 130, 246, 0.1)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-          <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>Architecture</span>
-          <span style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 700 }}>5 + 1 SERVICES</span>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.72rem', color: '#64748b' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <Server size={12} color="#3b82f6" />
-            <span>Spring Cloud Gateway (8080)</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <Layers size={12} color="#10b981" />
-            <span>5x PostgreSQL + RabbitMQ</span>
-          </div>
-        </div>
+      {/* Bottom Branch Identifier */}
+      <div
+        style={{
+          marginTop: 'auto',
+          padding: '1rem 0.5rem 0 0.5rem',
+          fontSize: '0.75rem',
+          color: '#627d98',
+        }}
+      >
+        Branch: Colombo Central
       </div>
     </aside>
   );
