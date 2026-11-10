@@ -7,6 +7,8 @@
  * - services/organization-service/src/main/java/com/swiftdrop/organization/dto/BranchCreateRequest.java
  * - services/organization-service/src/main/java/com/swiftdrop/organization/dto/BranchUpdateRequest.java
  * - services/organization-service/src/main/java/com/swiftdrop/organization/dto/ServiceAreaResponse.java
+ * - services/organization-service/src/main/java/com/swiftdrop/organization/dto/BranchResolutionRequest.java
+ * - services/organization-service/src/main/java/com/swiftdrop/organization/dto/BranchResolutionResponse.java
  * - services/organization-service/src/main/java/com/swiftdrop/organization/entity/enums/BranchStatus.java
  * - services/organization-service/src/main/java/com/swiftdrop/organization/entity/enums/ServiceAreaStatus.java
  */
@@ -122,4 +124,30 @@ export interface OrganizationDashboardMetrics extends BranchSummaryMetrics {
   totalServiceAreas: number;
   activeServiceAreas: number;
   inactiveServiceAreas: number;
+}
+
+/**
+ * Request payload for resolving the nearest eligible branch for a pickup location.
+ * Strictly aligned with `com.swiftdrop.organization.dto.BranchResolutionRequest`:
+ * - POST /api/v1/organization/branches/resolve
+ */
+export interface BranchResolutionRequest {
+  latitude: number;
+  longitude: number;
+}
+
+/**
+ * Response payload returned by Member 03's `BranchResolutionController` when an
+ * eligible active branch covers the requested pickup coordinates.
+ * Strictly aligned with `com.swiftdrop.organization.dto.BranchResolutionResponse`.
+ *
+ * When no active branch service area covers the coordinates, the backend throws
+ * `UnsupportedServiceAreaException` and returns HTTP 422 Unprocessable Entity.
+ */
+export interface BranchResolutionResponse {
+  branchId: number;
+  branchCode: string;
+  branchName: string;
+  distanceKm: number;
+  eligible: boolean;
 }

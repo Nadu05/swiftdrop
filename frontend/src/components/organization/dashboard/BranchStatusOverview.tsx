@@ -16,13 +16,11 @@ import type { BranchResponse, BranchStatusFilter } from '@/types/organization.ty
 export interface BranchStatusOverviewProps {
   branches: BranchResponse[];
   isLoading: boolean;
-  isMockMode: boolean;
 }
 
 function BranchStatusOverview({
   branches,
   isLoading,
-  isMockMode,
 }: BranchStatusOverviewProps) {
   const [statusFilter, setStatusFilter] = useState<BranchStatusFilter>('ALL');
 
@@ -55,9 +53,6 @@ function BranchStatusOverview({
             >
               Branch Status Overview
             </h2>
-            {isMockMode && (
-              <span className="org-mock-pill">Isolated Dev Mock Data</span>
-            )}
           </div>
           <p className="org-directory-card__subtitle">
             Live operational readiness of registered SwiftDrop branches. Click any branch to
@@ -73,9 +68,8 @@ function BranchStatusOverview({
           >
             <button
               type="button"
-              className={`org-filters__status-pill${
-                statusFilter === 'ALL' ? ' org-filters__status-pill--active' : ''
-              }`}
+              className={`org-filters__status-pill${statusFilter === 'ALL' ? ' org-filters__status-pill--active' : ''
+                }`}
               onClick={() => setStatusFilter('ALL')}
               aria-pressed={statusFilter === 'ALL'}
             >
@@ -84,9 +78,8 @@ function BranchStatusOverview({
             </button>
             <button
               type="button"
-              className={`org-filters__status-pill${
-                statusFilter === 'ACTIVE' ? ' org-filters__status-pill--active' : ''
-              }`}
+              className={`org-filters__status-pill${statusFilter === 'ACTIVE' ? ' org-filters__status-pill--active' : ''
+                }`}
               onClick={() => setStatusFilter('ACTIVE')}
               aria-pressed={statusFilter === 'ACTIVE'}
             >
@@ -95,9 +88,8 @@ function BranchStatusOverview({
             </button>
             <button
               type="button"
-              className={`org-filters__status-pill${
-                statusFilter === 'INACTIVE' ? ' org-filters__status-pill--active' : ''
-              }`}
+              className={`org-filters__status-pill${statusFilter === 'INACTIVE' ? ' org-filters__status-pill--active' : ''
+                }`}
               onClick={() => setStatusFilter('INACTIVE')}
               aria-pressed={statusFilter === 'INACTIVE'}
             >
@@ -240,11 +232,10 @@ function BranchStatusOverview({
                     </td>
                     <td>
                       <span
-                        className={`org-status-badge ${
-                          isActive
+                        className={`org-status-badge ${isActive
                             ? 'org-status-badge--active'
                             : 'org-status-badge--inactive'
-                        }`}
+                          }`}
                       >
                         <span className="org-status-badge__dot" aria-hidden="true" />
                         <span>{isActive ? 'Active' : 'Inactive'}</span>

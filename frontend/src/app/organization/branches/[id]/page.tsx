@@ -1,13 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
   AlertCircle,
   ArrowLeft,
   CheckCircle2,
-  FlaskConical,
   RefreshCw,
   SearchX,
   X,
@@ -16,7 +15,6 @@ import BranchDetails from '@/components/organization/branches/BranchDetails';
 import BranchStatusDialog from '@/components/organization/branches/BranchStatusDialog';
 import {
   getBranchById,
-  getIsolatedMockBranchById,
   OrganizationApiError,
 } from '@/api/services/organization.api';
 import type { BranchResponse } from '@/types/organization.types';
@@ -38,7 +36,6 @@ export default function BranchDetailsPage() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isNotFound, setIsNotFound] = useState<boolean>(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [isMockPreview, setIsMockPreview] = useState<boolean>(false);
 
   // Status confirmation dialog state
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState<boolean>(false);
@@ -55,7 +52,6 @@ export default function BranchDetailsPage() {
     setIsLoading(true);
     setIsNotFound(false);
     setLoadError(null);
-    setIsMockPreview(false);
 
     try {
       const data = await getBranchById(numericId);
@@ -81,20 +77,6 @@ export default function BranchDetailsPage() {
     fetchBranch();
   }, [fetchBranch]);
 
-  const availableMockBranch = useMemo(
-    () => (isValidBranchId ? getIsolatedMockBranchById(numericId) : null),
-    [isValidBranchId, numericId]
-  );
-
-  const handleEnableMockPreview = () => {
-    if (!availableMockBranch) return;
-    setIsMockPreview(true);
-    setIsNotFound(false);
-    setLoadError(null);
-    setIsLoading(false);
-    setBranch(availableMockBranch);
-  };
-
   const handleStatusUpdated = (updatedBranch: BranchResponse) => {
     setBranch(updatedBranch);
     setIsStatusDialogOpen(false);
@@ -114,29 +96,6 @@ export default function BranchDetailsPage() {
           <span>Back to Branch Directory</span>
         </Link>
       </div>
-
-      {/* Isolated Mock Mode Banner */}
-      {isMockPreview && (
-        <div className="org-mock-banner" role="status">
-          <div className="org-mock-banner__content">
-            <FlaskConical size={17} className="org-mock-banner__icon" aria-hidden="true" />
-            <div>
-              <strong>Isolated Development Mock Preview:</strong> Displaying mock branch{' '}
-              <code>#{numericId}</code> for visual inspection. Status actions still call the
-              live backend endpoint (<code>PATCH /api/v1/organization/branches/{numericId}</code>)
-              and will never simulate a fake status update.
-            </div>
-          </div>
-          <button
-            type="button"
-            className="org-mock-banner__btn"
-            onClick={fetchBranch}
-          >
-            <RefreshCw size={13} aria-hidden="true" />
-            <span>Retry Live API</span>
-          </button>
-        </div>
-      )}
 
       {/* Confirmed Status Update Success Banner */}
       {statusSuccessMessage && (
@@ -222,17 +181,6 @@ export default function BranchDetailsPage() {
                 <RefreshCw size={15} aria-hidden="true" />
                 <span>Retry Loading</span>
               </button>
-
-              {availableMockBranch && (
-                <button
-                  type="button"
-                  className="org-btn org-btn--ghost"
-                  onClick={handleEnableMockPreview}
-                >
-                  <FlaskConical size={15} aria-hidden="true" />
-                  <span>Preview Mock Branch #{numericId}</span>
-                </button>
-              )}
 
               <Link href="/organization/branches" className="org-btn org-btn--secondary">
                 <ArrowLeft size={15} aria-hidden="true" />

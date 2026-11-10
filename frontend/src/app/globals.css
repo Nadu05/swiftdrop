@@ -3936,52 +3936,7 @@ body.org-scroll-lock {
   font-weight: 700;
 }
 
-/* ---------- Banners (Mock Mode & Phase Notice) ---------- */
-
-.org-mock-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  padding: 0.75rem 1.1rem;
-  background: #fffbeb;
-  border: 1px solid #fde68a;
-  border-radius: var(--radius-md);
-  color: #92400e;
-  font-size: 0.8125rem;
-}
-
-.org-mock-banner__content {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.org-mock-banner__icon {
-  color: #d97706;
-  flex-shrink: 0;
-}
-
-.org-mock-banner__btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.38rem 0.75rem;
-  background: #ffffff;
-  border: 1px solid #fcd34d;
-  border-radius: var(--radius-sm);
-  color: #92400e;
-  font-family: inherit;
-  font-size: 0.75rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background-color 0.15s ease;
-}
-
-.org-mock-banner__btn:hover {
-  background: #fef3c7;
-}
+/* ---------- Phase Notice Banner ---------- */
 
 .org-phase-notice {
   display: flex;
@@ -4313,19 +4268,6 @@ body.org-scroll-lock {
 .org-directory-card__subtitle {
   font-size: 0.8125rem;
   color: var(--org-text-muted);
-}
-
-.org-mock-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.28rem 0.65rem;
-  border-radius: var(--radius-full);
-  background: #fef3c7;
-  border: 1px solid #fde68a;
-  color: #92400e;
-  font-size: 0.72rem;
-  font-weight: 700;
 }
 
 .org-table-wrapper {
@@ -5607,62 +5549,6 @@ body.org-scroll-lock {
    Scoped under .org-* classes, consistent with Figma Frame 20:843 design tokens.
    ========================================================================== */
 
-.org-dashboard-quickbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 1rem;
-  padding: 1.15rem 1.4rem;
-  background: var(--org-surface);
-  border: 1px solid var(--org-border);
-  border-radius: var(--radius-md);
-  box-shadow: 0 1px 2px rgba(26, 38, 59, 0.03);
-}
-
-.org-dashboard-quickbar__left {
-  display: flex;
-  align-items: center;
-  gap: 0.9rem;
-  min-width: 0;
-}
-
-.org-dashboard-quickbar__icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: var(--org-pill-active-bg);
-  color: var(--org-primary);
-  flex-shrink: 0;
-}
-
-.org-dashboard-quickbar__text {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-}
-
-.org-dashboard-quickbar__title {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--org-text);
-}
-
-.org-dashboard-quickbar__desc {
-  font-size: 0.8125rem;
-  color: var(--org-text-muted);
-}
-
-.org-dashboard-quickbar__actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.65rem;
-}
-
 .org-dashboard-card__title-row {
   display: flex;
   align-items: center;
@@ -5712,12 +5598,6 @@ body.org-scroll-lock {
   background: #eff6ff;
   color: #1e40af;
   border: 1px solid #bfdbfe;
-}
-
-.org-dashboard-badge--pending {
-  background: #f1f5f9;
-  color: #475569;
-  border: 1px solid #cbd5e1;
 }
 
 .org-dashboard-unavailable {
@@ -5779,84 +5659,7 @@ body.org-scroll-lock {
   white-space: nowrap;
 }
 
-/* Audit Notice Card */
-
-.org-dashboard-card--subtle {
-  background: #fbfcfe;
-}
-
-.org-dashboard-audit-notice {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 1rem;
-  padding: 1rem 1.15rem;
-  background: #f8fafc;
-  border: 1px dashed var(--org-border-strong);
-  border-radius: var(--radius-sm);
-}
-
-.org-dashboard-audit-notice__icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 9px;
-  background: #e0ebff;
-  color: var(--org-primary);
-  flex-shrink: 0;
-}
-
-.org-dashboard-audit-notice__body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  flex: 1;
-  min-width: 240px;
-}
-
-.org-dashboard-audit-notice__title {
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: var(--org-text);
-}
-
-.org-dashboard-audit-notice__desc {
-  font-size: 0.8rem;
-  color: var(--org-text-muted);
-  line-height: 1.5;
-}
-
-.org-dashboard-audit-notice__meta {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.3rem 0.65rem;
-  border-radius: var(--radius-full);
-  background: #ffffff;
-  border: 1px solid var(--org-border);
-  color: var(--org-text-muted);
-  font-size: 0.73rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
 @media (max-width: 640px) {
-  .org-dashboard-quickbar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .org-dashboard-quickbar__actions {
-    width: 100%;
-  }
-
-  .org-dashboard-quickbar__actions .org-btn {
-    flex: 1;
-  }
-
   .org-dashboard-card__header-actions {
     width: 100%;
     justify-content: space-between;

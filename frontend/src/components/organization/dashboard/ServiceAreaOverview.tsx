@@ -16,7 +16,6 @@ export interface ServiceAreaOverviewProps {
   serviceAreas: ServiceAreaResponse[];
   isLoading: boolean;
   error: string | null;
-  isMockMode: boolean;
   onRetry: () => void;
 }
 
@@ -38,7 +37,6 @@ function ServiceAreaOverview({
   serviceAreas,
   isLoading,
   error,
-  isMockMode,
   onRetry,
 }: ServiceAreaOverviewProps) {
   const [statusFilter, setStatusFilter] = useState<ServiceAreaFilter>('ALL');
@@ -75,9 +73,6 @@ function ServiceAreaOverview({
             <span className="org-dashboard-badge org-dashboard-badge--contract">
               Member 03 API Contract
             </span>
-            {isMockMode && (
-              <span className="org-mock-pill">Isolated Dev Mock Data</span>
-            )}
           </div>
           <p className="org-directory-card__subtitle">
             Geographic delivery radius definitions (<code className="org-inline-code">ServiceAreaResponse</code>)

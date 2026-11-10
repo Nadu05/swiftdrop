@@ -6,13 +6,11 @@ import { useParams, useRouter } from 'next/navigation';
 import {
   AlertCircle,
   ArrowLeft,
-  FlaskConical,
   RefreshCw,
 } from 'lucide-react';
 import BranchForm from '@/components/organization/branches/BranchForm';
 import {
   getBranchById,
-  getIsolatedMockBranchById,
   updateBranch,
 } from '@/api/services/organization.api';
 import {
@@ -40,7 +38,6 @@ export default function EditBranchPage() {
   const [branch, setBranch] = useState<BranchResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [isMockPreview, setIsMockPreview] = useState<boolean>(false);
 
   const fetchBranch = useCallback(async () => {
     if (!isValidBranchId) {
@@ -51,7 +48,6 @@ export default function EditBranchPage() {
 
     setIsLoading(true);
     setLoadError(null);
-    setIsMockPreview(false);
 
     try {
       const data = await getBranchById(numericId);
@@ -71,19 +67,6 @@ export default function EditBranchPage() {
   useEffect(() => {
     fetchBranch();
   }, [fetchBranch]);
-
-  const availableMockBranch = useMemo(
-    () => (isValidBranchId ? getIsolatedMockBranchById(numericId) : null),
-    [isValidBranchId, numericId]
-  );
-
-  const handleEnableMockPreview = () => {
-    if (!availableMockBranch) return;
-    setIsMockPreview(true);
-    setLoadError(null);
-    setIsLoading(false);
-    setBranch(availableMockBranch);
-  };
 
   const initialFormValues = useMemo(
     () => (branch ? branchResponseToFormValues(branch) : undefined),
@@ -117,29 +100,6 @@ export default function EditBranchPage() {
           <span>Back to Branch Directory</span>
         </Link>
       </div>
-
-      {/* Isolated Mock Mode Banner (only if developer explicitly opted in after an API error) */}
-      {isMockPreview && (
-        <div className="org-mock-banner" role="status">
-          <div className="org-mock-banner__content">
-            <FlaskConical size={17} className="org-mock-banner__icon" aria-hidden="true" />
-            <div>
-              <strong>Isolated Development Mock Preview:</strong> Populated with mock branch{' '}
-              <code>#{numericId}</code> for visual inspection. Submitting the form still calls
-              the live backend endpoint (<code>PATCH /api/v1/organization/branches/{numericId}</code>)
-              and will never simulate a fake save.
-            </div>
-          </div>
-          <button
-            type="button"
-            className="org-mock-banner__btn"
-            onClick={fetchBranch}
-          >
-            <RefreshCw size={13} aria-hidden="true" />
-            <span>Retry Live API</span>
-          </button>
-        </div>
-      )}
 
       {/* Page Heading */}
       <header className="org-page-header">
@@ -188,17 +148,6 @@ export default function EditBranchPage() {
                 >
                   <RefreshCw size={15} aria-hidden="true" />
                   <span>Retry Loading</span>
-                </button>
-              )}
-
-              {availableMockBranch && (
-                <button
-                  type="button"
-                  className="org-btn org-btn--ghost"
-                  onClick={handleEnableMockPreview}
-                >
-                  <FlaskConical size={15} aria-hidden="true" />
-                  <span>Preview Mock Branch #{numericId}</span>
                 </button>
               )}
 

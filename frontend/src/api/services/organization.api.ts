@@ -1,6 +1,8 @@
 import { apiClient } from '@/api/axios-client';
 import type {
   BranchCreateRequest,
+  BranchResolutionRequest,
+  BranchResolutionResponse,
   BranchResponse,
   BranchStatus,
   BranchSummaryMetrics,
@@ -12,7 +14,7 @@ import type {
 
 /**
  * Organization Service Domain API Module
- * Member 04 — Organization Admin UI (Phases 1–4: Branch Directory, Create/Edit, Details & Dashboard)
+ * Member 04 — Organization Admin UI & Branch Integration (Phases 1–5)
  *
  * All traffic routes through the Spring Cloud API Gateway (:8080):
  * - External path: /api/v1/organization/**
@@ -20,19 +22,23 @@ import type {
  * - Controllers:
  *   - com.swiftdrop.organization.controller.BranchController (/branches)
  *   - com.swiftdrop.organization.controller.ServiceAreaController (/service-areas, /branches/{branchId}/service-areas)
+ *   - com.swiftdrop.organization.controller.BranchResolutionController (/branches/resolve)
  */
 
 const BRANCHES_BASE_PATH = '/api/v1/organization/branches';
 const SERVICE_AREAS_BASE_PATH = '/api/v1/organization/service-areas';
+const BRANCH_RESOLUTION_PATH = '/api/v1/organization/branches/resolve';
 
 /**
- * Structured error thrown by Organization API functions so UI forms can
- * distinguish HTTP 409 Conflict (duplicate branch code), HTTP 400 field
- * validation errors (`fieldErrors`), HTTP 404 Not Found, and network failures.
+ * Structured error thrown by Organization API functions so UI views and forms can
+ * distinguish HTTP 409 Conflict (duplicate branch code), HTTP 422 Unprocessable Entity
+ * (unsupported pickup service area), HTTP 400 field validation errors (`fieldErrors`),
+ * HTTP 404 Not Found, and network failures.
  */
 export class OrganizationApiError extends Error {
   status?: number;
   isConflict: boolean;
+  isUnsupportedServiceArea: boolean;
   fieldErrors?: Record<string, string>;
 
   constructor(
@@ -40,6 +46,7 @@ export class OrganizationApiError extends Error {
     options?: {
       status?: number;
       isConflict?: boolean;
+      isUnsupportedServiceArea?: boolean;
       fieldErrors?: Record<string, string>;
     }
   ) {
@@ -47,6 +54,7 @@ export class OrganizationApiError extends Error {
     this.name = 'OrganizationApiError';
     this.status = options?.status;
     this.isConflict = Boolean(options?.isConflict);
+    this.isUnsupportedServiceArea = Boolean(options?.isUnsupportedServiceArea);
     this.fieldErrors = options?.fieldErrors;
   }
 }
@@ -73,7 +81,18 @@ function buildOrganizationApiError(
     });
   }
 
-  // 2. 400 Bad Request — e.g. MethodArgumentNotValidException (`fieldErrors` map) or IllegalArgumentException
+  // 2. 422 Unprocessable Entity — e.g. UnsupportedServiceAreaException from BranchResolutionController
+  if (status === 422) {
+    const unsupportedMsg =
+      data?.message ||
+      'This pickup location falls outside all active branch service areas and cannot be served right now.';
+    return new OrganizationApiError(unsupportedMsg, {
+      status: 422,
+      isUnsupportedServiceArea: true,
+    });
+  }
+
+  // 3. 400 Bad Request — e.g. MethodArgumentNotValidException (`fieldErrors` map) or IllegalArgumentException
   if (status === 400) {
     const fieldErrors: Record<string, string> | undefined =
       data?.fieldErrors && typeof data.fieldErrors === 'object'
@@ -92,7 +111,7 @@ function buildOrganizationApiError(
     });
   }
 
-  // 3. 401 / 403 Auth errors
+  // 4. 401 / 403 Auth errors
   if (status === 401) {
     return new OrganizationApiError(
       'Your session has expired. Please sign in to manage organization branches.',
@@ -106,20 +125,20 @@ function buildOrganizationApiError(
     );
   }
 
-  // 4. 404 Not Found — e.g. ResourceNotFoundException or unmapped Gateway route
+  // 5. 404 Not Found — e.g. ResourceNotFoundException or unmapped Gateway route
   if (status === 404) {
     const notFoundMsg =
       data?.message ||
-      `The requested branch resource at ${BRANCHES_BASE_PATH} was not found.`;
+      `The requested organization resource at ${BRANCHES_BASE_PATH} was not found.`;
     return new OrganizationApiError(notFoundMsg, { status: 404 });
   }
 
-  // 5. Backend provided an explicit message
+  // 6. Backend provided an explicit message
   if (data?.message) {
     return new OrganizationApiError(data.message, { status });
   }
 
-  // 6. Network / Gateway unreachable
+  // 7. Network / Gateway unreachable
   if (error?.code === 'ECONNABORTED' || !error?.response) {
     return new OrganizationApiError(
       'Unable to reach the API Gateway or Organization Service at http://localhost:8080. Verify that the backend services are running.'
@@ -134,11 +153,6 @@ function buildOrganizationApiError(
  *
  * Confirmed Backend Endpoint:
  * GET /api/v1/organization/branches?status={ACTIVE|INACTIVE}
- *
- * NOTE: Does NOT silently fall back to mock data. If the API Gateway or
- * organization-service is unreachable, this function throws a descriptive Error
- * so the UI can render an explicit API error state and offer an opt-in
- * isolated development preview mode.
  *
  * @param status Optional status filter ('ACTIVE' | 'INACTIVE')
  */
@@ -252,7 +266,6 @@ export async function updateBranchStatus(
  * GET /api/v1/organization/service-areas?status={ACTIVE|INACTIVE}
  *
  * NOTE: Does NOT calculate geographic coverage or branch eligibility on the frontend.
- * Does NOT silently fall back to mock data.
  *
  * @param status Optional status filter ('ACTIVE' | 'INACTIVE')
  */
@@ -294,6 +307,38 @@ export async function getServiceAreasByBranch(
     throw buildOrganizationApiError(
       error,
       `An unexpected error occurred while loading service areas for branch #${branchId}.`
+    );
+  }
+}
+
+/**
+ * Frontend Integration Boundary for Customer Booking Branch Resolution (Member 04 -> Member 03).
+ *
+ * Confirmed Backend Contract (BranchResolutionController):
+ * Endpoint: POST /api/v1/organization/branches/resolve
+ * Payload:  { latitude: number, longitude: number } (BranchResolutionRequest)
+ * Success:  HTTP 200 OK -> BranchResolutionResponse ({ branchId, branchCode, branchName, distanceKm, eligible })
+ * Failure:  HTTP 422 Unprocessable Entity (UnsupportedServiceAreaException) -> throws OrganizationApiError
+ *           with `isUnsupportedServiceArea === true`.
+ *
+ * IMPORTANT BOUNDARY:
+ * Does NOT calculate geographic distance or select the nearest branch on the frontend.
+ * Ready to be invoked by the customer booking flow once pickup coordinates (`latitude`, `longitude`)
+ * are captured and Member 03's final API contract is connected.
+ */
+export async function resolveNearestBranch(
+  payload: BranchResolutionRequest
+): Promise<BranchResolutionResponse> {
+  try {
+    const response = await apiClient.post<BranchResolutionResponse>(
+      BRANCH_RESOLUTION_PATH,
+      payload
+    );
+    return response.data;
+  } catch (error: any) {
+    throw buildOrganizationApiError(
+      error,
+      'Unable to resolve an eligible branch for the specified pickup coordinates.'
     );
   }
 }
@@ -345,171 +390,3 @@ export function calculateOrganizationDashboardMetrics(
     inactiveServiceAreas,
   };
 }
-
-/**
- * ISOLATED TEMPORARY MOCK DATA (Visual Development Only)
- *
- * Used ONLY when the developer explicitly enables "Dev Mock Preview Mode"
- * while the Spring Boot backend / Docker containers are offline.
- * Never returned automatically by `getBranches()` or `getBranchById()`.
- */
-export const ISOLATED_DEV_MOCK_BRANCHES: readonly BranchResponse[] = [
-  {
-    id: 1,
-    code: 'CMB-CENTRAL',
-    name: 'Colombo Central',
-    addressLine1: 'No. 142, Union Place',
-    addressLine2: 'Colombo 02',
-    city: 'Colombo',
-    phone: '+94 11 234 5601',
-    email: 'colombo.central@swiftdrop.lk',
-    latitude: 6.9218,
-    longitude: 79.8562,
-    status: 'ACTIVE',
-    createdAt: '2026-01-15T08:30:00',
-    updatedAt: '2026-03-10T14:20:00',
-  },
-  {
-    id: 2,
-    code: 'CMB-RAJAGIRIYA',
-    name: 'Rajagiriya',
-    addressLine1: 'No. 488, Sri Jayawardenepura Mawatha',
-    addressLine2: 'Welikada, Rajagiriya',
-    city: 'Sri Jayawardenepura Kotte',
-    phone: '+94 11 286 7420',
-    email: 'rajagiriya@swiftdrop.lk',
-    latitude: 6.9094,
-    longitude: 79.8963,
-    status: 'ACTIVE',
-    createdAt: '2026-01-18T09:00:00',
-    updatedAt: '2026-03-12T11:15:00',
-  },
-  {
-    id: 3,
-    code: 'KDY-CITY',
-    name: 'Kandy City',
-    addressLine1: 'No. 74, Peradeniya Road',
-    addressLine2: 'Level 2, Commercial Wing',
-    city: 'Kandy',
-    phone: '+94 81 222 8910',
-    email: 'kandy.city@swiftdrop.lk',
-    latitude: 7.2906,
-    longitude: 80.6337,
-    status: 'ACTIVE',
-    createdAt: '2026-02-01T10:00:00',
-    updatedAt: '2026-03-14T16:45:00',
-  },
-  {
-    id: 4,
-    code: 'GLE-FORT',
-    name: 'Galle Fort',
-    addressLine1: 'No. 19, Wakwella Road',
-    addressLine2: 'Minuwangoda, Galle',
-    city: 'Galle',
-    phone: '+94 91 223 4190',
-    email: 'galle.fort@swiftdrop.lk',
-    latitude: 6.0329,
-    longitude: 80.2168,
-    status: 'ACTIVE',
-    createdAt: '2026-02-10T08:45:00',
-    updatedAt: '2026-03-15T09:30:00',
-  },
-  {
-    id: 5,
-    code: 'NEG-HUB',
-    name: 'Negombo Hub',
-    addressLine1: 'No. 215, Colombo Road',
-    addressLine2: 'Kurana, Negombo',
-    city: 'Negombo',
-    phone: '+94 31 222 6500',
-    email: 'negombo.hub@swiftdrop.lk',
-    latitude: 7.1895,
-    longitude: 79.8587,
-    status: 'INACTIVE',
-    createdAt: '2026-02-20T11:20:00',
-    updatedAt: '2026-03-18T17:00:00',
-  },
-];
-
-/**
- * Looks up a branch from `ISOLATED_DEV_MOCK_BRANCHES` for opt-in visual preview
- * on the Edit Branch page when the backend is offline.
- */
-export function getIsolatedMockBranchById(id: number): BranchResponse | null {
-  return ISOLATED_DEV_MOCK_BRANCHES.find((branch) => branch.id === id) ?? null;
-}
-
-/**
- * ISOLATED TEMPORARY MOCK SERVICE AREAS (Visual Development Only)
- *
- * Used ONLY when the developer explicitly enables "Dev Mock Preview Mode"
- * while the Spring Boot backend / Docker containers are offline.
- * Never returned automatically by `getServiceAreas()`.
- */
-export const ISOLATED_DEV_MOCK_SERVICE_AREAS: readonly ServiceAreaResponse[] = [
-  {
-    id: 101,
-    branchId: 1,
-    branchCode: 'CMB-CENTRAL',
-    branchName: 'Colombo Central',
-    areaName: 'Colombo 01–07 Core Zone',
-    centerLatitude: 6.9218,
-    centerLongitude: 79.8562,
-    maxRadiusKm: 8.5,
-    status: 'ACTIVE',
-    createdAt: '2026-01-16T09:00:00',
-    updatedAt: '2026-03-10T14:25:00',
-  },
-  {
-    id: 102,
-    branchId: 2,
-    branchCode: 'CMB-RAJAGIRIYA',
-    branchName: 'Rajagiriya',
-    areaName: 'Kotte & Battaramulla Corridor',
-    centerLatitude: 6.9094,
-    centerLongitude: 79.8963,
-    maxRadiusKm: 10.0,
-    status: 'ACTIVE',
-    createdAt: '2026-01-19T10:15:00',
-    updatedAt: '2026-03-12T11:30:00',
-  },
-  {
-    id: 103,
-    branchId: 3,
-    branchCode: 'KDY-CITY',
-    branchName: 'Kandy City',
-    areaName: 'Kandy Municipal & Peradeniya Zone',
-    centerLatitude: 7.2906,
-    centerLongitude: 80.6337,
-    maxRadiusKm: 12.0,
-    status: 'ACTIVE',
-    createdAt: '2026-02-02T08:40:00',
-    updatedAt: '2026-03-14T16:50:00',
-  },
-  {
-    id: 104,
-    branchId: 4,
-    branchCode: 'GLE-FORT',
-    branchName: 'Galle Fort',
-    areaName: 'Galle Coastal & Karapitiya Zone',
-    centerLatitude: 6.0329,
-    centerLongitude: 80.2168,
-    maxRadiusKm: 9.5,
-    status: 'ACTIVE',
-    createdAt: '2026-02-11T09:10:00',
-    updatedAt: '2026-03-15T09:40:00',
-  },
-  {
-    id: 105,
-    branchId: 5,
-    branchCode: 'NEG-HUB',
-    branchName: 'Negombo Hub',
-    areaName: 'Negombo & Katunayake Airport Belt',
-    centerLatitude: 7.1895,
-    centerLongitude: 79.8587,
-    maxRadiusKm: 11.0,
-    status: 'INACTIVE',
-    createdAt: '2026-02-21T11:30:00',
-    updatedAt: '2026-03-18T17:05:00',
-  },
-];

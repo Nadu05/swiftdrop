@@ -8,7 +8,6 @@ export interface OrganizationWelcomeProps {
   lastUpdatedLabel: string | null;
   isLoading: boolean;
   isRefreshing: boolean;
-  isMockMode: boolean;
   onRefresh: () => void;
 }
 
@@ -16,7 +15,6 @@ function OrganizationWelcome({
   lastUpdatedLabel,
   isLoading,
   isRefreshing,
-  isMockMode,
   onRefresh,
 }: OrganizationWelcomeProps) {
   return (
@@ -31,7 +29,7 @@ function OrganizationWelcome({
       </div>
 
       <div className="org-page-header__actions">
-        {lastUpdatedLabel && !isMockMode && (
+        {lastUpdatedLabel && (
           <span className="org-timestamp-badge" title="Last synchronized with backend">
             <Clock size={14} aria-hidden="true" />
             <span>Synced {lastUpdatedLabel}</span>
