@@ -40,6 +40,9 @@ class BranchControllerTest {
     @MockBean
     private BranchService branchService;
 
+    @MockBean
+    private com.swiftdrop.organization.service.ServiceAreaService serviceAreaService;
+
     private BranchResponse createSampleResponse() {
         return new BranchResponse(
                 1L,
@@ -246,6 +249,23 @@ class BranchControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1L))
                 .andExpect(jsonPath("$.status").value("INACTIVE"));
+    }
+
+    @Test
+    @DisplayName("GET /branches/{branchId}/service-areas should return 200 OK with list of service areas")
+    void shouldReturnServiceAreasForBranch() throws Exception {
+        com.swiftdrop.organization.dto.ServiceAreaResponse saResponse = new com.swiftdrop.organization.dto.ServiceAreaResponse(
+                10L, 1L, "BR-COL-001", "Colombo Central Branch", "Kollupitiya Area",
+                6.9150, 79.8550, new java.math.BigDecimal("10.00"), "ACTIVE",
+                LocalDateTime.now(), LocalDateTime.now()
+        );
+
+        when(serviceAreaService.findByBranchId(1L, null)).thenReturn(List.of(saResponse));
+
+        mockMvc.perform(get("/branches/1/service-areas"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(10L))
+                .andExpect(jsonPath("$[0].areaName").value("Kollupitiya Area"));
     }
 }
 
