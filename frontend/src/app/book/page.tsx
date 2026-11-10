@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -17,6 +18,7 @@ import {
   RotateCcw,
   Receipt,
   ShieldCheck,
+  Send,
 } from 'lucide-react';
 import {
   bookingFormSchema,
@@ -25,7 +27,7 @@ import {
   STEP_2_FIELDS,
   STEP_3_FIELDS,
 } from '@/schema/order.schema';
-import { getOrderQuote } from '@/api/services/orders.api';
+import { getOrderQuote, createOrder } from '@/api/services/orders.api';
 import type { OrderQuoteResponse } from '@/types/order.types';
 
 /**
@@ -34,16 +36,22 @@ import type { OrderQuoteResponse } from '@/types/order.types';
  *   Step 1: Pickup Details
  *   Step 2: Delivery Details
  *   Step 3: Parcel Details
- *   Step 4: Review Summary & Live Fee Quote (POST /api/v1/orders/quote)
+ *   Step 4: Review Summary, Live Fee Quote (POST /api/v1/orders/quote),
+ *           and Explicit Confirmation (POST /api/v1/orders)
  */
 export default function CustomerBookingPage() {
+  const router = useRouter();
   const [currentStep, setCurrentStep] = useState<number>(1);
   const totalSteps = 4;
 
-  // State for the Quote API integration
+  // State for Quote API integration
   const [quote, setQuote] = useState<OrderQuoteResponse | null>(null);
   const [isLoadingQuote, setIsLoadingQuote] = useState<boolean>(false);
   const [quoteError, setQuoteError] = useState<string | null>(null);
+
+  // State for Order Creation API integration
+  const [isCreatingOrder, setIsCreatingOrder] = useState<boolean>(false);
+  const [orderError, setOrderError] = useState<string | null>(null);
 
   // React Hook Form handles all fields across all steps in one single unified state
   const {
@@ -112,7 +120,6 @@ export default function CustomerBookingPage() {
    * POST /api/v1/orders/quote
    */
   const fetchQuote = async () => {
-    // Prevent duplicate API calls
     if (isLoadingQuote) return;
 
     setIsLoadingQuote(true);
@@ -134,6 +141,54 @@ export default function CustomerBookingPage() {
       );
     } finally {
       setIsLoadingQuote(false);
+    }
+  };
+
+  /**
+   * Explicit Booking Confirmation:
+   * Sends POST /api/v1/orders with all validated booking information.
+   * Redirects to Confirmation Page upon receiving authoritative tracking number.
+   */
+  const handleConfirmBooking = async () => {
+    // Prevent accidental duplicate submissions
+    if (isCreatingOrder || isLoadingQuote) return;
+
+    setIsCreatingOrder(true);
+    setOrderError(null);
+
+    const values = getValues();
+
+    try {
+      const createdOrder = await createOrder({
+        pickupAddress: values.pickupAddress,
+        pickupContactName: values.pickupContactName,
+        pickupContactPhone: values.pickupContactPhone,
+        dropoffAddress: values.dropoffAddress,
+        dropoffContactName: values.dropoffContactName,
+        dropoffContactPhone: values.dropoffContactPhone,
+        parcelDescription: values.parcelDescription,
+        parcelSize: values.parcelSize,
+        weightKg: values.weightKg,
+        deliveryInstructions: values.deliveryInstructions,
+      });
+
+      // Redirect to confirmation page with authoritative backend response
+      const queryParams = new URLSearchParams({
+        trackingNumber: createdOrder.trackingNumber || '',
+        id: String(createdOrder.id || ''),
+        fee: String(createdOrder.deliveryFee || quote?.estimatedFee || ''),
+        currency: createdOrder.currency || quote?.currency || 'LKR',
+        status: createdOrder.status || 'Created',
+        pickup: createdOrder.pickupAddress || values.pickupAddress,
+        dropoff: createdOrder.dropoffAddress || values.dropoffAddress,
+      });
+
+      router.push(`/book/confirmation?${queryParams.toString()}`);
+    } catch (err: any) {
+      setOrderError(
+        err.message || 'We could not create your booking. Please check your connection and try again.'
+      );
+      setIsCreatingOrder(false);
     }
   };
 
@@ -194,7 +249,7 @@ export default function CustomerBookingPage() {
           { step: 1, title: 'Pickup', desc: 'Sender details' },
           { step: 2, title: 'Delivery', desc: 'Recipient details' },
           { step: 3, title: 'Parcel', desc: 'Size & weight' },
-          { step: 4, title: 'Quote & Review', desc: 'Fee calculation' },
+          { step: 4, title: 'Review & Confirm', desc: 'Quote & confirmation' },
         ].map((item, index) => {
           const isActive = currentStep === item.step;
           const isCompleted = currentStep > item.step;
@@ -629,10 +684,10 @@ export default function CustomerBookingPage() {
               <div style={{ borderBottom: '1px solid rgba(59, 130, 246, 0.15)', paddingBottom: '1rem' }}>
                 <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#ffffff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <Receipt size={20} color="#38bdf8" />
-                  Step 4: Review Details & Delivery Fee Quote
+                  Step 4: Review Delivery Details & Confirm Booking
                 </h2>
                 <p style={{ fontSize: '0.825rem', color: '#94a3b8', marginTop: '0.25rem' }}>
-                  Review your information and obtain an official delivery fee estimate calculated by the Order Service.
+                  Review your information, verify your official fee quote, and explicitly confirm to create the delivery booking.
                 </p>
               </div>
 
@@ -719,7 +774,7 @@ export default function CustomerBookingPage() {
               </div>
 
               {/* ---------------- LIVE QUOTE SECTION ---------------- */}
-              {/* STATE 1: LOADING */}
+              {/* STATE 1: LOADING QUOTE */}
               {isLoadingQuote && (
                 <div
                   style={{
@@ -746,7 +801,7 @@ export default function CustomerBookingPage() {
                 </div>
               )}
 
-              {/* STATE 2: ERROR */}
+              {/* STATE 2: QUOTE ERROR */}
               {!isLoadingQuote && quoteError && (
                 <div
                   style={{
@@ -897,6 +952,31 @@ export default function CustomerBookingPage() {
                   </button>
                 </div>
               )}
+
+              {/* ORDER CREATION ERROR STATE */}
+              {orderError && (
+                <div
+                  style={{
+                    padding: '1.25rem',
+                    borderRadius: '12px',
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid rgba(239, 68, 68, 0.35)',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '0.75rem',
+                  }}
+                >
+                  <AlertCircle size={20} color="#ef4444" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#f87171' }}>
+                      Booking Creation Failed
+                    </div>
+                    <div style={{ fontSize: '0.825rem', color: '#e2e8f0', marginTop: '0.2rem' }}>
+                      {orderError}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -915,9 +995,9 @@ export default function CustomerBookingPage() {
               <button
                 type="button"
                 onClick={handlePreviousStep}
-                disabled={isLoadingQuote}
+                disabled={isLoadingQuote || isCreatingOrder}
                 className="btn btn-secondary"
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: isLoadingQuote ? 0.6 : 1 }}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: isLoadingQuote || isCreatingOrder ? 0.6 : 1 }}
               >
                 <ArrowLeft size={16} /> Back
               </button>
@@ -943,32 +1023,38 @@ export default function CustomerBookingPage() {
                   if (!quote) {
                     fetchQuote();
                   } else {
-                    alert('Official quote confirmed! Ready for Next Step: Order Creation (POST /api/v1/orders).');
+                    handleConfirmBooking();
                   }
                 }}
-                disabled={isLoadingQuote}
+                disabled={isLoadingQuote || isCreatingOrder}
                 className="btn btn-primary"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.5rem',
                   background: quote ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : undefined,
-                  opacity: isLoadingQuote ? 0.6 : 1,
-                  cursor: isLoadingQuote ? 'not-allowed' : 'pointer',
+                  opacity: isLoadingQuote || isCreatingOrder ? 0.6 : 1,
+                  cursor: isLoadingQuote || isCreatingOrder ? 'not-allowed' : 'pointer',
+                  boxShadow: quote ? '0 0 20px rgba(16, 185, 129, 0.4)' : undefined,
                 }}
               >
-                {isLoadingQuote ? (
+                {isCreatingOrder ? (
                   <>
                     <Loader2 size={16} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
-                    Calculating...
+                    Creating your booking...
+                  </>
+                ) : isLoadingQuote ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
+                    Calculating fee...
                   </>
                 ) : quote ? (
                   <>
-                    <CheckCircle2 size={16} /> Proceed to Confirm Booking
+                    <Send size={16} /> Confirm Booking & Create Order
                   </>
                 ) : (
                   <>
-                    <Calculator size={16} /> Get Fee Estimate
+                    <Calculator size={16} /> Get Fee Estimate First
                   </>
                 )}
               </button>
