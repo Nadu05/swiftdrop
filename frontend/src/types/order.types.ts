@@ -123,4 +123,8 @@ export interface PublicTrackingResponse {
   estimatedDelivery?: string;
   events?: PublicTrackingEvent[];
   updatedAt?: string;
+  courierName?: string;
+  courierPhone?: string;
+  branch?: string;
+  distanceKm?: number;
 }
