@@ -3,7 +3,6 @@
 import { useEffect, useRef } from 'react';
 import {
   X,
-  Package,
   MapPin,
   Store,
   User,
@@ -13,7 +12,6 @@ import {
   XCircle,
   RotateCcw,
   Slash,
-  Tag,
 } from 'lucide-react';
 import type { DeliveryHistoryRecord, DeliveryHistoryStatus } from './types';
 import ProofOfDelivery from './ProofOfDelivery';
@@ -106,21 +104,21 @@ export default function DeliveryHistoryDetails({
 
   return (
     <div
-      className="dispatcher-modal-backdrop"
+      className="dispatcher-modal-overlay"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-labelledby="delivery-history-details-title"
     >
       <div
-        className="dispatcher-modal-card"
+        className="dispatcher-modal-content"
         onClick={(e) => e.stopPropagation()}
         tabIndex={-1}
       >
         {/* Modal Header */}
         <div className="dispatcher-modal-header">
           <div>
-            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+            <div className="dispatcher-modal-header-top" style={{ marginBottom: '0.4rem', gap: '0.5rem', flexWrap: 'wrap' }}>
               <span className="font-mono text-xs font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                 {record.orderId}
               </span>
@@ -154,30 +152,32 @@ export default function DeliveryHistoryDetails({
           </button>
         </div>
 
-        {/* Modal Scrollable Content */}
-        <div className="dispatcher-modal-content">
+        {/* Modal Body */}
+        <div className="dispatcher-modal-body">
           {/* Section: Courier Information */}
-          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm">
-                <User size={18} />
+          <div className="dispatcher-courier-hero-card">
+            <div className="dispatcher-courier-hero-left">
+              <div className="dispatcher-courier-hero-avatar">
+                <User size={20} />
               </div>
-              <div>
-                <span className="text-xs text-slate-500 font-medium block">Assigned Courier</span>
-                <span className="text-sm font-bold text-slate-900">{record.courier.name}</span>
-                <span className="text-xs font-mono text-slate-500 block">
-                  ID: {record.courier.code} • Vehicle: {record.courier.vehiclePlate}
-                </span>
+              <div className="dispatcher-courier-hero-info">
+                <span className="dispatcher-courier-hero-name">{record.courier.name}</span>
+                <div className="dispatcher-courier-hero-meta">
+                  <span className="font-mono font-semibold text-slate-700">ID: {record.courier.code}</span>
+                  <span>•</span>
+                  <span>Vehicle: {record.courier.vehiclePlate}</span>
+                </div>
               </div>
             </div>
 
             <a
               href={`tel:${record.courier.phone}`}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors text-xs font-semibold border border-blue-200"
+              className="dispatcher-courier-phone-btn"
               title={`Call ${record.courier.name}`}
+              style={{ padding: '0.45rem 0.75rem', gap: '0.4rem', borderRadius: 'var(--radius-sm)' }}
             >
               <Phone size={13} aria-hidden="true" />
-              <span>{record.courier.phone}</span>
+              <span className="font-mono text-xs font-semibold">{record.courier.phone}</span>
             </a>
           </div>
 
@@ -203,7 +203,7 @@ export default function DeliveryHistoryDetails({
                 </span>
               </div>
 
-              <div className="dispatcher-details-field col-span-2">
+              <div className="dispatcher-details-field" style={{ gridColumn: 'span 2' }}>
                 <span className="dispatcher-details-label">Destination Address</span>
                 <span className="dispatcher-details-value font-medium text-slate-800">
                   {record.recipient.address}, {record.recipient.city}
@@ -286,12 +286,12 @@ export default function DeliveryHistoryDetails({
             </div>
           </div>
 
-          {/* Conditional Component: Proof of Delivery (For DELIVERED orders) */}
+          {/* Conditional: Proof of Delivery (For DELIVERED orders) */}
           {record.status === 'DELIVERED' && record.pod && (
             <ProofOfDelivery pod={record.pod} />
           )}
 
-          {/* Conditional Component: Failed Delivery Investigation (For FAILED or RETURNED orders) */}
+          {/* Conditional: Failed Delivery Investigation (For FAILED or RETURNED orders) */}
           {(record.status === 'FAILED' || record.status === 'RETURNED') && record.failureDetails && (
             <FailedDeliveryDetails
               failureDetails={record.failureDetails}
@@ -309,4 +309,3 @@ export default function DeliveryHistoryDetails({
     </div>
   );
 }
-
