@@ -1,4 +1,4 @@
-import type { CourierProfile, CourierFleetSummaryMetrics } from './types';
+import type { CourierProfile, CourierSummaryMetrics } from './types';
 
 export const couriersFleetMockData: CourierProfile[] = [
   {
@@ -18,6 +18,32 @@ export const couriersFleetMockData: CourierProfile[] = [
     rating: 4.9,
     shiftStart: '07:30 AM',
     lastActive: 'Just now',
+    assignedOrders: [
+      {
+        orderId: 'ORD-98401',
+        trackingNumber: 'SD-94801',
+        destination: '142 Galle Road, Kollupitiya',
+        priority: 'HIGH',
+        status: 'In Transit',
+        assignedTime: 'Today, 02:30 PM',
+      },
+      {
+        orderId: 'ORD-98405',
+        trackingNumber: 'SD-94805',
+        destination: '28 Union Place, Colombo 02',
+        priority: 'NORMAL',
+        status: 'In Transit',
+        assignedTime: 'Today, 02:45 PM',
+      },
+      {
+        orderId: 'ORD-98399',
+        trackingNumber: 'SD-94799',
+        destination: '45/2 Ward Place, Colombo 07',
+        priority: 'HIGH',
+        status: 'Delivered',
+        assignedTime: 'Today, 09:30 AM',
+      },
+    ],
   },
   {
     id: 'courier-102',
@@ -36,6 +62,24 @@ export const couriersFleetMockData: CourierProfile[] = [
     rating: 4.8,
     shiftStart: '08:00 AM',
     lastActive: '5 mins ago',
+    assignedOrders: [
+      {
+        orderId: 'ORD-98402',
+        trackingNumber: 'SD-94802',
+        destination: '18/A Havelock Rd, Colombo 05',
+        priority: 'NORMAL',
+        status: 'Assigned',
+        assignedTime: 'Today, 02:30 PM',
+      },
+      {
+        orderId: 'ORD-98375',
+        trackingNumber: 'SD-94775',
+        destination: '88 Kandy Road, Kadawatha',
+        priority: 'URGENT',
+        status: 'Delivered',
+        assignedTime: 'Yesterday, 01:45 PM',
+      },
+    ],
   },
   {
     id: 'courier-103',
@@ -54,6 +98,24 @@ export const couriersFleetMockData: CourierProfile[] = [
     rating: 4.9,
     shiftStart: '08:15 AM',
     lastActive: '2 mins ago',
+    assignedOrders: [
+      {
+        orderId: 'ORD-98403',
+        trackingNumber: 'SD-94803',
+        destination: '55 Bauddhaloka Mawatha, Colombo 04',
+        priority: 'NORMAL',
+        status: 'In Transit',
+        assignedTime: 'Today, 01:15 PM',
+      },
+      {
+        orderId: 'ORD-98398',
+        trackingNumber: 'SD-94798',
+        destination: '112/B Galle Road, Mount Lavinia',
+        priority: 'URGENT',
+        status: 'Delivered',
+        assignedTime: 'Today, 08:35 AM',
+      },
+    ],
   },
   {
     id: 'courier-104',
@@ -72,6 +134,16 @@ export const couriersFleetMockData: CourierProfile[] = [
     rating: 4.7,
     shiftStart: '09:00 AM',
     lastActive: 'Just now',
+    assignedOrders: [
+      {
+        orderId: 'ORD-98342',
+        trackingNumber: 'SD-94742',
+        destination: '92 Negombo Road, Peliyagoda',
+        priority: 'NORMAL',
+        status: 'Delivered',
+        assignedTime: 'Nov 08, 03:00 PM',
+      },
+    ],
   },
   {
     id: 'courier-107',
@@ -90,6 +162,16 @@ export const couriersFleetMockData: CourierProfile[] = [
     rating: 4.8,
     shiftStart: '08:30 AM',
     lastActive: '1 min ago',
+    assignedOrders: [
+      {
+        orderId: 'ORD-98404',
+        trackingNumber: 'SD-94804',
+        destination: '78 Nawala Road, Nugegoda',
+        priority: 'NORMAL',
+        status: 'In Transit',
+        assignedTime: 'Today, 01:45 PM',
+      },
+    ],
   },
   {
     id: 'courier-108',
@@ -108,6 +190,16 @@ export const couriersFleetMockData: CourierProfile[] = [
     rating: 5.0,
     shiftStart: '07:00 AM',
     lastActive: 'Just now',
+    assignedOrders: [
+      {
+        orderId: 'ORD-98380',
+        trackingNumber: 'SD-94780',
+        destination: '15 Havelock Place, Colombo 05',
+        priority: 'NORMAL',
+        status: 'Delivered',
+        assignedTime: 'Nov 09, 03:30 PM',
+      },
+    ],
   },
   {
     id: 'courier-105',
@@ -126,6 +218,7 @@ export const couriersFleetMockData: CourierProfile[] = [
     rating: 4.6,
     shiftStart: '07:45 AM',
     lastActive: '15 mins ago (On lunch break)',
+    assignedOrders: [],
   },
   {
     id: 'courier-106',
@@ -144,6 +237,7 @@ export const couriersFleetMockData: CourierProfile[] = [
     rating: 4.7,
     shiftStart: 'Off Shift',
     lastActive: 'Yesterday, 06:00 PM',
+    assignedOrders: [],
   },
 ];
 
@@ -151,25 +245,33 @@ let couriersStore: CourierProfile[] = [...couriersFleetMockData];
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/**
+ * Calculates summary metrics dynamically using actual courier records.
+ */
+export function calculateCourierSummaryMetrics(
+  couriers: CourierProfile[]
+): CourierSummaryMetrics {
+  const totalCouriers = couriers.length;
+  const availableCouriers = couriers.filter((c) => c.status === 'AVAILABLE').length;
+  const couriersOnDelivery = couriers.filter((c) => c.status === 'BUSY').length;
+  const unavailableCouriers = couriers.filter(
+    (c) => c.status === 'ON_BREAK' || c.status === 'OFFLINE'
+  ).length;
+
+  return {
+    totalCouriers,
+    availableCouriers,
+    couriersOnDelivery,
+    unavailableCouriers,
+  };
+}
+
 export async function getCourierProfiles(): Promise<CourierProfile[]> {
   await delay(200);
   return [...couriersStore];
 }
 
-export async function getCourierFleetSummary(): Promise<CourierFleetSummaryMetrics> {
+export async function getCourierSummary(): Promise<CourierSummaryMetrics> {
   await delay(120);
-  const total = couriersStore.length;
-  const available = couriersStore.filter((c) => c.status === 'AVAILABLE').length;
-  const busy = couriersStore.filter((c) => c.status === 'BUSY').length;
-  const onBreak = couriersStore.filter((c) => c.status === 'ON_BREAK').length;
-  const offline = couriersStore.filter((c) => c.status === 'OFFLINE').length;
-
-  return {
-    totalFleet: total,
-    available,
-    busy,
-    onBreak,
-    offline,
-  };
+  return calculateCourierSummaryMetrics(couriersStore);
 }
-
