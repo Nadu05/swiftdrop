@@ -134,45 +134,47 @@ export default function CouriersPage() {
   }, [filteredCouriers, currentPage, pageSize]);
 
   return (
-    <div className="dispatcher-page">
-      {/* Page Header */}
-      <div className="dispatcher-page-header">
-        <div>
-          <h1 className="dispatcher-page-title">Courier Fleet Management</h1>
-          <p className="dispatcher-page-subtitle">
+    <div className="dispatcher-overview">
+      {/* 1. Header with exact styling matching other dispatcher pages */}
+      <header className="dispatcher-overview__header">
+        <div className="dispatcher-overview__title-group">
+          <h1 className="dispatcher-overview__title">Courier Fleet Management</h1>
+          <p className="dispatcher-overview__subtitle">
             Monitor workforce availability, vehicle capacity, and courier assignments.
           </p>
         </div>
 
-        <div className="dispatcher-header-actions">
+        <div className="dispatcher-overview__actions">
           {lastUpdated && (
-            <div className="dispatcher-last-updated" title="Live data last sync time">
-              <Clock size={14} className="text-slate-400" aria-hidden="true" />
+            <div className="dispatcher-overview__date-badge" title="Live data last sync time">
+              <Clock size={14} className="dispatcher-overview__date-icon" aria-hidden="true" />
               <span>Last updated: {lastUpdated}</span>
             </div>
           )}
 
           <button
             type="button"
-            className="dispatcher-refresh-btn"
+            className="dispatcher-overview__refresh-btn"
             onClick={handleRefresh}
-            disabled={isRefreshing}
+            disabled={isRefreshing || isLoading}
             aria-label="Refresh courier workforce data"
           >
             <RefreshCw
               size={15}
-              className={`dispatcher-refresh-icon ${isRefreshing ? 'dispatcher-refresh-icon--spinning' : ''}`}
+              className={`dispatcher-overview__refresh-icon ${
+                isRefreshing ? 'dispatcher-overview__refresh-icon--spinning' : ''
+              }`}
               aria-hidden="true"
             />
-            <span>Refresh</span>
+            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* Fleet Summary Cards */}
+      {/* 2. Fleet Summary Cards */}
       <CourierFleetSummary metrics={metrics} />
 
-      {/* Filters Toolbar */}
+      {/* 3. Filters Toolbar */}
       <CourierFilters
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
@@ -188,7 +190,7 @@ export default function CouriersPage() {
         }
       />
 
-      {/* Couriers Table */}
+      {/* 4. Couriers Table */}
       <CourierTable
         couriers={paginatedCouriers}
         isLoading={isLoading}
@@ -200,7 +202,7 @@ export default function CouriersPage() {
         pageSize={pageSize}
       />
 
-      {/* Courier Profile Modal */}
+      {/* 5. Courier Profile Modal */}
       <CourierProfileModal
         courier={selectedCourier}
         isOpen={Boolean(selectedCourier)}
