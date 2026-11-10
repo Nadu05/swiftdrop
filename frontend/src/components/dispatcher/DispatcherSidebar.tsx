@@ -48,7 +48,7 @@ export const DISPATCHER_NAV_SECTIONS: readonly NavSection[] = [
       { label: 'Unassigned Deliveries', href: '/dispatcher/deliveries', icon: PackageSearch },
       { label: 'Assignments', href: '/dispatcher/assignments', icon: ClipboardList },
       { label: 'Active Deliveries', href: '/dispatcher/active-deliveries', icon: Truck },
-      { label: 'Delivery History', href: '/dispatcher/history', icon: History },
+      { label: 'Delivery History', href: '/dispatcher/delivery-history', icon: History },
     ],
   },
   {

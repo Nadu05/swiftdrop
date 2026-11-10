@@ -3110,3 +3110,17 @@ body.dispatcher-scroll-lock {
   border-color: #2563eb;
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
 }
+
+
+/* Dispatcher Table Cell Utilities */
+.dispatcher-cell-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.dispatcher-cell-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
