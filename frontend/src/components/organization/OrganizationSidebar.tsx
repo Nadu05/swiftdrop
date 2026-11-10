@@ -48,9 +48,9 @@ export const ORGANIZATION_NAV_ITEMS: readonly OrganizationNavItem[] = [
   {
     id: 'orders',
     label: 'Orders',
-    href: '/organization/branches#orders',
+    href: '/organization/console/requests',
     icon: ClipboardList,
-    implemented: false,
+    implemented: true,
   },
   {
     id: 'customers',
@@ -62,9 +62,9 @@ export const ORGANIZATION_NAV_ITEMS: readonly OrganizationNavItem[] = [
   {
     id: 'couriers',
     label: 'Couriers',
-    href: '/organization/branches#couriers',
+    href: '/organization/console/couriers',
     icon: Truck,
-    implemented: false,
+    implemented: true,
   },
   {
     id: 'branches',
@@ -83,14 +83,63 @@ export const ORGANIZATION_NAV_ITEMS: readonly OrganizationNavItem[] = [
   {
     id: 'roles-audit',
     label: 'Roles & audit',
-    href: '/organization/branches#roles-audit',
+    href: '/organization/roles-audit',
     icon: ShieldCheck,
-    implemented: false,
+    implemented: true,
   },
   {
     id: 'settings',
     label: 'Settings',
     href: '/organization/branches#settings',
+    icon: Settings,
+    implemented: false,
+  },
+];
+
+/**
+ * Branch Console navigation items matching Figma Screens 28, 29, and 30
+ * (Branch Console / Delivery Request Queue, Courier Assignment, Courier Roster).
+ */
+export const BRANCH_CONSOLE_NAV_ITEMS: readonly OrganizationNavItem[] = [
+  {
+    id: 'overview',
+    label: 'Overview',
+    href: '/organization',
+    icon: LayoutDashboard,
+    implemented: true,
+  },
+  {
+    id: 'delivery-requests',
+    label: 'Delivery requests',
+    href: '/organization/console/requests',
+    icon: ClipboardList,
+    implemented: true,
+  },
+  {
+    id: 'courier-roster',
+    label: 'Courier roster',
+    href: '/organization/console/couriers',
+    icon: Truck,
+    implemented: true,
+  },
+  {
+    id: 'branch-staff',
+    label: 'Branch staff',
+    href: '/organization/roles-audit?tab=staff-accounts',
+    icon: Users,
+    implemented: true,
+  },
+  {
+    id: 'reports',
+    label: 'Reports',
+    href: '/organization/console/requests#reports',
+    icon: ChartColumn,
+    implemented: false,
+  },
+  {
+    id: 'settings',
+    label: 'Settings',
+    href: '/organization/console/requests#settings',
     icon: Settings,
     implemented: false,
   },
@@ -118,13 +167,35 @@ function OrganizationSidebar({
     }
   }, [isOpen]);
 
+  const isBranchConsoleMode = Boolean(
+    pathname?.startsWith('/organization/console')
+  );
+  const navItems = isBranchConsoleMode
+    ? BRANCH_CONSOLE_NAV_ITEMS
+    : ORGANIZATION_NAV_ITEMS;
+
   const isItemActive = (item: OrganizationNavItem): boolean => {
     if (!pathname) return false;
     if (item.id === 'branches') {
-      return pathname === '/organization/branches' || pathname.startsWith('/organization/branches/');
+      return (
+        pathname === '/organization/branches' ||
+        pathname.startsWith('/organization/branches/')
+      );
     }
     if (item.id === 'overview') {
       return pathname === '/organization';
+    }
+    if (item.id === 'roles-audit') {
+      return pathname === '/organization/roles-audit';
+    }
+    if (item.id === 'delivery-requests' || item.id === 'orders') {
+      return (
+        pathname === '/organization/console/requests' ||
+        pathname === '/organization/console/assign'
+      );
+    }
+    if (item.id === 'courier-roster' || item.id === 'couriers') {
+      return pathname === '/organization/console/couriers';
     }
     return false;
   };
@@ -140,17 +211,31 @@ function OrganizationSidebar({
       <aside
         id={id}
         className={`org-sidebar${isOpen ? ' org-sidebar--open' : ''}`}
-        aria-label="Organization Head Office sidebar"
+        aria-label={
+          isBranchConsoleMode
+            ? 'Branch Console sidebar'
+            : 'Organization Head Office sidebar'
+        }
       >
         <div className="org-sidebar__header">
           <Link
-            href="/organization"
+            href={
+              isBranchConsoleMode
+                ? '/organization/console/requests'
+                : '/organization'
+            }
             className="org-sidebar__brand"
-            aria-label="SwiftDrop Head Office — Organization Admin Dashboard"
+            aria-label={
+              isBranchConsoleMode
+                ? 'SwiftDrop Branch Console'
+                : 'SwiftDrop Head Office — Organization Admin Dashboard'
+            }
             onClick={onNavigate}
           >
             <span className="org-sidebar__brand-name">SwiftDrop</span>
-            <span className="org-sidebar__brand-subtitle">HEAD OFFICE</span>
+            <span className="org-sidebar__brand-subtitle">
+              {isBranchConsoleMode ? 'BRANCH CONSOLE' : 'HEAD OFFICE'}
+            </span>
           </Link>
 
           <button
@@ -166,7 +251,7 @@ function OrganizationSidebar({
 
         <nav className="org-sidebar__nav" aria-label="Organization navigation">
           <ul className="org-sidebar__list">
-            {ORGANIZATION_NAV_ITEMS.map((item) => {
+            {navItems.map((item) => {
               const Icon = item.icon;
               const active = isItemActive(item);
 
@@ -204,9 +289,28 @@ function OrganizationSidebar({
         </nav>
 
         <div className="org-sidebar__footer">
+          <Link
+            href={
+              isBranchConsoleMode
+                ? '/organization/branches'
+                : '/organization/console/requests'
+            }
+            className="org-sidebar__mode-switch"
+            onClick={onNavigate}
+          >
+            <span>
+              {isBranchConsoleMode
+                ? 'Switch to Head Office Admin'
+                : 'Open Branch Console'}
+            </span>
+          </Link>
           <div className="org-sidebar__signed-in">
             <span className="org-sidebar__status-dot" aria-hidden="true" />
-            <span>Signed in: Head Office</span>
+            <span>
+              {isBranchConsoleMode
+                ? 'Signed in: BRANCH CONSOLE'
+                : 'Signed in: Head Office'}
+            </span>
           </div>
         </div>
       </aside>

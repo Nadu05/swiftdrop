@@ -24,10 +24,30 @@ import type {
 } from '@/types/organization.types';
 
 const DIRECTORY_TABS = [
-  { id: 'branch-directory', label: 'Branch directory', active: true },
-  { id: 'staff-accounts', label: 'Staff accounts', active: false },
-  { id: 'roles-permissions', label: 'Roles & permissions', active: false },
-  { id: 'audit-log', label: 'Audit log', active: false },
+  {
+    id: 'branch-directory',
+    label: 'Branch directory',
+    href: '/organization/branches',
+    active: true,
+  },
+  {
+    id: 'staff-accounts',
+    label: 'Staff accounts',
+    href: '/organization/roles-audit?tab=staff-accounts',
+    active: false,
+  },
+  {
+    id: 'roles-permissions',
+    label: 'Roles & permissions',
+    href: '/organization/roles-audit?tab=role-permissions',
+    active: false,
+  },
+  {
+    id: 'audit-log',
+    label: 'Audit log',
+    href: '/organization/roles-audit?tab=audit-log',
+    active: false,
+  },
 ] as const;
 
 export default function OrganizationBranchesPage() {
@@ -241,21 +261,14 @@ export default function OrganizationBranchesPage() {
       {/* Figma Sub-navigation Pills (Frame 34 — Branches and staff tabs) */}
       <div className="org-tabs" role="navigation" aria-label="Branches and staff sections">
         {DIRECTORY_TABS.map((tab) => (
-          <button
+          <Link
             key={tab.id}
-            type="button"
+            href={tab.href}
             className={`org-tabs__pill${tab.active ? ' org-tabs__pill--active' : ''}`}
             aria-current={tab.active ? 'page' : undefined}
-            onClick={() => {
-              if (!tab.active) {
-                setPhaseNotice(
-                  `"${tab.label}" is outside the current phase and will be implemented in a subsequent phase.`
-                );
-              }
-            }}
           >
             {tab.label}
-          </button>
+          </Link>
         ))}
       </div>
 

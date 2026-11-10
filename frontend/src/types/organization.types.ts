@@ -151,3 +151,147 @@ export interface BranchResolutionResponse {
   distanceKm: number;
   eligible: boolean;
 }
+
+/* ==========================================================================
+   Branch Console & Access Control / Audit Integration Contracts
+   (Screens 28, 29, 30, and 35 — Member 04 Frontend Integration Boundaries)
+   ========================================================================== */
+
+/**
+ * Assignment status values for branch-routed delivery requests (Screen 28 & Screen 29).
+ */
+export type BranchDeliveryQueueStatus =
+  | 'UNASSIGNED'
+  | 'READY_FOR_PICKUP'
+  | 'ASSIGNED';
+
+/**
+ * Status filter dropdown values for Screen 28 (Branch Console / Delivery Request Queue).
+ */
+export type BranchDeliveryQueueFilter =
+  | 'OPEN'
+  | 'UNASSIGNED'
+  | 'READY_FOR_PICKUP'
+  | 'ASSIGNED';
+
+/**
+ * Branch-routed delivery request item displayed in Screen 28 (Delivery Request Queue)
+ * and Screen 29 (Courier Assignment).
+ *
+ * TODO (Backend Contract Alignment — Member 03 / Order & Dispatch Services):
+ * To be populated from the branch-scoped delivery queue endpoint once exposed by the backend.
+ * No fake delivery requests or sample records are fabricated on the frontend.
+ */
+export interface BranchDeliveryRequestItem {
+  id: string;
+  orderCode: string;
+  branchId?: number;
+  branchCode?: string;
+  branchName?: string;
+  customerName?: string;
+  pickupLocation: string;
+  dropoffLocation: string;
+  requestTime: string;
+  assignmentStatus: BranchDeliveryQueueStatus;
+  parcelSummary?: string;
+  deliveryFeeLabel?: string;
+  deliveryTypeLabel?: string;
+}
+
+/**
+ * Summary card counts for Screen 28 (Branch Console / Delivery Request Queue),
+ * derived strictly from actual backend data when available.
+ */
+export interface BranchDeliveryQueueMetrics {
+  unassignedCount: number;
+  assignedTodayCount: number;
+  readyForPickupCount: number;
+}
+
+/**
+ * Availability state for branch couriers in Screen 29 (Courier Assignment)
+ * and Screen 30 (Courier Roster).
+ */
+export type BranchCourierAvailability = 'AVAILABLE' | 'BUSY' | 'OFFLINE';
+
+/**
+ * Availability filter values for Screen 30 (Branch Console / Courier Roster).
+ */
+export type BranchCourierAvailabilityFilter = 'ALL' | BranchCourierAvailability;
+
+/**
+ * Eligible courier candidate returned by the backend for Screen 29 (Courier Assignment).
+ *
+ * IMPORTANT BOUNDARY:
+ * Distance and workload sorting/eligibility are computed by the backend.
+ * The frontend never calculates courier eligibility or distance.
+ */
+export interface EligibleBranchCourierItem {
+  id: string;
+  name: string;
+  distanceKm: number;
+  activeJobs: number;
+  availability: BranchCourierAvailability;
+  vehicleType?: string;
+  rating?: number;
+  gpsUpdatedLabel?: string;
+}
+
+/**
+ * Request payload for confirming a courier assignment in Screen 29.
+ */
+export interface BranchCourierAssignmentPayload {
+  deliveryId: string;
+  branchId?: number;
+  courierId: string;
+  assignmentNote?: string;
+}
+
+/**
+ * Branch courier roster item displayed in Screen 30 (Branch Console / Courier Roster).
+ */
+export interface BranchCourierRosterItem {
+  id: string;
+  name: string;
+  phone?: string;
+  vehicleType: string;
+  activeJobs: number;
+  distanceKm?: number | null;
+  availability: BranchCourierAvailability;
+}
+
+/**
+ * Project-defined role permission matrix entry displayed in Screen 35
+ * (Admin / Roles, Permissions and Audit Log).
+ */
+export interface RolePermissionMatrixRow {
+  id: string;
+  capability: string;
+  scopes: readonly string[];
+  summaryText: string;
+}
+
+/**
+ * Staff account item for the Staff accounts tab in Screen 35.
+ */
+export interface OrganizationStaffAccountItem {
+  id: string;
+  fullName: string;
+  email: string;
+  role: string;
+  branchName: string | null;
+  status: 'ACTIVE' | 'INACTIVE';
+}
+
+/**
+ * Audit log event item for Screen 35 (Admin / Roles, Permissions and Audit Log).
+ */
+export interface OrganizationAuditEventItem {
+  id: string;
+  timestamp: string;
+  actor: string;
+  action: string;
+  referenceCode: string;
+  outcome: string;
+}
+

@@ -91,6 +91,13 @@ export default function BranchDetails({
 
         <div className="org-details-hero__actions">
           <Link
+            href={`/organization/console/requests?branchId=${branch.id}`}
+            className="org-btn org-btn--secondary"
+          >
+            <span>Branch Console</span>
+          </Link>
+
+          <Link
             href={`/organization/branches/${branch.id}/edit`}
             className="org-btn org-btn--primary"
           >
