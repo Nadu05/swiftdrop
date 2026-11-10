@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=42dot+Sans:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
   --bg-primary: #0a0e1a;
@@ -3434,32 +3434,33 @@ body.dispatcher-scroll-lock {
 .org-shell {
   --org-sidebar-width: 248px;
   --org-sidebar-rail-width: 72px;
-  --org-sidebar-bg: #0f1e36;
-  --org-sidebar-border: #1e3150;
+  --org-sidebar-bg: #142947;
+  --org-sidebar-border: #1e375d;
   --org-sidebar-text: #cbd5e1;
   --org-sidebar-text-muted: #64748b;
-  --org-sidebar-active-bg: rgba(37, 99, 235, 0.22);
+  --org-sidebar-active-bg: rgba(41, 99, 240, 0.24);
   --org-sidebar-hover-bg: rgba(255, 255, 255, 0.06);
 
-  --org-bg: #f8fafc;
+  --org-bg: #F5F7FC;
   --org-surface: #ffffff;
   --org-surface-alt: #f3f6fb;
-  --org-border: #e2e8f0;
+  --org-border: #E0E5ED;
   --org-border-strong: #cbd5e1;
-  --org-text: #0f172a;
+  --org-text: #1A263B;
   --org-text-secondary: #334155;
   --org-text-muted: #64748b;
-  --org-primary: #2563eb;
+  --org-primary: #2963F0;
   --org-primary-hover: #1d4ed8;
   --org-pill-active-bg: #e0ebff;
   --org-pill-active-text: #1e3a8a;
-  --org-focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.3);
+  --org-focus-ring: 0 0 0 3px rgba(41, 99, 240, 0.3);
   --org-transition: 0.22s ease;
 
   min-height: 100vh;
   min-height: 100dvh;
   background: var(--org-bg);
   color: var(--org-text);
+  font-family: '42dot Sans', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   overflow-x: hidden;
 }
 
@@ -5597,5 +5598,267 @@ body.org-scroll-lock {
 
   .org-dialog__footer .org-btn {
     width: 100%;
+  }
+}
+
+
+/* ==========================================================================
+   Organization Admin Module (Member 04 — Phase 4: Organization Admin Dashboard)
+   Scoped under .org-* classes, consistent with Figma Frame 20:843 design tokens.
+   ========================================================================== */
+
+.org-dashboard-quickbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1.15rem 1.4rem;
+  background: var(--org-surface);
+  border: 1px solid var(--org-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 1px 2px rgba(26, 38, 59, 0.03);
+}
+
+.org-dashboard-quickbar__left {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.org-dashboard-quickbar__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--org-pill-active-bg);
+  color: var(--org-primary);
+  flex-shrink: 0;
+}
+
+.org-dashboard-quickbar__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.org-dashboard-quickbar__title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--org-text);
+}
+
+.org-dashboard-quickbar__desc {
+  font-size: 0.8125rem;
+  color: var(--org-text-muted);
+}
+
+.org-dashboard-quickbar__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.org-dashboard-card__title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.org-dashboard-card__header-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+}
+
+.org-dashboard-card__view-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.38rem 0.7rem;
+  border-radius: var(--radius-sm);
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: var(--org-primary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
+}
+
+.org-dashboard-card__view-all:hover {
+  background: #dbeafe;
+  color: var(--org-primary-hover);
+}
+
+.org-dashboard-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-full);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.org-dashboard-badge--contract {
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
+.org-dashboard-badge--pending {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+.org-dashboard-unavailable {
+  background: #f8fafc;
+  border-color: var(--org-border-strong);
+}
+
+.org-dashboard-contract-note {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  max-width: 620px;
+  padding: 0.75rem 1rem;
+  margin-top: 0.25rem;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius-sm);
+  color: #1e3a8a;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  text-align: left;
+}
+
+.org-dashboard-contract-note__icon {
+  flex-shrink: 0;
+  margin-top: 0.12rem;
+  color: var(--org-primary);
+}
+
+/* Service-Area Table Cells */
+
+.org-service-area__branch-cell {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.org-service-area__coords {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.76rem;
+  color: var(--org-text-secondary);
+}
+
+.org-service-area__radius-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.22rem 0.6rem;
+  border-radius: var(--radius-full);
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  color: #3730a3;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Audit Notice Card */
+
+.org-dashboard-card--subtle {
+  background: #fbfcfe;
+}
+
+.org-dashboard-audit-notice {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1rem 1.15rem;
+  background: #f8fafc;
+  border: 1px dashed var(--org-border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.org-dashboard-audit-notice__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: #e0ebff;
+  color: var(--org-primary);
+  flex-shrink: 0;
+}
+
+.org-dashboard-audit-notice__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 240px;
+}
+
+.org-dashboard-audit-notice__title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--org-text);
+}
+
+.org-dashboard-audit-notice__desc {
+  font-size: 0.8rem;
+  color: var(--org-text-muted);
+  line-height: 1.5;
+}
+
+.org-dashboard-audit-notice__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: var(--radius-full);
+  background: #ffffff;
+  border: 1px solid var(--org-border);
+  color: var(--org-text-muted);
+  font-size: 0.73rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .org-dashboard-quickbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .org-dashboard-quickbar__actions {
+    width: 100%;
+  }
+
+  .org-dashboard-quickbar__actions .org-btn {
+    flex: 1;
+  }
+
+  .org-dashboard-card__header-actions {
+    width: 100%;
+    justify-content: space-between;
   }
 }

@@ -17,11 +17,7 @@ out/
 .env
 .env.local
 .env.*.local
-<<<<<<< HEAD
-application-local.yml
-=======
 application-local.*
->>>>>>> 1ec76841a54642eb7ea0641ba8394cd6f13d400a
 
 # === IDE ===
 .idea/

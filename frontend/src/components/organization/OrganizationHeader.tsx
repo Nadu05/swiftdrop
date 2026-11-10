@@ -21,11 +21,11 @@ interface BreadcrumbSegment {
 function getBreadcrumbsForPath(pathname: string | null): BreadcrumbSegment[] {
   const base: BreadcrumbSegment[] = [
     { label: 'SwiftDrop', href: '/' },
-    { label: 'Admin', href: '/organization/branches' },
+    { label: 'Admin', href: '/organization' },
   ];
 
-  if (!pathname) {
-    return [...base, { label: 'Branch Directory and Staff' }];
+  if (!pathname || pathname === '/organization') {
+    return [...base, { label: 'Organization Dashboard' }];
   }
 
   if (pathname === '/organization/branches/create') {

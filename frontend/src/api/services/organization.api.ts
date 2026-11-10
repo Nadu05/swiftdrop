@@ -5,19 +5,25 @@ import type {
   BranchStatus,
   BranchSummaryMetrics,
   BranchUpdateRequest,
+  OrganizationDashboardMetrics,
+  ServiceAreaResponse,
+  ServiceAreaStatus,
 } from '@/types/organization.types';
 
 /**
  * Organization Service Domain API Module
- * Member 04 — Organization Admin UI (Phase 1 & Phase 2: Branch Directory, Create & Edit)
+ * Member 04 — Organization Admin UI (Phases 1–4: Branch Directory, Create/Edit, Details & Dashboard)
  *
  * All traffic routes through the Spring Cloud API Gateway (:8080):
- * - External path: /api/v1/organization/branches/**
- * - Gateway filter: StripPrefix=3 -> forwards /branches/** to organization-service (:8082)
- * - Controller: com.swiftdrop.organization.controller.BranchController
+ * - External path: /api/v1/organization/**
+ * - Gateway filter: StripPrefix=3 -> forwards /** to organization-service (:8082)
+ * - Controllers:
+ *   - com.swiftdrop.organization.controller.BranchController (/branches)
+ *   - com.swiftdrop.organization.controller.ServiceAreaController (/service-areas, /branches/{branchId}/service-areas)
  */
 
 const BRANCHES_BASE_PATH = '/api/v1/organization/branches';
+const SERVICE_AREAS_BASE_PATH = '/api/v1/organization/service-areas';
 
 /**
  * Structured error thrown by Organization API functions so UI forms can
@@ -240,6 +246,59 @@ export async function updateBranchStatus(
 }
 
 /**
+ * Fetch all organization service areas from Member 03's ServiceAreaController.
+ *
+ * Confirmed Backend Endpoint:
+ * GET /api/v1/organization/service-areas?status={ACTIVE|INACTIVE}
+ *
+ * NOTE: Does NOT calculate geographic coverage or branch eligibility on the frontend.
+ * Does NOT silently fall back to mock data.
+ *
+ * @param status Optional status filter ('ACTIVE' | 'INACTIVE')
+ */
+export async function getServiceAreas(
+  status?: ServiceAreaStatus
+): Promise<ServiceAreaResponse[]> {
+  try {
+    const params = status ? { status } : undefined;
+    const response = await apiClient.get<ServiceAreaResponse[]>(SERVICE_AREAS_BASE_PATH, {
+      params,
+    });
+    return response.data;
+  } catch (error: any) {
+    throw buildOrganizationApiError(
+      error,
+      'An unexpected error occurred while loading organization service areas.'
+    );
+  }
+}
+
+/**
+ * Fetch service areas belonging to a specific branch.
+ *
+ * Confirmed Backend Endpoint:
+ * GET /api/v1/organization/branches/{branchId}/service-areas?status={ACTIVE|INACTIVE}
+ */
+export async function getServiceAreasByBranch(
+  branchId: number,
+  status?: ServiceAreaStatus
+): Promise<ServiceAreaResponse[]> {
+  try {
+    const params = status ? { status } : undefined;
+    const response = await apiClient.get<ServiceAreaResponse[]>(
+      `${BRANCHES_BASE_PATH}/${branchId}/service-areas`,
+      { params }
+    );
+    return response.data;
+  } catch (error: any) {
+    throw buildOrganizationApiError(
+      error,
+      `An unexpected error occurred while loading service areas for branch #${branchId}.`
+    );
+  }
+}
+
+/**
  * Computes summary metrics strictly from real `BranchResponse` fields.
  */
 export function calculateBranchSummaryMetrics(
@@ -257,6 +316,33 @@ export function calculateBranchSummaryMetrics(
     activeBranches,
     inactiveBranches,
     citiesCovered: distinctCities.size,
+  };
+}
+
+/**
+ * Computes Organization Admin Dashboard metrics strictly from real
+ * `BranchResponse[]` and `ServiceAreaResponse[]` payloads returned by the backend.
+ *
+ * TODO (Future Backend Integration Point — Member 03):
+ * No dedicated aggregated dashboard endpoint (e.g., GET /api/v1/organization/dashboard/summary)
+ * or organization audit-log endpoint (e.g., GET /api/v1/organization/audit-logs) exists in
+ * `organization-service`. Until such endpoints are introduced, the dashboard derives its
+ * branch and service-area counts from `getBranches()` and `getServiceAreas()`.
+ */
+export function calculateOrganizationDashboardMetrics(
+  branches: BranchResponse[],
+  serviceAreas: ServiceAreaResponse[] = []
+): OrganizationDashboardMetrics {
+  const branchMetrics = calculateBranchSummaryMetrics(branches);
+  const totalServiceAreas = serviceAreas.length;
+  const activeServiceAreas = serviceAreas.filter((sa) => sa.status === 'ACTIVE').length;
+  const inactiveServiceAreas = serviceAreas.filter((sa) => sa.status === 'INACTIVE').length;
+
+  return {
+    ...branchMetrics,
+    totalServiceAreas,
+    activeServiceAreas,
+    inactiveServiceAreas,
   };
 }
 
@@ -352,3 +438,78 @@ export const ISOLATED_DEV_MOCK_BRANCHES: readonly BranchResponse[] = [
 export function getIsolatedMockBranchById(id: number): BranchResponse | null {
   return ISOLATED_DEV_MOCK_BRANCHES.find((branch) => branch.id === id) ?? null;
 }
+
+/**
+ * ISOLATED TEMPORARY MOCK SERVICE AREAS (Visual Development Only)
+ *
+ * Used ONLY when the developer explicitly enables "Dev Mock Preview Mode"
+ * while the Spring Boot backend / Docker containers are offline.
+ * Never returned automatically by `getServiceAreas()`.
+ */
+export const ISOLATED_DEV_MOCK_SERVICE_AREAS: readonly ServiceAreaResponse[] = [
+  {
+    id: 101,
+    branchId: 1,
+    branchCode: 'CMB-CENTRAL',
+    branchName: 'Colombo Central',
+    areaName: 'Colombo 01–07 Core Zone',
+    centerLatitude: 6.9218,
+    centerLongitude: 79.8562,
+    maxRadiusKm: 8.5,
+    status: 'ACTIVE',
+    createdAt: '2026-01-16T09:00:00',
+    updatedAt: '2026-03-10T14:25:00',
+  },
+  {
+    id: 102,
+    branchId: 2,
+    branchCode: 'CMB-RAJAGIRIYA',
+    branchName: 'Rajagiriya',
+    areaName: 'Kotte & Battaramulla Corridor',
+    centerLatitude: 6.9094,
+    centerLongitude: 79.8963,
+    maxRadiusKm: 10.0,
+    status: 'ACTIVE',
+    createdAt: '2026-01-19T10:15:00',
+    updatedAt: '2026-03-12T11:30:00',
+  },
+  {
+    id: 103,
+    branchId: 3,
+    branchCode: 'KDY-CITY',
+    branchName: 'Kandy City',
+    areaName: 'Kandy Municipal & Peradeniya Zone',
+    centerLatitude: 7.2906,
+    centerLongitude: 80.6337,
+    maxRadiusKm: 12.0,
+    status: 'ACTIVE',
+    createdAt: '2026-02-02T08:40:00',
+    updatedAt: '2026-03-14T16:50:00',
+  },
+  {
+    id: 104,
+    branchId: 4,
+    branchCode: 'GLE-FORT',
+    branchName: 'Galle Fort',
+    areaName: 'Galle Coastal & Karapitiya Zone',
+    centerLatitude: 6.0329,
+    centerLongitude: 80.2168,
+    maxRadiusKm: 9.5,
+    status: 'ACTIVE',
+    createdAt: '2026-02-11T09:10:00',
+    updatedAt: '2026-03-15T09:40:00',
+  },
+  {
+    id: 105,
+    branchId: 5,
+    branchCode: 'NEG-HUB',
+    branchName: 'Negombo Hub',
+    areaName: 'Negombo & Katunayake Airport Belt',
+    centerLatitude: 7.1895,
+    centerLongitude: 79.8587,
+    maxRadiusKm: 11.0,
+    status: 'INACTIVE',
+    createdAt: '2026-02-21T11:30:00',
+    updatedAt: '2026-03-18T17:05:00',
+  },
+];

@@ -1,17 +1,21 @@
 /**
  * Organization & Branch Management TypeScript Definitions
- * Member 04 — Organization Admin UI (Phase 1: Branch Directory)
+ * Member 04 — Organization Admin UI (Phases 1–4)
  *
  * Strictly aligned with backend DTOs in:
  * - services/organization-service/src/main/java/com/swiftdrop/organization/dto/BranchResponse.java
  * - services/organization-service/src/main/java/com/swiftdrop/organization/dto/BranchCreateRequest.java
  * - services/organization-service/src/main/java/com/swiftdrop/organization/dto/BranchUpdateRequest.java
+ * - services/organization-service/src/main/java/com/swiftdrop/organization/dto/ServiceAreaResponse.java
  * - services/organization-service/src/main/java/com/swiftdrop/organization/entity/enums/BranchStatus.java
+ * - services/organization-service/src/main/java/com/swiftdrop/organization/entity/enums/ServiceAreaStatus.java
  */
 
 export type BranchStatus = 'ACTIVE' | 'INACTIVE';
 
 export type BranchStatusFilter = 'ALL' | BranchStatus;
+
+export type ServiceAreaStatus = 'ACTIVE' | 'INACTIVE';
 
 /**
  * Authoritative response DTO returned by:
@@ -45,7 +49,6 @@ export interface BranchResponse {
 
 /**
  * Request payload for POST /api/v1/organization/branches
- * Prepared for Phase 2 (Create Branch form).
  */
 export interface BranchCreateRequest {
   code: string;
@@ -61,7 +64,6 @@ export interface BranchCreateRequest {
 
 /**
  * Request payload for PATCH /api/v1/organization/branches/{id}
- * Prepared for Phase 2+ (Edit Branch form & Activate/Deactivate workflow).
  */
 export interface BranchUpdateRequest {
   code?: string;
@@ -77,6 +79,26 @@ export interface BranchUpdateRequest {
 }
 
 /**
+ * Authoritative response DTO returned by Member 03's ServiceAreaController:
+ * - GET /api/v1/organization/service-areas
+ * - GET /api/v1/organization/service-areas/{id}
+ * - GET /api/v1/organization/branches/{branchId}/service-areas
+ */
+export interface ServiceAreaResponse {
+  id: number;
+  branchId: number;
+  branchCode: string;
+  branchName: string;
+  areaName: string;
+  centerLatitude: number;
+  centerLongitude: number;
+  maxRadiusKm: number;
+  status: ServiceAreaStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
  * Summary metrics derived strictly from the `BranchResponse[]` list.
  */
 export interface BranchSummaryMetrics {
@@ -86,3 +108,18 @@ export interface BranchSummaryMetrics {
   citiesCovered: number;
 }
 
+/**
+ * Organization Dashboard metrics derived strictly from `BranchResponse[]`
+ * and `ServiceAreaResponse[]` backend responses.
+ *
+ * TODO (Future Backend Enhancement — Member 03 / Other Services):
+ * Cross-domain Head Office metrics (such as pending merchant approvals,
+ * organization-wide active order counts, or total staff accounts) are not
+ * exposed by `organization-service` and are intentionally excluded so no
+ * speculative or hardcoded numbers are shown.
+ */
+export interface OrganizationDashboardMetrics extends BranchSummaryMetrics {
+  totalServiceAreas: number;
+  activeServiceAreas: number;
+  inactiveServiceAreas: number;
+}
