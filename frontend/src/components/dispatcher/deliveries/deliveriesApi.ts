@@ -1,13 +1,18 @@
-import type { UnassignedDelivery, DeliverySummaryMetrics } from './types';
+/**
+ * Deliveries API abstraction.
+ * State is managed by mockDispatchStore while NEXT_PUBLIC_DISPATCH_API_MODE
+ * is not 'api', so assignments made during the session update both the table
+ * and the summary metrics.
+ */
+import {
+  countMockAvailableCouriers,
+  getMockAssignedCount,
+  isMockOrderAssigned,
+  MOCK_ASSIGNED_TODAY_BASELINE,
+} from './mockDispatchStore';
+import type { DeliverySummaryMetrics, UnassignedDelivery } from './types';
 
-export const deliverySummaryMetricsMock: DeliverySummaryMetrics = {
-  totalUnassigned: 42,
-  availableCouriers: 6,
-  highPriorityDeliveries: 15,
-  assignedToday: 89,
-};
-
-export const unassignedDeliveriesMock: UnassignedDelivery[] = [
+export const UNASSIGNED_DELIVERIES_FIXTURES: readonly UnassignedDelivery[] = [
   {
     orderId: 'ORD-98421',
     recipientName: 'Tharindu Perera',
@@ -118,7 +123,7 @@ export const unassignedDeliveriesMock: UnassignedDelivery[] = [
     city: 'Colombo',
     merchantName: 'Elegance Fine Jewelry',
     merchantContact: '+94 11 223 9988',
-    orderDate: '2026-11-09T22:10:00.000Z', // Yesterday
+    orderDate: '2026-11-09T22:10:00.000Z',
     priority: 'HIGH',
     parcelInfo: {
       weightKg: 0.2,
@@ -135,7 +140,7 @@ export const unassignedDeliveriesMock: UnassignedDelivery[] = [
     city: 'Colombo',
     merchantName: 'Gourmet Delights LK',
     merchantContact: '+94 11 334 5566',
-    orderDate: '2026-11-09T20:30:00.000Z', // Yesterday
+    orderDate: '2026-11-09T20:30:00.000Z',
     priority: 'NORMAL',
     parcelInfo: {
       weightKg: 2.1,
@@ -152,7 +157,7 @@ export const unassignedDeliveriesMock: UnassignedDelivery[] = [
     city: 'Colombo',
     merchantName: 'Home Essentials Mart',
     merchantContact: '+94 11 667 8899',
-    orderDate: '2026-11-08T18:00:00.000Z', // 2 days ago
+    orderDate: '2026-11-08T18:00:00.000Z',
     priority: 'HIGH',
     parcelInfo: {
       weightKg: 4.8,
@@ -169,7 +174,7 @@ export const unassignedDeliveriesMock: UnassignedDelivery[] = [
     city: 'Maharagama',
     merchantName: 'Sports Hub LK',
     merchantContact: '+94 11 771 2233',
-    orderDate: '2026-11-08T14:45:00.000Z', // 2 days ago
+    orderDate: '2026-11-08T14:45:00.000Z',
     priority: 'NORMAL',
     parcelInfo: {
       weightKg: 1.5,
@@ -180,19 +185,26 @@ export const unassignedDeliveriesMock: UnassignedDelivery[] = [
   },
 ];
 
-/**
- * Service abstraction for Unassigned Deliveries API.
- * Currently uses structured mock data; ready to swap with backend endpoint:
- * GET /api/v1/dispatch/unassigned
- */
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export async function getUnassignedDeliveries(): Promise<UnassignedDelivery[]> {
-  // Simulate network latency (250ms)
-  await new Promise((resolve) => setTimeout(resolve, 250));
-  return [...unassignedDeliveriesMock];
+  await delay(200);
+  return UNASSIGNED_DELIVERIES_FIXTURES.filter((item) => !isMockOrderAssigned(item.orderId));
 }
 
 export async function getDeliverySummaryMetrics(): Promise<DeliverySummaryMetrics> {
-  await new Promise((resolve) => setTimeout(resolve, 150));
-  return { ...deliverySummaryMetricsMock };
-}
+  await delay(120);
+  const remaining = UNASSIGNED_DELIVERIES_FIXTURES.filter(
+    (item) => !isMockOrderAssigned(item.orderId),
+  );
+  const highPriority = remaining.filter(
+    (item) => item.priority === 'URGENT' || item.priority === 'HIGH',
+  ).length;
 
+  return {
+    totalUnassigned: remaining.length,
+    availableCouriers: countMockAvailableCouriers(),
+    highPriorityDeliveries: highPriority,
+    assignedToday: MOCK_ASSIGNED_TODAY_BASELINE + getMockAssignedCount(),
+  };
+}

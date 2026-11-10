@@ -147,9 +147,6 @@ export default function DeliveryDetailsModal({
 
         {/* Modal Footer */}
         <div className="dispatcher-modal-footer">
-          <button type="button" className="dispatcher-modal-btn-cancel" onClick={onClose}>
-            Close
-          </button>
           <button
             type="button"
             className="dispatcher-btn-primary"

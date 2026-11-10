@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, CheckCircle2 } from 'lucide-react';
 import DeliverySummaryCards from '@/components/dispatcher/deliveries/DeliverySummaryCards';
 import UnassignedDeliveryTable from '@/components/dispatcher/deliveries/UnassignedDeliveryTable';
 import DeliveryDetailsModal from '@/components/dispatcher/deliveries/DeliveryDetailsModal';
-import AssignCourierPlaceholderModal from '@/components/dispatcher/deliveries/AssignCourierPlaceholderModal';
+import AssignCourierDialog from '@/components/dispatcher/deliveries/AssignCourierDialog';
 import {
   getUnassignedDeliveries,
   getDeliverySummaryMetrics,
@@ -13,6 +13,7 @@ import {
 import type {
   UnassignedDelivery,
   DeliverySummaryMetrics,
+  CourierAvailability,
 } from '@/components/dispatcher/deliveries/types';
 
 export default function UnassignedDeliveriesPage() {
@@ -29,6 +30,12 @@ export default function UnassignedDeliveriesPage() {
   // Modals state
   const [selectedDetailsDelivery, setSelectedDetailsDelivery] = useState<UnassignedDelivery | null>(null);
   const [selectedAssignDelivery, setSelectedAssignDelivery] = useState<UnassignedDelivery | null>(null);
+
+  // Success Notification Toast
+  const [successToast, setSuccessToast] = useState<{
+    orderId: string;
+    courierName: string;
+  } | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -63,8 +70,41 @@ export default function UnassignedDeliveriesPage() {
     setSelectedAssignDelivery(delivery);
   };
 
+  const handleAssignmentSuccess = ({
+    order,
+    courier,
+  }: {
+    order: UnassignedDelivery;
+    courier: CourierAvailability;
+  }) => {
+    // Show success notification
+    setSuccessToast({
+      orderId: order.orderId,
+      courierName: courier.name,
+    });
+
+    // Auto-dismiss toast after 5s
+    setTimeout(() => {
+      setSuccessToast(null);
+    }, 5000);
+
+    // Refresh deliveries list and summary metrics
+    loadData();
+  };
+
   return (
     <div className="dispatcher-overview">
+      {/* Success Notification Banner */}
+      {successToast && (
+        <div className="dispatcher-toast-success" role="alert">
+          <CheckCircle2 size={18} className="text-emerald-600 flex-shrink-0" aria-hidden="true" />
+          <span>
+            Successfully assigned order <strong>{successToast.orderId}</strong> to courier{' '}
+            <strong>{successToast.courierName}</strong>.
+          </span>
+        </div>
+      )}
+
       {/* 1. Page Header with Title, Description & Refresh Button */}
       <header className="dispatcher-overview__header">
         <div className="dispatcher-overview__title-group">
@@ -116,11 +156,12 @@ export default function UnassignedDeliveriesPage() {
         }}
       />
 
-      {/* 5. Courier Assignment Placeholder Modal (Prepares Stage 05) */}
-      <AssignCourierPlaceholderModal
+      {/* 5. Courier Assignment & Selection Dialog */}
+      <AssignCourierDialog
         isOpen={selectedAssignDelivery !== null}
+        order={selectedAssignDelivery}
         onClose={() => setSelectedAssignDelivery(null)}
-        delivery={selectedAssignDelivery}
+        onSuccess={handleAssignmentSuccess}
       />
     </div>
   );
