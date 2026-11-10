@@ -5,7 +5,6 @@ import {
   AlertCircle,
   Building2,
   Eye,
-  FlaskConical,
   Mail,
   MapPin,
   Pencil,
@@ -22,9 +21,7 @@ export interface BranchTableProps {
   isLoading: boolean;
   error: string | null;
   hasActiveFilters: boolean;
-  isMockMode: boolean;
   onRetry: () => void;
-  onEnableMockMode: () => void;
   onResetFilters: () => void;
   onToggleStatus: (branch: BranchResponse) => void;
 }
@@ -35,9 +32,7 @@ export default function BranchTable({
   isLoading,
   error,
   hasActiveFilters,
-  isMockMode,
   onRetry,
-  onEnableMockMode,
   onResetFilters,
   onToggleStatus,
 }: BranchTableProps) {
@@ -52,16 +47,6 @@ export default function BranchTable({
             Head Office sees all branches; branch users are restricted to their own branch.
           </p>
         </div>
-
-        {isMockMode && (
-          <span
-            className="org-mock-pill"
-            title="Displaying isolated temporary mock data for visual development"
-          >
-            <FlaskConical size={13} aria-hidden="true" />
-            <span>Dev Mock Data</span>
-          </span>
-        )}
       </div>
 
       {/* 1. Loading State */}
@@ -89,15 +74,6 @@ export default function BranchTable({
             >
               <RefreshCw size={15} aria-hidden="true" />
               <span>Retry Connection</span>
-            </button>
-
-            <button
-              type="button"
-              className="org-btn org-btn--secondary"
-              onClick={onEnableMockMode}
-            >
-              <FlaskConical size={15} aria-hidden="true" />
-              <span>Preview Dev Mock Data</span>
             </button>
           </div>
         </div>

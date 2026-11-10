@@ -5,7 +5,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CheckCircle2,
   Clock,
-  FlaskConical,
   Info,
   Plus,
   RefreshCw,
@@ -18,7 +17,6 @@ import BranchStatusDialog from '@/components/organization/branches/BranchStatusD
 import {
   calculateBranchSummaryMetrics,
   getBranches,
-  ISOLATED_DEV_MOCK_BRANCHES,
 } from '@/api/services/organization.api';
 import type {
   BranchResponse,
@@ -38,9 +36,6 @@ export default function OrganizationBranchesPage() {
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string>('');
-
-  // Explicitly isolated temporary mock-data mode for visual development when backend is offline
-  const [isMockMode, setIsMockMode] = useState<boolean>(false);
 
   // Search & Status Filter state
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -66,7 +61,6 @@ export default function OrganizationBranchesPage() {
   const loadLiveBranches = useCallback(async () => {
     try {
       setError(null);
-      setIsMockMode(false);
       const data = await getBranches();
       setBranches(data);
       setLastUpdated(formatTimestamp());
@@ -105,26 +99,12 @@ export default function OrganizationBranchesPage() {
     }
   }, [loadLiveBranches]);
 
-  const handleRefresh = () => {
-    if (isMockMode) {
-      setBranches([...ISOLATED_DEV_MOCK_BRANCHES]);
-      setLastUpdated(formatTimestamp());
-      return;
-    }
+  const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
     loadLiveBranches();
-  };
+  }, [loadLiveBranches]);
 
-  const handleEnableMockMode = useCallback(() => {
-    setIsMockMode(true);
-    setError(null);
-    setIsLoading(false);
-    setIsRefreshing(false);
-    setBranches([...ISOLATED_DEV_MOCK_BRANCHES]);
-    setLastUpdated(formatTimestamp());
-  }, []);
-
-  const handleSwitchToLiveApi = useCallback(() => {
+  const handleRetry = useCallback(() => {
     setIsLoading(true);
     loadLiveBranches();
   }, [loadLiveBranches]);
@@ -182,43 +162,20 @@ export default function OrganizationBranchesPage() {
         `Branch "${updatedBranch.name}" (${updatedBranch.code}) has been ${actionWord} and is now ${updatedBranch.status}.`
       );
 
-      // Re-fetch authoritative list from the backend when in live API mode
-      if (!isMockMode) {
-        try {
-          const freshList = await getBranches();
-          setBranches(freshList);
-          setLastUpdated(formatTimestamp());
-        } catch {
-          // Keep the confirmed updatedBranch in state if the background refresh fails
-        }
+      // Re-fetch authoritative list from the backend
+      try {
+        const freshList = await getBranches();
+        setBranches(freshList);
+        setLastUpdated(formatTimestamp());
+      } catch {
+        // Keep the confirmed updatedBranch in state if the background refresh fails
       }
     },
-    [isMockMode]
+    []
   );
 
   return (
     <div className="org-page">
-      {/* Isolated Temporary Mock-Data Mode Warning Banner */}
-      {isMockMode && (
-        <div className="org-mock-banner" role="status">
-          <div className="org-mock-banner__content">
-            <FlaskConical size={17} className="org-mock-banner__icon" aria-hidden="true" />
-            <div>
-              <strong>Isolated Development Mock Mode Active:</strong> Displaying temporary
-              visual preview data (not live backend data).
-            </div>
-          </div>
-          <button
-            type="button"
-            className="org-mock-banner__btn"
-            onClick={handleSwitchToLiveApi}
-          >
-            <RefreshCw size={13} aria-hidden="true" />
-            <span>Connect to Live API</span>
-          </button>
-        </div>
-      )}
-
       {/* Confirmed Create / Edit / Status Operation Success Banner */}
       {successBanner && (
         <div className="org-success-banner" role="status" aria-live="polite">
@@ -270,18 +227,6 @@ export default function OrganizationBranchesPage() {
             />
             <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
           </button>
-
-          {!isMockMode && (
-            <button
-              type="button"
-              className="org-btn org-btn--ghost"
-              onClick={handleEnableMockMode}
-              title="Load isolated temporary mock data for visual development"
-            >
-              <FlaskConical size={14} aria-hidden="true" />
-              <span>Dev Mock Preview</span>
-            </button>
-          )}
 
           <Link
             href="/organization/branches/create"
@@ -355,9 +300,7 @@ export default function OrganizationBranchesPage() {
         isLoading={isLoading}
         error={error}
         hasActiveFilters={hasActiveFilters}
-        isMockMode={isMockMode}
-        onRetry={handleSwitchToLiveApi}
-        onEnableMockMode={handleEnableMockMode}
+        onRetry={handleRetry}
         onResetFilters={handleResetFilters}
         onToggleStatus={handleRequestToggleStatus}
       />

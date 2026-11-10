@@ -144,9 +144,9 @@ function OrganizationSidebar({
       >
         <div className="org-sidebar__header">
           <Link
-            href="/organization/branches"
+            href="/organization"
             className="org-sidebar__brand"
-            aria-label="SwiftDrop Head Office — Branch Directory"
+            aria-label="SwiftDrop Head Office — Organization Admin Dashboard"
             onClick={onNavigate}
           >
             <span className="org-sidebar__brand-name">SwiftDrop</span>

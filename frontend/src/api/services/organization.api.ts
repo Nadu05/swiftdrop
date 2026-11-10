@@ -1,32 +1,44 @@
 import { apiClient } from '@/api/axios-client';
 import type {
   BranchCreateRequest,
+  BranchResolutionRequest,
+  BranchResolutionResponse,
   BranchResponse,
   BranchStatus,
   BranchSummaryMetrics,
   BranchUpdateRequest,
+  OrganizationDashboardMetrics,
+  ServiceAreaResponse,
+  ServiceAreaStatus,
 } from '@/types/organization.types';
 
 /**
  * Organization Service Domain API Module
- * Member 04 — Organization Admin UI (Phase 1 & Phase 2: Branch Directory, Create & Edit)
+ * Member 04 — Organization Admin UI & Branch Integration (Phases 1–5)
  *
  * All traffic routes through the Spring Cloud API Gateway (:8080):
- * - External path: /api/v1/organization/branches/**
- * - Gateway filter: StripPrefix=3 -> forwards /branches/** to organization-service (:8082)
- * - Controller: com.swiftdrop.organization.controller.BranchController
+ * - External path: /api/v1/organization/**
+ * - Gateway filter: StripPrefix=3 -> forwards /** to organization-service (:8082)
+ * - Controllers:
+ *   - com.swiftdrop.organization.controller.BranchController (/branches)
+ *   - com.swiftdrop.organization.controller.ServiceAreaController (/service-areas, /branches/{branchId}/service-areas)
+ *   - com.swiftdrop.organization.controller.BranchResolutionController (/branches/resolve)
  */
 
 const BRANCHES_BASE_PATH = '/api/v1/organization/branches';
+const SERVICE_AREAS_BASE_PATH = '/api/v1/organization/service-areas';
+const BRANCH_RESOLUTION_PATH = '/api/v1/organization/branches/resolve';
 
 /**
- * Structured error thrown by Organization API functions so UI forms can
- * distinguish HTTP 409 Conflict (duplicate branch code), HTTP 400 field
- * validation errors (`fieldErrors`), HTTP 404 Not Found, and network failures.
+ * Structured error thrown by Organization API functions so UI views and forms can
+ * distinguish HTTP 409 Conflict (duplicate branch code), HTTP 422 Unprocessable Entity
+ * (unsupported pickup service area), HTTP 400 field validation errors (`fieldErrors`),
+ * HTTP 404 Not Found, and network failures.
  */
 export class OrganizationApiError extends Error {
   status?: number;
   isConflict: boolean;
+  isUnsupportedServiceArea: boolean;
   fieldErrors?: Record<string, string>;
 
   constructor(
@@ -34,6 +46,7 @@ export class OrganizationApiError extends Error {
     options?: {
       status?: number;
       isConflict?: boolean;
+      isUnsupportedServiceArea?: boolean;
       fieldErrors?: Record<string, string>;
     }
   ) {
@@ -41,6 +54,7 @@ export class OrganizationApiError extends Error {
     this.name = 'OrganizationApiError';
     this.status = options?.status;
     this.isConflict = Boolean(options?.isConflict);
+    this.isUnsupportedServiceArea = Boolean(options?.isUnsupportedServiceArea);
     this.fieldErrors = options?.fieldErrors;
   }
 }
@@ -67,7 +81,18 @@ function buildOrganizationApiError(
     });
   }
 
-  // 2. 400 Bad Request — e.g. MethodArgumentNotValidException (`fieldErrors` map) or IllegalArgumentException
+  // 2. 422 Unprocessable Entity — e.g. UnsupportedServiceAreaException from BranchResolutionController
+  if (status === 422) {
+    const unsupportedMsg =
+      data?.message ||
+      'This pickup location falls outside all active branch service areas and cannot be served right now.';
+    return new OrganizationApiError(unsupportedMsg, {
+      status: 422,
+      isUnsupportedServiceArea: true,
+    });
+  }
+
+  // 3. 400 Bad Request — e.g. MethodArgumentNotValidException (`fieldErrors` map) or IllegalArgumentException
   if (status === 400) {
     const fieldErrors: Record<string, string> | undefined =
       data?.fieldErrors && typeof data.fieldErrors === 'object'
@@ -86,7 +111,7 @@ function buildOrganizationApiError(
     });
   }
 
-  // 3. 401 / 403 Auth errors
+  // 4. 401 / 403 Auth errors
   if (status === 401) {
     return new OrganizationApiError(
       'Your session has expired. Please sign in to manage organization branches.',
@@ -100,20 +125,20 @@ function buildOrganizationApiError(
     );
   }
 
-  // 4. 404 Not Found — e.g. ResourceNotFoundException or unmapped Gateway route
+  // 5. 404 Not Found — e.g. ResourceNotFoundException or unmapped Gateway route
   if (status === 404) {
     const notFoundMsg =
       data?.message ||
-      `The requested branch resource at ${BRANCHES_BASE_PATH} was not found.`;
+      `The requested organization resource at ${BRANCHES_BASE_PATH} was not found.`;
     return new OrganizationApiError(notFoundMsg, { status: 404 });
   }
 
-  // 5. Backend provided an explicit message
+  // 6. Backend provided an explicit message
   if (data?.message) {
     return new OrganizationApiError(data.message, { status });
   }
 
-  // 6. Network / Gateway unreachable
+  // 7. Network / Gateway unreachable
   if (error?.code === 'ECONNABORTED' || !error?.response) {
     return new OrganizationApiError(
       'Unable to reach the API Gateway or Organization Service at http://localhost:8080. Verify that the backend services are running.'
@@ -128,11 +153,6 @@ function buildOrganizationApiError(
  *
  * Confirmed Backend Endpoint:
  * GET /api/v1/organization/branches?status={ACTIVE|INACTIVE}
- *
- * NOTE: Does NOT silently fall back to mock data. If the API Gateway or
- * organization-service is unreachable, this function throws a descriptive Error
- * so the UI can render an explicit API error state and offer an opt-in
- * isolated development preview mode.
  *
  * @param status Optional status filter ('ACTIVE' | 'INACTIVE')
  */
@@ -240,6 +260,90 @@ export async function updateBranchStatus(
 }
 
 /**
+ * Fetch all organization service areas from Member 03's ServiceAreaController.
+ *
+ * Confirmed Backend Endpoint:
+ * GET /api/v1/organization/service-areas?status={ACTIVE|INACTIVE}
+ *
+ * NOTE: Does NOT calculate geographic coverage or branch eligibility on the frontend.
+ *
+ * @param status Optional status filter ('ACTIVE' | 'INACTIVE')
+ */
+export async function getServiceAreas(
+  status?: ServiceAreaStatus
+): Promise<ServiceAreaResponse[]> {
+  try {
+    const params = status ? { status } : undefined;
+    const response = await apiClient.get<ServiceAreaResponse[]>(SERVICE_AREAS_BASE_PATH, {
+      params,
+    });
+    return response.data;
+  } catch (error: any) {
+    throw buildOrganizationApiError(
+      error,
+      'An unexpected error occurred while loading organization service areas.'
+    );
+  }
+}
+
+/**
+ * Fetch service areas belonging to a specific branch.
+ *
+ * Confirmed Backend Endpoint:
+ * GET /api/v1/organization/branches/{branchId}/service-areas?status={ACTIVE|INACTIVE}
+ */
+export async function getServiceAreasByBranch(
+  branchId: number,
+  status?: ServiceAreaStatus
+): Promise<ServiceAreaResponse[]> {
+  try {
+    const params = status ? { status } : undefined;
+    const response = await apiClient.get<ServiceAreaResponse[]>(
+      `${BRANCHES_BASE_PATH}/${branchId}/service-areas`,
+      { params }
+    );
+    return response.data;
+  } catch (error: any) {
+    throw buildOrganizationApiError(
+      error,
+      `An unexpected error occurred while loading service areas for branch #${branchId}.`
+    );
+  }
+}
+
+/**
+ * Frontend Integration Boundary for Customer Booking Branch Resolution (Member 04 -> Member 03).
+ *
+ * Confirmed Backend Contract (BranchResolutionController):
+ * Endpoint: POST /api/v1/organization/branches/resolve
+ * Payload:  { latitude: number, longitude: number } (BranchResolutionRequest)
+ * Success:  HTTP 200 OK -> BranchResolutionResponse ({ branchId, branchCode, branchName, distanceKm, eligible })
+ * Failure:  HTTP 422 Unprocessable Entity (UnsupportedServiceAreaException) -> throws OrganizationApiError
+ *           with `isUnsupportedServiceArea === true`.
+ *
+ * IMPORTANT BOUNDARY:
+ * Does NOT calculate geographic distance or select the nearest branch on the frontend.
+ * Ready to be invoked by the customer booking flow once pickup coordinates (`latitude`, `longitude`)
+ * are captured and Member 03's final API contract is connected.
+ */
+export async function resolveNearestBranch(
+  payload: BranchResolutionRequest
+): Promise<BranchResolutionResponse> {
+  try {
+    const response = await apiClient.post<BranchResolutionResponse>(
+      BRANCH_RESOLUTION_PATH,
+      payload
+    );
+    return response.data;
+  } catch (error: any) {
+    throw buildOrganizationApiError(
+      error,
+      'Unable to resolve an eligible branch for the specified pickup coordinates.'
+    );
+  }
+}
+
+/**
  * Computes summary metrics strictly from real `BranchResponse` fields.
  */
 export function calculateBranchSummaryMetrics(
@@ -261,94 +365,28 @@ export function calculateBranchSummaryMetrics(
 }
 
 /**
- * ISOLATED TEMPORARY MOCK DATA (Visual Development Only)
+ * Computes Organization Admin Dashboard metrics strictly from real
+ * `BranchResponse[]` and `ServiceAreaResponse[]` payloads returned by the backend.
  *
- * Used ONLY when the developer explicitly enables "Dev Mock Preview Mode"
- * while the Spring Boot backend / Docker containers are offline.
- * Never returned automatically by `getBranches()` or `getBranchById()`.
+ * TODO (Future Backend Integration Point — Member 03):
+ * No dedicated aggregated dashboard endpoint (e.g., GET /api/v1/organization/dashboard/summary)
+ * or organization audit-log endpoint (e.g., GET /api/v1/organization/audit-logs) exists in
+ * `organization-service`. Until such endpoints are introduced, the dashboard derives its
+ * branch and service-area counts from `getBranches()` and `getServiceAreas()`.
  */
-export const ISOLATED_DEV_MOCK_BRANCHES: readonly BranchResponse[] = [
-  {
-    id: 1,
-    code: 'CMB-CENTRAL',
-    name: 'Colombo Central',
-    addressLine1: 'No. 142, Union Place',
-    addressLine2: 'Colombo 02',
-    city: 'Colombo',
-    phone: '+94 11 234 5601',
-    email: 'colombo.central@swiftdrop.lk',
-    latitude: 6.9218,
-    longitude: 79.8562,
-    status: 'ACTIVE',
-    createdAt: '2026-01-15T08:30:00',
-    updatedAt: '2026-03-10T14:20:00',
-  },
-  {
-    id: 2,
-    code: 'CMB-RAJAGIRIYA',
-    name: 'Rajagiriya',
-    addressLine1: 'No. 488, Sri Jayawardenepura Mawatha',
-    addressLine2: 'Welikada, Rajagiriya',
-    city: 'Sri Jayawardenepura Kotte',
-    phone: '+94 11 286 7420',
-    email: 'rajagiriya@swiftdrop.lk',
-    latitude: 6.9094,
-    longitude: 79.8963,
-    status: 'ACTIVE',
-    createdAt: '2026-01-18T09:00:00',
-    updatedAt: '2026-03-12T11:15:00',
-  },
-  {
-    id: 3,
-    code: 'KDY-CITY',
-    name: 'Kandy City',
-    addressLine1: 'No. 74, Peradeniya Road',
-    addressLine2: 'Level 2, Commercial Wing',
-    city: 'Kandy',
-    phone: '+94 81 222 8910',
-    email: 'kandy.city@swiftdrop.lk',
-    latitude: 7.2906,
-    longitude: 80.6337,
-    status: 'ACTIVE',
-    createdAt: '2026-02-01T10:00:00',
-    updatedAt: '2026-03-14T16:45:00',
-  },
-  {
-    id: 4,
-    code: 'GLE-FORT',
-    name: 'Galle Fort',
-    addressLine1: 'No. 19, Wakwella Road',
-    addressLine2: 'Minuwangoda, Galle',
-    city: 'Galle',
-    phone: '+94 91 223 4190',
-    email: 'galle.fort@swiftdrop.lk',
-    latitude: 6.0329,
-    longitude: 80.2168,
-    status: 'ACTIVE',
-    createdAt: '2026-02-10T08:45:00',
-    updatedAt: '2026-03-15T09:30:00',
-  },
-  {
-    id: 5,
-    code: 'NEG-HUB',
-    name: 'Negombo Hub',
-    addressLine1: 'No. 215, Colombo Road',
-    addressLine2: 'Kurana, Negombo',
-    city: 'Negombo',
-    phone: '+94 31 222 6500',
-    email: 'negombo.hub@swiftdrop.lk',
-    latitude: 7.1895,
-    longitude: 79.8587,
-    status: 'INACTIVE',
-    createdAt: '2026-02-20T11:20:00',
-    updatedAt: '2026-03-18T17:00:00',
-  },
-];
+export function calculateOrganizationDashboardMetrics(
+  branches: BranchResponse[],
+  serviceAreas: ServiceAreaResponse[] = []
+): OrganizationDashboardMetrics {
+  const branchMetrics = calculateBranchSummaryMetrics(branches);
+  const totalServiceAreas = serviceAreas.length;
+  const activeServiceAreas = serviceAreas.filter((sa) => sa.status === 'ACTIVE').length;
+  const inactiveServiceAreas = serviceAreas.filter((sa) => sa.status === 'INACTIVE').length;
 
-/**
- * Looks up a branch from `ISOLATED_DEV_MOCK_BRANCHES` for opt-in visual preview
- * on the Edit Branch page when the backend is offline.
- */
-export function getIsolatedMockBranchById(id: number): BranchResponse | null {
-  return ISOLATED_DEV_MOCK_BRANCHES.find((branch) => branch.id === id) ?? null;
+  return {
+    ...branchMetrics,
+    totalServiceAreas,
+    activeServiceAreas,
+    inactiveServiceAreas,
+  };
 }
