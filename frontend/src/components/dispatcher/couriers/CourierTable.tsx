@@ -118,11 +118,11 @@ export default function CourierTable({
 
                     {/* Vehicle & Contact */}
                     <td>
-                      <div className="flex items-center gap-2">
+                      <div className="dispatcher-active-courier-cell">
                         <span className="dispatcher-courier-avatar-mini" aria-hidden="true">
                           {courier.vehicleType === 'Van' ? <Car size={13} /> : <Bike size={13} />}
                         </span>
-                        <div className="flex flex-col">
+                        <div className="dispatcher-cell-stack">
                           <span className="text-xs font-semibold text-slate-800">
                             {courier.vehiclePlate}
                           </span>
@@ -168,7 +168,7 @@ export default function CourierTable({
 
                     {/* Completed Today vs Lifetime */}
                     <td>
-                      <div className="flex flex-col">
+                      <div className="dispatcher-cell-stack">
                         <span className="text-xs font-bold text-slate-900">
                           {courier.completedToday} today
                         </span>
