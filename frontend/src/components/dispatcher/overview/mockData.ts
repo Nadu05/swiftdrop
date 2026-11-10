@@ -268,3 +268,94 @@ export const courierFleetMock: CourierFleetMember[] = [
     zone: 'Kelaniya Hub (Zone E)',
   },
 ];
+
+
+/* ==========================================================================
+   Courier Workload Monitoring Interfaces & Mock Data (Task 03)
+   Matches future contract: GET /api/v1/dispatch/couriers/availability
+   ========================================================================== */
+
+export type CourierWorkloadStatus = 'AVAILABLE' | 'BUSY' | 'OFFLINE';
+
+export interface CourierWorkloadItem {
+  id: string;
+  courierCode: string;
+  name: string;
+  phone: string;
+  status: CourierWorkloadStatus;
+  activeDeliveries: number;
+  completedToday: number;
+  maxCapacity: number; // Configurable workload capacity threshold
+  vehicleType: 'Motorcycle' | 'Van' | 'Bicycle';
+  zone: string;
+}
+
+export interface CourierSummaryStats {
+  total: number;
+  available: number;
+  busy: number;
+  offline: number;
+}
+
+export const courierWorkloadMock: CourierWorkloadItem[] = [
+  {
+    id: 'cw-1',
+    courierCode: 'CR-101',
+    name: 'Kamal Silva',
+    phone: '+94 77 123 4567',
+    status: 'BUSY',
+    activeDeliveries: 7, // High workload (7+)
+    completedToday: 14,
+    maxCapacity: 10,
+    vehicleType: 'Motorcycle',
+    zone: 'Colombo Central',
+  },
+  {
+    id: 'cw-2',
+    courierCode: 'CR-102',
+    name: 'Sunil Wickramasinghe',
+    phone: '+94 71 987 6543',
+    status: 'BUSY',
+    activeDeliveries: 5, // Moderate workload (4-6)
+    completedToday: 11,
+    maxCapacity: 10,
+    vehicleType: 'Van',
+    zone: 'Greater Colombo',
+  },
+  {
+    id: 'cw-3',
+    courierCode: 'CR-103',
+    name: 'Kasun Dias',
+    phone: '+94 72 333 8899',
+    status: 'AVAILABLE',
+    activeDeliveries: 2, // Low workload (0-3)
+    completedToday: 9,
+    maxCapacity: 8,
+    vehicleType: 'Motorcycle',
+    zone: 'Colombo South',
+  },
+  {
+    id: 'cw-4',
+    courierCode: 'CR-104',
+    name: 'Saman Kumara',
+    phone: '+94 75 444 1122',
+    status: 'AVAILABLE',
+    activeDeliveries: 0, // Low workload (available)
+    completedToday: 6,
+    maxCapacity: 8,
+    vehicleType: 'Bicycle',
+    zone: 'Fort & Pettah',
+  },
+  {
+    id: 'cw-5',
+    courierCode: 'CR-105',
+    name: 'Mahesh Alwis',
+    phone: '+94 78 666 9900',
+    status: 'OFFLINE',
+    activeDeliveries: 0, // Offline (zero active deliveries but unavailable)
+    completedToday: 8,
+    maxCapacity: 10,
+    vehicleType: 'Van',
+    zone: 'Kelaniya Hub',
+  },
+];
