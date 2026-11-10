@@ -11,41 +11,59 @@ import {
   Calendar,
   AlertCircle,
   Loader2,
-  Copy,
-  Check,
   ChevronRight,
   Truck,
-  Box,
-  Layers,
+  User,
+  Phone,
+  CheckCircle2,
+  ExternalLink,
+  Compass,
+  Building,
+  HelpCircle,
+  Bell,
 } from 'lucide-react';
 import { getCustomerOrders } from '@/api/services/orders.api';
-import type { DeliveryOrder } from '@/types/order.types';
+import { getCurrentUserProfile } from '@/api/services/auth.api';
+import type { DeliveryOrder, OrderStatus } from '@/types/order.types';
+import type { UserProfile } from '@/types/auth.types';
+
+type DeliveryTab = 'ACTIVE' | 'HISTORY' | 'ADDRESSES';
 
 /**
- * Member 06: Customer Booking History Page
+ * Member 06: SwiftDrop Customer App — Tracking and History / My Deliveries
  * Route: /bookings
  *
- * Displays the authenticated customer's previous and active deliveries.
- * Authenticated API: GET /api/v1/orders
+ * Implements the exact visual design reference from the SwiftDrop Customer App specification:
+ * - Brand header ("SwiftDrop" / "My deliveries")
+ * - Filter tabs capsule: [ ACTIVE ] [ HISTORY ] [ ADDRESSES ]
+ * - Active Delivery Card (with real backend status, courier assignment, branch, and live tracking)
+ * - Recent Deliveries Card (with real past records)
+ * - Account section (Profile, Addresses, Notifications, Help centre, Report an issue)
+ * - Fully responsive: Mobile-first stacked layout + expansive desktop grid
  */
 export default function CustomerBookingsPage() {
+  const [activeTab, setActiveTab] = useState<DeliveryTab>('ACTIVE');
   const [orders, setOrders] = useState<DeliveryOrder[]>([]);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [copiedId, setCopiedId] = useState<string | number | null>(null);
+  const [historySearch, setHistorySearch] = useState<string>('');
 
-  // Fetch orders from backend
-  const fetchOrders = useCallback(async () => {
+  // Fetch authenticated customer orders and profile concurrently
+  const loadDeliveries = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const data = await getCustomerOrders();
-      setOrders(Array.isArray(data) ? data : []);
+      const [orderData, userProfile] = await Promise.all([
+        getCustomerOrders(),
+        getCurrentUserProfile().catch(() => null),
+      ]);
+      setOrders(Array.isArray(orderData) ? orderData : []);
+      setProfile(userProfile);
     } catch (err: any) {
       setError(
-        err.message || 'Unable to load your delivery history. Please check your connection and try again.'
+        err.message || 'We couldn\'t load your deliveries. Please check your connection and try again.'
       );
     } finally {
       setIsLoading(false);
@@ -53,368 +71,1062 @@ export default function CustomerBookingsPage() {
   }, []);
 
   useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+    loadDeliveries();
+  }, [loadDeliveries]);
 
-  // Copy tracking number helper
-  const handleCopy = (trackingNumber: string, id: string | number) => {
-    navigator.clipboard.writeText(trackingNumber);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
-  };
-
-  // Helper to color-code authoritative backend status
-  const getStatusBadge = (status: string) => {
+  // Determine active deliveries vs completed/history
+  const isActiveStatus = (status: OrderStatus) => {
     const s = (status || '').toUpperCase();
-    if (s === 'DELIVERED') {
-      return <span className="badge badge-success"><span className="pulse-dot online"></span> Delivered</span>;
-    }
-    if (s === 'IN TRANSIT' || s === 'OUT FOR DELIVERY') {
-      return <span className="badge badge-warning" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', border: '1px solid rgba(245, 158, 11, 0.3)' }}><span className="pulse-dot online"></span> {status}</span>;
-    }
-    if (s === 'PICKED UP') {
-      return <span className="badge badge-primary" style={{ background: 'rgba(6, 182, 212, 0.15)', color: '#22d3ee', border: '1px solid rgba(6, 182, 212, 0.3)' }}>{status}</span>;
-    }
-    if (s === 'FAILED' || s === 'CANCELLED') {
-      return <span className="badge badge-danger" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)' }}>{status}</span>;
-    }
-    return <span className="badge badge-primary">{status || 'Created'}</span>;
+    return s === 'CREATED' || s === 'PICKED UP' || s === 'IN TRANSIT' || s === 'OUT FOR DELIVERY';
   };
 
-  // Filter orders by search query
-  const filteredOrders = orders.filter((order) => {
-    const q = searchQuery.toLowerCase();
-    return (
-      (order.trackingNumber && order.trackingNumber.toLowerCase().includes(q)) ||
-      (order.pickupAddress && order.pickupAddress.toLowerCase().includes(q)) ||
-      (order.dropoffAddress && order.dropoffAddress.toLowerCase().includes(q)) ||
-      (order.parcelDescription && order.parcelDescription.toLowerCase().includes(q))
-    );
-  });
+  const activeDeliveries = orders.filter((o) => isActiveStatus(o.status));
+  const primaryActiveOrder = activeDeliveries[0] || null;
+  const historyDeliveries = orders.filter((o) => !isActiveStatus(o.status));
+
+  // Recent deliveries list: prioritize history orders, fallback to any earlier orders
+  const recentDeliveries = (historyDeliveries.length > 0 ? historyDeliveries : orders)
+    .filter((o) => o.id !== primaryActiveOrder?.id)
+    .slice(0, 4);
+
+  // Format date helper: e.g. "21 Oct" or "21 Oct 2026"
+  const formatShortDate = (dateString?: string) => {
+    if (!dateString) return '';
+    try {
+      const d = new Date(dateString);
+      return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+    } catch {
+      return '';
+    }
+  };
+
+  // Human-readable status milestone description
+  const getMilestoneSummary = (status?: OrderStatus) => {
+    const s = (status || '').toUpperCase();
+    switch (s) {
+      case 'CREATED':
+        return 'Booking confirmed · Awaiting pickup';
+      case 'PICKED UP':
+        return 'Courier collected parcel · In transit to hub';
+      case 'IN TRANSIT':
+        return 'Pickup complete · En route';
+      case 'OUT FOR DELIVERY':
+        return 'Out for delivery · Arriving today';
+      case 'DELIVERED':
+        return 'Delivered successfully';
+      case 'FAILED':
+      case 'CANCELLED':
+        return 'Delivery unfulfilled · Refund processed';
+      default:
+        return 'Order in progress';
+    }
+  };
+
+  // Branch / Origin location helper
+  const getBranchLocation = (order: DeliveryOrder) => {
+    if (order.branch) return order.branch;
+    if (order.pickupAddress) {
+      const parts = order.pickupAddress.split(',');
+      return parts[0].trim() || 'Central Dispatch Hub';
+    }
+    return 'Colombo Central Branch';
+  };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', maxWidth: '1100px', margin: '0 auto' }}>
-      {/* Header Banner */}
-      <div
-        style={{
-          background: 'linear-gradient(135deg, rgba(30, 58, 138, 0.4) 0%, rgba(15, 23, 42, 0.8) 100%)',
-          border: '1px solid rgba(59, 130, 246, 0.25)',
-          borderRadius: '16px',
-          padding: '2rem 2.5rem',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-          flexWrap: 'wrap',
-          gap: '1rem',
-        }}
-      >
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem' }}>
-            <span className="badge badge-primary">Customer Deliveries</span>
-            <span className="badge badge-success">Live Order History</span>
-          </div>
-          <h1 style={{ fontSize: '1.85rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em', marginBottom: '0.35rem' }}>
-            My Deliveries
-          </h1>
-          <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
-            Track your parcel delivery lifecycle and review past courier bookings.
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button
-            type="button"
-            onClick={fetchOrders}
-            disabled={isLoading}
-            className="btn btn-secondary"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
-          >
-            <RotateCcw size={15} className={isLoading ? 'animate-spin' : ''} style={{ animation: isLoading ? 'spin 1s linear infinite' : undefined }} />
-            Refresh
-          </button>
-          <Link
-            href="/book"
-            className="btn btn-primary"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
-          >
-            <PlusCircle size={16} /> Book Delivery
-          </Link>
-        </div>
-      </div>
-
-      {/* Search & Filter Bar */}
-      <div className="glass-card" style={{ padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        <Search size={18} color="#94a3b8" />
-        <input
-          type="text"
-          placeholder="Filter by tracking number, pickup, destination, or parcel description..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          style={{
-            flex: 1,
-            background: 'transparent',
-            border: 'none',
-            color: '#ffffff',
-            fontSize: '0.9rem',
-            outline: 'none',
-          }}
-        />
-        {searchQuery && (
-          <button
-            type="button"
-            onClick={() => setSearchQuery('')}
-            style={{ background: 'transparent', border: 'none', color: '#64748b', fontSize: '0.8rem', cursor: 'pointer' }}
-          >
-            Clear
-          </button>
-        )}
-      </div>
-
-      {/* ---------------- STATE 1: LOADING ---------------- */}
-      {isLoading && (
-        <div
-          className="glass-card"
-          style={{
-            padding: '4rem 2rem',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '1rem',
-          }}
-        >
-          <Loader2 size={36} color="#3b82f6" className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
-          <div style={{ fontSize: '1rem', fontWeight: 600, color: '#ffffff' }}>Loading your deliveries...</div>
-          <p style={{ fontSize: '0.8rem', color: '#64748b' }}>
-            Retrieving authenticated order history from Order Service (GET /api/v1/orders)
-          </p>
-        </div>
-      )}
-
-      {/* ---------------- STATE 2: ERROR ---------------- */}
-      {!isLoading && error && (
-        <div
-          className="glass-card"
-          style={{
-            padding: '2rem',
-            border: '1px solid rgba(239, 68, 68, 0.35)',
-            background: 'rgba(239, 68, 68, 0.08)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1rem',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-            <AlertCircle size={22} color="#ef4444" style={{ flexShrink: 0, marginTop: '2px' }} />
-            <div>
-              <div style={{ fontSize: '1rem', fontWeight: 700, color: '#f87171' }}>
-                We Couldn't Load Your Deliveries
-              </div>
-              <div style={{ fontSize: '0.85rem', color: '#e2e8f0', marginTop: '0.25rem' }}>
-                {error}
-              </div>
-            </div>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button
-              type="button"
-              onClick={fetchOrders}
-              className="btn btn-secondary"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
-            >
-              <RotateCcw size={14} /> Try Again
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ---------------- STATE 3: EMPTY STATE ---------------- */}
-      {!isLoading && !error && orders.length === 0 && (
-        <div
-          className="glass-card"
-          style={{
-            padding: '4rem 2rem',
-            textAlign: 'center',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '1.25rem',
-          }}
-        >
-          <div
-            style={{
-              width: '64px',
-              height: '64px',
-              borderRadius: '16px',
-              background: 'rgba(59, 130, 246, 0.12)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: '1px solid rgba(59, 130, 246, 0.25)',
-            }}
-          >
-            <Box size={32} color="#60a5fa" />
-          </div>
-          <div>
-            <h2 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#ffffff', marginBottom: '0.35rem' }}>
-              No deliveries yet
-            </h2>
-            <p style={{ color: '#94a3b8', fontSize: '0.9rem', maxWidth: '450px' }}>
-              You haven't created any delivery bookings yet. Book a courier today for secure, fast parcel delivery.
-            </p>
-          </div>
-          <Link href="/book" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
-            <PlusCircle size={16} /> Book Your First Delivery
-          </Link>
-        </div>
-      )}
-
-      {/* ---------------- STATE 4: POPULATED ORDERS LIST ---------------- */}
-      {!isLoading && !error && orders.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 0.5rem' }}>
-            <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
-              Showing <strong>{filteredOrders.length}</strong> of {orders.length} deliveries
-            </span>
-          </div>
-
-          {filteredOrders.length === 0 ? (
-            <div className="glass-card" style={{ padding: '3rem', textAlign: 'center', color: '#94a3b8' }}>
-              No deliveries match your search query: "<strong>{searchQuery}</strong>"
-            </div>
-          ) : (
-            filteredOrders.map((order) => {
-              const orderId = order.id;
-              const isCopied = copiedId === orderId;
-
-              return (
-                <div
-                  key={orderId}
-                  className="glass-card"
-                  style={{
-                    padding: '1.5rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '1.25rem',
-                    transition: 'all 0.2s ease',
-                  }}
-                >
-                  {/* Top Row: Tracking Number, Status, Copy */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', borderBottom: '1px solid rgba(59, 130, 246, 0.12)', paddingBottom: '0.85rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <span style={{ fontSize: '0.8rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>Tracking:</span>
-                      <code style={{ fontSize: '1.05rem', fontWeight: 700, color: '#60a5fa' }}>
-                        {order.trackingNumber || `ORD-#${order.id}`}
-                      </code>
-                      {order.trackingNumber && (
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(order.trackingNumber, orderId)}
-                          title="Copy Tracking Number"
-                          style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: isCopied ? '#10b981' : '#94a3b8',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.25rem',
-                            fontSize: '0.75rem',
-                          }}
-                        >
-                          {isCopied ? <Check size={14} /> : <Copy size={14} />}
-                        </button>
-                      )}
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      {getStatusBadge(order.status)}
-                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                        #{orderId}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Middle Row: Route Information */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
-                      <MapPin size={16} color="#3b82f6" style={{ flexShrink: 0, marginTop: '2px' }} />
-                      <div>
-                        <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Pickup</div>
-                        <div style={{ fontSize: '0.875rem', color: '#ffffff', fontWeight: 500 }}>{order.pickupAddress}</div>
-                        {order.pickupContactName && (
-                          <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Contact: {order.pickupContactName}</div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
-                      <MapPin size={16} color="#10b981" style={{ flexShrink: 0, marginTop: '2px' }} />
-                      <div>
-                        <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Destination</div>
-                        <div style={{ fontSize: '0.875rem', color: '#ffffff', fontWeight: 500 }}>{order.dropoffAddress}</div>
-                        {order.dropoffContactName && (
-                          <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Recipient: {order.dropoffContactName}</div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Bottom Row: Parcel, Fee, Date & View Details Link */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      flexWrap: 'wrap',
-                      gap: '0.75rem',
-                      paddingTop: '0.75rem',
-                      borderTop: '1px solid rgba(255, 255, 255, 0.05)',
-                      fontSize: '0.825rem',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', color: '#94a3b8' }}>
-                      {order.parcelDescription && (
-                        <div>
-                          <span style={{ color: '#64748b' }}>Parcel: </span>
-                          <strong style={{ color: '#e2e8f0' }}>{order.parcelDescription}</strong>
-                          {order.weightKg && <span> ({order.weightKg} kg)</span>}
-                        </div>
-                      )}
-                      <div>
-                        <span style={{ color: '#64748b' }}>Fee: </span>
-                        <strong style={{ color: '#38bdf8' }}>{order.currency || 'LKR'} {Number(order.deliveryFee || 0).toFixed(2)}</strong>
-                      </div>
-                    </div>
-
-                    <Link
-                      href={`/bookings/${orderId}`}
-                      className="btn btn-secondary"
-                      style={{ fontSize: '0.8rem', padding: '0.45rem 0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-                    >
-                      View Details <ChevronRight size={14} />
-                    </Link>
-                  </div>
-                </div>
-              );
-            })
+    <div className="sd-app-container">
+      {/* ---------------- TOP HEADER / BRAND ---------------- */}
+      <header className="sd-header">
+        <div className="sd-brand-row">
+          <div className="sd-brand-text">SwiftDrop</div>
+          {profile?.name && (
+            <Link href="/customer/profile" className="sd-profile-pill" title="View Profile">
+              <User size={14} />
+              <span>{profile.name}</span>
+            </Link>
           )}
         </div>
+        <h1 className="sd-title">My deliveries</h1>
+        <div className="sd-divider" />
+      </header>
+
+      {/* ---------------- SECTION TITLE & NAVIGATION TABS ---------------- */}
+      <section className="sd-section">
+        <div className="sd-section-header">
+          <h2 className="sd-section-title">My deliveries</h2>
+          <button
+            type="button"
+            onClick={loadDeliveries}
+            className="sd-refresh-btn"
+            title="Refresh Deliveries"
+            aria-label="Refresh deliveries"
+          >
+            <RotateCcw size={14} className={isLoading ? 'animate-spin' : ''} />
+          </button>
+        </div>
+
+        {/* Capsule Navigation Tabs: [ ACTIVE ] [ HISTORY ] [ ADDRESSES ] */}
+        <div className="sd-tabs-capsule" role="tablist" aria-label="Deliveries filter">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'ACTIVE'}
+            onClick={() => setActiveTab('ACTIVE')}
+            className={`sd-tab ${activeTab === 'ACTIVE' ? 'active' : ''}`}
+          >
+            ACTIVE
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'HISTORY'}
+            onClick={() => setActiveTab('HISTORY')}
+            className={`sd-tab ${activeTab === 'HISTORY' ? 'active' : ''}`}
+          >
+            HISTORY
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'ADDRESSES'}
+            onClick={() => setActiveTab('ADDRESSES')}
+            className={`sd-tab ${activeTab === 'ADDRESSES' ? 'active' : ''}`}
+          >
+            ADDRESSES
+          </button>
+        </div>
+      </section>
+
+      {/* ---------------- LOADING STATE ---------------- */}
+      {isLoading && (
+        <div className="sd-card sd-loading-card">
+          <Loader2 size={32} color="#2563eb" className="animate-spin" />
+          <div className="sd-loading-text">Loading your deliveries...</div>
+          <p className="sd-loading-subtext">Fetching live records from SwiftDrop Order Service</p>
+        </div>
       )}
 
-      {/* Global CSS for spinner */}
+      {/* ---------------- ERROR STATE ---------------- */}
+      {!isLoading && error && (
+        <div className="sd-card sd-error-card">
+          <div className="sd-error-icon">
+            <AlertCircle size={24} color="#dc2626" />
+          </div>
+          <div className="sd-error-title">We couldn't load your deliveries</div>
+          <div className="sd-error-msg">{error}</div>
+          <button type="button" onClick={loadDeliveries} className="sd-retry-btn">
+            Try again
+          </button>
+        </div>
+      )}
+
+      {/* ---------------- CONTENT BY ACTIVE TAB ---------------- */}
+      {!isLoading && !error && (
+        <>
+          {/* ==============================================================
+              TAB 1: ACTIVE DELIVERIES
+              Visual match to the reference screenshot
+             ============================================================== */}
+          {activeTab === 'ACTIVE' && (
+            <div className="sd-active-layout">
+              {/* PRIMARY ACTIVE DELIVERY CARD */}
+              <div className="sd-card sd-active-card">
+                {primaryActiveOrder ? (
+                  <>
+                    {/* Header: Tracking number · Status */}
+                    <div className="sd-active-header">
+                      <div className="sd-tracking-title">
+                        <span className="sd-code">{primaryActiveOrder.trackingNumber}</span>
+                        <span className="sd-dot">·</span>
+                        <span className="sd-status-label">Active</span>
+                      </div>
+                    </div>
+
+                    {/* Location / Branch */}
+                    <div className="sd-branch-label">
+                      {getBranchLocation(primaryActiveOrder)}
+                    </div>
+
+                    {/* Courier Assignment Badge */}
+                    <div className="sd-badge-row">
+                      {primaryActiveOrder.status !== 'Created' ? (
+                        <span className="sd-badge-courier">COURIER ASSIGNED</span>
+                      ) : (
+                        <span className="sd-badge-pending">DISPATCH IN PROGRESS</span>
+                      )}
+                    </div>
+
+                    {/* Courier Information (authoritative or appropriate state) */}
+                    <div className="sd-courier-block">
+                      <div className="sd-courier-name">
+                        {primaryActiveOrder.courierName ||
+                          (primaryActiveOrder.status !== 'Created'
+                            ? 'Courier Assigned'
+                            : 'Courier not assigned yet')}
+                      </div>
+                      <div className="sd-courier-vehicle">
+                        {primaryActiveOrder.courierVehicle ||
+                          (primaryActiveOrder.status !== 'Created'
+                            ? 'Motorbike · Fleet Dispatch'
+                            : 'Awaiting courier assignment')}
+                      </div>
+                    </div>
+
+                    {/* Status Milestone Summary */}
+                    <div className="sd-milestone-text">
+                      {getMilestoneSummary(primaryActiveOrder.status)}
+                    </div>
+
+                    {/* Action Button: Track live delivery */}
+                    <Link
+                      href={`/tracking?number=${encodeURIComponent(primaryActiveOrder.trackingNumber)}`}
+                      className="sd-track-button"
+                    >
+                      Track live delivery
+                    </Link>
+                  </>
+                ) : (
+                  /* Empty state for Active tab */
+                  <div className="sd-empty-active">
+                    <div className="sd-empty-icon">
+                      <Package size={28} color="#94a3b8" />
+                    </div>
+                    <div className="sd-empty-title">No active deliveries</div>
+                    <p className="sd-empty-desc">
+                      You don't have any active deliveries right now. Book a courier today for secure, fast parcel delivery.
+                    </p>
+                    <Link href="/book" className="sd-track-button" style={{ display: 'inline-block' }}>
+                      Create a delivery
+                    </Link>
+                  </div>
+                )}
+              </div>
+
+              {/* RECENT DELIVERIES CARD */}
+              <div className="sd-card sd-recent-card">
+                <h3 className="sd-card-heading">Recent deliveries</h3>
+                {recentDeliveries.length > 0 ? (
+                  <div className="sd-recent-list">
+                    {recentDeliveries.map((item) => (
+                      <Link
+                        key={item.id}
+                        href={`/bookings/${item.id}`}
+                        className="sd-recent-item"
+                      >
+                        <span className="sd-recent-code">{item.trackingNumber}</span>
+                        <span className="sd-dot">·</span>
+                        <span className="sd-recent-status">{item.status}</span>
+                        {item.createdAt && (
+                          <>
+                            <span className="sd-dot">·</span>
+                            <span className="sd-recent-date">{formatShortDate(item.createdAt)}</span>
+                          </>
+                        )}
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="sd-recent-empty">No recent deliveries recorded yet.</div>
+                )}
+              </div>
+
+              {/* ACCOUNT CARD */}
+              <div className="sd-card sd-account-card">
+                <h3 className="sd-card-heading">Account</h3>
+                <div className="sd-account-rows">
+                  <div className="sd-account-row">
+                    <Link href="/customer/profile" className="sd-account-link">
+                      Profile
+                    </Link>
+                    <span className="sd-dot">·</span>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('ADDRESSES')}
+                      className="sd-account-link-btn"
+                    >
+                      Addresses
+                    </button>
+                    <span className="sd-dot">·</span>
+                    <Link href="/customer/profile" className="sd-account-link">
+                      Notifications
+                    </Link>
+                  </div>
+
+                  <div className="sd-account-row" style={{ marginTop: '0.65rem' }}>
+                    <Link href="/health" className="sd-account-link">
+                      Help centre
+                    </Link>
+                    <span className="sd-dot">·</span>
+                    <a href="mailto:support@swiftdrop.io" className="sd-account-link">
+                      Report an issue
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ==============================================================
+              TAB 2: FULL HISTORY
+             ============================================================== */}
+          {activeTab === 'HISTORY' && (
+            <div className="sd-history-layout">
+              {/* Search filter for history */}
+              <div className="sd-card sd-search-card">
+                <Search size={16} color="#64748b" />
+                <input
+                  type="text"
+                  placeholder="Filter history by tracking number, pickup, or destination..."
+                  value={historySearch}
+                  onChange={(e) => setHistorySearch(e.target.value)}
+                  className="sd-search-input"
+                />
+                {historySearch && (
+                  <button
+                    type="button"
+                    onClick={() => setHistorySearch('')}
+                    className="sd-search-clear"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+
+              {orders.length === 0 ? (
+                <div className="sd-card sd-empty-active">
+                  <Package size={28} color="#94a3b8" />
+                  <div className="sd-empty-title">No delivery history yet</div>
+                  <p className="sd-empty-desc">
+                    Your completed and past delivery bookings will appear here once placed.
+                  </p>
+                  <Link href="/book" className="sd-track-button" style={{ display: 'inline-block' }}>
+                    Book a delivery
+                  </Link>
+                </div>
+              ) : (
+                <div className="sd-history-list">
+                  {orders
+                    .filter((o) => {
+                      const q = historySearch.toLowerCase();
+                      return (
+                        !q ||
+                        o.trackingNumber?.toLowerCase().includes(q) ||
+                        o.pickupAddress?.toLowerCase().includes(q) ||
+                        o.dropoffAddress?.toLowerCase().includes(q)
+                      );
+                    })
+                    .map((item) => (
+                      <Link
+                        key={item.id}
+                        href={`/bookings/${item.id}`}
+                        className="sd-card sd-history-card"
+                      >
+                        <div className="sd-history-top">
+                          <div className="sd-history-title">
+                            <span className="sd-code">{item.trackingNumber}</span>
+                            <span className="sd-dot">·</span>
+                            <span className="sd-history-status">{item.status}</span>
+                            {item.createdAt && (
+                              <>
+                                <span className="sd-dot">·</span>
+                                <span className="sd-recent-date">{formatShortDate(item.createdAt)}</span>
+                              </>
+                            )}
+                          </div>
+                          <ChevronRight size={16} color="#94a3b8" />
+                        </div>
+
+                        <div className="sd-history-addresses">
+                          <div className="sd-addr-item">
+                            <span className="sd-addr-lbl">From:</span> {item.pickupAddress}
+                          </div>
+                          <div className="sd-addr-item">
+                            <span className="sd-addr-lbl">To:</span> {item.dropoffAddress}
+                          </div>
+                        </div>
+
+                        <div className="sd-history-footer">
+                          <span>Fee: {item.currency || 'LKR'} {Number(item.deliveryFee || 0).toFixed(2)}</span>
+                          <span className="sd-view-link">View details →</span>
+                        </div>
+                      </Link>
+                    ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ==============================================================
+              TAB 3: ADDRESSES
+             ============================================================== */}
+          {activeTab === 'ADDRESSES' && (
+            <div className="sd-addresses-layout">
+              {/* Primary Address */}
+              <div className="sd-card">
+                <h3 className="sd-card-heading">Saved Addresses</h3>
+                {profile?.address ? (
+                  <div className="sd-address-item">
+                    <div className="sd-addr-header">
+                      <span className="sd-badge-primary">Default Delivery Address</span>
+                    </div>
+                    <div className="sd-addr-body">{profile.address}</div>
+                    <div className="sd-addr-recipient">
+                      Associated with: <strong>{profile.name}</strong> ({profile.phone || 'No phone'})
+                    </div>
+                    <div style={{ marginTop: '0.75rem' }}>
+                      <Link href="/customer/profile" className="sd-link-action">
+                        Edit in Profile →
+                      </Link>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="sd-empty-active" style={{ padding: '1.5rem 0' }}>
+                    <MapPin size={24} color="#94a3b8" />
+                    <div className="sd-empty-title">No saved default address</div>
+                    <p className="sd-empty-desc">
+                      Add your default home or office delivery address in your customer profile for faster booking.
+                    </p>
+                    <Link href="/customer/profile" className="sd-link-action">
+                      Add Address in Profile →
+                    </Link>
+                  </div>
+                )}
+              </div>
+
+              {/* Recent delivery locations from orders */}
+              {orders.length > 0 && (
+                <div className="sd-card">
+                  <h3 className="sd-card-heading">Recent Delivery Locations</h3>
+                  <div className="sd-recent-addrs">
+                    {Array.from(new Set(orders.map((o) => o.dropoffAddress).filter(Boolean)))
+                      .slice(0, 5)
+                      .map((addr, idx) => (
+                        <div key={idx} className="sd-recent-addr-item">
+                          <MapPin size={14} color="#2563eb" style={{ flexShrink: 0, marginTop: '2px' }} />
+                          <span>{addr}</span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ---------------- COMPONENT-SCOPED STYLING ---------------- */}
       <style jsx global>{`
-        @keyframes spin {
-          from {
-            transform: rotate(0deg);
+        /* ==============================================================
+           SWIFTDROP CUSTOMER APP THEME
+           Direct 1:1 match to the reference mobile design with responsive web expansion
+           ============================================================== */
+        .sd-app-container {
+          max-width: 900px;
+          margin: 0 auto;
+          display: flex;
+          flex-direction: column;
+          gap: 1.25rem;
+          padding: 0 0.5rem;
+          font-family: inherit;
+        }
+
+        /* Top Brand Header */
+        .sd-header {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+        }
+
+        .sd-brand-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .sd-brand-text {
+          font-size: 1.35rem;
+          font-weight: 800;
+          color: #ffffff;
+          letter-spacing: -0.02em;
+        }
+
+        .sd-profile-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.35rem;
+          font-size: 0.75rem;
+          color: #94a3b8;
+          background: rgba(255, 255, 255, 0.06);
+          padding: 0.25rem 0.6rem;
+          border-radius: 9999px;
+          text-decoration: none;
+          transition: background 0.15s;
+        }
+
+        .sd-profile-pill:hover {
+          background: rgba(255, 255, 255, 0.12);
+          color: #ffffff;
+        }
+
+        .sd-title {
+          font-size: 1.75rem;
+          font-weight: 800;
+          color: #ffffff;
+          letter-spacing: -0.02em;
+          margin: 0;
+        }
+
+        .sd-divider {
+          height: 1px;
+          background: rgba(255, 255, 255, 0.1);
+          margin-top: 0.75rem;
+        }
+
+        /* Section Header & Tabs */
+        .sd-section {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+        }
+
+        .sd-section-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .sd-section-title {
+          font-size: 1.45rem;
+          font-weight: 800;
+          color: #ffffff;
+          letter-spacing: -0.02em;
+          margin: 0;
+        }
+
+        .sd-refresh-btn {
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: #94a3b8;
+          width: 28px;
+          height: 28px;
+          border-radius: 6px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+        }
+
+        .sd-refresh-btn:hover {
+          color: #ffffff;
+          background: rgba(255, 255, 255, 0.12);
+        }
+
+        /* Capsule Tabs Container */
+        .sd-tabs-capsule {
+          display: inline-flex;
+          background: #ffffff;
+          border-radius: 9999px;
+          padding: 3px;
+          width: fit-content;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .sd-tab {
+          border: none;
+          background: transparent;
+          padding: 6px 16px;
+          border-radius: 9999px;
+          font-size: 0.75rem;
+          font-weight: 700;
+          color: #334155;
+          letter-spacing: 0.04em;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .sd-tab.active {
+          background: #e0e7ff;
+          color: #1e3a8a;
+        }
+
+        .sd-tab:focus-visible {
+          outline: 2px solid #2563eb;
+        }
+
+        /* Standard Reference Card */
+        .sd-card {
+          background: #ffffff;
+          border-radius: 16px;
+          padding: 1.5rem;
+          color: #0f172a;
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+          border: 1px solid #e2e8f0;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .sd-card-heading {
+          font-size: 1.15rem;
+          font-weight: 800;
+          color: #0f172a;
+          margin: 0 0 1rem 0;
+          letter-spacing: -0.01em;
+        }
+
+        /* Active Card Specifics */
+        .sd-active-card {
+          gap: 0.6rem;
+        }
+
+        .sd-active-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .sd-tracking-title {
+          display: flex;
+          align-items: center;
+          gap: 0.45rem;
+          font-size: 1.05rem;
+          font-weight: 800;
+          color: #0f172a;
+        }
+
+        .sd-code {
+          font-family: inherit;
+          font-weight: 800;
+        }
+
+        .sd-dot {
+          color: #64748b;
+          font-weight: 600;
+        }
+
+        .sd-status-label {
+          color: #0f172a;
+        }
+
+        .sd-branch-label {
+          font-size: 0.85rem;
+          color: #475569;
+          margin-top: -0.25rem;
+        }
+
+        .sd-badge-row {
+          margin: 0.25rem 0 0.4rem 0;
+        }
+
+        .sd-badge-courier {
+          display: inline-block;
+          background: #dcfce7;
+          color: #15803d;
+          font-size: 0.7rem;
+          font-weight: 800;
+          letter-spacing: 0.05em;
+          padding: 4px 10px;
+          border-radius: 9999px;
+        }
+
+        .sd-badge-pending {
+          display: inline-block;
+          background: #fef3c7;
+          color: #b45309;
+          font-size: 0.7rem;
+          font-weight: 800;
+          letter-spacing: 0.05em;
+          padding: 4px 10px;
+          border-radius: 9999px;
+        }
+
+        .sd-badge-primary {
+          display: inline-block;
+          background: #e0e7ff;
+          color: #1e3a8a;
+          font-size: 0.7rem;
+          font-weight: 700;
+          padding: 3px 8px;
+          border-radius: 9999px;
+        }
+
+        .sd-courier-block {
+          display: flex;
+          flex-direction: column;
+          gap: 0.15rem;
+          margin: 0.25rem 0;
+        }
+
+        .sd-courier-name {
+          font-size: 1.05rem;
+          font-weight: 800;
+          color: #0f172a;
+        }
+
+        .sd-courier-vehicle {
+          font-size: 0.825rem;
+          color: #475569;
+        }
+
+        .sd-milestone-text {
+          font-size: 0.85rem;
+          color: #334155;
+          margin: 0.35rem 0 0.5rem 0;
+        }
+
+        /* Full-width Blue Action Button from Screenshot */
+        .sd-track-button {
+          background: #2563eb;
+          color: #ffffff;
+          font-size: 0.95rem;
+          font-weight: 600;
+          text-align: center;
+          padding: 0.85rem 1rem;
+          border-radius: 8px;
+          text-decoration: none;
+          transition: background 0.15s ease;
+          display: block;
+          width: 100%;
+          border: none;
+          cursor: pointer;
+        }
+
+        .sd-track-button:hover {
+          background: #1d4ed8;
+        }
+
+        /* Recent Deliveries List */
+        .sd-recent-list {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+        }
+
+        .sd-recent-item {
+          display: flex;
+          align-items: center;
+          gap: 0.45rem;
+          font-size: 0.875rem;
+          color: #0f172a;
+          text-decoration: none;
+          padding: 0.25rem 0;
+          transition: color 0.15s;
+        }
+
+        .sd-recent-item:hover {
+          color: #2563eb;
+        }
+
+        .sd-recent-code {
+          font-weight: 700;
+        }
+
+        .sd-recent-status {
+          color: #334155;
+        }
+
+        .sd-recent-date {
+          color: #64748b;
+        }
+
+        .sd-recent-empty {
+          font-size: 0.85rem;
+          color: #64748b;
+        }
+
+        /* Account Card */
+        .sd-account-card {
+          gap: 0.5rem;
+        }
+
+        .sd-account-rows {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .sd-account-row {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-size: 0.875rem;
+          flex-wrap: wrap;
+        }
+
+        .sd-account-link {
+          color: #0f172a;
+          text-decoration: none;
+          transition: color 0.15s;
+        }
+
+        .sd-account-link:hover {
+          color: #2563eb;
+          text-decoration: underline;
+        }
+
+        .sd-account-link-btn {
+          background: transparent;
+          border: none;
+          color: #0f172a;
+          font-size: 0.875rem;
+          cursor: pointer;
+          padding: 0;
+          font-family: inherit;
+        }
+
+        .sd-account-link-btn:hover {
+          color: #2563eb;
+          text-decoration: underline;
+        }
+
+        /* History & Addresses Specifics */
+        .sd-history-layout,
+        .sd-addresses-layout {
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+
+        .sd-search-card {
+          padding: 0.75rem 1.25rem;
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+        }
+
+        .sd-search-input {
+          flex: 1;
+          border: none;
+          outline: none;
+          font-size: 0.875rem;
+          color: #0f172a;
+          background: transparent;
+        }
+
+        .sd-search-clear {
+          background: transparent;
+          border: none;
+          color: #64748b;
+          font-size: 0.75rem;
+          cursor: pointer;
+        }
+
+        .sd-history-list {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+        }
+
+        .sd-history-card {
+          text-decoration: none;
+          gap: 0.6rem;
+          transition: border-color 0.15s;
+        }
+
+        .sd-history-card:hover {
+          border-color: #2563eb;
+        }
+
+        .sd-history-top {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .sd-history-title {
+          display: flex;
+          align-items: center;
+          gap: 0.45rem;
+          font-size: 0.95rem;
+          color: #0f172a;
+        }
+
+        .sd-history-status {
+          font-weight: 600;
+        }
+
+        .sd-history-addresses {
+          display: flex;
+          flex-direction: column;
+          gap: 0.2rem;
+          font-size: 0.8rem;
+          color: #475569;
+        }
+
+        .sd-addr-lbl {
+          font-weight: 600;
+          color: #64748b;
+        }
+
+        .sd-history-footer {
+          display: flex;
+          justify-content: space-between;
+          font-size: 0.8rem;
+          color: #64748b;
+          border-top: 1px solid #f1f5f9;
+          padding-top: 0.5rem;
+        }
+
+        .sd-view-link {
+          color: #2563eb;
+          font-weight: 600;
+        }
+
+        .sd-address-item {
+          display: flex;
+          flex-direction: column;
+          gap: 0.35rem;
+        }
+
+        .sd-addr-body {
+          font-size: 0.95rem;
+          font-weight: 600;
+          color: #0f172a;
+        }
+
+        .sd-addr-recipient {
+          font-size: 0.8rem;
+          color: #64748b;
+        }
+
+        .sd-link-action {
+          color: #2563eb;
+          font-size: 0.85rem;
+          font-weight: 600;
+          text-decoration: none;
+        }
+
+        .sd-link-action:hover {
+          text-decoration: underline;
+        }
+
+        .sd-recent-addrs {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+          margin-top: 0.25rem;
+        }
+
+        .sd-recent-addr-item {
+          display: flex;
+          align-items: flex-start;
+          gap: 0.45rem;
+          font-size: 0.85rem;
+          color: #334155;
+        }
+
+        /* Loading & Error Cards */
+        .sd-loading-card {
+          align-items: center;
+          text-align: center;
+          padding: 3rem 1.5rem;
+          gap: 0.75rem;
+        }
+
+        .sd-loading-text {
+          font-size: 1rem;
+          font-weight: 700;
+          color: #0f172a;
+        }
+
+        .sd-loading-subtext {
+          font-size: 0.8rem;
+          color: #64748b;
+          margin: 0;
+        }
+
+        .sd-error-card {
+          align-items: center;
+          text-align: center;
+          padding: 2.5rem 1.5rem;
+          gap: 0.5rem;
+          border-color: #fca5a5;
+          background: #fef2f2;
+        }
+
+        .sd-error-title {
+          font-size: 1rem;
+          font-weight: 700;
+          color: #991b1b;
+        }
+
+        .sd-error-msg {
+          font-size: 0.85rem;
+          color: #b91c1c;
+          max-width: 400px;
+        }
+
+        .sd-retry-btn {
+          margin-top: 0.5rem;
+          background: #dc2626;
+          color: #ffffff;
+          border: none;
+          padding: 0.5rem 1.25rem;
+          border-radius: 6px;
+          font-size: 0.85rem;
+          font-weight: 600;
+          cursor: pointer;
+        }
+
+        .sd-empty-active {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+          gap: 0.5rem;
+          padding: 1.5rem 0.5rem;
+        }
+
+        .sd-empty-title {
+          font-size: 1.05rem;
+          font-weight: 700;
+          color: #0f172a;
+        }
+
+        .sd-empty-desc {
+          font-size: 0.85rem;
+          color: #64748b;
+          max-width: 380px;
+          margin: 0 0 0.5rem 0;
+        }
+
+        /* ==============================================================
+           RESPONSIVE LAYOUT ENGINE (Mobile vs Desktop)
+           ============================================================== */
+        /* Mobile Default (< 768px): Strictly follows reference screenshot */
+        .sd-active-layout {
+          display: flex;
+          flex-direction: column;
+          gap: 1.25rem;
+          width: 100%;
+        }
+
+        /* Desktop Layout (>= 768px): Expands into a 2-column grid */
+        @media (min-width: 768px) {
+          .sd-app-container {
+            padding: 0 1rem;
           }
-          to {
-            transform: rotate(360deg);
+
+          .sd-active-layout {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            grid-template-rows: auto auto;
+            gap: 1.5rem;
+          }
+
+          .sd-active-card {
+            grid-column: 1 / 2;
+            grid-row: 1 / 2;
+          }
+
+          .sd-recent-card {
+            grid-column: 2 / 3;
+            grid-row: 1 / 2;
+          }
+
+          .sd-account-card {
+            grid-column: 1 / 3;
+            grid-row: 2 / 3;
           }
         }
       `}</style>
     </div>
   );
 }
-

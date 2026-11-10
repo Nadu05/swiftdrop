@@ -93,6 +93,10 @@ export interface DeliveryOrder {
   deliveryInstructions?: string;
   createdAt: string;
   updatedAt?: string;
+  courierName?: string;
+  courierVehicle?: string;
+  courierPhone?: string;
+  branch?: string;
 }
 
 /**

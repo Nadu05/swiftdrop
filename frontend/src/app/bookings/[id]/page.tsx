@@ -368,14 +368,24 @@ export default function OrderDetailsPage() {
           </div>
 
           {/* Bottom Actions */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
             <Link href="/bookings" className="btn btn-secondary">
               ← Return to All Deliveries
             </Link>
 
-            <Link href="/book" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <PlusCircle size={16} /> Book Another Delivery
-            </Link>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <Link
+                href={`/bookings/${id}/receipt`}
+                className="btn btn-secondary"
+                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+              >
+                <FileText size={16} /> View Receipt
+              </Link>
+
+              <Link href="/book" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <PlusCircle size={16} /> Book Another Delivery
+              </Link>
+            </div>
           </div>
         </>
       )}
