@@ -12,14 +12,17 @@ import {
   Layers,
   PlusCircle,
   Clock,
-  Compass
+  Compass,
+  User
 } from 'lucide-react';
 
 const navItems = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Track Parcel', href: '/tracking', icon: Compass },
+  { name: 'Customer Dashboard', href: '/customer/dashboard', icon: LayoutDashboard },
   { name: 'Book Delivery', href: '/book', icon: PlusCircle },
   { name: 'My Deliveries', href: '/bookings', icon: Clock },
+  { name: 'Track Parcel', href: '/tracking', icon: Compass },
+  { name: 'My Profile', href: '/customer/profile', icon: User },
+  { name: 'Platform Overview', href: '/', icon: Layers },
   { name: 'Service Health', href: '/health', icon: Activity },
   { name: 'API Tester', href: '/api-tester', icon: Terminal },
 ];
