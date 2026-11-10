@@ -6,19 +6,17 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   MapPin,
-  User,
-  Phone,
   Package,
-  Scale,
-  FileText,
   ArrowRight,
   ArrowLeft,
   CheckCircle2,
   AlertCircle,
   Truck,
-  Info,
-  Layers,
-  Sparkles,
+  Calculator,
+  Loader2,
+  RotateCcw,
+  Receipt,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   bookingFormSchema,
@@ -27,6 +25,8 @@ import {
   STEP_2_FIELDS,
   STEP_3_FIELDS,
 } from '@/schema/order.schema';
+import { getOrderQuote } from '@/api/services/orders.api';
+import type { OrderQuoteResponse } from '@/types/order.types';
 
 /**
  * Member 06: Customer Booking Page
@@ -34,11 +34,16 @@ import {
  *   Step 1: Pickup Details
  *   Step 2: Delivery Details
  *   Step 3: Parcel Details
- *   Step 4: Review Summary (Pre-Quote)
+ *   Step 4: Review Summary & Live Fee Quote (POST /api/v1/orders/quote)
  */
 export default function CustomerBookingPage() {
   const [currentStep, setCurrentStep] = useState<number>(1);
   const totalSteps = 4;
+
+  // State for the Quote API integration
+  const [quote, setQuote] = useState<OrderQuoteResponse | null>(null);
+  const [isLoadingQuote, setIsLoadingQuote] = useState<boolean>(false);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
 
   // React Hook Form handles all fields across all steps in one single unified state
   const {
@@ -85,7 +90,13 @@ export default function CustomerBookingPage() {
     const isStepValid = await trigger(fieldsToValidate);
 
     if (isStepValid) {
-      setCurrentStep((prev) => Math.min(prev + 1, totalSteps));
+      // If moving into Step 4, automatically request a quote if not already fetched
+      if (currentStep === 3 && !quote && !isLoadingQuote) {
+        setCurrentStep(4);
+        fetchQuote();
+      } else {
+        setCurrentStep((prev) => Math.min(prev + 1, totalSteps));
+      }
     }
   };
 
@@ -94,6 +105,36 @@ export default function CustomerBookingPage() {
    */
   const handlePreviousStep = () => {
     setCurrentStep((prev) => Math.max(prev - 1, 1));
+  };
+
+  /**
+   * Request authoritative fee quote from backend:
+   * POST /api/v1/orders/quote
+   */
+  const fetchQuote = async () => {
+    // Prevent duplicate API calls
+    if (isLoadingQuote) return;
+
+    setIsLoadingQuote(true);
+    setQuoteError(null);
+
+    const values = getValues();
+
+    try {
+      const response = await getOrderQuote({
+        pickupAddress: values.pickupAddress,
+        dropoffAddress: values.dropoffAddress,
+        weightKg: values.weightKg,
+        parcelSize: values.parcelSize,
+      });
+      setQuote(response);
+    } catch (err: any) {
+      setQuoteError(
+        err.message || 'Unable to calculate delivery fee. Please check your connection and try again.'
+      );
+    } finally {
+      setIsLoadingQuote(false);
+    }
   };
 
   return (
@@ -120,7 +161,7 @@ export default function CustomerBookingPage() {
             Book a New Parcel Delivery
           </h1>
           <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
-            Complete the 3 quick steps below to specify pickup, destination, and parcel details.
+            Complete the steps below to calculate your delivery fee and review your booking.
           </p>
         </div>
         <div
@@ -153,7 +194,7 @@ export default function CustomerBookingPage() {
           { step: 1, title: 'Pickup', desc: 'Sender details' },
           { step: 2, title: 'Delivery', desc: 'Recipient details' },
           { step: 3, title: 'Parcel', desc: 'Size & weight' },
-          { step: 4, title: 'Review', desc: 'Confirm info' },
+          { step: 4, title: 'Quote & Review', desc: 'Fee calculation' },
         ].map((item, index) => {
           const isActive = currentStep === item.step;
           const isCompleted = currentStep > item.step;
@@ -582,16 +623,16 @@ export default function CustomerBookingPage() {
             </div>
           )}
 
-          {/* STEP 4: REVIEW DETAILS SUMMARY */}
+          {/* STEP 4: REVIEW DETAILS SUMMARY & LIVE FEE QUOTE */}
           {currentStep === 4 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
               <div style={{ borderBottom: '1px solid rgba(59, 130, 246, 0.15)', paddingBottom: '1rem' }}>
                 <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#ffffff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <CheckCircle2 size={20} color="#10b981" />
-                  Step 4: Review Delivery Information
+                  <Receipt size={20} color="#38bdf8" />
+                  Step 4: Review Details & Delivery Fee Quote
                 </h2>
                 <p style={{ fontSize: '0.825rem', color: '#94a3b8', marginTop: '0.25rem' }}>
-                  Review your information below before requesting a fee estimate from the Order Service.
+                  Review your information and obtain an official delivery fee estimate calculated by the Order Service.
                 </p>
               </div>
 
@@ -677,25 +718,185 @@ export default function CustomerBookingPage() {
                 )}
               </div>
 
-              {/* Notice for the upcoming Quote Step */}
-              <div
-                style={{
-                  padding: '1rem 1.25rem',
-                  borderRadius: '10px',
-                  background: 'rgba(59, 130, 246, 0.1)',
-                  border: '1px solid rgba(59, 130, 246, 0.25)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.75rem',
-                  fontSize: '0.85rem',
-                  color: '#93c5fd',
-                }}
-              >
-                <Info size={20} color="#60a5fa" style={{ flexShrink: 0 }} />
-                <div>
-                  <strong>Form validation complete!</strong> In the next step, clicking <em>"Get Fee Estimate"</em> will send this validated data to the Order Service API (<code>POST /api/v1/orders/quote</code>) to calculate your delivery fee.
+              {/* ---------------- LIVE QUOTE SECTION ---------------- */}
+              {/* STATE 1: LOADING */}
+              {isLoadingQuote && (
+                <div
+                  style={{
+                    padding: '2rem',
+                    borderRadius: '14px',
+                    background: 'rgba(30, 58, 138, 0.2)',
+                    border: '1px solid rgba(59, 130, 246, 0.3)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '1rem',
+                  }}
+                >
+                  <Loader2 size={32} color="#60a5fa" className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '1rem', fontWeight: 700, color: '#ffffff' }}>
+                      Calculating Delivery Fee...
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.25rem' }}>
+                      Communicating with Order Service via API Gateway (POST /api/v1/orders/quote)
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* STATE 2: ERROR */}
+              {!isLoadingQuote && quoteError && (
+                <div
+                  style={{
+                    padding: '1.5rem',
+                    borderRadius: '14px',
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '1rem',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                    <AlertCircle size={22} color="#ef4444" style={{ flexShrink: 0, marginTop: '2px' }} />
+                    <div>
+                      <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#f87171' }}>
+                        Unable to Calculate Delivery Fee
+                      </div>
+                      <div style={{ fontSize: '0.825rem', color: '#cbd5e1', marginTop: '0.25rem' }}>
+                        {quoteError}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <button
+                      type="button"
+                      onClick={fetchQuote}
+                      className="btn btn-secondary"
+                      style={{ fontSize: '0.8rem', padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                    >
+                      <RotateCcw size={14} /> Retry Fee Calculation
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STATE 3: SUCCESSFUL QUOTE DISPLAY */}
+              {!isLoadingQuote && quote && (
+                <div
+                  style={{
+                    padding: '1.75rem 2rem',
+                    borderRadius: '16px',
+                    background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(15, 23, 42, 0.8) 100%)',
+                    border: '1px solid rgba(16, 185, 129, 0.4)',
+                    boxShadow: '0 8px 30px rgba(16, 185, 129, 0.15)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '1.25rem',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <ShieldCheck size={20} color="#34d399" />
+                      <span style={{ fontSize: '0.95rem', fontWeight: 800, color: '#ffffff' }}>
+                        Authoritative Delivery Quote
+                      </span>
+                    </div>
+                    <span className="badge badge-success">Backend Verified</span>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '1rem' }}>
+                    <div>
+                      <div style={{ fontSize: '0.8rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Estimated Delivery Fee
+                      </div>
+                      <div style={{ fontSize: '2.25rem', fontWeight: 800, color: '#34d399', letterSpacing: '-0.02em' }}>
+                        {quote.currency || 'LKR'} {Number(quote.estimatedFee).toFixed(2)}
+                      </div>
+                    </div>
+                    {quote.estimatedDistanceKm && (
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Route Distance</div>
+                        <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ffffff' }}>
+                          {quote.estimatedDistanceKm} km
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Fee Breakdown if returned by backend */}
+                  {quote.breakdown && (
+                    <div style={{ display: 'flex', gap: '2rem', fontSize: '0.825rem', color: '#94a3b8' }}>
+                      <div>
+                        Base Rate: <strong style={{ color: '#ffffff' }}>{quote.currency} {Number(quote.breakdown.baseFee).toFixed(2)}</strong>
+                      </div>
+                      <div>
+                        Weight Rate: <strong style={{ color: '#ffffff' }}>{quote.currency} {Number(quote.breakdown.weightFee).toFixed(2)}</strong>
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.25rem' }}>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                      Pricing calculated securely by Order Service (:8083)
+                    </div>
+                    <button
+                      type="button"
+                      onClick={fetchQuote}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#60a5fa',
+                        fontSize: '0.8rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.3rem',
+                        textDecoration: 'underline',
+                      }}
+                    >
+                      <RotateCcw size={12} /> Recalculate
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STATE 4: INITIAL STATE (NOT YET REQUESTED) */}
+              {!isLoadingQuote && !quote && !quoteError && (
+                <div
+                  style={{
+                    padding: '1.5rem',
+                    borderRadius: '12px',
+                    background: 'rgba(59, 130, 246, 0.08)',
+                    border: '1px solid rgba(59, 130, 246, 0.25)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <Calculator size={24} color="#60a5fa" />
+                    <div>
+                      <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#ffffff' }}>
+                        Ready to calculate delivery fee
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+                        Click to request an authoritative quote from the Order Service backend.
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={fetchQuote}
+                    className="btn btn-primary"
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
+                  >
+                    <Calculator size={16} /> Get Fee Estimate
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -714,8 +915,9 @@ export default function CustomerBookingPage() {
               <button
                 type="button"
                 onClick={handlePreviousStep}
+                disabled={isLoadingQuote}
                 className="btn btn-secondary"
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: isLoadingQuote ? 0.6 : 1 }}
               >
                 <ArrowLeft size={16} /> Back
               </button>
@@ -737,16 +939,55 @@ export default function CustomerBookingPage() {
             ) : (
               <button
                 type="button"
-                onClick={() => alert('Form is 100% valid! Ready for Step 3: Fee Quote API integration.')}
+                onClick={() => {
+                  if (!quote) {
+                    fetchQuote();
+                  } else {
+                    alert('Official quote confirmed! Ready for Next Step: Order Creation (POST /api/v1/orders).');
+                  }
+                }}
+                disabled={isLoadingQuote}
                 className="btn btn-primary"
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  background: quote ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : undefined,
+                  opacity: isLoadingQuote ? 0.6 : 1,
+                  cursor: isLoadingQuote ? 'not-allowed' : 'pointer',
+                }}
               >
-                <Sparkles size={16} /> Ready for Get Estimate (Next Step)
+                {isLoadingQuote ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
+                    Calculating...
+                  </>
+                ) : quote ? (
+                  <>
+                    <CheckCircle2 size={16} /> Proceed to Confirm Booking
+                  </>
+                ) : (
+                  <>
+                    <Calculator size={16} /> Get Fee Estimate
+                  </>
+                )}
               </button>
             )}
           </div>
         </form>
       </div>
+
+      {/* Spin animation for spinner */}
+      <style jsx global>{`
+        @keyframes spin {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
+        }
+      `}</style>
     </div>
   );
 }
