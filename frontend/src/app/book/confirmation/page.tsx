@@ -207,19 +207,32 @@ function ConfirmationContent() {
           <LayoutDashboard size={16} /> Return to Dashboard
         </Link>
 
-        <div style={{ display: 'flex', gap: '1rem' }}>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
           <Link href="/book" className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <PlusCircle size={16} /> Book Another Delivery
+            <PlusCircle size={16} /> Book Another
           </Link>
 
-          <button
-            type="button"
-            onClick={() => alert(`Public Tracking for ${trackingNumber} will be implemented in the Tracking feature!`)}
-            className="btn btn-primary"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}
-          >
-            <Truck size={16} /> Track My Parcel
-          </button>
+          <Link href="/bookings" className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Package size={16} /> View My Deliveries
+          </Link>
+
+          {orderId && orderId !== '—' ? (
+            <Link
+              href={`/bookings/${orderId}`}
+              className="btn btn-primary"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}
+            >
+              <Truck size={16} /> View Delivery Status
+            </Link>
+          ) : (
+            <Link
+              href="/bookings"
+              className="btn btn-primary"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}
+            >
+              <Truck size={16} /> My Deliveries
+            </Link>
+          )}
         </div>
       </div>
     </div>
