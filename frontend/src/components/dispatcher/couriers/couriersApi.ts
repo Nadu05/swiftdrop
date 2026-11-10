@@ -1,0 +1,175 @@
+import type { CourierProfile, CourierFleetSummaryMetrics } from './types';
+
+export const couriersFleetMockData: CourierProfile[] = [
+  {
+    id: 'courier-101',
+    courierCode: 'CR-101',
+    name: 'Kamal Silva',
+    phone: '+94 77 123 4567',
+    email: 'kamal.silva@swiftdrop.lk',
+    status: 'BUSY',
+    vehicleType: 'Motorcycle',
+    vehiclePlate: 'WP BDF-8942',
+    zone: 'Zone A - Colombo Central',
+    activeDeliveries: 7,
+    maxCapacity: 10,
+    completedToday: 14,
+    totalCompletedLifetime: 1240,
+    rating: 4.9,
+    shiftStart: '07:30 AM',
+    lastActive: 'Just now',
+  },
+  {
+    id: 'courier-102',
+    courierCode: 'CR-102',
+    name: 'Sunil Wickramasinghe',
+    phone: '+94 71 987 6543',
+    email: 'sunil.w@swiftdrop.lk',
+    status: 'BUSY',
+    vehicleType: 'Van',
+    vehiclePlate: 'WP CAS-4412',
+    zone: 'Zone B - Colombo East',
+    activeDeliveries: 5,
+    maxCapacity: 10,
+    completedToday: 11,
+    totalCompletedLifetime: 980,
+    rating: 4.8,
+    shiftStart: '08:00 AM',
+    lastActive: '5 mins ago',
+  },
+  {
+    id: 'courier-103',
+    courierCode: 'CR-103',
+    name: 'Kasun Dias',
+    phone: '+94 72 333 8899',
+    email: 'kasun.dias@swiftdrop.lk',
+    status: 'AVAILABLE',
+    vehicleType: 'Motorcycle',
+    vehiclePlate: 'WP BDE-1102',
+    zone: 'Zone C - Colombo South',
+    activeDeliveries: 2,
+    maxCapacity: 8,
+    completedToday: 9,
+    totalCompletedLifetime: 850,
+    rating: 4.9,
+    shiftStart: '08:15 AM',
+    lastActive: '2 mins ago',
+  },
+  {
+    id: 'courier-104',
+    courierCode: 'CR-104',
+    name: 'Saman Kumara',
+    phone: '+94 75 444 1122',
+    email: 'saman.k@swiftdrop.lk',
+    status: 'AVAILABLE',
+    vehicleType: 'Bicycle',
+    vehiclePlate: 'ECO-CYCLE-04',
+    zone: 'Zone A - Colombo Central',
+    activeDeliveries: 0,
+    maxCapacity: 8,
+    completedToday: 6,
+    totalCompletedLifetime: 420,
+    rating: 4.7,
+    shiftStart: '09:00 AM',
+    lastActive: 'Just now',
+  },
+  {
+    id: 'courier-107',
+    courierCode: 'CR-107',
+    name: 'Ruwan Jayawardena',
+    phone: '+94 76 555 4321',
+    email: 'ruwan.j@swiftdrop.lk',
+    status: 'BUSY',
+    vehicleType: 'Motorcycle',
+    vehiclePlate: 'WP BGA-7711',
+    zone: 'Zone C - Colombo South',
+    activeDeliveries: 4,
+    maxCapacity: 10,
+    completedToday: 8,
+    totalCompletedLifetime: 630,
+    rating: 4.8,
+    shiftStart: '08:30 AM',
+    lastActive: '1 min ago',
+  },
+  {
+    id: 'courier-108',
+    courierCode: 'CR-108',
+    name: 'Dilini Rajapaksha',
+    phone: '+94 77 444 8899',
+    email: 'dilini.r@swiftdrop.lk',
+    status: 'AVAILABLE',
+    vehicleType: 'Motorcycle',
+    vehiclePlate: 'WP BDF-3344',
+    zone: 'Zone E - Kelaniya / Kadawatha',
+    activeDeliveries: 1,
+    maxCapacity: 8,
+    completedToday: 12,
+    totalCompletedLifetime: 1100,
+    rating: 5.0,
+    shiftStart: '07:00 AM',
+    lastActive: 'Just now',
+  },
+  {
+    id: 'courier-105',
+    courierCode: 'CR-105',
+    name: 'Mahesh Alwis',
+    phone: '+94 78 666 9900',
+    email: 'mahesh.a@swiftdrop.lk',
+    status: 'ON_BREAK',
+    vehicleType: 'Van',
+    vehiclePlate: 'WP CAH-9988',
+    zone: 'Zone E - Kelaniya / Kadawatha',
+    activeDeliveries: 0,
+    maxCapacity: 10,
+    completedToday: 8,
+    totalCompletedLifetime: 750,
+    rating: 4.6,
+    shiftStart: '07:45 AM',
+    lastActive: '15 mins ago (On lunch break)',
+  },
+  {
+    id: 'courier-106',
+    courierCode: 'CR-106',
+    name: 'Pravin Weerakkody',
+    phone: '+94 70 111 2233',
+    email: 'pravin.w@swiftdrop.lk',
+    status: 'OFFLINE',
+    vehicleType: 'Motorcycle',
+    vehiclePlate: 'WP BDD-5566',
+    zone: 'Zone B - Colombo East',
+    activeDeliveries: 0,
+    maxCapacity: 8,
+    completedToday: 0,
+    totalCompletedLifetime: 310,
+    rating: 4.7,
+    shiftStart: 'Off Shift',
+    lastActive: 'Yesterday, 06:00 PM',
+  },
+];
+
+let couriersStore: CourierProfile[] = [...couriersFleetMockData];
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+export async function getCourierProfiles(): Promise<CourierProfile[]> {
+  await delay(200);
+  return [...couriersStore];
+}
+
+export async function getCourierFleetSummary(): Promise<CourierFleetSummaryMetrics> {
+  await delay(120);
+  const total = couriersStore.length;
+  const available = couriersStore.filter((c) => c.status === 'AVAILABLE').length;
+  const busy = couriersStore.filter((c) => c.status === 'BUSY').length;
+  const onBreak = couriersStore.filter((c) => c.status === 'ON_BREAK').length;
+  const offline = couriersStore.filter((c) => c.status === 'OFFLINE').length;
+
+  return {
+    totalFleet: total,
+    available,
+    busy,
+    onBreak,
+    offline,
+  };
+}
+
