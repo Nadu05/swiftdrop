@@ -1,6 +1,7 @@
 'use client';
 
-import { Search, Filter, MapPin, ArrowUpDown, Truck } from 'lucide-react';
+import { Search, Filter, Truck, Gauge, ArrowUpDown } from 'lucide-react';
+import type { WorkloadFilter, SortOption } from './types';
 
 interface CourierFiltersProps {
   searchTerm: string;
@@ -9,10 +10,10 @@ interface CourierFiltersProps {
   onStatusFilterChange: (value: string) => void;
   vehicleFilter: string;
   onVehicleFilterChange: (value: string) => void;
-  zoneFilter: string;
-  onZoneFilterChange: (value: string) => void;
-  sortOrder: 'name' | 'workload';
-  onSortOrderToggle: () => void;
+  workloadFilter: WorkloadFilter;
+  onWorkloadFilterChange: (value: WorkloadFilter) => void;
+  sortOption: SortOption;
+  onSortOptionChange: (value: SortOption) => void;
 }
 
 export default function CourierFilters({
@@ -22,54 +23,45 @@ export default function CourierFilters({
   onStatusFilterChange,
   vehicleFilter,
   onVehicleFilterChange,
-  zoneFilter,
-  onZoneFilterChange,
-  sortOrder,
-  onSortOrderToggle,
+  workloadFilter,
+  onWorkloadFilterChange,
+  sortOption,
+  onSortOptionChange,
 }: CourierFiltersProps) {
-  const zonesList = [
-    'ALL',
-    'Zone A - Colombo Central',
-    'Zone B - Colombo East',
-    'Zone C - Colombo South',
-    'Zone E - Kelaniya / Kadawatha',
-  ];
-
   return (
     <div className="dispatcher-table-toolbar">
-      {/* Search Bar */}
+      {/* Search Bar (Name & Courier ID) */}
       <div className="dispatcher-search-input-wrapper">
         <Search size={15} className="dispatcher-search-icon" aria-hidden="true" />
         <input
           type="text"
           className="dispatcher-search-input"
-          placeholder="Search courier name, code (CR-101), plate..."
+          placeholder="Search by Courier Name or Courier ID (CR-101)..."
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}
-          aria-label="Search courier fleet"
+          aria-label="Search couriers by name or ID"
         />
       </div>
 
       {/* Filter Controls */}
       <div className="dispatcher-toolbar-filters">
-        {/* Status Filter */}
+        {/* Availability Status Filter */}
         <div className="dispatcher-select-wrapper">
           <Filter size={14} className="dispatcher-select-icon" aria-hidden="true" />
           <select
             className="dispatcher-select"
             value={statusFilter}
             onChange={(e) => onStatusFilterChange(e.target.value)}
-            aria-label="Filter couriers by availability status"
+            aria-label="Filter couriers by availability"
           >
-            <option value="ALL">All Statuses</option>
-            <option value="AVAILABLE">Available</option>
+            <option value="ALL">All Availabilities</option>
+            <option value="AVAILABLE">Available for Dispatch</option>
             <option value="BUSY">On Delivery / Busy</option>
-            <option value="ON_BREAK">On Break</option>
-            <option value="OFFLINE">Offline</option>
+            <option value="UNAVAILABLE">Unavailable (Break / Offline)</option>
           </select>
         </div>
 
-        {/* Vehicle Filter */}
+        {/* Vehicle Type Filter */}
         <div className="dispatcher-select-wrapper">
           <Truck size={14} className="dispatcher-select-icon" aria-hidden="true" />
           <select
@@ -85,36 +77,40 @@ export default function CourierFilters({
           </select>
         </div>
 
-        {/* Zone Filter */}
+        {/* Workload Filter */}
         <div className="dispatcher-select-wrapper">
-          <MapPin size={14} className="dispatcher-select-icon" aria-hidden="true" />
+          <Gauge size={14} className="dispatcher-select-icon" aria-hidden="true" />
           <select
             className="dispatcher-select"
-            value={zoneFilter}
-            onChange={(e) => onZoneFilterChange(e.target.value)}
-            aria-label="Filter couriers by zone"
+            value={workloadFilter}
+            onChange={(e) => onWorkloadFilterChange(e.target.value as WorkloadFilter)}
+            aria-label="Filter couriers by workload level"
           >
-            {zonesList.map((z) => (
-              <option key={z} value={z}>
-                {z === 'ALL' ? 'All Assigned Zones' : z}
-              </option>
-            ))}
+            <option value="ALL">All Workloads</option>
+            <option value="LOW">Low Load (&lt; 40%)</option>
+            <option value="MODERATE">Moderate Load (40% - 79%)</option>
+            <option value="HIGH">High Load (≥ 80%)</option>
+            <option value="FULL">At Max Capacity (100%)</option>
           </select>
         </div>
 
-        {/* Sort Order Toggle */}
-        <button
-          type="button"
-          className="dispatcher-sort-btn"
-          onClick={onSortOrderToggle}
-          title={`Sort: currently ${sortOrder === 'name' ? 'Alphabetical' : 'Active Workload'}`}
-          aria-label={`Toggle sort order. Currently ${sortOrder === 'name' ? 'Alphabetical' : 'Active Workload'}`}
-        >
-          <ArrowUpDown size={14} aria-hidden="true" />
-          <span>{sortOrder === 'name' ? 'Sort: Name' : 'Sort: Workload'}</span>
-        </button>
+        {/* Sorting Options */}
+        <div className="dispatcher-select-wrapper">
+          <ArrowUpDown size={14} className="dispatcher-select-icon" aria-hidden="true" />
+          <select
+            className="dispatcher-select"
+            value={sortOption}
+            onChange={(e) => onSortOptionChange(e.target.value as SortOption)}
+            aria-label="Sort couriers"
+          >
+            <option value="name_asc">Name: A to Z</option>
+            <option value="name_desc">Name: Z to A</option>
+            <option value="workload_high">Workload: High to Low</option>
+            <option value="workload_low">Workload: Low to High</option>
+            <option value="completed_high">Completed Orders: High to Low</option>
+          </select>
+        </div>
       </div>
     </div>
   );
 }
-

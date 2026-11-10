@@ -1,5 +1,16 @@
 export type CourierStatus = 'AVAILABLE' | 'BUSY' | 'ON_BREAK' | 'OFFLINE';
 export type VehicleType = 'Motorcycle' | 'Van' | 'Bicycle';
+export type WorkloadFilter = 'ALL' | 'LOW' | 'MODERATE' | 'HIGH' | 'FULL';
+export type SortOption = 'name_asc' | 'name_desc' | 'workload_high' | 'workload_low' | 'completed_high';
+
+export interface CourierAssignmentRecord {
+  orderId: string;
+  trackingNumber: string;
+  destination: string;
+  priority: 'NORMAL' | 'HIGH' | 'URGENT';
+  status: 'In Transit' | 'Assigned' | 'Delivered';
+  assignedTime: string;
+}
 
 export interface CourierProfile {
   id: string;
@@ -18,13 +29,15 @@ export interface CourierProfile {
   rating: number; // e.g. 4.9
   shiftStart: string;
   lastActive: string;
+  assignedOrders?: CourierAssignmentRecord[];
 }
 
-export interface CourierFleetSummaryMetrics {
-  totalFleet: number;
-  available: number;
-  busy: number;
-  onBreak: number;
-  offline: number;
+export interface CourierSummaryMetrics {
+  totalCouriers: number;
+  availableCouriers: number;
+  couriersOnDelivery: number;
+  unavailableCouriers: number;
 }
 
+// Backward-compatibility alias
+export type CourierFleetSummaryMetrics = CourierSummaryMetrics;
