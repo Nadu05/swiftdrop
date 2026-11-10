@@ -27,19 +27,32 @@ export default function CourierWorkloadCard({ courier }: CourierWorkloadCardProp
   const workloadLevel = getWorkloadLevel(percent);
 
   return (
-    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3.5">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.85rem',
+        padding: '1rem',
+        background: '#f8fafc',
+        border: '1px solid #e2e8f0',
+        borderRadius: 'var(--radius-sm)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.75rem', fontWeight: 700, color: '#1e293b' }}>
           <Gauge size={16} className="text-blue-600" aria-hidden="true" />
           <span>Workload &amp; Assignment Eligibility</span>
         </div>
 
         <span
-          className="text-[11px] font-bold px-2 py-0.5 rounded-full border"
           style={{
+            fontSize: '0.6875rem',
+            fontWeight: 700,
+            padding: '0.2rem 0.55rem',
+            borderRadius: '9999px',
             backgroundColor: workloadLevel.bg,
             color: workloadLevel.color,
-            borderColor: workloadLevel.color + '40',
+            border: `1px solid ${workloadLevel.color}40`,
           }}
         >
           {workloadLevel.label} ({percent}%)
@@ -47,28 +60,29 @@ export default function CourierWorkloadCard({ courier }: CourierWorkloadCardProp
       </div>
 
       {/* Active delivery count & progress bar */}
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-slate-600 font-medium">
-            Active Deliveries: <strong className="text-slate-900">{courier.activeDeliveries}</strong> of {courier.maxCapacity} Max Capacity
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+          <span style={{ color: '#475569', fontWeight: 500 }}>
+            Active Deliveries: <strong style={{ color: '#0f172a' }}>{courier.activeDeliveries}</strong> of {courier.maxCapacity} Max Capacity
           </span>
-          <span className="font-mono text-slate-500 font-bold">{percent}%</span>
+          <span className="font-mono font-bold" style={{ color: '#64748b' }}>{percent}%</span>
         </div>
 
         <div
-          className="w-full h-2.5 rounded-full bg-slate-200 overflow-hidden"
+          className="dispatcher-workload-bar-track"
           role="progressbar"
           aria-valuenow={courier.activeDeliveries}
           aria-valuemin={0}
           aria-valuemax={courier.maxCapacity}
+          style={{ height: '8px', borderRadius: '9999px' }}
         >
           <div
-            className={`h-full transition-all duration-300 ${
+            className={`dispatcher-workload-bar-fill ${
               percent >= 75
-                ? 'bg-rose-500'
+                ? 'dispatcher-workload-bar__fill--high'
                 : percent >= 40
-                ? 'bg-amber-500'
-                : 'bg-emerald-500'
+                ? 'dispatcher-workload-bar__fill--moderate'
+                : 'dispatcher-workload-bar__fill--low'
             }`}
             style={{ width: `${percent}%` }}
           />
@@ -76,24 +90,60 @@ export default function CourierWorkloadCard({ courier }: CourierWorkloadCardProp
       </div>
 
       {/* Assignment Eligibility Indicator */}
-      <div className="pt-2 border-t border-slate-200/80">
+      <div style={{ paddingTop: '0.5rem', borderTop: '1px solid #e2e8f0' }}>
         {isEligible ? (
-          <div className="flex items-center gap-2 text-xs text-emerald-800 bg-emerald-50 p-2.5 rounded-lg border border-emerald-200">
-            <CheckCircle2 size={16} className="text-emerald-600 flex-shrink-0" />
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              fontSize: '0.75rem',
+              color: '#166534',
+              backgroundColor: '#f0fdf4',
+              padding: '0.6rem 0.85rem',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid #bbf7d0',
+            }}
+          >
+            <CheckCircle2 size={16} style={{ color: '#16a34a', flexShrink: 0 }} />
             <span>
               <strong>Eligible for New Assignments:</strong> Courier is active on shift with available capacity.
             </span>
           </div>
         ) : isAtCapacity ? (
-          <div className="flex items-center gap-2 text-xs text-rose-800 bg-rose-50 p-2.5 rounded-lg border border-rose-200">
-            <AlertTriangle size={16} className="text-rose-600 flex-shrink-0" />
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              fontSize: '0.75rem',
+              color: '#991b1b',
+              backgroundColor: '#fef2f2',
+              padding: '0.6rem 0.85rem',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid #fecaca',
+            }}
+          >
+            <AlertTriangle size={16} style={{ color: '#dc2626', flexShrink: 0 }} />
             <span>
               <strong>Ineligible for Assignments:</strong> Courier has reached full delivery capacity ({courier.maxCapacity} orders).
             </span>
           </div>
         ) : (
-          <div className="flex items-center gap-2 text-xs text-amber-800 bg-amber-50 p-2.5 rounded-lg border border-amber-200">
-            <XCircle size={16} className="text-amber-600 flex-shrink-0" />
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              fontSize: '0.75rem',
+              color: '#92400e',
+              backgroundColor: '#fffbeb',
+              padding: '0.6rem 0.85rem',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid #fde68a',
+            }}
+          >
+            <XCircle size={16} style={{ color: '#d97706', flexShrink: 0 }} />
             <span>
               <strong>Unavailable for Dispatch:</strong> Courier status is currently marked as {courier.status.replace('_', ' ')}.
             </span>
@@ -103,4 +153,3 @@ export default function CourierWorkloadCard({ courier }: CourierWorkloadCardProp
     </div>
   );
 }
-
