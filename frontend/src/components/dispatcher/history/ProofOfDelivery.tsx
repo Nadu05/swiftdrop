@@ -11,57 +11,71 @@ export default function ProofOfDelivery({ pod }: ProofOfDeliveryProps) {
   return (
     <div className="dispatcher-modal-section">
       <div className="dispatcher-modal-section-title">
-        <ShieldCheck size={16} className="text-emerald-600" aria-hidden="true" />
-        <span className="text-emerald-950 font-bold">Proof of Delivery (POD) Verification</span>
+        <ShieldCheck size={15} style={{ color: '#16a34a' }} aria-hidden="true" />
+        <span style={{ color: '#166534', fontWeight: 700 }}>Proof of Delivery (POD) Verification</span>
       </div>
 
-      <div className="p-4 rounded-xl bg-emerald-50/60 border border-emerald-200 space-y-3">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-          <div>
-            <span className="text-emerald-800/80 font-medium block">Received By</span>
-            <span className="text-slate-900 font-bold text-sm mt-0.5 block">
-              {pod.recipientName}
-            </span>
+      <div className="dispatcher-pod-box">
+        {/* Recipient & Reference Grid */}
+        <div className="dispatcher-pod-grid">
+          <div className="dispatcher-pod-field">
+            <span className="dispatcher-pod-label">Received By</span>
+            <span className="dispatcher-pod-val">{pod.recipientName}</span>
           </div>
 
-          <div>
-            <span className="text-emerald-800/80 font-medium block">POD Reference Key</span>
-            <span className="font-mono text-slate-800 bg-white/80 px-2 py-0.5 rounded border border-emerald-200 inline-block mt-0.5 font-semibold">
+          <div className="dispatcher-pod-field">
+            <span className="dispatcher-pod-label">POD Reference Key</span>
+            <span className="dispatcher-tracking-number" style={{ fontSize: '0.75rem', color: '#166534' }}>
               {pod.podReference}
             </span>
           </div>
         </div>
 
-        <div className="pt-2 border-t border-emerald-200/70 text-xs">
-          <span className="text-emerald-800/80 font-medium block mb-1">Confirmation Details</span>
-          <div className="flex items-start gap-2 bg-white/90 p-2.5 rounded-lg border border-emerald-100 text-slate-800">
+        {/* Confirmation Details Callout */}
+        <div>
+          <span className="dispatcher-pod-label" style={{ display: 'block', marginBottom: '0.35rem' }}>
+            Confirmation Details
+          </span>
+          <div className="dispatcher-pod-confirmation">
             {pod.podType === 'OTP' ? (
-              <Smartphone size={16} className="text-emerald-600 flex-shrink-0 mt-0.5" />
+              <Smartphone size={16} style={{ color: '#16a34a', flexShrink: 0, marginTop: '2px' }} />
             ) : pod.podType === 'SIGNATURE' ? (
-              <FileText size={16} className="text-emerald-600 flex-shrink-0 mt-0.5" />
+              <FileText size={16} style={{ color: '#16a34a', flexShrink: 0, marginTop: '2px' }} />
             ) : (
-              <CheckCircle size={16} className="text-emerald-600 flex-shrink-0 mt-0.5" />
+              <CheckCircle size={16} style={{ color: '#16a34a', flexShrink: 0, marginTop: '2px' }} />
             )}
-            <p className="leading-relaxed">{pod.confirmationDetails}</p>
+            <span>{pod.confirmationDetails}</span>
           </div>
         </div>
 
-        {/* Photograph or file preview when available, with explicit empty state when unavailable */}
-        <div className="pt-2">
-          <span className="text-emerald-800/80 font-medium text-xs block mb-1.5">
+        {/* Photographic & Signature Attachments */}
+        <div>
+          <span className="dispatcher-pod-label" style={{ display: 'block', marginBottom: '0.35rem' }}>
             Photographic &amp; Signature Attachments
           </span>
           {pod.photoUrl ? (
-            <div className="relative rounded-lg overflow-hidden border border-emerald-200 max-w-sm">
+            <div style={{ borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: '1px solid #bbf7d0', maxWidth: '320px' }}>
               <img
                 src={pod.photoUrl}
                 alt={`Proof of delivery photo for reference ${pod.podReference}`}
-                className="w-full h-auto object-cover max-h-48"
+                style={{ width: '100%', height: 'auto', maxHeight: '180px', objectFit: 'cover' }}
               />
             </div>
           ) : (
-            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-500">
-              <ImageIcon size={14} className="text-slate-400" aria-hidden="true" />
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.65rem 0.85rem',
+                background: '#ffffff',
+                border: '1px solid #bbf7d0',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.75rem',
+                color: '#64748b',
+              }}
+            >
+              <ImageIcon size={14} style={{ color: '#94a3b8' }} aria-hidden="true" />
               <span>
                 No physical photograph attached. Authentication completed via {pod.podType} telemetry.
               </span>
@@ -72,4 +86,3 @@ export default function ProofOfDelivery({ pod }: ProofOfDeliveryProps) {
     </div>
   );
 }
-
