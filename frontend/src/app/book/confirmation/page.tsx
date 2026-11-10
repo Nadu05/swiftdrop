@@ -216,23 +216,13 @@ function ConfirmationContent() {
             <Package size={16} /> View My Deliveries
           </Link>
 
-          {orderId && orderId !== '—' ? (
-            <Link
-              href={`/bookings/${orderId}`}
-              className="btn btn-primary"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}
-            >
-              <Truck size={16} /> View Delivery Status
-            </Link>
-          ) : (
-            <Link
-              href="/bookings"
-              className="btn btn-primary"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}
-            >
-              <Truck size={16} /> My Deliveries
-            </Link>
-          )}
+          <Link
+            href={`/tracking?number=${encodeURIComponent(trackingNumber)}`}
+            className="btn btn-primary"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}
+          >
+            <Truck size={16} /> Track My Parcel
+          </Link>
         </div>
       </div>
     </div>

@@ -73,7 +73,7 @@ export interface CreateOrderResponse {
 /**
  * Full Delivery Order representation returned by:
  * GET /api/v1/orders (List)
- * GET /api/v1/orders/{id} (Single Order Details)
+ * GET /api/v1/orders/{id} (Single Order Details - Authenticated/Private)
  */
 export interface DeliveryOrder {
   id: number | string;
@@ -92,5 +92,31 @@ export interface DeliveryOrder {
   weightKg?: number;
   deliveryInstructions?: string;
   createdAt: string;
+  updatedAt?: string;
+}
+
+/**
+ * Milestone event in a parcel's public delivery lifecycle
+ */
+export interface PublicTrackingEvent {
+  status: OrderStatus;
+  timestamp?: string;
+  location?: string;
+  description?: string;
+}
+
+/**
+ * Safe Public Tracking Response:
+ * GET /api/v1/tracking/{trackingNumber}
+ * Contains only safe public data — NO private phone numbers, emails, or internal IDs.
+ */
+export interface PublicTrackingResponse {
+  trackingNumber: string;
+  status: OrderStatus;
+  origin?: string;
+  destination?: string;
+  parcelCategory?: string;
+  estimatedDelivery?: string;
+  events?: PublicTrackingEvent[];
   updatedAt?: string;
 }

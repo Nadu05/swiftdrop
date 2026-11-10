@@ -4,7 +4,8 @@ import type {
   OrderQuoteResponse,
   CreateOrderRequest,
   CreateOrderResponse,
-  DeliveryOrder
+  DeliveryOrder,
+  PublicTrackingResponse
 } from '@/types/order.types';
 
 /**
@@ -12,7 +13,7 @@ import type {
  * Member 06 - Customer UI & Booking Experience
  *
  * This module isolates all HTTP communication with the Order Service
- * via the Spring Cloud API Gateway (/api/v1/orders/**).
+ * via the Spring Cloud API Gateway (/api/v1/orders/** and /api/v1/tracking/**).
  */
 
 /**
@@ -124,7 +125,7 @@ export async function getCustomerOrders(): Promise<DeliveryOrder[]> {
 }
 
 /**
- * Fetch individual order details by ID.
+ * Fetch individual order details by ID (Authenticated/Private).
  * 
  * Endpoint: GET /api/v1/orders/{id}
  *
@@ -151,5 +152,61 @@ export async function getOrderById(id: string | number): Promise<DeliveryOrder> 
       );
     }
     throw new Error('An unexpected error occurred while loading the order details. Please try again.');
+  }
+}
+
+/**
+ * Public Parcel Tracking (No login required).
+ * 
+ * Endpoint: GET /api/v1/tracking/{trackingNumber}
+ * (With fallback to /api/v1/orders/tracking/{trackingNumber})
+ * 
+ * Accessible by anyone without signing in.
+ * Returns strictly safe non-sensitive milestone and status data.
+ *
+ * @param trackingNumber The public tracking number (e.g. TRK-202611-00101)
+ * @returns PublicTrackingResponse with safe tracking info
+ */
+export async function getPublicTracking(
+  trackingNumber: string
+): Promise<PublicTrackingResponse> {
+  const cleanNumber = trackingNumber.trim();
+  if (!cleanNumber) {
+    throw new Error('Please enter a tracking number.');
+  }
+
+  try {
+    try {
+      const response = await apiClient.get<PublicTrackingResponse>(
+        `/api/v1/tracking/${encodeURIComponent(cleanNumber)}`
+      );
+      return response.data;
+    } catch (err: any) {
+      // If the gateway maps order service under /api/v1/orders/**
+      if (err.response?.status === 404) {
+        const fallback = await apiClient.get<PublicTrackingResponse>(
+          `/api/v1/orders/tracking/${encodeURIComponent(cleanNumber)}`
+        );
+        return fallback.data;
+      }
+      throw err;
+    }
+  } catch (error: any) {
+    if (error.response?.data?.message) {
+      throw new Error(error.response.data.message);
+    }
+    if (error.response?.status === 404) {
+      throw new Error(
+        `We couldn't find a parcel with tracking number "${cleanNumber}". Please check the number and try again.`
+      );
+    }
+    if (error.code === 'ECONNABORTED' || !error.response) {
+      throw new Error(
+        'Unable to retrieve tracking information. Please check your connection and try again.'
+      );
+    }
+    throw new Error(
+      'An unexpected error occurred while looking up the parcel. Please try again.'
+    );
   }
 }
