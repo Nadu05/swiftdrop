@@ -6,8 +6,10 @@ import ZoneSummaryCards from '@/components/dispatcher/zones/ZoneSummaryCards';
 import ZoneFilters from '@/components/dispatcher/zones/ZoneFilters';
 import ZoneTable from '@/components/dispatcher/zones/ZoneTable';
 import ZoneFormModal from '@/components/dispatcher/zones/ZoneFormModal';
+import ZoneDetailsModal from '@/components/dispatcher/zones/ZoneDetailsModal';
 import PricingRulesTable from '@/components/dispatcher/zones/PricingRulesTable';
 import PricingRuleFormModal from '@/components/dispatcher/zones/PricingRuleFormModal';
+import PricingRuleDetailsModal from '@/components/dispatcher/zones/PricingRuleDetailsModal';
 import PublicationControls from '@/components/dispatcher/zones/PublicationControls';
 import PricingVersionHistory from '@/components/dispatcher/zones/PricingVersionHistory';
 import PricingCalculator from '@/components/dispatcher/zones/PricingCalculator';
@@ -61,9 +63,11 @@ export default function DeliveryZonesPricingPage() {
   // Modals state
   const [isZoneModalOpen, setIsZoneModalOpen] = useState(false);
   const [editingZone, setEditingZone] = useState<DeliveryZone | null>(null);
+  const [viewingZone, setViewingZone] = useState<DeliveryZone | null>(null);
 
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<PricingRule | null>(null);
+  const [viewingRule, setViewingRule] = useState<PricingRule | null>(null);
 
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const [publishingRule, setPublishingRule] = useState<PricingRule | null>(null);
@@ -146,8 +150,7 @@ export default function DeliveryZonesPricingPage() {
   };
 
   const handleViewZoneDetails = (zone: DeliveryZone) => {
-    setEditingZone(zone);
-    setIsZoneModalOpen(true);
+    setViewingZone(zone);
   };
 
   // Pricing rule handlers
@@ -320,8 +323,7 @@ export default function DeliveryZonesPricingPage() {
             }}
             onPublishClick={handlePublishClick}
             onViewDetails={(r) => {
-              setEditingRule(r);
-              setIsRuleModalOpen(true);
+              setViewingRule(r);
             }}
             onDeactivate={handleDeactivateRule}
           />
@@ -343,12 +345,29 @@ export default function DeliveryZonesPricingPage() {
         branches={branches}
       />
 
+      <ZoneDetailsModal
+        isOpen={Boolean(viewingZone)}
+        onClose={() => setViewingZone(null)}
+        zone={viewingZone}
+        onEdit={handleEditZone}
+      />
+
       <PricingRuleFormModal
         isOpen={isRuleModalOpen}
         onClose={() => setIsRuleModalOpen(false)}
         onSave={handleSaveRule}
         initialRule={editingRule}
         zones={zones}
+      />
+
+      <PricingRuleDetailsModal
+        isOpen={Boolean(viewingRule)}
+        onClose={() => setViewingRule(null)}
+        rule={viewingRule}
+        onEdit={(r) => {
+          setEditingRule(r);
+          setIsRuleModalOpen(true);
+        }}
       />
 
       <PublicationControls
