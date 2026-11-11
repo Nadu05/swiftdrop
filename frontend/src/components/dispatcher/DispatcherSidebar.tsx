@@ -97,6 +97,9 @@ function getActiveHref(pathname: string | null): string | null {
   if (pathname === '/dispatcher/zones' || pathname.startsWith('/dispatcher/zones/')) {
     return '/dispatcher/zones-pricing';
   }
+  if (pathname === '/dispatcher/merchant-approvals' || pathname.startsWith('/dispatcher/merchant-approvals/')) {
+    return '/dispatcher/merchants';
+  }
 
   let match: string | null = null;
   for (const href of ALL_HREFS) {

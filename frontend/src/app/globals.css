@@ -6570,4 +6570,25 @@ body.org-scroll-lock {
   }
 }
 
+/* Breadcrumbs */
+.dispatcher-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 500;
+  margin-bottom: 0.15rem;
+}
+
+.dispatcher-breadcrumb-separator {
+  color: #94a3b8;
+  font-size: 0.7rem;
+}
+
+.dispatcher-breadcrumb-current {
+  color: #0f172a;
+  font-weight: 600;
+}
+
 
