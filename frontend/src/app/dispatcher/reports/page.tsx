@@ -100,12 +100,12 @@ export default function ReportsAnalyticsPage() {
   }, [filters.branchId, branches]);
 
   return (
-    <div className="dispatcher-reports-page">
+    <div className="dispatcher-overview">
       {/* 1. Page Header */}
       <header className="dispatcher-overview__header">
-        <div>
-          <h1 className="dispatcher-page-title">Reports &amp; Analytics</h1>
-          <p className="dispatcher-page-subtitle">
+        <div className="dispatcher-overview__title-group">
+          <h1 className="dispatcher-overview__title">Reports &amp; Analytics</h1>
+          <p className="dispatcher-overview__subtitle">
             Monitor delivery performance, operational efficiency, and branch-wise statistics.
           </p>
         </div>
