@@ -3,6 +3,7 @@
 import {
   BarChart,
   Bar,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -38,15 +39,19 @@ function CustomTooltip({ active, payload }: CustomTooltipProps) {
 export default function DeliveryActivityChart({
   data = dailyActivityMock,
 }: DeliveryActivityChartProps) {
+  const maxDeliveries = Math.max(...data.map((d) => d.deliveries), 0);
+
   return (
     <article className="dispatcher-card">
       <div className="dispatcher-card__header">
         <div>
           <h2 className="dispatcher-card__title">Daily Delivery Activity</h2>
           <p className="dispatcher-card__subtitle">
-            Delivery volume trends over the past 7 days
+            Orders completed over the last 7 days
           </p>
         </div>
+
+        <span className="dispatcher-pill-badge">This week</span>
       </div>
 
       <div className="dispatcher-chart-container" style={{ width: '100%', height: 280 }}>
@@ -56,7 +61,7 @@ export default function DeliveryActivityChart({
             margin={{ top: 12, right: 12, left: -16, bottom: 0 }}
           >
             <CartesianGrid
-              strokeDasharray="3 3"
+              strokeDasharray="0"
               vertical={false}
               stroke="#f1f5f9"
             />
@@ -76,10 +81,16 @@ export default function DeliveryActivityChart({
             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(241, 245, 249, 0.7)' }} />
             <Bar
               dataKey="deliveries"
-              fill="#2563eb"
-              radius={[6, 6, 0, 0]}
-              maxBarSize={44}
-            />
+              radius={[8, 8, 8, 8]}
+              maxBarSize={36}
+            >
+              {data.map((entry, idx) => (
+                <Cell
+                  key={`bar-${idx}`}
+                  fill={entry.deliveries === maxDeliveries ? '#14b8a6' : '#2563eb'}
+                />
+              ))}
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>

@@ -171,7 +171,7 @@ function DispatcherSidebar({ id, isOpen, onClose, onNavigate, onLogout }: Dispat
             </span>
             <span className="dispatcher-sidebar__brand-text">
               <span className="dispatcher-sidebar__brand-name">SwiftDrop</span>
-              <span className="dispatcher-sidebar__brand-subtitle">Dispatch Management</span>
+              <span className="dispatcher-sidebar__brand-subtitle">DELIVERY NETWORK</span>
             </span>
           </Link>
 
@@ -219,6 +219,16 @@ function DispatcherSidebar({ id, isOpen, onClose, onNavigate, onLogout }: Dispat
               </button>
             </li>
           </ul>
+
+          <div className="dispatcher-sidebar__profile">
+            <div className="dispatcher-sidebar__profile-avatar" aria-hidden="true">
+              DP
+            </div>
+            <div className="dispatcher-sidebar__profile-info">
+              <span className="dispatcher-sidebar__profile-name">Dispatch Operations</span>
+              <span className="dispatcher-sidebar__profile-role">Head Office Control</span>
+            </div>
+          </div>
         </div>
       </aside>
     </>

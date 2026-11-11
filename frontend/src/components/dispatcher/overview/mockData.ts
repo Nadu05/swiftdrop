@@ -67,8 +67,8 @@ export const initialStatsData: StatItem[] = [
     value: '924',
     description: 'Completed successfully',
     icon: CheckCircle2,
-    iconColor: '#16a34a',
-    iconBg: '#f0fdf4',
+    iconColor: '#0d9488',
+    iconBg: '#f0fdfa',
     trend: {
       value: '+18.2%',
       isPositive: true,
@@ -107,7 +107,7 @@ export const dailyActivityMock: DailyActivityData[] = [
 // Mutually exclusive categories strictly summing to Total Deliveries (1,284)
 // Delivered (924) + In Progress (304) + Unassigned (42) + Failed (14) = 1,284
 export const deliveryStatusMock: DeliveryStatusData[] = [
-  { name: 'Delivered', value: 924, color: '#16a34a' },
+  { name: 'Delivered', value: 924, color: '#14b8a6' },
   { name: 'In Progress', value: 304, color: '#2563eb' },
   { name: 'Unassigned', value: 42, color: '#f59e0b' },
   { name: 'Failed', value: 14, color: '#ef4444' },
