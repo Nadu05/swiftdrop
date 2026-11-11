@@ -183,20 +183,20 @@ export default function DeliveryZonesPricingPage() {
   };
 
   return (
-    <div className="dispatcher-reports-page">
+    <div className="dispatcher-overview">
       {/* 1. Header */}
       <header className="dispatcher-overview__header">
-        <div>
-          <h1 className="dispatcher-page-title">Delivery Zones &amp; Pricing</h1>
-          <p className="dispatcher-page-subtitle">
+        <div className="dispatcher-overview__title-group">
+          <h1 className="dispatcher-overview__title">Delivery Zones &amp; Pricing</h1>
+          <p className="dispatcher-overview__subtitle">
             Manage delivery service areas and configure pricing rules for parcel deliveries.
           </p>
         </div>
 
         <div className="dispatcher-overview__actions">
           {lastUpdated && (
-            <div className="dispatcher-overview__date-badge">
-              <Clock size={14} className="dispatcher-overview__date-icon" />
+            <div className="dispatcher-overview__date-badge" title="Live data last sync time">
+              <Clock size={14} className="dispatcher-overview__date-icon" aria-hidden="true" />
               <span>Last updated: {lastUpdated}</span>
             </div>
           )}
@@ -210,7 +210,10 @@ export default function DeliveryZonesPricingPage() {
           >
             <RefreshCw
               size={14}
-              className={isRefreshing ? 'dispatcher-overview__refresh-icon--spinning' : ''}
+              className={`dispatcher-overview__refresh-icon ${
+                isRefreshing ? 'dispatcher-overview__refresh-icon--spinning' : ''
+              }`}
+              aria-hidden="true"
             />
             <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
           </button>
@@ -221,7 +224,7 @@ export default function DeliveryZonesPricingPage() {
             onClick={() => setIsHistoryModalOpen(true)}
             title="View Pricing Version Audit History"
           >
-            <History size={14} />
+            <History size={14} aria-hidden="true" />
             <span>Version Audit Log</span>
           </button>
 
@@ -234,7 +237,7 @@ export default function DeliveryZonesPricingPage() {
                 setIsZoneModalOpen(true);
               }}
             >
-              <Plus size={14} />
+              <Plus size={14} aria-hidden="true" />
               <span>Add New Zone</span>
             </button>
           ) : (
@@ -246,7 +249,7 @@ export default function DeliveryZonesPricingPage() {
                 setIsRuleModalOpen(true);
               }}
             >
-              <Plus size={14} />
+              <Plus size={14} aria-hidden="true" />
               <span>Add Pricing Rule</span>
             </button>
           )}

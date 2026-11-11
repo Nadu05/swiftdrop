@@ -907,6 +907,8 @@ body.dispatcher-scroll-lock {
   align-items: center;
   gap: 0.75rem;
   flex-wrap: wrap;
+  margin-left: auto;
+  justify-content: flex-end;
 }
 
 .dispatcher-overview__date-badge {
