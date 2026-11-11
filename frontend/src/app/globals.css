@@ -90,6 +90,13 @@ code, pre {
   width: 100%;
 }
 
+.customer-main-content {
+  max-width: none;
+  margin: 0;
+  width: 100%;
+  min-width: 0;
+}
+
 /* Glassmorphism Card */
 .glass-card {
   background: var(--bg-card);
