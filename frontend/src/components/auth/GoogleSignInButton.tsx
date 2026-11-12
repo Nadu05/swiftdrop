@@ -19,6 +19,14 @@ export default function GoogleSignInButton({ mode, onError }: GoogleSignInButton
   const [isGisLoaded, setIsGisLoaded] = useState(false);
   const googleMutation = useGoogleAuth();
 
+  const mutateAsyncRef = useRef(googleMutation.mutateAsync);
+  const onErrorRef = useRef(onError);
+  const initializedClientIdRef = useRef<string | null>(null);
+
+  // Keep the latest callbacks without reinitializing Google.
+  mutateAsyncRef.current = googleMutation.mutateAsync;
+  onErrorRef.current = onError;
+
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
   // Poll or detect when window.google is ready
@@ -48,42 +56,60 @@ export default function GoogleSignInButton({ mode, onError }: GoogleSignInButton
 
   // Initialize GIS and render Google's official secure button
   useEffect(() => {
-    if (!isGisLoaded || !clientId || !containerRef.current) return;
+    if (!isGisLoaded || !clientId || !containerRef.current) {
+      return;
+    }
 
     try {
-      window.google.accounts.id.initialize({
-        client_id: clientId,
-        callback: async (response: { credential?: string }) => {
-          if (!response?.credential) {
-            onError?.('Google did not return an authentication credential.');
-            return;
-          }
-          try {
-            await googleMutation.mutateAsync({ idToken: response.credential });
-          } catch (err) {
-            onError?.(getApiErrorMessage(err));
-          }
-        },
-        auto_select: false,
-        cancel_on_tap_outside: true,
-      });
+      // Initialize Google only once for this client ID.
+      if (initializedClientIdRef.current !== clientId) {
+        window.google.accounts.id.initialize({
+          client_id: clientId,
 
-      // Clear any previous render
+          callback: async (response: { credential?: string }) => {
+            if (!response?.credential) {
+              onErrorRef.current?.(
+                'Google did not return an authentication credential.'
+              );
+              return;
+            }
+
+            try {
+              await mutateAsyncRef.current({
+                idToken: response.credential,
+              });
+            } catch (err) {
+              onErrorRef.current?.(getApiErrorMessage(err));
+            }
+          },
+
+          auto_select: false,
+          cancel_on_tap_outside: true,
+        });
+
+        initializedClientIdRef.current = clientId;
+      }
+
+      // Render the button separately from initialization.
       containerRef.current.innerHTML = '';
 
-      window.google.accounts.id.renderButton(containerRef.current, {
-        type: 'standard',
-        theme: 'filled_black',
-        size: 'large',
-        text: mode === 'signup' ? 'signup_with' : 'continue_with',
-        shape: 'rectangular',
-        logo_alignment: 'left',
-        width: 380,
-      });
+      window.google.accounts.id.renderButton(
+        containerRef.current,
+        {
+          type: 'standard',
+          theme: 'filled_black',
+          size: 'large',
+          text: mode === 'signup' ? 'signup_with' : 'continue_with',
+          shape: 'rectangular',
+          logo_alignment: 'left',
+          width: 380,
+        }
+      );
+
     } catch (err) {
       console.error('Failed to initialize Google Sign-In:', err);
     }
-  }, [isGisLoaded, clientId, mode, onError, googleMutation]);
+  }, [isGisLoaded, clientId, mode]);
 
   // Fallback click handler if user clicks the button before GIS iframe renders
   const handleFallbackClick = () => {
@@ -189,3 +215,4 @@ function GoogleIcon() {
     </svg>
   );
 }
+
