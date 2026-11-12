@@ -27,6 +27,14 @@ spring:
       default-filters:
         - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
       routes:
+        # --- Identity Service (auth endpoints) ---
+        - id: identity-auth
+          uri: ${IDENTITY_SERVICE_URL:http://localhost:8081}
+          predicates:
+            - Path=/api/v1/auth/**
+          filters:
+            - StripPrefix=2
+
         # --- Identity Service ---
         - id: identity-service
           uri: ${IDENTITY_SERVICE_URL:http://localhost:8081}

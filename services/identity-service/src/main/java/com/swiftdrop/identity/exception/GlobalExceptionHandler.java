@@ -2,6 +2,7 @@ package com.swiftdrop.identity.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -13,6 +14,7 @@ import java.util.Map;
 
 /**
  * Global exception handler — consistent JSON error responses.
+ * Never exposes stack traces, SQL details, or authentication internals.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -20,6 +22,36 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleNotFound(ResourceNotFoundException ex) {
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler(DuplicateEmailException.class)
+    public ResponseEntity<Map<String, Object>> handleDuplicateEmail(DuplicateEmailException ex) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidCredentials(InvalidCredentialsException ex) {
+        return buildResponse(HttpStatus.UNAUTHORIZED, ex.getMessage());
+    }
+
+    @ExceptionHandler(AccountDisabledException.class)
+    public ResponseEntity<Map<String, Object>> handleAccountDisabled(AccountDisabledException ex) {
+        return buildResponse(HttpStatus.FORBIDDEN, ex.getMessage());
+    }
+
+    @ExceptionHandler(InvalidTokenException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidToken(InvalidTokenException ex) {
+        return buildResponse(HttpStatus.UNAUTHORIZED, ex.getMessage());
+    }
+
+    @ExceptionHandler(OAuthException.class)
+    public ResponseEntity<Map<String, Object>> handleOAuth(OAuthException ex) {
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
+        return buildResponse(HttpStatus.FORBIDDEN, "You do not have permission to access this resource");
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
