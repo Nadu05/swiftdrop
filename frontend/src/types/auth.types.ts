@@ -5,6 +5,12 @@
 
 export type UserRole = 'CUSTOMER' | 'MERCHANT' | 'COURIER' | 'STAFF' | 'ADMIN';
 
+export interface LoginCredentials {
+  email: string;
+  password?: string;
+  role?: UserRole;
+}
+
 /**
  * Customer / User Profile returned by Identity Service or stored in active session.
  */

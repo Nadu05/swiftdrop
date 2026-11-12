@@ -20,6 +20,7 @@ import {
   Phone,
   CheckCircle2,
   Clock,
+  Compass,
 } from 'lucide-react';
 import { getOrderById } from '@/api/services/orders.api';
 import type { DeliveryOrder, OrderStatus } from '@/types/order.types';
@@ -89,14 +90,24 @@ export default function OrderDetailsPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', maxWidth: '1000px', margin: '0 auto' }}>
       {/* Navigation Top Bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Link
-          href="/bookings"
-          className="btn btn-secondary"
-          style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
-        >
-          <ArrowLeft size={16} /> Back to My Deliveries
-        </Link>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <Link
+            href="/customer/dashboard"
+            className="btn btn-secondary"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem' }}
+          >
+            Dashboard
+          </Link>
+          <span style={{ color: '#64748b' }}>/</span>
+          <Link
+            href="/bookings"
+            className="btn btn-secondary"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem' }}
+          >
+            <ArrowLeft size={14} /> My Deliveries
+          </Link>
+        </div>
 
         {order?.trackingNumber && (
           <button
@@ -373,7 +384,17 @@ export default function OrderDetailsPage() {
               ← Return to All Deliveries
             </Link>
 
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              {order.trackingNumber && (
+                <Link
+                  href={`/tracking?trackingNumber=${encodeURIComponent(order.trackingNumber)}`}
+                  className="btn btn-secondary"
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                >
+                  <Compass size={16} /> Track on Map
+                </Link>
+              )}
+
               <Link
                 href={`/bookings/${id}/receipt`}
                 className="btn btn-secondary"

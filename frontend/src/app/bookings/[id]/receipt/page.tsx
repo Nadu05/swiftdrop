@@ -100,13 +100,23 @@ export default function CustomerReceiptPage() {
     <div style={{ maxWidth: '850px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* ---------------- SCREEN-ONLY NAVIGATION & ACTIONS (NO-PRINT) ---------------- */}
       <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-        <Link
-          href={`/bookings/${id}`}
-          className="btn btn-secondary"
-          style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
-        >
-          <ArrowLeft size={16} /> Back to Order Details
-        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <Link
+            href="/customer/dashboard"
+            className="btn btn-secondary"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem' }}
+          >
+            Dashboard
+          </Link>
+          <span style={{ color: '#64748b' }}>/</span>
+          <Link
+            href={`/bookings/${id}`}
+            className="btn btn-secondary"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem' }}
+          >
+            <ArrowLeft size={14} /> Order #{id}
+          </Link>
+        </div>
 
         {order && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>

@@ -1,12 +1,18 @@
 import React from 'react';
-import Sidebar from '@/components/Sidebar';
+import CustomerSidebar from '@/components/customer/CustomerSidebar';
 
 /**
  * CustomerShell layout wrapper
  * 
- * Ensures that the SwiftDrop sidebar navigation remains persistently visible
- * across all customer pages (Dashboard, Deliveries/Bookings, Booking form,
- * Tracking, and Customer Profile).
+ * Provides the dedicated Customer Role experience across all customer pages:
+ * - Customer Dashboard (/customer/dashboard)
+ * - Booking Form (/book, /book/confirmation)
+ * - Customer Bookings & History (/bookings, /bookings/[id], /bookings/[id]/receipt)
+ * - Live Tracking (/tracking)
+ * - Customer Profile (/customer/profile)
+ *
+ * Keeps the dedicated Customer Navigation persistently accessible on both
+ * desktop and mobile screens.
  */
 export default function CustomerShell({
   children,
@@ -14,12 +20,11 @@ export default function CustomerShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="app-container">
-      <Sidebar />
+    <div className="customer-app-shell">
+      <CustomerSidebar />
       <main className="main-content customer-main-content">
         {children}
       </main>
     </div>
   );
 }
-

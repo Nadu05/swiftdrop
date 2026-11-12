@@ -68,6 +68,7 @@ export interface CreateOrderResponse {
   pickupAddress: string;
   dropoffAddress: string;
   createdAt: string;
+  message?: string;
 }
 
 /**
@@ -97,6 +98,7 @@ export interface DeliveryOrder {
   courierVehicle?: string;
   courierPhone?: string;
   branch?: string;
+  distanceKm?: number;
 }
 
 /**

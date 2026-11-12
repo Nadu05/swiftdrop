@@ -7,29 +7,24 @@ import {
   ArrowLeft,
   Search,
   Check,
-  CheckCircle2,
   AlertCircle,
   Loader2,
-  Copy,
-  MapPin,
-  Truck,
-  Phone,
-  MessageSquare,
-  ShieldCheck,
-  RotateCcw,
+  Star,
   Package,
+  MapPin,
   Calendar,
   Clock,
-  Compass,
-  Star,
+  Copy,
+  Truck,
+  ShieldCheck,
 } from 'lucide-react';
 import { getPublicTracking, getOrderById } from '@/api/services/orders.api';
-import type { PublicTrackingResponse, OrderStatus } from '@/types/order.types';
+import type { PublicTrackingResponse } from '@/types/order.types';
 
 function DeliveryTrackingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialNumber = searchParams.get('number') || '';
+  const initialNumber = searchParams.get('number') || searchParams.get('trackingNumber') || '';
 
   const [queryInput, setQueryInput] = useState<string>(initialNumber || 'SD-10518');
   const [currentTrackingNumber, setCurrentTrackingNumber] = useState<string>(initialNumber || 'SD-10518');
@@ -69,7 +64,7 @@ function DeliveryTrackingContent() {
         });
         setCurrentTrackingNumber(orderData.trackingNumber || clean);
       } catch {
-        // Provide friendly fallback presentation for standard reference preview
+        // Fallback demo presentation for standard preview matching reference images
         if (clean.toUpperCase() === 'SD-10518' || clean.toUpperCase().startsWith('SD-')) {
           setTrackingData({
             trackingNumber: clean.toUpperCase(),
@@ -77,7 +72,7 @@ function DeliveryTrackingContent() {
             origin: 'Union Place, Colombo 02',
             destination: 'Galle Road, Colombo 03',
             parcelCategory: 'Documents & Small Parcel',
-            estimatedDelivery: 'Today, 2:15 PM',
+            estimatedDelivery: '2:15 PM',
             courierName: 'Kasun Perera',
             courierPhone: '+94 77 123 4567',
             branch: 'Colombo Central Branch',
@@ -134,69 +129,46 @@ function DeliveryTrackingContent() {
   const statusStr = (trackingData?.status || 'In Transit').toLowerCase();
   const isDelivered = statusStr === 'delivered';
   const isCreated = statusStr === 'created';
-  const isAssigned = !isDelivered && !isCreated;
 
   return (
     <div className="sd-fullpage-root">
-      {/* ---------------- EDGE-TO-EDGE TOP HEADER BAR ---------------- */}
+      {/* ---------------- TOP HEADER BAR ---------------- */}
       <header className="sd-fullpage-header">
         <div className="sd-header-inner">
-          <Link href="/bookings" className="sd-back-btn" aria-label="Back to deliveries">
-            <ArrowLeft size={20} />
-          </Link>
-          <div>
-            <h1 className="sd-header-title">Delivery tracking</h1>
-            <div className="sd-header-sub">
-              Order {currentTrackingNumber}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+            <Link href="/customer/dashboard" className="sd-back-btn" aria-label="Back to Customer Dashboard">
+              <ArrowLeft size={20} />
+            </Link>
+            <div>
+              <h1 className="sd-header-title">Delivery tracking</h1>
+              <div className="sd-header-sub">
+                Order {currentTrackingNumber}
+              </div>
             </div>
+          </div>
+
+          {/* Quick Header Search / Switcher */}
+          <div className="sd-header-search-wrap">
+            <form onSubmit={handleSearchSubmit} className="sd-hdr-search-form">
+              <Search size={14} color="#8fa3bf" />
+              <input
+                type="text"
+                placeholder="Track parcel #..."
+                value={queryInput}
+                onChange={(e) => setQueryInput(e.target.value)}
+                className="sd-hdr-search-inp"
+              />
+              <button type="submit" className="sd-hdr-search-btn">
+                Track
+              </button>
+            </form>
           </div>
         </div>
       </header>
 
-      {/* ---------------- MAIN TRACKING CANVAS (ZERO BLUE SURROUNDING AREA) ---------------- */}
+      {/* ---------------- MAIN TRACKING CANVAS ---------------- */}
       <main className="sd-fullpage-body">
         <div className="sd-content-wrapper">
-          {/* SEARCH BAR & LOOKUP TOOL */}
-          <div className="sd-search-container">
-            <form onSubmit={handleSearchSubmit} className="sd-search-form">
-              <Search size={18} color="#64748b" style={{ flexShrink: 0 }} />
-              <input
-                type="text"
-                placeholder="Search tracking number (e.g. SD-10518, TRK-...)"
-                value={queryInput}
-                onChange={(e) => setQueryInput(e.target.value)}
-                className="sd-search-input"
-              />
-              <button type="submit" disabled={isLoading} className="sd-search-btn">
-                {isLoading ? <Loader2 size={16} className="animate-spin" /> : 'Track'}
-              </button>
-            </form>
-
-            <div className="sd-quick-badges">
-              <span className="sd-quick-lbl">Demo Tracking:</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setQueryInput('SD-10518');
-                  fetchTracking('SD-10518');
-                }}
-                className="sd-quick-pill"
-              >
-                SD-10518 (In Transit)
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setQueryInput('SD-10498');
-                  fetchTracking('SD-10498');
-                }}
-                className="sd-quick-pill"
-              >
-                SD-10498 (Delivered)
-              </button>
-            </div>
-          </div>
-
           {/* LOADING STATE */}
           {isLoading && (
             <div className="sd-loading-card">
@@ -222,18 +194,18 @@ function DeliveryTrackingContent() {
             </div>
           )}
 
-          {/* ---------------- MAIN ACTIVE TRACKING VIEW ---------------- */}
+          {/* ---------------- BALANCED 2-COLUMN DESKTOP / 1-COLUMN MOBILE LAYOUT ---------------- */}
           {!isLoading && !error && trackingData && (
             <div className="sd-tracking-grid">
               {/* ==============================================================
-                  LEFT COLUMN: STATUS, ROUTE MAP & COURIER CARD
+                  LEFT COLUMN: STATUS HERO, MAP GRAPHIC & COURIER CARD
                  ============================================================== */}
               <div className="sd-tracking-left-col">
-                {/* Status Pill Badge & Hero Headings */}
+                {/* Status Badge & Hero Headings */}
                 <div className="sd-status-hero">
                   <div>
                     {isDelivered ? (
-                      <span className="sd-badge-success">DELIVERED SUCCESSFULLY</span>
+                      <span className="sd-badge-success">DELIVERED</span>
                     ) : isCreated ? (
                       <span className="sd-badge-pending">DISPATCH IN PROGRESS</span>
                     ) : (
@@ -263,7 +235,7 @@ function DeliveryTrackingContent() {
                   {/* Grid Lines Pattern */}
                   <div className="sd-map-grid-bg" />
 
-                  {/* Route SVG Path */}
+                  {/* Route SVG Curve */}
                   <svg className="sd-map-svg" viewBox="0 0 400 180" preserveAspectRatio="none">
                     <path
                       d="M 60,65 Q 150,40 200,90 T 320,125"
@@ -304,12 +276,8 @@ function DeliveryTrackingContent() {
                         {getInitials(courierName)}
                       </div>
                       <div>
-                        <div className="sd-courier-name-line">
-                          <span className="sd-courier-name">{courierName}</span>
-                        </div>
-                        <div className="sd-courier-verified">
-                          Verified SwiftDrop courier
-                        </div>
+                        <div className="sd-courier-name">{courierName}</div>
+                        <div className="sd-courier-verified">Verified SwiftDrop courier</div>
                         <div className="sd-courier-rating">
                           <span>4.9</span>
                           <Star size={13} fill="#f59e0b" color="#f59e0b" />
@@ -337,13 +305,14 @@ function DeliveryTrackingContent() {
               </div>
 
               {/* ==============================================================
-                  RIGHT COLUMN: DELIVERY PROGRESS TIMELINE & SUMMARY
+                  RIGHT COLUMN: DELIVERY PROGRESS STEPPER & SHIPMENT SUMMARY
                  ============================================================== */}
               <div className="sd-tracking-right-col">
-                {/* Delivery Progress Stepper */}
-                <div className="sd-progress-card">
-                  <h3 className="sd-progress-title">Delivery progress</h3>
+                {/* Delivery Progress Card */}
+                <div className="sd-white-panel sd-progress-panel">
+                  <h3 className="sd-progress-heading">Delivery progress</h3>
 
+                  {/* Stepper */}
                   <div className="sd-stepper-list">
                     {/* Step 1: Request received */}
                     <div className="sd-step-item">
@@ -357,7 +326,7 @@ function DeliveryTrackingContent() {
                       </div>
                     </div>
 
-                    {/* Step 2: Accepted by Branch */}
+                    {/* Step 2: Accepted by Colombo Central Branch */}
                     <div className="sd-step-item">
                       <div className="sd-step-indicator completed">
                         <Check size={13} strokeWidth={3} />
@@ -407,7 +376,7 @@ function DeliveryTrackingContent() {
                           Delivered to recipient
                         </span>
                         <span className="sd-step-time next-step">
-                          {isDelivered ? '2:15 PM' : 'Final step'}
+                          {isDelivered ? '2:15 PM' : ''}
                         </span>
                       </div>
                     </div>
@@ -415,46 +384,63 @@ function DeliveryTrackingContent() {
                 </div>
 
                 {/* Shipment Details Summary Box */}
-                <div className="sd-summary-card">
-                  <div className="sd-summary-header">
-                    <Package size={16} color="#2563eb" />
+                <div className="sd-white-panel sd-shipment-details-card">
+                  <div className="sd-shipment-header">
+                    <Package size={17} color="#2563eb" />
                     <span>Shipment Specifications</span>
                   </div>
 
-                  <div className="sd-summary-rows">
-                    <div className="sd-summary-row">
+                  <div className="sd-shipment-rows">
+                    <div className="sd-shipment-row">
+                      <span className="lbl">Tracking Number:</span>
+                      <span className="val bold" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                        {currentTrackingNumber}
+                        <button type="button" onClick={handleCopy} className="sd-copy-mini-btn" title="Copy tracking number">
+                          {copied ? <Check size={12} color="#16a34a" /> : <Copy size={12} />}
+                        </button>
+                      </span>
+                    </div>
+                    <div className="sd-shipment-row">
                       <span className="lbl">Origin:</span>
                       <span className="val">{trackingData.origin || 'Union Place, Colombo 02'}</span>
                     </div>
-                    <div className="sd-summary-row">
+                    <div className="sd-shipment-row">
                       <span className="lbl">Destination:</span>
                       <span className="val">{trackingData.destination || 'Galle Road, Colombo 03'}</span>
                     </div>
-                    <div className="sd-summary-row">
+                    <div className="sd-shipment-row">
                       <span className="lbl">Category:</span>
                       <span className="val">{trackingData.parcelCategory || 'Documents & Small Parcel'}</span>
                     </div>
-                    <div className="sd-summary-row">
-                      <span className="lbl">Dispatched Via:</span>
+                    <div className="sd-shipment-row">
+                      <span className="lbl">Assigned Branch:</span>
                       <span className="val">{branchName}</span>
                     </div>
                   </div>
 
-                  <div className="sd-summary-footer">
-                    <button type="button" onClick={handleCopy} className="sd-copy-btn">
-                      {copied ? (
-                        <>
-                          <Check size={13} color="#16a34a" /> Copied {currentTrackingNumber}
-                        </>
-                      ) : (
-                        <>
-                          <Copy size={13} /> Copy Tracking #
-                        </>
-                      )}
+                  {/* Quick Demo Switcher */}
+                  <div className="sd-quick-badges-row">
+                    <span className="sd-quick-lbl">Demo Presets:</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQueryInput('SD-10518');
+                        fetchTracking('SD-10518');
+                      }}
+                      className={`sd-quick-pill ${currentTrackingNumber === 'SD-10518' ? 'active' : ''}`}
+                    >
+                      SD-10518 (Active)
                     </button>
-                    <Link href="/bookings" className="sd-deliveries-link">
-                      View all my bookings →
-                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQueryInput('SD-10498');
+                        fetchTracking('SD-10498');
+                      }}
+                      className={`sd-quick-pill ${currentTrackingNumber === 'SD-10498' ? 'active' : ''}`}
+                    >
+                      SD-10498 (Delivered)
+                    </button>
                   </div>
                 </div>
               </div>
@@ -463,24 +449,21 @@ function DeliveryTrackingContent() {
         </div>
       </main>
 
-      {/* ---------------- STYLES (MATCHES REFERENCE SCREENSHOT 1:1) ---------------- */}
+      {/* ---------------- STYLES (FITS SCREEN PROPERLY ON DESKTOP & MOBILE) ---------------- */}
       <style jsx global>{`
-        /* Fullpage Root: Breaks out to touch sidebar directly with zero blue margins */
         .sd-fullpage-root {
-          width: calc(100% + 5rem);
-          margin: -2rem -2.5rem;
+          width: 100%;
           min-height: 100vh;
           background: #f4f7fb;
           display: flex;
           flex-direction: column;
-          font-family: inherit;
         }
 
         /* Top Header Bar */
         .sd-fullpage-header {
           background: #0f1f38;
           color: #ffffff;
-          padding: 1.5rem 2.5rem;
+          padding: 1.25rem 2.5rem;
           border-bottom: 1px solid rgba(255, 255, 255, 0.08);
           width: 100%;
         }
@@ -488,8 +471,10 @@ function DeliveryTrackingContent() {
         .sd-header-inner {
           display: flex;
           align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
           gap: 1.25rem;
-          max-width: 1100px;
+          max-width: 1280px;
           margin: 0 auto;
         }
 
@@ -524,6 +509,46 @@ function DeliveryTrackingContent() {
           font-weight: 500;
         }
 
+        .sd-header-search-wrap {
+          display: flex;
+          align-items: center;
+        }
+
+        .sd-hdr-search-form {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          background: rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          padding: 0.35rem 0.65rem;
+          border-radius: 8px;
+        }
+
+        .sd-hdr-search-inp {
+          background: transparent;
+          border: none;
+          outline: none;
+          color: #ffffff;
+          font-size: 0.8rem;
+          width: 130px;
+          font-family: inherit;
+        }
+
+        .sd-hdr-search-inp::placeholder {
+          color: #8fa3bf;
+        }
+
+        .sd-hdr-search-btn {
+          background: #2563eb;
+          color: #ffffff;
+          border: none;
+          padding: 0.25rem 0.65rem;
+          border-radius: 6px;
+          font-size: 0.75rem;
+          font-weight: 600;
+          cursor: pointer;
+        }
+
         /* Main Body Canvas */
         .sd-fullpage-body {
           flex: 1;
@@ -533,159 +558,16 @@ function DeliveryTrackingContent() {
         }
 
         .sd-content-wrapper {
-          max-width: 1050px;
+          max-width: 1280px;
           margin: 0 auto;
-          display: flex;
-          flex-direction: column;
-          gap: 1.5rem;
+          width: 100%;
         }
 
-        /* Search & Lookup Bar */
-        .sd-search-container {
-          background: #ffffff;
-          border: 1px solid #e2e8f0;
-          border-radius: 14px;
-          padding: 0.75rem 1.25rem;
-          display: flex;
-          flex-direction: column;
-          gap: 0.65rem;
-          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
-        }
-
-        .sd-search-form {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-        }
-
-        .sd-search-input {
-          flex: 1;
-          border: none;
-          outline: none;
-          font-size: 0.9rem;
-          color: #0f172a;
-          background: transparent;
-          font-family: inherit;
-        }
-
-        .sd-search-input::placeholder {
-          color: #94a3b8;
-        }
-
-        .sd-search-btn {
-          background: #2563eb;
-          color: #ffffff;
-          border: none;
-          padding: 0.45rem 1rem;
-          border-radius: 7px;
-          font-size: 0.8rem;
-          font-weight: 600;
-          cursor: pointer;
-          transition: background 0.15s;
-        }
-
-        .sd-search-btn:hover {
-          background: #1d4ed8;
-        }
-
-        .sd-quick-badges {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          flex-wrap: wrap;
-        }
-
-        .sd-quick-lbl {
-          font-size: 0.72rem;
-          color: #64748b;
-          font-weight: 600;
-        }
-
-        .sd-quick-pill {
-          background: #f1f5f9;
-          border: 1px solid #e2e8f0;
-          color: #334155;
-          font-size: 0.72rem;
-          font-weight: 600;
-          padding: 0.2rem 0.55rem;
-          border-radius: 6px;
-          cursor: pointer;
-          transition: all 0.15s;
-        }
-
-        .sd-quick-pill:hover {
-          background: #e0ecfe;
-          border-color: #93c5fd;
-          color: #1d4ed8;
-        }
-
-        /* Loading & Error Cards */
-        .sd-loading-card {
-          background: #ffffff;
-          border: 1px solid #e2e8f0;
-          border-radius: 14px;
-          padding: 3rem 2rem;
-          text-align: center;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 0.75rem;
-        }
-
-        .sd-loading-title {
-          font-size: 1rem;
-          font-weight: 700;
-          color: #0f172a;
-        }
-
-        .sd-loading-sub {
-          font-size: 0.8rem;
-          color: #64748b;
-          margin: 0;
-        }
-
-        .sd-error-card {
-          background: #fff1f2;
-          border: 1px solid #fecdd3;
-          border-radius: 14px;
-          padding: 2.5rem 2rem;
-          text-align: center;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 0.65rem;
-        }
-
-        .sd-error-title {
-          font-size: 1.05rem;
-          font-weight: 700;
-          color: #991b1b;
-        }
-
-        .sd-error-sub {
-          font-size: 0.85rem;
-          color: #b91c1c;
-          max-width: 420px;
-          margin: 0;
-        }
-
-        .sd-retry-btn {
-          margin-top: 0.5rem;
-          background: #dc2626;
-          color: #ffffff;
-          border: none;
-          padding: 0.5rem 1.25rem;
-          border-radius: 7px;
-          font-size: 0.825rem;
-          font-weight: 600;
-          cursor: pointer;
-        }
-
-        /* Responsive 2-Column Grid */
+        /* Balanced 2-Column Responsive Desktop Grid */
         .sd-tracking-grid {
           display: grid;
           grid-template-columns: 1.15fr 1fr;
-          gap: 1.75rem;
+          gap: 2rem;
           align-items: flex-start;
         }
 
@@ -693,36 +575,38 @@ function DeliveryTrackingContent() {
         .sd-tracking-right-col {
           display: flex;
           flex-direction: column;
-          gap: 1.25rem;
+          gap: 1.5rem;
         }
 
-        /* Status Hero Headings */
+        /* Hero Status Block */
         .sd-status-hero {
           display: flex;
           flex-direction: column;
-          gap: 0.4rem;
+          gap: 0.5rem;
         }
 
         .sd-badge-assigned {
           display: inline-block;
-          background: #e8fbf0;
+          background: #dcfce7;
           color: #15803d;
           font-size: 0.72rem;
-          font-weight: 800;
-          letter-spacing: 0.05em;
-          padding: 4px 12px;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          padding: 0.35rem 0.75rem;
           border-radius: 9999px;
+          text-transform: uppercase;
         }
 
         .sd-badge-success {
           display: inline-block;
           background: #dcfce7;
-          color: #166534;
+          color: #15803d;
           font-size: 0.72rem;
-          font-weight: 800;
-          letter-spacing: 0.05em;
-          padding: 4px 12px;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          padding: 0.35rem 0.75rem;
           border-radius: 9999px;
+          text-transform: uppercase;
         }
 
         .sd-badge-pending {
@@ -730,44 +614,47 @@ function DeliveryTrackingContent() {
           background: #fef3c7;
           color: #b45309;
           font-size: 0.72rem;
-          font-weight: 800;
-          letter-spacing: 0.05em;
-          padding: 4px 12px;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          padding: 0.35rem 0.75rem;
           border-radius: 9999px;
+          text-transform: uppercase;
         }
 
         .sd-hero-title {
-          font-size: 1.55rem;
+          font-size: 1.65rem;
           font-weight: 800;
           color: #0f172a;
           letter-spacing: -0.02em;
-          margin: 0.15rem 0 0 0;
+          margin: 0;
+          line-height: 1.25;
         }
 
         .sd-hero-sub {
-          font-size: 0.875rem;
+          font-size: 0.9rem;
           color: #64748b;
           margin: 0;
+          line-height: 1.45;
         }
 
-        /* Live Route Map Canvas */
+        /* Map Card */
         .sd-map-card {
-          background: #edf5fc;
-          border: 1px solid #dbeafe;
-          border-radius: 16px;
-          height: 190px;
           position: relative;
+          height: 220px;
+          background: #edf3f9;
+          border-radius: 18px;
           overflow: hidden;
-          box-shadow: inset 0 2px 8px rgba(37, 99, 235, 0.05);
+          border: 1px solid #e2e8f0;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
         }
 
         .sd-map-grid-bg {
           position: absolute;
           inset: 0;
-          background-size: 40px 40px;
           background-image: 
-            linear-gradient(to right, rgba(255, 255, 255, 0.8) 1px, transparent 1px),
-            linear-gradient(to bottom, rgba(255, 255, 255, 0.8) 1px, transparent 1px);
+            linear-gradient(to right, rgba(255, 255, 255, 0.75) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(255, 255, 255, 0.75) 1px, transparent 1px);
+          background-size: 50px 50px;
         }
 
         .sd-map-svg {
@@ -779,125 +666,120 @@ function DeliveryTrackingContent() {
 
         .sd-map-marker {
           position: absolute;
+          z-index: 2;
           transform: translate(-50%, -50%);
           display: flex;
           align-items: center;
           justify-content: center;
-          z-index: 2;
         }
 
         .marker-p {
           top: 36%;
-          left: 20%;
+          left: 15%;
           width: 26px;
           height: 26px;
           border-radius: 50%;
           background: #2563eb;
           color: #ffffff;
-          font-size: 12px;
-          font-weight: 800;
+          font-size: 0.75rem;
+          font-weight: 700;
           box-shadow: 0 2px 6px rgba(37, 99, 235, 0.4);
         }
 
-        .marker-d {
-          top: 68%;
-          left: 78%;
-          width: 26px;
-          height: 26px;
-          border-radius: 50%;
-          background: #06b6d4;
-          color: #ffffff;
-          font-size: 12px;
-          font-weight: 800;
-          box-shadow: 0 2px 6px rgba(6, 182, 212, 0.4);
-        }
-
         .marker-courier {
-          top: 50%;
+          top: 48%;
           left: 50%;
-          width: 20px;
-          height: 20px;
         }
 
         .sd-courier-core {
           width: 16px;
           height: 16px;
           border-radius: 50%;
-          background: #10b981;
-          border: 3px solid #ffffff;
-          box-shadow: 0 0 10px rgba(16, 185, 129, 0.7);
+          background: #16a34a;
+          border: 2.5px solid #ffffff;
+          box-shadow: 0 2px 6px rgba(22, 163, 74, 0.4);
           position: relative;
           z-index: 2;
         }
 
         .sd-courier-pulse {
           position: absolute;
-          width: 32px;
-          height: 32px;
+          width: 34px;
+          height: 34px;
           border-radius: 50%;
-          background: rgba(16, 185, 129, 0.3);
-          animation: pulseMarker 2s infinite ease-out;
-          top: -6px;
-          left: -6px;
+          background: rgba(22, 163, 74, 0.25);
+          animation: mapPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+          transform: translate(-50%, -50%);
+          top: 50%;
+          left: 50%;
         }
 
-        @keyframes pulseMarker {
+        @keyframes mapPulse {
           0% {
-            transform: scale(0.6);
+            transform: translate(-50%, -50%) scale(0.6);
             opacity: 1;
           }
           100% {
-            transform: scale(1.6);
+            transform: translate(-50%, -50%) scale(1.6);
             opacity: 0;
           }
+        }
+
+        .marker-d {
+          top: 68%;
+          left: 80%;
+          width: 26px;
+          height: 26px;
+          border-radius: 50%;
+          background: #06b6d4;
+          color: #ffffff;
+          font-size: 0.75rem;
+          font-weight: 700;
+          box-shadow: 0 2px 6px rgba(6, 182, 212, 0.4);
         }
 
         .sd-map-distance-tag {
           position: absolute;
           bottom: 12px;
-          left: 16px;
+          left: 14px;
           font-size: 0.75rem;
-          color: #475569;
+          color: #64748b;
           font-weight: 600;
-          background: rgba(255, 255, 255, 0.85);
-          backdrop-filter: blur(4px);
-          padding: 3px 8px;
-          border-radius: 6px;
-          border: 1px solid rgba(226, 232, 240, 0.8);
+          z-index: 3;
         }
 
-        /* Courier Card */
+        /* Courier Information Card */
         .sd-courier-card {
           background: #ffffff;
           border: 1px solid #e2e8f0;
           border-radius: 16px;
-          padding: 1.25rem 1.5rem;
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+          padding: 1.25rem 1.45rem;
           display: flex;
           flex-direction: column;
           gap: 1.15rem;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
         }
 
         .sd-courier-top-row {
           display: flex;
-          justify-content: space-between;
           align-items: flex-start;
+          justify-content: space-between;
         }
 
         .sd-courier-left {
           display: flex;
           align-items: center;
-          gap: 0.85rem;
+          gap: 0.95rem;
         }
 
         .sd-courier-avatar {
-          width: 44px;
-          height: 44px;
+          width: 48px;
+          height: 48px;
           border-radius: 50%;
-          background: #e0ecfe;
+          background: #dbeafe;
           color: #2563eb;
-          font-weight: 800;
-          font-size: 1rem;
+          font-size: 1.05rem;
+          font-weight: 700;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -906,35 +788,36 @@ function DeliveryTrackingContent() {
 
         .sd-courier-name {
           font-size: 1rem;
-          font-weight: 800;
+          font-weight: 700;
           color: #0f172a;
+          line-height: 1.2;
         }
 
         .sd-courier-verified {
           font-size: 0.75rem;
-          color: #64748b;
-          margin-top: 1px;
+          color: #94a3b8;
+          margin-top: 2px;
         }
 
         .sd-courier-rating {
           display: flex;
           align-items: center;
           gap: 0.25rem;
-          font-size: 0.75rem;
+          font-size: 0.775rem;
           font-weight: 700;
-          color: #d97706;
-          margin-top: 2px;
+          color: #f59e0b;
+          margin-top: 3px;
         }
 
         .sd-courier-actions {
           display: flex;
           align-items: center;
-          gap: 1rem;
+          gap: 1.15rem;
         }
 
         .sd-action-link {
-          color: #2563eb;
           font-size: 0.85rem;
+          color: #2563eb;
           font-weight: 600;
           text-decoration: none;
           transition: opacity 0.15s;
@@ -946,41 +829,39 @@ function DeliveryTrackingContent() {
 
         .sd-courier-bottom-row {
           display: flex;
-          justify-content: space-between;
           align-items: center;
+          justify-content: space-between;
+          padding-top: 0.75rem;
           border-top: 1px solid #f1f5f9;
-          padding-top: 0.85rem;
         }
 
         .sd-eta-label {
-          font-size: 0.825rem;
+          font-size: 0.85rem;
           color: #64748b;
+          font-weight: 500;
         }
 
         .sd-eta-time {
-          font-size: 1.25rem;
+          font-size: 1.35rem;
           font-weight: 800;
           color: #0f172a;
         }
 
-        /* Delivery Progress Timeline Card */
-        .sd-progress-card {
+        /* Clean White Panels */
+        .sd-white-panel {
           background: #ffffff;
           border: 1px solid #e2e8f0;
           border-radius: 16px;
           padding: 1.5rem;
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
-          display: flex;
-          flex-direction: column;
-          gap: 1.25rem;
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
         }
 
-        .sd-progress-title {
-          font-size: 1.1rem;
+        /* Delivery Progress Stepper */
+        .sd-progress-heading {
+          font-size: 1.2rem;
           font-weight: 800;
           color: #0f172a;
-          margin: 0;
-          letter-spacing: -0.01em;
+          margin: 0 0 1.25rem 0;
         }
 
         .sd-stepper-list {
@@ -991,30 +872,28 @@ function DeliveryTrackingContent() {
 
         .sd-step-item {
           display: flex;
-          align-items: flex-start;
-          gap: 1rem;
+          gap: 1.15rem;
           position: relative;
-          min-height: 48px;
+          min-height: 52px;
         }
 
         .sd-step-indicator {
-          width: 22px;
-          height: 22px;
+          width: 26px;
+          height: 26px;
           border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 11px;
+          font-size: 0.75rem;
           font-weight: 700;
           flex-shrink: 0;
           position: relative;
-          z-index: 2;
-          margin-top: 1px;
+          z-index: 1;
         }
 
         .sd-step-indicator.completed {
           background: #dcfce7;
-          color: #15803d;
+          color: #16a34a;
         }
 
         .sd-step-indicator.pending {
@@ -1025,11 +904,11 @@ function DeliveryTrackingContent() {
 
         .sd-step-line {
           position: absolute;
-          top: 22px;
-          left: 10px;
+          top: 26px;
+          left: 12px;
           width: 2px;
-          bottom: -2px;
-          z-index: 1;
+          height: calc(100% - 26px + 14px);
+          z-index: 0;
         }
 
         .sd-step-line.solid {
@@ -1046,123 +925,163 @@ function DeliveryTrackingContent() {
 
         .sd-step-content {
           display: flex;
-          justify-content: space-between;
-          align-items: baseline;
           flex: 1;
-          padding-bottom: 1.25rem;
+          align-items: flex-start;
+          justify-content: space-between;
+          padding-top: 3px;
         }
 
         .sd-step-name {
-          font-size: 0.875rem;
-          font-weight: 700;
+          font-size: 0.9rem;
+          font-weight: 600;
           color: #0f172a;
         }
 
         .sd-step-name.muted {
-          color: #94a3b8;
+          color: #64748b;
           font-weight: 500;
         }
 
         .sd-step-time {
-          font-size: 0.75rem;
+          font-size: 0.8rem;
           color: #64748b;
-          font-family: inherit;
+          white-space: nowrap;
+          margin-left: 0.5rem;
         }
 
         .sd-step-time.next-step {
           color: #94a3b8;
-          font-style: italic;
+          font-size: 0.775rem;
         }
 
-        /* Summary Specification Card */
-        .sd-summary-card {
-          background: #ffffff;
-          border: 1px solid #e2e8f0;
-          border-radius: 16px;
-          padding: 1.25rem 1.5rem;
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
-          display: flex;
-          flex-direction: column;
-          gap: 0.85rem;
-        }
-
-        .sd-summary-header {
+        /* Shipment Details Card */
+        .sd-shipment-header {
           display: flex;
           align-items: center;
-          gap: 0.45rem;
-          font-size: 0.85rem;
+          gap: 0.5rem;
+          font-size: 0.95rem;
           font-weight: 700;
-          color: #1e293b;
+          color: #0f172a;
+          margin-bottom: 1rem;
         }
 
-        .sd-summary-rows {
+        .sd-shipment-rows {
           display: flex;
           flex-direction: column;
-          gap: 0.5rem;
-          font-size: 0.825rem;
+          gap: 0.65rem;
         }
 
-        .sd-summary-row {
+        .sd-shipment-row {
           display: flex;
           justify-content: space-between;
-          gap: 0.75rem;
+          align-items: center;
+          font-size: 0.85rem;
         }
 
-        .sd-summary-row .lbl {
+        .sd-shipment-row .lbl {
           color: #64748b;
-          font-weight: 500;
-          flex-shrink: 0;
         }
 
-        .sd-summary-row .val {
+        .sd-shipment-row .val {
           color: #0f172a;
           font-weight: 600;
           text-align: right;
         }
 
-        .sd-summary-footer {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          border-top: 1px solid #f1f5f9;
-          padding-top: 0.75rem;
-          margin-top: 0.25rem;
+        .sd-shipment-row .val.bold {
+          font-weight: 700;
         }
 
-        .sd-copy-btn {
-          background: transparent;
+        .sd-copy-mini-btn {
+          background: #f1f5f9;
           border: 1px solid #e2e8f0;
-          color: #475569;
-          font-size: 0.75rem;
-          padding: 0.3rem 0.65rem;
+          color: #64748b;
+          padding: 0.2rem 0.35rem;
+          border-radius: 4px;
+          cursor: pointer;
+        }
+
+        .sd-copy-mini-btn:hover {
+          background: #e2e8f0;
+        }
+
+        .sd-quick-badges-row {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding-top: 0.85rem;
+          margin-top: 0.85rem;
+          border-top: 1px solid #f1f5f9;
+          flex-wrap: wrap;
+        }
+
+        .sd-quick-lbl {
+          font-size: 0.72rem;
+          color: #64748b;
+          font-weight: 600;
+        }
+
+        .sd-quick-pill {
+          background: #f1f5f9;
+          border: 1px solid #e2e8f0;
+          color: #334155;
+          font-size: 0.72rem;
+          font-weight: 600;
+          padding: 0.25rem 0.6rem;
           border-radius: 6px;
           cursor: pointer;
-          display: inline-flex;
-          align-items: center;
-          gap: 0.35rem;
+          transition: all 0.15s ease;
         }
 
-        .sd-copy-btn:hover {
-          background: #f8fafc;
+        .sd-quick-pill:hover,
+        .sd-quick-pill.active {
+          background: #e0ecfe;
+          border-color: #93c5fd;
+          color: #1d4ed8;
+        }
+
+        /* Loading & Error */
+        .sd-loading-card, .sd-error-card {
+          background: #ffffff;
+          border: 1px solid #e2e8f0;
+          border-radius: 16px;
+          padding: 3rem 1.5rem;
+          text-align: center;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 0.75rem;
+        }
+
+        .sd-loading-title, .sd-error-title {
+          font-size: 1rem;
+          font-weight: 700;
           color: #0f172a;
         }
 
-        .sd-deliveries-link {
-          color: #2563eb;
-          font-size: 0.78rem;
+        .sd-loading-sub, .sd-error-sub {
+          font-size: 0.85rem;
+          color: #64748b;
+          margin: 0;
+        }
+
+        .sd-retry-btn {
+          margin-top: 0.5rem;
+          background: #2563eb;
+          color: #ffffff;
+          border: none;
+          padding: 0.5rem 1.15rem;
+          border-radius: 8px;
+          font-size: 0.825rem;
           font-weight: 600;
-          text-decoration: none;
+          cursor: pointer;
         }
 
-        .sd-deliveries-link:hover {
-          text-decoration: underline;
-        }
-
-        /* Mobile Adjustments (< 860px) */
-        @media (max-width: 860px) {
-          .sd-fullpage-root {
-            width: 100%;
-            margin: 0;
+        /* Responsive Breakpoints */
+        @media (max-width: 992px) {
+          .sd-tracking-grid {
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
           }
 
           .sd-fullpage-header {
@@ -1170,11 +1089,21 @@ function DeliveryTrackingContent() {
           }
 
           .sd-fullpage-body {
-            padding: 1.25rem 1rem 3rem 1rem;
+            padding: 1.5rem 1.5rem 3rem 1.5rem;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .sd-header-search-wrap {
+            display: none;
           }
 
-          .sd-tracking-grid {
-            grid-template-columns: 1fr;
+          .sd-fullpage-header {
+            padding: 1rem 1.25rem;
+          }
+
+          .sd-fullpage-body {
+            padding: 1.25rem 1rem 3rem 1rem;
           }
         }
       `}</style>
@@ -1186,8 +1115,8 @@ export default function DeliveryTrackingPage() {
   return (
     <Suspense
       fallback={
-        <div style={{ padding: '4rem', textAlign: 'center', color: '#94a3b8' }}>
-          Loading delivery tracking...
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f4f7fb' }}>
+          <Loader2 className="animate-spin text-primary" size={32} />
         </div>
       }
     >

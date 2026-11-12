@@ -25,7 +25,7 @@ const navItems = [
   { name: 'Order management', href: '#', icon: Calendar },
   { name: 'Courier assignment', href: '#', icon: ArrowUpRight },
   { name: 'Couriers', href: '#', icon: Sparkles },
-  { name: 'Customers', href: '/customer/dashboard', icon: Target },
+  { name: 'Customers', href: '/customers', icon: Target },
   { name: 'Reports', href: '#', icon: Columns },
   { name: 'Settings', href: '#', icon: Settings },
 ];
@@ -35,14 +35,8 @@ export default function Sidebar() {
 
   // Helper to determine if a route is currently active
   const isItemActive = (href: string) => {
-    // If we are on customer dashboard or any customer-facing route, highlight Customers
-    if (href === '/customer/dashboard') {
-      return (
-        pathname.startsWith('/customer') ||
-        pathname.startsWith('/bookings') ||
-        pathname.startsWith('/book') ||
-        pathname.startsWith('/tracking')
-      );
+    if (href === '/customers') {
+      return pathname === '/customers' || pathname.startsWith('/customers/');
     }
     if (href === '/') {
       return pathname === '/';
