@@ -67,7 +67,7 @@ app:
     refresh-token-expiry-ms: ${JWT_REFRESH_TOKEN_EXPIRY_MS:604800000}  # 7 days
 
   google:
-    client-id: ${GOOGLE_CLIENT_ID:}
+    client-id: ${GOOGLE_CLIENT_ID:886734300259-8d1q7uus60cf1abicqgeji3nngudhqhk.apps.googleusercontent.com}
 
   cookie:
     secure: ${COOKIE_SECURE:false}       # true in production (HTTPS)

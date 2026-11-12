@@ -5,15 +5,15 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema, type LoginFormValues } from '@/schema/auth.schema';
-import { useLogin, useGoogleAuth, getApiErrorMessage } from '@/hooks/api/use-auth';
+import { useLogin, getApiErrorMessage } from '@/hooks/api/use-auth';
 import { Eye, EyeOff, LogIn, Box } from 'lucide-react';
+import GoogleSignInButton from '@/components/auth/GoogleSignInButton';
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
   const loginMutation = useLogin();
-  const googleMutation = useGoogleAuth();
 
   const {
     register,
@@ -27,28 +27,6 @@ export default function LoginPage() {
       await loginMutation.mutateAsync(values);
     } catch (err) {
       setApiError(getApiErrorMessage(err));
-    }
-  };
-
-  const handleGoogleLogin = async () => {
-    setApiError(null);
-    // In a real integration, obtain the ID token from the Google Identity Services SDK.
-    // The placeholder below shows the expected flow.
-    try {
-      if (typeof window === 'undefined') return;
-      // @ts-expect-error — google global injected by GIS script
-      const client = google.accounts.oauth2.initTokenClient({
-        client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? '',
-        scope: 'openid email profile',
-        callback: async (tokenResponse: { access_token: string }) => {
-          // Exchange access_token for id_token via tokeninfo or use GIS id token flow
-          // For simplicity we demonstrate with id_token flow (requires GIS One-Tap or Sign In With Google button)
-          console.log('Google token response received', tokenResponse);
-        },
-      });
-      client.requestAccessToken();
-    } catch (err) {
-      setApiError('Google sign-in is not configured. Please use email and password.');
     }
   };
 
@@ -174,16 +152,8 @@ export default function LoginPage() {
         <span style={dividerLineStyle} />
       </div>
 
-      {/* Google */}
-      <button
-        type="button"
-        onClick={handleGoogleLogin}
-        disabled={googleMutation.isPending}
-        style={googleBtnStyle}
-      >
-        <GoogleIcon />
-        <span>Continue with Google</span>
-      </button>
+      {/* Google Sign-In */}
+      <GoogleSignInButton mode="signin" onError={setApiError} />
 
       <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem', color: '#94a3b8' }}>
         Don&apos;t have an account?{' '}

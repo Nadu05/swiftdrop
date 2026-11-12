@@ -359,7 +359,12 @@ public class AuthService {
             if (idToken == null) {
                 throw new OAuthException("Invalid Google ID token");
             }
-            return idToken.getPayload();
+            GoogleIdToken.Payload payload = idToken.getPayload();
+            Boolean emailVerified = payload.getEmailVerified();
+            if (emailVerified != null && !emailVerified) {
+                throw new OAuthException("Google email address is not verified");
+            }
+            return payload;
         } catch (GeneralSecurityException | IOException ex) {
             log.warn("Google token verification failed: {}", ex.getMessage());
             throw new OAuthException("Google authentication failed");

@@ -208,5 +208,45 @@ class AuthControllerTest {
         mockMvc.perform(post("/auth/logout"))
                 .andExpect(status().isNoContent());
     }
+
+    @Test
+    @DisplayName("POST /auth/google - Success returns 200 OK")
+    void googleAuthSuccess() throws Exception {
+        com.swiftdrop.identity.dto.GoogleAuthRequest req = new com.swiftdrop.identity.dto.GoogleAuthRequest();
+        req.setIdToken("mock-valid-google-id-token");
+
+        AuthResponse authRes = new AuthResponse(
+                UUID.randomUUID(),
+                "Google User",
+                "googleuser@example.com",
+                null,
+                List.of("CUSTOMER"),
+                "ACTIVE",
+                LocalDateTime.now()
+        );
+
+        when(authService.googleAuth(any(), any())).thenReturn(authRes);
+
+        mockMvc.perform(post("/auth/google")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("googleuser@example.com"))
+                .andExpect(jsonPath("$.fullName").value("Google User"))
+                .andExpect(jsonPath("$.roles[0]").value("CUSTOMER"));
+    }
+
+    @Test
+    @DisplayName("POST /auth/google - Validation error on missing idToken")
+    void googleAuthMissingToken() throws Exception {
+        com.swiftdrop.identity.dto.GoogleAuthRequest req = new com.swiftdrop.identity.dto.GoogleAuthRequest();
+        req.setIdToken("");
+
+        mockMvc.perform(post("/auth/google")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.idToken").value("Google ID token is required"));
+    }
 }
 

@@ -5,8 +5,9 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { registerSchema, type RegisterFormValues } from '@/schema/auth.schema';
-import { useRegister, useGoogleAuth, getApiErrorMessage } from '@/hooks/api/use-auth';
+import { useRegister, getApiErrorMessage } from '@/hooks/api/use-auth';
 import { Eye, EyeOff, UserPlus, Box, Check, X } from 'lucide-react';
+import GoogleSignInButton from '@/components/auth/GoogleSignInButton';
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -14,7 +15,6 @@ export default function RegisterPage() {
   const [apiError, setApiError] = useState<string | null>(null);
 
   const registerMutation = useRegister();
-  const googleMutation = useGoogleAuth();
 
   const {
     register,
@@ -36,17 +36,6 @@ export default function RegisterPage() {
     setApiError(null);
     try {
       await registerMutation.mutateAsync(values);
-    } catch (err) {
-      setApiError(getApiErrorMessage(err));
-    }
-  };
-
-  const handleGoogleSignUp = async () => {
-    setApiError(null);
-    try {
-      // Same Google Identity Services flow as login page.
-      // Full integration requires loading the GIS script and obtaining an ID token.
-      setApiError('Google sign-up requires the Google client ID to be configured.');
     } catch (err) {
       setApiError(getApiErrorMessage(err));
     }
@@ -242,16 +231,8 @@ export default function RegisterPage() {
         <span style={dividerLineStyle} />
       </div>
 
-      {/* Google */}
-      <button
-        type="button"
-        onClick={handleGoogleSignUp}
-        disabled={googleMutation.isPending}
-        style={googleBtnStyle}
-      >
-        <GoogleIcon />
-        <span>Continue with Google</span>
-      </button>
+      {/* Google Sign-In */}
+      <GoogleSignInButton mode="signup" onError={setApiError} />
 
       <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem', color: '#94a3b8' }}>
         Already have an account?{' '}

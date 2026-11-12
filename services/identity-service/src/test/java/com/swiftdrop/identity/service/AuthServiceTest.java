@@ -246,6 +246,23 @@ class AuthServiceTest {
     }
 
     // -----------------------------------------------------------------------
+    // Google OAuth Tests
+    // -----------------------------------------------------------------------
+
+    @Test
+    @DisplayName("Should throw OAuthException when Google Client ID is not configured")
+    void shouldThrowWhenGoogleClientIdNotConfigured() {
+        ReflectionTestUtils.setField(authService, "googleClientId", "");
+
+        GoogleAuthRequest req = new GoogleAuthRequest();
+        req.setIdToken("mock-token");
+
+        assertThatThrownBy(() -> authService.googleAuth(req, response))
+                .isInstanceOf(com.swiftdrop.identity.exception.OAuthException.class)
+                .hasMessageContaining("Google OAuth is not configured");
+    }
+
+    // -----------------------------------------------------------------------
     // Token Refresh Tests
     // -----------------------------------------------------------------------
 
