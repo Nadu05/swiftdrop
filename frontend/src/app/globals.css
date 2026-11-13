@@ -94,6 +94,36 @@ pre {
   width: 100%;
 }
 
+.main-content:has(.sd-fullpage-root) {
+  padding: 0 !important;
+  max-width: none !important;
+  margin: 0 !important;
+  width: 100% !important;
+}
+
+.customer-app-shell {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+}
+
+.customer-main-content {
+  max-width: none;
+  margin: 0;
+  padding: 0 !important;
+  width: 100%;
+  min-width: 0;
+  background: #f4f7fb;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 768px) {
+  .customer-app-shell {
+    flex-direction: column;
+  }
+}
+
 /* Glassmorphism Card */
 .glass-card {
   background: var(--bg-card);
