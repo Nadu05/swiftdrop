@@ -35,6 +35,22 @@ spring:
           filters:
             - StripPrefix=2
 
+        # --- Identity Service (users endpoints) ---
+        - id: identity-users
+          uri: ${IDENTITY_SERVICE_URL:http://localhost:8081}
+          predicates:
+            - Path=/api/v1/users/**
+          filters:
+            - StripPrefix=2
+
+        # --- Identity Service (admin endpoints) ---
+        - id: identity-admin
+          uri: ${IDENTITY_SERVICE_URL:http://localhost:8081}
+          predicates:
+            - Path=/api/v1/admin/**
+          filters:
+            - StripPrefix=2
+
         # --- Identity Service ---
         - id: identity-service
           uri: ${IDENTITY_SERVICE_URL:http://localhost:8081}

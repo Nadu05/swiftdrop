@@ -10,6 +10,8 @@ export interface AuthResponse {
   phone: string | null;
   roles: string[];
   accountStatus: string;
+  emailVerified?: boolean;
+  emailVerifiedAt?: string | null;
   createdAt: string;
 }
 
@@ -38,5 +40,6 @@ export interface AuthUser {
   phone: string | null;
   roles: string[];
   accountStatus: string;
+  emailVerified?: boolean;
+  emailVerifiedAt?: string | null;
 }
-

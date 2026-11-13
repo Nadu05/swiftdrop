@@ -1,19 +1,36 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema, type LoginFormValues } from '@/schema/auth.schema';
 import { useLogin, getApiErrorMessage } from '@/hooks/api/use-auth';
+import { useAuthStore } from '@/store/auth.store';
 import { Eye, EyeOff, LogIn, Box } from 'lucide-react';
 import GoogleSignInButton from '@/components/auth/GoogleSignInButton';
 
-export default function LoginPage() {
+function LoginForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const user = useAuthStore((s) => s.user);
+  const isInitialized = useAuthStore((s) => s.isInitialized);
+
   const [showPassword, setShowPassword] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
+  const resetSuccess = searchParams.get('reset') === 'success';
+  const deactivatedNotice = searchParams.get('deactivated') === 'true';
+
   const loginMutation = useLogin();
+
+  useEffect(() => {
+    if (isInitialized && user) {
+      const callbackUrl = searchParams.get('callbackUrl') || '/';
+      router.replace(callbackUrl);
+    }
+  }, [isInitialized, user, router, searchParams]);
 
   const {
     register,
@@ -75,6 +92,42 @@ export default function LoginPage() {
         Sign in to your account to continue
       </p>
 
+      {/* Reset success notification */}
+      {resetSuccess && (
+        <div
+          role="status"
+          style={{
+            background: 'rgba(16,185,129,0.12)',
+            border: '1px solid rgba(16,185,129,0.4)',
+            borderRadius: '8px',
+            padding: '0.75rem 1rem',
+            marginBottom: '1.25rem',
+            fontSize: '0.875rem',
+            color: '#34d399',
+          }}
+        >
+          Password reset successful! Please sign in with your new password.
+        </div>
+      )}
+
+      {/* Deactivated notification */}
+      {deactivatedNotice && (
+        <div
+          role="status"
+          style={{
+            background: 'rgba(239,68,68,0.12)',
+            border: '1px solid rgba(239,68,68,0.4)',
+            borderRadius: '8px',
+            padding: '0.75rem 1rem',
+            marginBottom: '1.25rem',
+            fontSize: '0.875rem',
+            color: '#f87171',
+          }}
+        >
+          Your account has been deactivated. Contact support if this was in error.
+        </div>
+      )}
+
       {/* API Error Banner */}
       {apiError && (
         <div
@@ -110,7 +163,15 @@ export default function LoginPage() {
 
         {/* Password */}
         <div>
-          <label htmlFor="password" style={labelStyle}>Password</label>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+            <label htmlFor="password" style={{ ...labelStyle, marginBottom: 0 }}>Password</label>
+            <Link
+              href="/forgot-password"
+              style={{ fontSize: '0.75rem', color: '#60a5fa', textDecoration: 'none', fontWeight: 500 }}
+            >
+              Forgot password?
+            </Link>
+          </div>
           <div style={{ position: 'relative' }}>
             <input
               id="password"
@@ -162,6 +223,14 @@ export default function LoginPage() {
         </Link>
       </p>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }
 

@@ -26,18 +26,24 @@ export function useCurrentUser() {
   return useQuery({
     queryKey: AUTH_QUERY_KEY,
     queryFn: async () => {
-      const response = await getCurrentUser();
-      const user: AuthUser = {
-        userId: response.userId,
-        fullName: response.fullName,
-        email: response.email,
-        phone: response.phone,
-        roles: response.roles,
-        accountStatus: response.accountStatus,
-      };
-      setUser(user);
-      setInitialized();
-      return user;
+      try {
+        const response = await getCurrentUser();
+        const user: AuthUser = {
+          userId: response.userId,
+          fullName: response.fullName,
+          email: response.email,
+          phone: response.phone,
+          roles: response.roles,
+          accountStatus: response.accountStatus,
+        };
+        setUser(user);
+        return user;
+      } catch (error) {
+        setUser(null);
+        throw error;
+      } finally {
+        setInitialized();
+      }
     },
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 minutes

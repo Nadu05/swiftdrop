@@ -10,6 +10,8 @@ import com.swiftdrop.identity.exception.InvalidCredentialsException;
 import com.swiftdrop.identity.security.JwtAuthenticationFilter;
 import com.swiftdrop.identity.security.JwtService;
 import com.swiftdrop.identity.service.AuthService;
+import com.swiftdrop.identity.service.PasswordService;
+import com.swiftdrop.identity.service.UserService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,6 +49,12 @@ class AuthControllerTest {
 
     @MockBean
     private AuthService authService;
+
+    @MockBean
+    private PasswordService passwordService;
+
+    @MockBean
+    private UserService userService;
 
     @MockBean
     private JwtService jwtService;
@@ -247,6 +255,69 @@ class AuthControllerTest {
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors.idToken").value("Google ID token is required"));
+    }
+
+    @Test
+    @DisplayName("POST /auth/change-password - Success")
+    @WithMockUser(username = "jane@example.com")
+    void changePasswordSuccess() throws Exception {
+        com.swiftdrop.identity.dto.ChangePasswordRequest req =
+                new com.swiftdrop.identity.dto.ChangePasswordRequest("OldPass123!", "NewPass123!", "NewPass123!");
+
+        mockMvc.perform(post("/auth/change-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("Password changed successfully"));
+    }
+
+    @Test
+    @DisplayName("POST /auth/forgot-password - Success returns generic message")
+    void forgotPasswordSuccess() throws Exception {
+        com.swiftdrop.identity.dto.ForgotPasswordRequest req =
+                new com.swiftdrop.identity.dto.ForgotPasswordRequest("jane@example.com");
+
+        mockMvc.perform(post("/auth/forgot-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    @DisplayName("POST /auth/reset-password - Success")
+    void resetPasswordSuccess() throws Exception {
+        com.swiftdrop.identity.dto.ResetPasswordRequest req =
+                new com.swiftdrop.identity.dto.ResetPasswordRequest("valid-token", "NewPass123!", "NewPass123!");
+
+        mockMvc.perform(post("/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    @DisplayName("POST /auth/verify-email - Success")
+    void verifyEmailSuccess() throws Exception {
+        com.swiftdrop.identity.dto.VerifyEmailRequest req =
+                new com.swiftdrop.identity.dto.VerifyEmailRequest("valid-token");
+
+        mockMvc.perform(post("/auth/verify-email")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    @DisplayName("POST /auth/resend-verification - Success")
+    @WithMockUser(username = "jane@example.com")
+    void resendVerificationSuccess() throws Exception {
+        mockMvc.perform(post("/auth/resend-verification"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
     }
 }
 

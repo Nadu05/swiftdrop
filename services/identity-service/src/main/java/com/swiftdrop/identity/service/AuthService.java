@@ -175,6 +175,10 @@ public class AuthService {
             user.setAuthProvider(AuthProvider.GOOGLE);
             user.setProviderUserId(googleSub);
             user.getRoles().add(customerRole);
+            if (Boolean.TRUE.equals(payload.getEmailVerified())) {
+                user.setEmailVerified(true);
+                user.setEmailVerifiedAt(LocalDateTime.now());
+            }
 
             user = userRepository.save(user);
             log.info("Created new Google-authenticated account: {}", email);
@@ -183,10 +187,20 @@ public class AuthService {
             if (user.getAccountStatus() != AccountStatus.ACTIVE) {
                 throw new AccountDisabledException();
             }
+            // Prevent account takeover: don't link Google to an existing LOCAL account
+            if (user.getAuthProvider() == AuthProvider.LOCAL && user.getProviderUserId() == null) {
+                throw new OAuthException(
+                        "An account with this email already exists. Please sign in with your email and password.");
+            }
             // Link Google if not already linked
             if (user.getProviderUserId() == null) {
                 user.setProviderUserId(googleSub);
                 user.setAuthProvider(AuthProvider.GOOGLE);
+                user = userRepository.save(user);
+            }
+            if (Boolean.TRUE.equals(payload.getEmailVerified()) && !user.isEmailVerified()) {
+                user.setEmailVerified(true);
+                user.setEmailVerifiedAt(LocalDateTime.now());
                 user = userRepository.save(user);
             }
             log.info("Google login for existing account: {}", email);
@@ -211,7 +225,12 @@ public class AuthService {
                 .orElseThrow(() -> new InvalidTokenException("Invalid or unknown refresh token"));
 
         if (stored.isRevoked()) {
-            throw new InvalidTokenException("Refresh token has been revoked");
+            // Reuse detection: someone tried to use an already-rotated or revoked token
+            // Revoke all tokens for this user as a security measure (family revocation)
+            refreshTokenRepository.revokeAllByUser(stored.getUser());
+            log.warn("Refresh token reuse detected for user {}. All sessions revoked.",
+                    stored.getUser().getEmail());
+            throw new InvalidTokenException("Refresh token has been revoked — all sessions terminated for security");
         }
         if (stored.getExpiresAt().isBefore(LocalDateTime.now())) {
             stored.setRevoked(true);
@@ -256,6 +275,10 @@ public class AuthService {
             });
         });
 
+        clearAuthCookies(response);
+    }
+
+    public void clearAuthCookies(HttpServletResponse response) {
         clearCookie(response, ACCESS_COOKIE_NAME);
         clearCookie(response, REFRESH_COOKIE_NAME);
     }
@@ -270,7 +293,7 @@ public class AuthService {
         // Access token
         String accessToken = jwtService.generateAccessToken(user.getUserId(), details);
         addCookie(response, ACCESS_COOKIE_NAME, accessToken,
-                (int) (jwtService.getRefreshTokenExpiryMs() / 1000)); // same max-age as refresh for cookie lifecycle
+                (int) (jwtService.getAccessTokenExpiryMs() / 1000));
 
         // Refresh token
         String rawRefresh = jwtService.generateRawRefreshToken();
@@ -300,12 +323,13 @@ public class AuthService {
     }
 
     private void clearCookie(HttpServletResponse response, String name) {
-        Cookie cookie = new Cookie(name, "");
-        cookie.setHttpOnly(true);
-        cookie.setSecure(cookieSecure);
-        cookie.setMaxAge(0);
-        cookie.setPath("/");
-        response.addCookie(cookie);
+        String cookie = name + "="
+                + "; Path=/"
+                + "; HttpOnly"
+                + "; Max-Age=0"
+                + "; SameSite=" + cookieSameSite
+                + (cookieSecure ? "; Secure" : "");
+        response.addHeader("Set-Cookie", cookie);
     }
 
     private java.util.Optional<String> extractRefreshCookie(HttpServletRequest request) {
@@ -341,6 +365,7 @@ public class AuthService {
                 user.getPhone(),
                 roles,
                 user.getAccountStatus().name(),
+                user.isEmailVerified(),
                 user.getCreatedAt()
         );
     }

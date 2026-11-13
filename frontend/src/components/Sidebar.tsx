@@ -12,7 +12,10 @@ import {
   LogIn,
   LogOut,
   User as UserIcon,
-  ShieldCheck
+  ShieldCheck,
+  Settings,
+  KeyRound,
+  Users,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useCurrentUser, useLogout } from '@/hooks/api/use-auth';
@@ -21,6 +24,18 @@ const navItems = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Service Health', href: '/health', icon: Activity },
   { name: 'API Tester', href: '/api-tester', icon: Terminal },
+];
+
+const accountNavItems = [
+  { name: 'Profile', href: '/profile', icon: UserIcon },
+  { name: 'Account Settings', href: '/settings/account', icon: Settings },
+  { name: 'Security', href: '/settings/security', icon: KeyRound },
+];
+
+const adminNavItems = [
+  { name: 'Admin Overview', href: '/admin', icon: ShieldCheck },
+  { name: 'User Management', href: '/admin/users', icon: Users },
+  { name: 'Platform Roles', href: '/admin/roles', icon: Layers },
 ];
 
 export default function Sidebar() {
@@ -93,6 +108,75 @@ export default function Sidebar() {
             </Link>
           );
         })}
+        {user && (
+          <>
+            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '0.8rem 0.5rem 0.4rem' }}>
+              Account & Security
+            </div>
+            {accountNavItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    padding: '0.7rem 0.85rem',
+                    borderRadius: '8px',
+                    fontSize: '0.875rem',
+                    fontWeight: isActive ? 600 : 500,
+                    color: isActive ? '#ffffff' : '#94a3b8',
+                    background: isActive ? 'linear-gradient(90deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.05) 100%)' : 'transparent',
+                    borderLeft: isActive ? '3px solid #3b82f6' : '3px solid transparent',
+                    textDecoration: 'none',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <Icon size={18} color={isActive ? '#60a5fa' : '#64748b'} />
+                  <span>{item.name}</span>
+                </Link>
+              );
+            })}
+          </>
+        )}
+
+        {user?.roles?.includes('ADMIN') && (
+          <>
+            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#f87171', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '0.8rem 0.5rem 0.4rem' }}>
+              Administration
+            </div>
+            {adminNavItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href));
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    padding: '0.7rem 0.85rem',
+                    borderRadius: '8px',
+                    fontSize: '0.875rem',
+                    fontWeight: isActive ? 600 : 500,
+                    color: isActive ? '#ffffff' : '#94a3b8',
+                    background: isActive ? 'linear-gradient(90deg, rgba(239, 68, 68, 0.2) 0%, rgba(239, 68, 68, 0.05) 100%)' : 'transparent',
+                    borderLeft: isActive ? '3px solid #f87171' : '3px solid transparent',
+                    textDecoration: 'none',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <Icon size={18} color={isActive ? '#f87171' : '#64748b'} />
+                  <span>{item.name}</span>
+                </Link>
+              );
+            })}
+          </>
+        )}
       </nav>
 
       {/* User Session / Auth Widget */}
@@ -107,7 +191,18 @@ export default function Sidebar() {
             flexDirection: 'column',
             gap: '0.5rem'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <Link
+              href="/profile"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.6rem',
+                textDecoration: 'none',
+                padding: '0.2rem',
+                borderRadius: '6px',
+                transition: 'background 0.2s',
+              }}
+            >
               <div style={{
                 width: '32px',
                 height: '32px',
@@ -116,7 +211,8 @@ export default function Sidebar() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                border: '1px solid rgba(59, 130, 246, 0.4)'
+                border: '1px solid rgba(59, 130, 246, 0.4)',
+                flexShrink: 0
               }}>
                 <UserIcon size={16} color="#60a5fa" />
               </div>
@@ -128,7 +224,7 @@ export default function Sidebar() {
                   {user.email}
                 </div>
               </div>
-            </div>
+            </Link>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
               {user.roles?.map((role) => (

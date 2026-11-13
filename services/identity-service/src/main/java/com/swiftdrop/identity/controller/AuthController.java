@@ -1,7 +1,10 @@
 package com.swiftdrop.identity.controller;
 
 import com.swiftdrop.identity.dto.*;
+import com.swiftdrop.identity.exception.InvalidCredentialsException;
 import com.swiftdrop.identity.service.AuthService;
+import com.swiftdrop.identity.service.PasswordService;
+import com.swiftdrop.identity.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -26,9 +29,15 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final PasswordService passwordService;
+    private final UserService userService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService,
+                          PasswordService passwordService,
+                          UserService userService) {
         this.authService = authService;
+        this.passwordService = passwordService;
+        this.userService = userService;
     }
 
     // -----------------------------------------------------------------------
@@ -130,10 +139,20 @@ public class AuthController {
         }
     )
     public ResponseEntity<AuthResponse> getCurrentUser(
-            @AuthenticationPrincipal UserDetails userDetails) {
+            @AuthenticationPrincipal Object principal) {
 
-        // The principal name is the user's email (set by JwtAuthenticationFilter)
-        return ResponseEntity.ok(authService.getCurrentUser(userDetails.getUsername()));
+        String email;
+        if (principal instanceof UserDetails userDetails) {
+            email = userDetails.getUsername();
+        } else if (principal instanceof String principalString) {
+            email = principalString;
+        } else if (principal != null) {
+            email = principal.toString();
+        } else {
+            throw new InvalidCredentialsException();
+        }
+
+        return ResponseEntity.ok(authService.getCurrentUser(email));
     }
 
     // -----------------------------------------------------------------------
@@ -155,6 +174,71 @@ public class AuthController {
 
         authService.logout(request, response);
         return ResponseEntity.noContent().build();
+    }
+
+    // -----------------------------------------------------------------------
+    // Password Management & Email Verification
+    // -----------------------------------------------------------------------
+
+    @PostMapping("/change-password")
+    @SecurityRequirement(name = "cookieAuth")
+    @Operation(summary = "Change password", description = "Changes password for the authenticated user and revokes active sessions")
+    public ResponseEntity<com.swiftdrop.identity.dto.ApiResponse> changePassword(
+            @AuthenticationPrincipal Object principal,
+            @Valid @RequestBody ChangePasswordRequest request,
+            HttpServletResponse response) {
+        String email = resolvePrincipalEmail(principal);
+        passwordService.changePassword(email, request, response);
+        return ResponseEntity.ok(com.swiftdrop.identity.dto.ApiResponse.ok("Password changed successfully"));
+    }
+
+    @PostMapping("/forgot-password")
+    @Operation(summary = "Forgot password", description = "Requests a password reset token via email")
+    public ResponseEntity<com.swiftdrop.identity.dto.ApiResponse> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request) {
+        passwordService.forgotPassword(request);
+        return ResponseEntity.ok(com.swiftdrop.identity.dto.ApiResponse.ok(
+                "If an account with that email exists, password reset instructions have been sent."));
+    }
+
+    @PostMapping("/reset-password")
+    @Operation(summary = "Reset password", description = "Resets user password using a verified reset token")
+    public ResponseEntity<com.swiftdrop.identity.dto.ApiResponse> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request,
+            HttpServletResponse response) {
+        passwordService.resetPassword(request, response);
+        return ResponseEntity.ok(com.swiftdrop.identity.dto.ApiResponse.ok(
+                "Password has been reset successfully. You can now log in with your new password."));
+    }
+
+    @PostMapping("/verify-email")
+    @Operation(summary = "Verify email", description = "Verifies email address using a verification token")
+    public ResponseEntity<com.swiftdrop.identity.dto.ApiResponse> verifyEmail(
+            @Valid @RequestBody VerifyEmailRequest request) {
+        userService.verifyEmail(request);
+        return ResponseEntity.ok(com.swiftdrop.identity.dto.ApiResponse.ok("Email verified successfully"));
+    }
+
+    @PostMapping("/resend-verification")
+    @SecurityRequirement(name = "cookieAuth")
+    @Operation(summary = "Resend email verification", description = "Generates and sends a new email verification token")
+    public ResponseEntity<com.swiftdrop.identity.dto.ApiResponse> resendVerification(
+            @AuthenticationPrincipal Object principal) {
+        String email = resolvePrincipalEmail(principal);
+        userService.sendEmailVerification(email);
+        return ResponseEntity.ok(com.swiftdrop.identity.dto.ApiResponse.ok(
+                "Verification instructions sent to your email address"));
+    }
+
+    private String resolvePrincipalEmail(Object principal) {
+        if (principal instanceof UserDetails userDetails) {
+            return userDetails.getUsername();
+        } else if (principal instanceof String principalString) {
+            return principalString;
+        } else if (principal != null) {
+            return principal.toString();
+        }
+        throw new InvalidCredentialsException();
     }
 }
 

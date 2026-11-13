@@ -24,6 +24,7 @@ public class JwtService {
 
     private static final Logger log = LoggerFactory.getLogger(JwtService.class);
 
+    private static final String ISSUER = "swiftdrop-identity-service";
     private static final String CLAIM_ROLES  = "roles";
     private static final String CLAIM_USER_ID = "userId";
 
@@ -53,6 +54,7 @@ public class JwtService {
                 .toList();
 
         return Jwts.builder()
+                .issuer(ISSUER)
                 .subject(userId.toString())
                 .claim(CLAIM_USER_ID, userId.toString())
                 .claim("email", details.getUsername())
@@ -70,6 +72,10 @@ public class JwtService {
     public String generateRawRefreshToken() {
         return UUID.randomUUID().toString().replace("-", "")
                 + UUID.randomUUID().toString().replace("-", "");
+    }
+
+    public long getAccessTokenExpiryMs() {
+        return accessTokenExpiryMs;
     }
 
     public long getRefreshTokenExpiryMs() {
@@ -110,6 +116,7 @@ public class JwtService {
     private Claims parseClaims(String token) {
         return Jwts.parser()
                 .verifyWith(signingKey())
+                .requireIssuer(ISSUER)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();

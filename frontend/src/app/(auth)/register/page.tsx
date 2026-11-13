@@ -1,20 +1,32 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { registerSchema, type RegisterFormValues } from '@/schema/auth.schema';
 import { useRegister, getApiErrorMessage } from '@/hooks/api/use-auth';
+import { useAuthStore } from '@/store/auth.store';
 import { Eye, EyeOff, UserPlus, Box, Check, X } from 'lucide-react';
 import GoogleSignInButton from '@/components/auth/GoogleSignInButton';
 
 export default function RegisterPage() {
+  const router = useRouter();
+  const user = useAuthStore((s) => s.user);
+  const isInitialized = useAuthStore((s) => s.isInitialized);
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
   const registerMutation = useRegister();
+
+  useEffect(() => {
+    if (isInitialized && user) {
+      router.replace('/');
+    }
+  }, [isInitialized, user, router]);
 
   const {
     register,

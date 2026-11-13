@@ -113,6 +113,7 @@ class AuthServiceTest {
         when(userRepository.save(any(User.class))).thenReturn(testUser);
         when(jwtService.generateAccessToken(any(UUID.class), any(UserDetails.class))).thenReturn("mock-access-token");
         when(jwtService.generateRawRefreshToken()).thenReturn("mock-raw-refresh-token");
+        when(jwtService.getAccessTokenExpiryMs()).thenReturn(900000L);
         when(jwtService.getRefreshTokenExpiryMs()).thenReturn(604800000L);
 
         AuthResponse authResponse = authService.register(req, response);
@@ -186,6 +187,7 @@ class AuthServiceTest {
         when(passwordEncoder.matches("Password123!", testUser.getPasswordHash())).thenReturn(true);
         when(jwtService.generateAccessToken(any(UUID.class), any(UserDetails.class))).thenReturn("access-token");
         when(jwtService.generateRawRefreshToken()).thenReturn("raw-refresh");
+        when(jwtService.getAccessTokenExpiryMs()).thenReturn(900000L);
         when(jwtService.getRefreshTokenExpiryMs()).thenReturn(604800000L);
 
         AuthResponse res = authService.login(req, response);
@@ -282,6 +284,7 @@ class AuthServiceTest {
         when(refreshTokenRepository.findByTokenHash(hash)).thenReturn(Optional.of(storedToken));
         when(jwtService.generateAccessToken(any(UUID.class), any(UserDetails.class))).thenReturn("new-access");
         when(jwtService.generateRawRefreshToken()).thenReturn("new-refresh");
+        when(jwtService.getAccessTokenExpiryMs()).thenReturn(900000L);
         when(jwtService.getRefreshTokenExpiryMs()).thenReturn(604800000L);
 
         AuthResponse res = authService.refresh(request, response);
@@ -310,6 +313,8 @@ class AuthServiceTest {
         assertThatThrownBy(() -> authService.refresh(request, response))
                 .isInstanceOf(InvalidTokenException.class)
                 .hasMessageContaining("revoked");
+
+        verify(refreshTokenRepository).revokeAllByUser(testUser);
     }
 
     @Test
@@ -354,8 +359,9 @@ class AuthServiceTest {
 
         assertThat(storedToken.isRevoked()).isTrue();
         verify(refreshTokenRepository).save(storedToken);
-        // Verify both access and refresh cookies cleared
-        verify(response, times(2)).addCookie(any(Cookie.class));
+        // Verify both access and refresh cookies cleared via Set-Cookie headers
+        verify(response, atLeastOnce()).addHeader(eq("Set-Cookie"), argThat(s -> s.startsWith("sd_access_token=")));
+        verify(response, atLeastOnce()).addHeader(eq("Set-Cookie"), argThat(s -> s.startsWith("sd_refresh_token=")));
     }
 
     // -----------------------------------------------------------------------

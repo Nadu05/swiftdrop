@@ -16,6 +16,7 @@ public class AuthResponse {
     private String phone;
     private List<String> roles;
     private String accountStatus;
+    private boolean emailVerified;
     private LocalDateTime createdAt;
 
     // --- Constructor ---
@@ -24,12 +25,18 @@ public class AuthResponse {
 
     public AuthResponse(UUID userId, String fullName, String email, String phone,
                         List<String> roles, String accountStatus, LocalDateTime createdAt) {
+        this(userId, fullName, email, phone, roles, accountStatus, false, createdAt);
+    }
+
+    public AuthResponse(UUID userId, String fullName, String email, String phone,
+                        List<String> roles, String accountStatus, boolean emailVerified, LocalDateTime createdAt) {
         this.userId = userId;
         this.fullName = fullName;
         this.email = email;
         this.phone = phone;
         this.roles = roles;
         this.accountStatus = accountStatus;
+        this.emailVerified = emailVerified;
         this.createdAt = createdAt;
     }
 
@@ -52,6 +59,9 @@ public class AuthResponse {
 
     public String getAccountStatus() { return accountStatus; }
     public void setAccountStatus(String accountStatus) { this.accountStatus = accountStatus; }
+
+    public boolean isEmailVerified() { return emailVerified; }
+    public void setEmailVerified(boolean emailVerified) { this.emailVerified = emailVerified; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

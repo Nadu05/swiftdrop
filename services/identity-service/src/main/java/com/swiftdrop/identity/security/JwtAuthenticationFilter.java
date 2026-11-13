@@ -50,7 +50,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 List<SimpleGrantedAuthority> authorities = roles == null
                         ? List.of()
-                        : roles.stream().map(SimpleGrantedAuthority::new).toList();
+                        : roles.stream()
+                                .map(r -> new SimpleGrantedAuthority(r.startsWith("ROLE_") ? r : "ROLE_" + r))
+                                .toList();
 
                 // Use email as the principal name; userId is available via Details
                 UsernamePasswordAuthenticationToken auth =

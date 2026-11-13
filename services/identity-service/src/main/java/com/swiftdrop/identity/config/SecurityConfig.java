@@ -61,7 +61,11 @@ public class SecurityConfig {
                                 "/auth/register", "/api/v1/auth/register", "/register",
                                 "/auth/login", "/api/v1/auth/login", "/login",
                                 "/auth/google", "/api/v1/auth/google", "/google",
-                                "/auth/refresh", "/api/v1/auth/refresh", "/refresh"
+                                "/auth/refresh", "/api/v1/auth/refresh", "/refresh",
+                                "/auth/logout", "/api/v1/auth/logout", "/logout",
+                                "/auth/forgot-password", "/api/v1/auth/forgot-password", "/forgot-password",
+                                "/auth/reset-password", "/api/v1/auth/reset-password", "/reset-password",
+                                "/auth/verify-email", "/api/v1/auth/verify-email", "/verify-email"
                         ).permitAll()
                         // --- Swagger / OpenAPI ---
                         .requestMatchers(
@@ -84,7 +88,7 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        return new BCryptPasswordEncoder(10);
     }
 
     @Bean
