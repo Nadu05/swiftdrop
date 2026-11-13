@@ -68,6 +68,7 @@ export interface CreateOrderResponse {
   pickupAddress: string;
   dropoffAddress: string;
   createdAt: string;
+  message?: string;
 }
 
 /**
@@ -93,6 +94,11 @@ export interface DeliveryOrder {
   deliveryInstructions?: string;
   createdAt: string;
   updatedAt?: string;
+  courierName?: string;
+  courierVehicle?: string;
+  courierPhone?: string;
+  branch?: string;
+  distanceKm?: number;
 }
 
 /**
@@ -119,4 +125,8 @@ export interface PublicTrackingResponse {
   estimatedDelivery?: string;
   events?: PublicTrackingEvent[];
   updatedAt?: string;
+  courierName?: string;
+  courierPhone?: string;
+  branch?: string;
+  distanceKm?: number;
 }

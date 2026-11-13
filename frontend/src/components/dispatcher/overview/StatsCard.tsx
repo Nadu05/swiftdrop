@@ -56,7 +56,7 @@ export default function StatsCard({
           </span>
         )}
         <span className="dispatcher-stats-card__desc">
-          {trend?.label ? `${trend.label} • ${description}` : description}
+          {trend?.label ?? description}
         </span>
       </div>
     </article>

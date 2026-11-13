@@ -35,6 +35,13 @@ spring:
     password: ${RABBITMQ_PASSWORD:password123}
     connection-timeout: 10000
 
+services:
+  order:
+    base-url: ${ORDER_SERVICE_URL:http://localhost:8083}
+    ready-for-dispatch-path: ${ORDER_SERVICE_READY_PATH:/api/v1/orders/ready-for-dispatch}
+    connect-timeout: 3000
+    read-timeout: 5000
+
 management:
   endpoints:
     web:
