@@ -48,6 +48,16 @@ swiftdrop:
     # protected endpoint is rejected (fail closed). Only used when enabled is true.
     jwt-secret: ${JWT_SECRET:}
     role-claim: ${JWT_ROLE_CLAIM:role}
+    # Roles allowed to change a delivery status (PATCH /orders/{id}/status). Placeholder names until the
+    # Identity service fixes its role list; CUSTOMER is never accepted here.
+    status-update-roles: ${ORDER_STATUS_UPDATE_ROLES:COURIER,BRANCH_ADMIN,ADMIN}
+    # Roles allowed to read GET /orders/ready-for-dispatch (it returns recipient contact details). Placeholder
+    # names until the Identity service fixes its role list; CUSTOMER is never accepted here.
+    dispatch-read-roles: ${ORDER_DISPATCH_READ_ROLES:DISPATCHER,BRANCH_ADMIN,ADMIN}
+    # Shared secret that lets the Dispatch service read GET /orders/ready-for-dispatch with an X-Service-Key header
+    # (it has no user token). Empty = feature off. When set it must be at least 32 characters, and it must be the same
+    # value in the Dispatch service. Only that one endpoint accepts it. Keep it in the environment, never in git.
+    service-api-key: ${ORDER_SERVICE_API_KEY:}
   pricing:
     # Tariff (formula and worked examples in docs/pricing.md):
     #   fee = base-fee + max(0, weight - included-weight-kg) * extra-weight-fee-per-kg

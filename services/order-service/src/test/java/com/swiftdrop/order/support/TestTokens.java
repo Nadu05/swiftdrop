@@ -17,11 +17,19 @@ public final class TestTokens {
     /** Test-only secret (at least 256 bits, as HS256 requires). Never used outside tests. */
     public static final String SECRET = "test-only-secret-test-only-secret-1234567890";
 
+    /** Test-only Dispatch service key (at least 32 characters). Never used outside tests. */
+    public static final String SERVICE_KEY = "test-only-dispatch-key-0123456789-abcdef";
+
     private TestTokens() {
     }
 
     public static String customer(long userId) {
         return token(SECRET, String.valueOf(userId), "CUSTOMER", Instant.now().plusSeconds(3600));
+    }
+
+    /** A token for a non-customer user such as {@code COURIER}, {@code BRANCH_ADMIN} or {@code ADMIN}. */
+    public static String withRole(long userId, String role) {
+        return token(SECRET, String.valueOf(userId), role, Instant.now().plusSeconds(3600));
     }
 
     public static String token(String secret, String subject, String role, Instant expiresAt) {

@@ -160,4 +160,30 @@ class OrderControllerAuthDisabledTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors.weightKg").exists());
     }
+
+    @Test
+    @DisplayName("status can be changed without a token while auth is off; the change is recorded as a system change")
+    void statusChangeWithoutToken() throws Exception {
+        when(orderService.changeStatus(eq(5L), eq(OrderStatus.PICKED_UP), isNull(), isNull(), isNull()))
+                .thenReturn(new com.swiftdrop.order.dto.StatusChangeResponse(5L, "SD-261113-AAAA2222",
+                        OrderStatus.CREATED, OrderStatus.PICKED_UP, "Picked Up", Instant.parse("2026-11-13T09:00:00Z")));
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/v1/orders/5/status")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"PICKED_UP\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PICKED_UP"));
+    }
+
+    @Test
+    @DisplayName("timeline and receipt use the default dev customer, or the X-Customer-Id header")
+    void timelineAndReceiptUseDevCustomer() throws Exception {
+        when(orderService.getTimeline(7L, 5L)).thenReturn(new com.swiftdrop.order.dto.TimelineResponse(
+                5L, "SD-261113-AAAA2222", OrderStatus.CREATED, "Created", List.of()));
+        when(orderService.getReceipt(3L, 5L)).thenThrow(new com.swiftdrop.order.exception.ResourceNotFoundException("Order not found"));
+
+        mvc.perform(get("/api/v1/orders/5/timeline")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.currentStatus").value("CREATED"));
+        mvc.perform(get("/api/v1/orders/5/receipt").header("X-Customer-Id", "3")).andExpect(status().isNotFound());
+        verify(orderService).getReceipt(3L, 5L);
+    }
 }

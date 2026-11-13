@@ -10,4 +10,7 @@ import java.util.List;
 public interface OrderStatusHistoryRepository extends JpaRepository<OrderStatusHistory, Long> {
 
     List<OrderStatusHistory> findByOrderIdOrderByCreatedAtAsc(Long orderId);
+
+    /** Timeline order: oldest first, with the id as tie-breaker so entries with equal timestamps stay stable. */
+    List<OrderStatusHistory> findByOrderIdOrderByCreatedAtAscIdAsc(Long orderId);
 }

@@ -2,9 +2,13 @@ package com.swiftdrop.order.service;
 
 import com.swiftdrop.order.dto.CreateOrderRequest;
 import com.swiftdrop.order.dto.OrderResponse;
+import com.swiftdrop.order.dto.ReceiptResponse;
+import com.swiftdrop.order.dto.StatusChangeResponse;
+import com.swiftdrop.order.dto.TimelineResponse;
 import com.swiftdrop.order.entity.DeliveryOrder;
 import com.swiftdrop.order.entity.OrderStatusHistory;
 import com.swiftdrop.order.entity.enums.OrderStatus;
+import com.swiftdrop.order.exception.BusinessRuleException;
 import com.swiftdrop.order.exception.PriceChangedException;
 import com.swiftdrop.order.exception.ResourceNotFoundException;
 import com.swiftdrop.order.messaging.OrderEventRecorder;
@@ -26,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.util.Optional;
 
 /**
@@ -109,6 +114,72 @@ public class OrderService {
     public Page<OrderResponse> listOrders(long customerId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id")));
         return orders.findByCustomerId(customerId, pageable).map(OrderResponse::from);
+    }
+
+    /**
+     * The owner's status history, oldest first. Same ownership rule as {@link #getOrder}: another customer's
+     * order is a 404.
+     */
+    @Transactional(readOnly = true)
+    public TimelineResponse getTimeline(long customerId, long orderId) {
+        DeliveryOrder order = findOwned(customerId, orderId);
+        return TimelineResponse.of(order, history.findByOrderIdOrderByCreatedAtAscIdAsc(order.getId()));
+    }
+
+    /**
+     * Receipt data for the owner. All amounts are the ones stored at booking time, never recalculated.
+     */
+    @Transactional(readOnly = true)
+    public ReceiptResponse getReceipt(long customerId, long orderId) {
+        DeliveryOrder order = findOwned(customerId, orderId);
+        Instant deliveredAt = history.findByOrderIdOrderByCreatedAtAscIdAsc(order.getId()).stream()
+                .filter(entry -> entry.getStatus() == OrderStatus.DELIVERED)
+                .map(OrderStatusHistory::getCreatedAt)
+                .reduce((first, second) -> second)
+                .orElse(null);
+        return ReceiptResponse.of(order, deliveredAt);
+    }
+
+    /**
+     * Moves an order to its next status (the only code that changes a status). In ONE transaction it locks the
+     * order, checks the move against {@link OrderStatus#canTransitionTo}, updates the order, appends the
+     * history entry and records the {@code order.delivery.status-changed.v1} event.
+     *
+     * <p>Not customer-scoped: it is for staff and couriers, whose permission is checked by the security layer.
+     *
+     * @param actorId the Identity user making the change; null when it is made by the system
+     * @throws ResourceNotFoundException when the order does not exist
+     * @throws BusinessRuleException     when the move is not allowed from the current status (this includes
+     *                                   repeating the current status), in which case nothing is changed
+     */
+    @Transactional
+    public StatusChangeResponse changeStatus(long orderId, OrderStatus newStatus, String note, String location,
+                                             Long actorId) {
+        DeliveryOrder order = orders.findByIdForUpdate(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+        OrderStatus previous = order.getStatus();
+        if (!previous.canTransitionTo(newStatus)) {
+            throw new BusinessRuleException(previous.isFinal()
+                    ? "Order is already " + previous.label() + " and its status can no longer change"
+                    : "Cannot change status from " + previous + " to " + newStatus
+                            + "; allowed next: " + previous.allowedNext());
+        }
+
+        Instant changedAt = Instant.now();
+        order.setStatus(newStatus);
+        DeliveryOrder saved = orders.saveAndFlush(order);
+        history.save(new OrderStatusHistory(saved, newStatus, blankToNull(note), blankToNull(location), actorId));
+        // Same transaction: the event exists if and only if the change committed.
+        eventRecorder.recordStatusChanged(saved, previous, changedAt);
+
+        log.info("Order status changed: id={}, trackingNumber={}, {} -> {}",
+                saved.getId(), saved.getTrackingNumber(), previous, newStatus);
+        return StatusChangeResponse.of(saved, previous);
+    }
+
+    private DeliveryOrder findOwned(long customerId, long orderId) {
+        return orders.findByIdAndCustomerId(orderId, customerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
     }
 
     private OrderResponse persistNewOrder(long customerId, CreateOrderRequest request, String idempotencyKey) {
