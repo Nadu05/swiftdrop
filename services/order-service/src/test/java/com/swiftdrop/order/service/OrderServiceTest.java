@@ -20,15 +20,22 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.SimpleTransactionStatus;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -179,6 +186,25 @@ class OrderServiceTest {
         assertThatThrownBy(() -> service.getOrder(99L, 7L))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessage("Order not found");
+    }
+
+    @Test
+    @DisplayName("listing is scoped to the caller and uses a fixed newest-first sort that clients cannot change")
+    void listsOnlyOwnOrdersNewestFirst() {
+        DeliveryOrder order = new DeliveryOrder(CUSTOMER, "SD-261113-LIST2222");
+        when(orders.findByCustomerId(eq(CUSTOMER), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(order), PageRequest.of(1, 5), 6));
+
+        Page<OrderResponse> page = service.listOrders(CUSTOMER, 1, 5);
+
+        ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+        verify(orders).findByCustomerId(eq(CUSTOMER), pageable.capture());
+        assertThat(pageable.getValue().getPageNumber()).isEqualTo(1);
+        assertThat(pageable.getValue().getPageSize()).isEqualTo(5);
+        assertThat(pageable.getValue().getSort())
+                .isEqualTo(Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id")));
+        assertThat(page.getTotalElements()).isEqualTo(6);
+        assertThat(page.getContent()).extracting(OrderResponse::trackingNumber).containsExactly("SD-261113-LIST2222");
     }
 
     @Test

@@ -15,6 +15,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -22,6 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -105,6 +109,19 @@ class OrderControllerAuthDisabledTest {
         when(orderService.getOrder(7L, 3L)).thenReturn(sampleResponse(3));
 
         mvc.perform(get("/api/v1/orders/3")).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("the order list works without a token, for the default customer or the X-Customer-Id header")
+    void listsWithoutToken() throws Exception {
+        when(orderService.listOrders(7L, 0, 20)).thenReturn(Page.empty());
+        when(orderService.listOrders(55L, 0, 20))
+                .thenReturn(new PageImpl<>(List.of(sampleResponse(9)), PageRequest.of(0, 20), 1));
+
+        mvc.perform(get("/api/v1/orders")).andExpect(status().isOk());
+        mvc.perform(get("/orders").header("X-Customer-Id", "55"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(9));
     }
 
     @Test

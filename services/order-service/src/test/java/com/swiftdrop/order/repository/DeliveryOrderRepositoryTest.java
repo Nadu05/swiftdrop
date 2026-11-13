@@ -11,6 +11,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -71,6 +74,26 @@ class DeliveryOrderRepositoryTest extends PostgresIntegrationTest {
 
         assertThat(orders.findByIdAndCustomerId(saved.getId(), 10L)).isPresent();
         assertThat(orders.findByIdAndCustomerId(saved.getId(), 11L)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("paging returns only the customer's orders, newest first, with a correct total")
+    void pagesOneCustomersOrdersNewestFirst() {
+        orders.saveAndFlush(newOrder(50L, "SD-261113-PAGE0001"));
+        orders.saveAndFlush(newOrder(50L, "SD-261113-PAGE0002"));
+        orders.saveAndFlush(newOrder(50L, "SD-261113-PAGE0003"));
+        orders.saveAndFlush(newOrder(51L, "SD-261113-OTHER001"));
+        Sort newestFirst = Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"));
+
+        Page<DeliveryOrder> first = orders.findByCustomerId(50L, PageRequest.of(0, 2, newestFirst));
+        Page<DeliveryOrder> second = orders.findByCustomerId(50L, PageRequest.of(1, 2, newestFirst));
+
+        assertThat(first.getTotalElements()).isEqualTo(3);
+        assertThat(first.getContent()).extracting(DeliveryOrder::getTrackingNumber)
+                .containsExactly("SD-261113-PAGE0003", "SD-261113-PAGE0002");
+        assertThat(second.getContent()).extracting(DeliveryOrder::getTrackingNumber)
+                .containsExactly("SD-261113-PAGE0001");
+        assertThat(orders.findByCustomerId(52L, PageRequest.of(0, 10)).getTotalElements()).isZero();
     }
 
     @Test

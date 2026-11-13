@@ -41,9 +41,9 @@ class FrameworkErrorMappingTest {
     }
 
     @Test
-    @DisplayName("an HTTP method the path does not support is 405, not 500 (e.g. listing orders is not built yet)")
+    @DisplayName("an HTTP method the path does not support is 405, not 500")
     void unsupportedMethodIsMethodNotAllowed() throws Exception {
-        mvc.perform(get("/api/v1/orders"))
+        mvc.perform(delete("/api/v1/orders"))
                 .andExpect(status().isMethodNotAllowed())
                 .andExpect(jsonPath("$.status").value(405));
         mvc.perform(delete("/api/v1/orders/1"))

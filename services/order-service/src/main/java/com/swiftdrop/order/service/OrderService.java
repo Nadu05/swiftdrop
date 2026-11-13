@@ -14,6 +14,10 @@ import com.swiftdrop.order.repository.OrderStatusHistoryRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
@@ -90,6 +94,16 @@ public class OrderService {
         return orders.findByIdAndCustomerId(orderId, customerId)
                 .map(OrderResponse::from)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+    }
+
+    /**
+     * The caller's own orders, newest first (ties broken by id so paging is stable). The sort is fixed
+     * here on purpose: clients cannot choose a sort field.
+     */
+    @Transactional(readOnly = true)
+    public Page<OrderResponse> listOrders(long customerId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id")));
+        return orders.findByCustomerId(customerId, pageable).map(OrderResponse::from);
     }
 
     private OrderResponse persistNewOrder(long customerId, CreateOrderRequest request, String idempotencyKey) {

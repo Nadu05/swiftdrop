@@ -9,9 +9,10 @@ the controller serves both paths).
 | Method & path | Auth | Description |
 |---|---|---|
 | `POST /api/v1/orders` | `CUSTOMER` | Create an order. Optional `Idempotency-Key` header (max 64 chars `A-Za-z0-9_.:-`): the same key returns the original order. |
+| `GET /api/v1/orders` | `CUSTOMER` | List **your own** orders as a JSON array, newest first. Paging: `page` (from 0, default 0) and `size` (1-100, default 20); the total is in the `X-Total-Count` response header. |
 | `GET /api/v1/orders/{id}` | `CUSTOMER` | Read one of **your own** orders. Someone else's order returns `404`. |
 
-Not implemented yet (other branches): `POST /orders/quote`, `GET /orders`, public tracking, timeline, receipts.
+Not implemented yet (other branches): `POST /orders/quote`, public tracking, timeline, receipts.
 
 Request fields: `pickupAddress`, `pickupContactName`, `pickupContactPhone`, `dropoffAddress`, `dropoffContactName`,
 `dropoffContactPhone`, `parcelDescription?`, `parcelSize` (`SMALL|MEDIUM|LARGE|EXTRA_LARGE`), `weightKg`
