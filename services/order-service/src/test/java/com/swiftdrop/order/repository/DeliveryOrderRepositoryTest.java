@@ -46,6 +46,7 @@ class DeliveryOrderRepositoryTest extends PostgresIntegrationTest {
         order.setParcelSize(ParcelSize.MEDIUM);
         order.setWeightKg(new BigDecimal("1.80"));
         order.setDeliveryFee(new BigDecimal("2400.00"));
+        order.setBaseFee(new BigDecimal("2400.00")); // the parts must add up to the fee (database constraint)
         return order;
     }
 
@@ -119,6 +120,51 @@ class DeliveryOrderRepositoryTest extends PostgresIntegrationTest {
         DeliveryOrder duplicate = newOrder(30L, "SD-261113-EEEE5555");
         duplicate.setIdempotencyKey("key-1");
         assertThatThrownBy(() -> orders.saveAndFlush(duplicate))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("the city codes and the full fee breakdown are stored and read back")
+    void storesCitiesAndBreakdown() {
+        DeliveryOrder order = newOrder(60L, "SD-261113-BRKD0001");
+        order.setPickupCity("COLOMBO");
+        order.setDropoffCity("KANDY");
+        order.setDistanceKm(new BigDecimal("94.34"));
+        order.setDeliveryFee(new BigDecimal("1693.40"));
+        order.setBaseFee(new BigDecimal("500.00"));
+        order.setWeightFee(new BigDecimal("50.00"));
+        order.setDistanceFee(new BigDecimal("943.40"));
+        order.setZoneSurcharge(new BigDecimal("200.00"));
+
+        DeliveryOrder found = orders.findById(orders.saveAndFlush(order).getId()).orElseThrow();
+
+        assertThat(found.getPickupCity()).isEqualTo("COLOMBO");
+        assertThat(found.getDropoffCity()).isEqualTo("KANDY");
+        assertThat(found.getDistanceKm()).isEqualByComparingTo("94.34");
+        assertThat(found.getDistanceFee()).isEqualByComparingTo("943.40");
+        assertThat(found.getZoneSurcharge()).isEqualByComparingTo("200.00");
+    }
+
+    @Test
+    @DisplayName("database rejects a fee whose parts do not add up to the total")
+    void rejectsInconsistentBreakdown() {
+        DeliveryOrder order = newOrder(61L, "SD-261113-BRKD0002");
+        order.setDeliveryFee(new BigDecimal("1000.00"));
+        order.setBaseFee(new BigDecimal("500.00")); // parts sum to 500, not 1000
+
+        assertThatThrownBy(() -> orders.saveAndFlush(order))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("database rejects a negative fee component")
+    void rejectsNegativeComponent() {
+        DeliveryOrder order = newOrder(62L, "SD-261113-BRKD0003");
+        order.setDeliveryFee(new BigDecimal("100.00"));
+        order.setBaseFee(new BigDecimal("200.00"));
+        order.setWeightFee(new BigDecimal("-100.00")); // sums to 100 but a part is negative
+
+        assertThatThrownBy(() -> orders.saveAndFlush(order))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 

@@ -49,10 +49,22 @@ swiftdrop:
     jwt-secret: ${JWT_SECRET:}
     role-claim: ${JWT_ROLE_CLAIM:role}
   pricing:
-    # PLACEHOLDER rates until the agreed formula lands in feature/order-fee-calculation.
+    # Tariff (formula and worked examples in docs/pricing.md):
+    #   fee = base-fee + max(0, weight - included-weight-kg) * extra-weight-fee-per-kg
+    #         + distance-km * distance-fee-per-km + (different district ? zone-surcharge : 0)
+    # The rates below are PLACEHOLDERS until the team agrees the real tariff.
     currency: LKR
     base-fee: 500.00
-    per-kg-fee: 150.00
+    included-weight-kg: 1.00
+    extra-weight-fee-per-kg: 100.00
+    distance-fee-per-km: 10.00
+    zone-surcharge: 200.00
+    road-distance-factor: 1.0      # 1.0 = straight-line distance between town centres
+    max-weight-kg:                 # heaviest parcel allowed per size
+      SMALL: 2.00
+      MEDIUM: 10.00
+      LARGE: 30.00
+      EXTRA_LARGE: 100.00
   outbox:
     # Relays committed events to RabbitMQ; see docs/events.md.
     enabled: true

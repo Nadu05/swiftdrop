@@ -7,6 +7,8 @@ import com.swiftdrop.order.dto.CreateOrderRequest;
 import com.swiftdrop.order.dto.OrderResponse;
 import com.swiftdrop.order.entity.enums.OrderStatus;
 import com.swiftdrop.order.entity.enums.ParcelSize;
+import com.swiftdrop.order.location.CityDirectory;
+import com.swiftdrop.order.pricing.PricingService;
 import com.swiftdrop.order.security.CustomerIdResolver;
 import com.swiftdrop.order.service.OrderService;
 import org.junit.jupiter.api.DisplayName;
@@ -44,7 +46,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * configuration or the X-Customer-Id header.
  */
 @WebMvcTest(OrderController.class)
-@Import({SecurityConfig.class, JacksonConfig.class, CustomerIdResolver.class})
+@Import({SecurityConfig.class, JacksonConfig.class, CustomerIdResolver.class, CityDirectory.class})
 @TestPropertySource(properties = {
         "swiftdrop.security.enabled=false",
         "swiftdrop.security.dev-customer-id=7"
@@ -54,6 +56,7 @@ class OrderControllerAuthDisabledTest {
     @Autowired private MockMvc mvc;
     @Autowired private ObjectMapper objectMapper;
     @MockBean private OrderService orderService;
+    @MockBean private PricingService pricingService;
 
     private String body() throws Exception {
         Map<String, Object> body = new LinkedHashMap<>();
@@ -65,6 +68,8 @@ class OrderControllerAuthDisabledTest {
         body.put("dropoffContactPhone", "0718849201");
         body.put("parcelSize", "MEDIUM");
         body.put("weightKg", 1.8);
+        body.put("pickupCity", "COLOMBO");
+        body.put("dropoffCity", "KANDY");
         return objectMapper.writeValueAsString(body);
     }
 
@@ -73,7 +78,8 @@ class OrderControllerAuthDisabledTest {
                 "45 Galle Road, Colombo 03", "Nuwan Pradeep", "+94 77 123 4567",
                 "12/4 Peradeniya Road, Kandy", "Ayesha Perera", "0718849201",
                 null, ParcelSize.MEDIUM, new BigDecimal("1.80"), null,
-                null, null, Instant.parse("2026-11-13T10:00:00Z"), Instant.parse("2026-11-13T10:00:00Z"));
+                null, null, Instant.parse("2026-11-13T10:00:00Z"), Instant.parse("2026-11-13T10:00:00Z"),
+                "COLOMBO", "KANDY", null);
     }
 
     @Test
@@ -122,6 +128,19 @@ class OrderControllerAuthDisabledTest {
         mvc.perform(get("/orders").header("X-Customer-Id", "55"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(9));
+    }
+
+    @Test
+    @DisplayName("the quote and town list also work without a token while authentication is off")
+    void quoteAndCitiesWithoutToken() throws Exception {
+        mvc.perform(get("/api/v1/orders/cities")).andExpect(status().isOk());
+
+        when(pricingService.quote(any(), any(), any(), any())).thenReturn(null);
+        // a quote with an unsupported town is still validated (400) even without authentication
+        mvc.perform(post("/api/v1/orders/quote").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"pickupCity\":\"ATLANTIS\",\"dropoffCity\":\"KANDY\",\"parcelSize\":\"MEDIUM\",\"weightKg\":1}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.pickupCity").exists());
     }
 
     @Test

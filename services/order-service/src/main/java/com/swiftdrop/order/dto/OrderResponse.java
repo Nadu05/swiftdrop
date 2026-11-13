@@ -3,13 +3,15 @@ package com.swiftdrop.order.dto;
 import com.swiftdrop.order.entity.DeliveryOrder;
 import com.swiftdrop.order.entity.enums.OrderStatus;
 import com.swiftdrop.order.entity.enums.ParcelSize;
+import com.swiftdrop.order.pricing.FeeBreakdown;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 
 /**
- * Private (owner-only) view of an order, returned by create and get-by-id.
+ * Private (owner-only) view of an order, returned by create, list and get-by-id.
  * {@code status} is the status code (e.g. {@code PICKED_UP}); display labels are a UI concern.
+ * {@code feeBreakdown} is what was actually charged; its parts add up to {@code deliveryFee}.
  */
 public record OrderResponse(
         Long id,
@@ -30,7 +32,10 @@ public record OrderResponse(
         BigDecimal distanceKm,
         Long branchId,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        String pickupCity,
+        String dropoffCity,
+        FeeBreakdown feeBreakdown
 ) {
 
     public static OrderResponse from(DeliveryOrder order) {
@@ -53,7 +58,11 @@ public record OrderResponse(
                 order.getDistanceKm(),
                 order.getBranchId(),
                 order.getCreatedAt(),
-                order.getUpdatedAt()
+                order.getUpdatedAt(),
+                order.getPickupCity(),
+                order.getDropoffCity(),
+                new FeeBreakdown(order.getBaseFee(), order.getWeightFee(), order.getDistanceFee(),
+                        order.getZoneSurcharge(), order.getDeliveryFee(), order.getCurrency())
         );
     }
 }
