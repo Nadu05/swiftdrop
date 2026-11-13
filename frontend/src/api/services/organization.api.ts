@@ -7,7 +7,14 @@ import type {
   BranchStatus,
   BranchSummaryMetrics,
   BranchUpdateRequest,
+  MerchantApplicationApproveRequest,
+  MerchantApplicationCreateRequest,
+  MerchantApplicationRejectRequest,
+  MerchantApplicationResponse,
+  MerchantApprovalSummaryResponse,
   OrganizationDashboardMetrics,
+  RouteBranchResolutionRequest,
+  RouteBranchResolutionResponse,
   ServiceAreaResponse,
   ServiceAreaStatus,
 } from '@/types/organization.types';
@@ -28,6 +35,8 @@ import type {
 const BRANCHES_BASE_PATH = '/api/v1/organization/branches';
 const SERVICE_AREAS_BASE_PATH = '/api/v1/organization/service-areas';
 const BRANCH_RESOLUTION_PATH = '/api/v1/organization/branches/resolve';
+const ROUTE_BRANCH_RESOLUTION_PATH = '/api/v1/organization/branches/resolve-route';
+const MERCHANT_APPLICATIONS_BASE_PATH = '/api/v1/organization/merchants/applications';
 
 /**
  * Structured error thrown by Organization API functions so UI views and forms can
@@ -339,6 +348,201 @@ export async function resolveNearestBranch(
     throw buildOrganizationApiError(
       error,
       'Unable to resolve an eligible branch for the specified pickup coordinates.'
+    );
+  }
+}
+
+/**
+ * Dual-coordinate branch resolution for both pickup and destination coordinates.
+ *
+ * Confirmed Backend Endpoint:
+ * POST /api/v1/organization/branches/resolve-route
+ */
+export async function resolveRouteBranches(
+  payload: RouteBranchResolutionRequest
+): Promise<RouteBranchResolutionResponse> {
+  try {
+    const response = await apiClient.post<RouteBranchResolutionResponse>(
+      ROUTE_BRANCH_RESOLUTION_PATH,
+      payload
+    );
+    return response.data;
+  } catch (error: any) {
+    throw buildOrganizationApiError(
+      error,
+      'Unable to resolve eligible origin and destination branches for the specified route coordinates.'
+    );
+  }
+}
+
+/**
+ * Submit a new merchant onboarding application to Organization Service.
+ *
+ * Confirmed Backend Endpoint:
+ * POST /api/v1/organization/merchants/applications
+ */
+export async function submitMerchantApplication(
+  payload: MerchantApplicationCreateRequest
+): Promise<MerchantApplicationResponse> {
+  try {
+    const response = await apiClient.post<MerchantApplicationResponse>(
+      MERCHANT_APPLICATIONS_BASE_PATH,
+      payload
+    );
+    return response.data;
+  } catch (error: any) {
+    throw buildOrganizationApiError(
+      error,
+      'Unable to submit the merchant application. Please check the form fields and try again.'
+    );
+  }
+}
+
+/**
+ * List merchant applications with optional status, category, search, and sort filters.
+ *
+ * Confirmed Backend Endpoint:
+ * GET /api/v1/organization/merchants/applications
+ */
+export async function listMerchantApplications(params?: {
+  status?: string;
+  category?: string;
+  search?: string;
+  sort?: 'newest' | 'oldest';
+}): Promise<MerchantApplicationResponse[]> {
+  try {
+    const queryParams: Record<string, string> = {};
+    if (params?.status && params.status !== 'ALL') {
+      queryParams.status = params.status;
+    }
+    if (params?.category && params.category !== 'ALL') {
+      queryParams.category = params.category;
+    }
+    if (params?.search?.trim()) {
+      queryParams.search = params.search.trim();
+    }
+    if (params?.sort) {
+      queryParams.sort = params.sort;
+    }
+    const response = await apiClient.get<MerchantApplicationResponse[]>(
+      MERCHANT_APPLICATIONS_BASE_PATH,
+      { params: queryParams }
+    );
+    return response.data;
+  } catch (error: any) {
+    throw buildOrganizationApiError(
+      error,
+      'Unable to load merchant applications from Organization Service.'
+    );
+  }
+}
+
+/**
+ * Fetch approved registered merchants from Organization Service.
+ *
+ * Confirmed Backend Endpoint:
+ * GET /api/v1/organization/merchants/applications/approved
+ */
+export async function listApprovedMerchants(): Promise<MerchantApplicationResponse[]> {
+  try {
+    const response = await apiClient.get<MerchantApplicationResponse[]>(
+      `${MERCHANT_APPLICATIONS_BASE_PATH}/approved`
+    );
+    return response.data;
+  } catch (error: any) {
+    throw buildOrganizationApiError(
+      error,
+      'Unable to load approved merchants directory.'
+    );
+  }
+}
+
+/**
+ * Fetch merchant approval queue summary metrics from Organization Service.
+ *
+ * Confirmed Backend Endpoint:
+ * GET /api/v1/organization/merchants/applications/summary
+ */
+export async function fetchMerchantApprovalSummaryMetrics(): Promise<MerchantApprovalSummaryResponse> {
+  try {
+    const response = await apiClient.get<MerchantApprovalSummaryResponse>(
+      `${MERCHANT_APPLICATIONS_BASE_PATH}/summary`
+    );
+    return response.data;
+  } catch (error: any) {
+    throw buildOrganizationApiError(
+      error,
+      'Unable to load merchant approval summary metrics.'
+    );
+  }
+}
+
+/**
+ * Fetch a single merchant application by its application code or numeric ID.
+ *
+ * Confirmed Backend Endpoint:
+ * GET /api/v1/organization/merchants/applications/{id}
+ */
+export async function fetchMerchantApplicationById(
+  id: string
+): Promise<MerchantApplicationResponse> {
+  try {
+    const response = await apiClient.get<MerchantApplicationResponse>(
+      `${MERCHANT_APPLICATIONS_BASE_PATH}/${encodeURIComponent(id)}`
+    );
+    return response.data;
+  } catch (error: any) {
+    throw buildOrganizationApiError(
+      error,
+      `Unable to load merchant application ${id}.`
+    );
+  }
+}
+
+/**
+ * Approve a merchant application (Head Office ADMIN only).
+ *
+ * Confirmed Backend Endpoint:
+ * POST /api/v1/organization/merchants/applications/{id}/approve
+ */
+export async function approveMerchantApplication(
+  id: string,
+  payload?: MerchantApplicationApproveRequest
+): Promise<MerchantApplicationResponse> {
+  try {
+    const response = await apiClient.post<MerchantApplicationResponse>(
+      `${MERCHANT_APPLICATIONS_BASE_PATH}/${encodeURIComponent(id)}/approve`,
+      payload || {}
+    );
+    return response.data;
+  } catch (error: any) {
+    throw buildOrganizationApiError(
+      error,
+      `Unable to approve merchant application ${id}.`
+    );
+  }
+}
+
+/**
+ * Reject a merchant application with a mandatory rejection reason (Head Office ADMIN only).
+ *
+ * Confirmed Backend Endpoint:
+ * POST /api/v1/organization/merchants/applications/{id}/reject
+ */
+export async function rejectMerchantApplication(
+  id: string,
+  payload: MerchantApplicationRejectRequest
+): Promise<MerchantApplicationResponse> {
+  try {
+    const response = await apiClient.post<MerchantApplicationResponse>(
+      `${MERCHANT_APPLICATIONS_BASE_PATH}/${encodeURIComponent(id)}/reject`,
+      payload
+    );
+    return response.data;
+  } catch (error: any) {
+    throw buildOrganizationApiError(
+      error,
+      `Unable to reject merchant application ${id}.`
     );
   }
 }

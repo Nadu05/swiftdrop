@@ -1,5 +1,9 @@
 import { redirect } from 'next/navigation';
 
-export default function MerchantApprovalsPage() {
-  redirect('/dispatcher/merchants?tab=approvals');
+/**
+ * Merchant Approvals has been moved from the Dispatcher portal
+ * to Head Office Administration / Organization Service (/organization/merchants).
+ */
+export default function DispatcherMerchantApprovalsRedirectPage() {
+  redirect('/organization/merchants');
 }

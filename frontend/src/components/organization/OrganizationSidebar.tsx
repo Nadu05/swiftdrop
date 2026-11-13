@@ -41,9 +41,9 @@ export const ORGANIZATION_NAV_ITEMS: readonly OrganizationNavItem[] = [
   {
     id: 'merchant-approvals',
     label: 'Merchant approvals',
-    href: '/organization/branches#merchant-approvals',
+    href: '/organization/merchants',
     icon: Store,
-    implemented: false,
+    implemented: true,
   },
   {
     id: 'orders',
@@ -122,6 +122,14 @@ function OrganizationSidebar({
     if (!pathname) return false;
     if (item.id === 'branches') {
       return pathname === '/organization/branches' || pathname.startsWith('/organization/branches/');
+    }
+    if (item.id === 'merchant-approvals') {
+      return (
+        pathname === '/organization/merchants' ||
+        pathname.startsWith('/organization/merchants/') ||
+        pathname === '/organization/merchant-approvals' ||
+        pathname.startsWith('/organization/merchant-approvals/')
+      );
     }
     if (item.id === 'overview') {
       return pathname === '/organization';

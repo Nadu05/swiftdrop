@@ -38,6 +38,7 @@ const adminNavItems = [
   { name: 'Admin Overview', href: '/admin', icon: ShieldCheck },
   { name: 'User Management', href: '/admin/users', icon: Users },
   { name: 'Platform Roles', href: '/admin/roles', icon: Layers },
+  { name: 'Merchant Approvals', href: '/organization/merchants', icon: Server },
 ];
 
 export default function Sidebar() {

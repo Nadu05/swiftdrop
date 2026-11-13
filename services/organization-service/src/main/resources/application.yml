@@ -55,3 +55,7 @@ logging:
   level:
     com.swiftdrop.organization: DEBUG
     org.springframework.web: INFO
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:Y2hhbmdlLW1lLWluLXByb2R1Y3Rpb24tYW5kLXVzZS1hLXN0cm9uZy1zZWNyZXQtaGVyZS0xMjM0NTY3ODk=}

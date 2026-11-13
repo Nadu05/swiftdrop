@@ -28,7 +28,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(BranchController.class)
-@Import(GlobalExceptionHandler.class)
+@Import({
+        GlobalExceptionHandler.class,
+        com.swiftdrop.organization.config.SecurityConfig.class,
+        com.swiftdrop.organization.security.OrganizationJwtService.class
+})
 class BranchControllerTest {
 
     @Autowired

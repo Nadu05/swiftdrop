@@ -2,6 +2,8 @@ package com.swiftdrop.organization.service;
 
 import com.swiftdrop.organization.dto.BranchResolutionRequest;
 import com.swiftdrop.organization.dto.BranchResolutionResponse;
+import com.swiftdrop.organization.dto.RouteBranchResolutionRequest;
+import com.swiftdrop.organization.dto.RouteBranchResolutionResponse;
 import com.swiftdrop.organization.entity.Branch;
 import com.swiftdrop.organization.entity.ServiceArea;
 import com.swiftdrop.organization.entity.enums.BranchStatus;
@@ -219,6 +221,93 @@ class BranchResolutionServiceTest {
 
         assertThat(response.getBranchId()).isEqualTo(1L);
         assertThat(response.getBranchCode()).isEqualTo("BR-COL-001");
+    }
+
+    @Test
+    @DisplayName("Should resolve both origin and destination branches across different service areas")
+    void shouldResolveDualCoordinateRouteAcrossDifferentBranches() {
+        // Pickup in Kollupitiya (Colombo Central): 6.9150, 79.8550
+        // Destination in Dehiwala: 6.8511, 79.8653
+        RouteBranchResolutionRequest request = new RouteBranchResolutionRequest(
+                6.9150, 79.8550,
+                6.8511, 79.8653
+        );
+
+        when(serviceAreaRepository.findActiveServiceAreasForActiveBranches(ServiceAreaStatus.ACTIVE, BranchStatus.ACTIVE))
+                .thenReturn(List.of(areaColombo, areaDehiwala));
+
+        RouteBranchResolutionResponse response = resolutionService.resolveRoute(request);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getOriginBranch()).isNotNull();
+        assertThat(response.getOriginBranch().getBranchId()).isEqualTo(1L);
+        assertThat(response.getOriginBranch().getBranchCode()).isEqualTo("BR-COL-001");
+        assertThat(response.getDestinationBranch()).isNotNull();
+        assertThat(response.getDestinationBranch().getBranchId()).isEqualTo(2L);
+        assertThat(response.getDestinationBranch().getBranchCode()).isEqualTo("BR-DEH-002");
+        assertThat(response.isSameBranch()).isFalse();
+        assertThat(response.getInterBranchDistanceKm()).isGreaterThan(8.0);
+    }
+
+    @Test
+    @DisplayName("Should resolve sameBranch=true and 0.0 interBranchDistanceKm when both coordinates resolve to same branch")
+    void shouldResolveSameBranchWhenPickupAndDestinationInSameBranchArea() {
+        RouteBranchResolutionRequest request = new RouteBranchResolutionRequest(
+                6.9150, 79.8550,
+                6.9300, 79.8650
+        );
+
+        when(serviceAreaRepository.findActiveServiceAreasForActiveBranches(ServiceAreaStatus.ACTIVE, BranchStatus.ACTIVE))
+                .thenReturn(List.of(areaColombo));
+
+        RouteBranchResolutionResponse response = resolutionService.resolveRoute(request);
+
+        assertThat(response.getOriginBranch().getBranchId()).isEqualTo(1L);
+        assertThat(response.getDestinationBranch().getBranchId()).isEqualTo(1L);
+        assertThat(response.isSameBranch()).isTrue();
+        assertThat(response.getInterBranchDistanceKm()).isEqualTo(0.0);
+    }
+
+    @Test
+    @DisplayName("Should throw UnsupportedServiceAreaException with locationType PICKUP when pickup is outside coverage")
+    void shouldRejectRouteWhenPickupOutsideCoverage() {
+        // Pickup in Kandy (unsupported), Destination in Colombo (supported)
+        RouteBranchResolutionRequest request = new RouteBranchResolutionRequest(
+                7.2906, 80.6337,
+                6.9271, 79.8612
+        );
+
+        when(serviceAreaRepository.findActiveServiceAreasForActiveBranches(ServiceAreaStatus.ACTIVE, BranchStatus.ACTIVE))
+                .thenReturn(List.of(areaColombo, areaDehiwala));
+
+        assertThatThrownBy(() -> resolutionService.resolveRoute(request))
+                .isInstanceOf(UnsupportedServiceAreaException.class)
+                .satisfies(ex -> {
+                    UnsupportedServiceAreaException uex = (UnsupportedServiceAreaException) ex;
+                    assertThat(uex.getLocationType()).isEqualTo("PICKUP");
+                })
+                .hasMessageContaining("Pickup location");
+    }
+
+    @Test
+    @DisplayName("Should throw UnsupportedServiceAreaException with locationType DESTINATION when destination is outside coverage")
+    void shouldRejectRouteWhenDestinationOutsideCoverage() {
+        // Pickup in Colombo (supported), Destination in Jaffna (unsupported)
+        RouteBranchResolutionRequest request = new RouteBranchResolutionRequest(
+                6.9271, 79.8612,
+                9.6615, 80.0255
+        );
+
+        when(serviceAreaRepository.findActiveServiceAreasForActiveBranches(ServiceAreaStatus.ACTIVE, BranchStatus.ACTIVE))
+                .thenReturn(List.of(areaColombo, areaDehiwala));
+
+        assertThatThrownBy(() -> resolutionService.resolveRoute(request))
+                .isInstanceOf(UnsupportedServiceAreaException.class)
+                .satisfies(ex -> {
+                    UnsupportedServiceAreaException uex = (UnsupportedServiceAreaException) ex;
+                    assertThat(uex.getLocationType()).isEqualTo("DESTINATION");
+                })
+                .hasMessageContaining("Destination location");
     }
 }
 

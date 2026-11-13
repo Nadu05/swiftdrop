@@ -63,7 +63,6 @@ export const DISPATCHER_NAV_SECTIONS: readonly NavSection[] = [
     title: 'Administration',
     items: [
       { label: 'User Management', href: '/dispatcher/users', icon: UserCog },
-      { label: 'Merchant Management', href: '/dispatcher/merchants', icon: Store },
       { label: 'Delivery Zones & Pricing', href: '/dispatcher/zones-pricing', icon: MapPinned },
     ],
   },
@@ -96,9 +95,6 @@ function getActiveHref(pathname: string | null): string | null {
   if (!pathname) return null;
   if (pathname === '/dispatcher/zones' || pathname.startsWith('/dispatcher/zones/')) {
     return '/dispatcher/zones-pricing';
-  }
-  if (pathname === '/dispatcher/merchant-approvals' || pathname.startsWith('/dispatcher/merchant-approvals/')) {
-    return '/dispatcher/merchants';
   }
 
   let match: string | null = null;

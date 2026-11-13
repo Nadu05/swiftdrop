@@ -85,8 +85,7 @@ export default function MerchantApprovalFilters({
               disabled={isLoading}
             >
               <option value="ALL">All Statuses</option>
-              <option value="PENDING_REVIEW">Pending Review</option>
-              <option value="CORRECTIONS_REQUESTED">Corrections Requested</option>
+              <option value="PENDING">Pending Review</option>
               <option value="APPROVED">Approved</option>
               <option value="REJECTED">Rejected</option>
             </select>

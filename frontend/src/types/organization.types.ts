@@ -151,3 +151,129 @@ export interface BranchResolutionResponse {
   distanceKm: number;
   eligible: boolean;
 }
+
+/**
+ * Dual-coordinate branch resolution request payload for resolving both
+ * origin (pickup) and destination (delivery) branches in one call.
+ * - POST /api/v1/organization/branches/resolve-route
+ */
+export interface RouteBranchResolutionRequest {
+  pickupLatitude: number;
+  pickupLongitude: number;
+  destinationLatitude: number;
+  destinationLongitude: number;
+}
+
+/**
+ * Dual-coordinate branch resolution response payload containing both
+ * resolved origin and destination branches and Haversine hub-to-hub distance.
+ */
+export interface RouteBranchResolutionResponse {
+  originBranch: BranchResolutionResponse;
+  destinationBranch: BranchResolutionResponse;
+  sameBranch: boolean;
+  interBranchDistanceKm: number;
+}
+
+/**
+ * Merchant Application Status & Category types aligned with Organization Service V4 schema.
+ */
+export type MerchantApplicationStatusType = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export type MerchantBusinessCategoryType =
+  | 'GROCERY_FOOD'
+  | 'PHARMACY'
+  | 'RETAIL'
+  | 'OTHER';
+
+export interface MerchantApplicationCreateRequest {
+  businessName: string;
+  legalName?: string;
+  businessRegistrationNumber: string;
+  category: MerchantBusinessCategoryType;
+  contactFullName: string;
+  contactDesignation?: string;
+  contactEmail: string;
+  contactPhone: string;
+  streetAddress: string;
+  city: string;
+  district?: string;
+  postalCode?: string;
+  nearestBranch?: string;
+  expectedDailyVolume?: string;
+}
+
+export interface MerchantApplicationApproveRequest {
+  reviewNotes?: string;
+}
+
+export interface MerchantApplicationRejectRequest {
+  rejectionReason: string;
+  reviewNotes?: string;
+}
+
+export interface MerchantApplicationHistoryDto {
+  id: number;
+  previousStatus: string | null;
+  newStatus: string;
+  action: string;
+  actorEmail: string;
+  actorUserId?: string | null;
+  reason?: string | null;
+  createdAt: string;
+}
+
+export interface MerchantApplicationDocumentDto {
+  id: string;
+  type: 'BR_CERTIFICATE' | 'PROOF_OF_ADDRESS' | 'VAT_REGISTRATION' | 'BANK_STATEMENT';
+  title: string;
+  fileName: string;
+  fileSize: string;
+  uploadedAt: string;
+  status: 'SUBMITTED' | 'VERIFIED' | 'REJECTED';
+}
+
+export interface MerchantApplicationResponse {
+  id: string;
+  numericId: number;
+  applicantUserId?: string | null;
+  applicantEmail?: string | null;
+  businessName: string;
+  legalName?: string;
+  businessRegistrationNumber: string;
+  category: MerchantBusinessCategoryType;
+  categoryLabel: string;
+  contactPerson: {
+    fullName: string;
+    designation: string;
+    email: string;
+    phone: string;
+  };
+  businessAddress: {
+    street: string;
+    city: string;
+    district: string;
+    postalCode: string;
+    nearestBranch: string;
+  };
+  expectedDailyVolume: string;
+  submittedAt: string;
+  updatedAt: string;
+  status: MerchantApplicationStatusType;
+  statusLabel: string;
+  rejectionReason?: string | null;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
+  reviewNotes?: string | null;
+  documents: MerchantApplicationDocumentDto[];
+  history: MerchantApplicationHistoryDto[];
+}
+
+export interface MerchantApprovalSummaryResponse {
+  pendingReview: number;
+  awaitingMerchant: number;
+  approvedThisMonth: number;
+  rejectedThisMonth: number;
+  totalSubmissions: number;
+}
+

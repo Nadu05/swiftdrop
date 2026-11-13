@@ -41,6 +41,7 @@ export default function MerchantApprovalTable({
 
   const getStatusBadge = (status: MerchantApplication['status'], label: string) => {
     switch (status) {
+      case 'PENDING':
       case 'PENDING_REVIEW':
         return (
           <span
@@ -48,7 +49,7 @@ export default function MerchantApprovalTable({
             style={{ background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }}
           >
             <Clock size={12} />
-            {label}
+            {label || 'Pending Review'}
           </span>
         );
       case 'CORRECTIONS_REQUESTED':
@@ -136,7 +137,9 @@ export default function MerchantApprovalTable({
               ) : (
                 currentItems.map((app) => {
                   const isActionable =
-                    app.status === 'PENDING_REVIEW' || app.status === 'CORRECTIONS_REQUESTED';
+                    app.status === 'PENDING' ||
+                    app.status === 'PENDING_REVIEW' ||
+                    app.status === 'CORRECTIONS_REQUESTED';
 
                   return (
                     <tr key={app.id}>
@@ -192,7 +195,7 @@ export default function MerchantApprovalTable({
                       {/* Actions */}
                       <td style={{ textAlign: 'right' }}>
                         <Link
-                          href={`/dispatcher/merchant-approvals/${app.id}`}
+                          href={`/organization/merchant-approvals/${app.id}`}
                           className={
                             isActionable
                               ? 'dispatcher-btn-primary'

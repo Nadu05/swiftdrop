@@ -1,10 +1,14 @@
 package com.swiftdrop.organization.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.swiftdrop.organization.config.SecurityConfig;
 import com.swiftdrop.organization.dto.BranchResolutionRequest;
 import com.swiftdrop.organization.dto.BranchResolutionResponse;
+import com.swiftdrop.organization.dto.RouteBranchResolutionRequest;
+import com.swiftdrop.organization.dto.RouteBranchResolutionResponse;
 import com.swiftdrop.organization.exception.GlobalExceptionHandler;
 import com.swiftdrop.organization.exception.UnsupportedServiceAreaException;
+import com.swiftdrop.organization.security.OrganizationJwtService;
 import com.swiftdrop.organization.service.BranchResolutionService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,7 +26,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(BranchResolutionController.class)
-@Import(GlobalExceptionHandler.class)
+@Import({GlobalExceptionHandler.class, SecurityConfig.class, OrganizationJwtService.class})
 class BranchResolutionControllerTest {
 
     @Autowired
@@ -114,8 +118,76 @@ class BranchResolutionControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.status").value(422))
+                .andExpect(jsonPath("$.locationType").value("PICKUP"))
                 .andExpect(jsonPath("$.message").value(
                         "Pickup location (latitude: 7.290600, longitude: 80.633700) is not supported by any active branch service area"));
     }
-}
 
+    @Test
+    @DisplayName("POST /branches/resolve-route should return 200 OK with origin and destination branches")
+    void shouldResolveDualCoordinateRoute() throws Exception {
+        RouteBranchResolutionRequest request = new RouteBranchResolutionRequest(
+                6.9271, 79.8612,
+                6.8511, 79.8653
+        );
+        BranchResolutionResponse origin = new BranchResolutionResponse(
+                1L, "BR-COL-001", "Colombo Central Branch", 0.5, true
+        );
+        BranchResolutionResponse destination = new BranchResolutionResponse(
+                2L, "BR-DEH-002", "Dehiwala Branch", 1.2, true
+        );
+        RouteBranchResolutionResponse response = new RouteBranchResolutionResponse(
+                origin, destination, false, 8.46
+        );
+
+        when(resolutionService.resolveRoute(any(RouteBranchResolutionRequest.class)))
+                .thenReturn(response);
+
+        mockMvc.perform(post("/branches/resolve-route")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.originBranch.branchId").value(1L))
+                .andExpect(jsonPath("$.originBranch.branchCode").value("BR-COL-001"))
+                .andExpect(jsonPath("$.destinationBranch.branchId").value(2L))
+                .andExpect(jsonPath("$.destinationBranch.branchCode").value("BR-DEH-002"))
+                .andExpect(jsonPath("$.sameBranch").value(false))
+                .andExpect(jsonPath("$.interBranchDistanceKm").value(8.46));
+    }
+
+    @Test
+    @DisplayName("POST /branches/resolve-route should return 422 with locationType DESTINATION when destination is outside coverage")
+    void shouldReturn422WhenDestinationUnsupported() throws Exception {
+        RouteBranchResolutionRequest request = new RouteBranchResolutionRequest(
+                6.9271, 79.8612,
+                9.6615, 80.0255
+        );
+
+        when(resolutionService.resolveRoute(any(RouteBranchResolutionRequest.class)))
+                .thenThrow(new UnsupportedServiceAreaException("DESTINATION", 9.6615, 80.0255));
+
+        mockMvc.perform(post("/branches/resolve-route")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.status").value(422))
+                .andExpect(jsonPath("$.locationType").value("DESTINATION"))
+                .andExpect(jsonPath("$.message").value(
+                        "Destination location (latitude: 9.661500, longitude: 80.025500) is not supported by any active branch service area"));
+    }
+
+    @Test
+    @DisplayName("POST /branches/resolve-route should return 400 when destination coordinates are missing")
+    void shouldReturn400WhenRouteCoordinatesMissing() throws Exception {
+        RouteBranchResolutionRequest invalidRequest = new RouteBranchResolutionRequest(
+                6.9271, 79.8612, null, null
+        );
+
+        mockMvc.perform(post("/branches/resolve-route")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.destinationLatitude").exists())
+                .andExpect(jsonPath("$.fieldErrors.destinationLongitude").exists());
+    }
+}

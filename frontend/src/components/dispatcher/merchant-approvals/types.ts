@@ -1,9 +1,10 @@
 /**
  * TypeScript Data Definitions for Merchant Approval Queue
- * Module: Dispatcher / Merchant Approvals
+ * Module: Head Office Administration / Organization Service Merchant Approvals
  */
 
 export type MerchantApplicationStatus =
+  | 'PENDING'
   | 'PENDING_REVIEW'
   | 'CORRECTIONS_REQUESTED'
   | 'APPROVED'
@@ -25,8 +26,22 @@ export interface MerchantApplicationDocument {
   status: 'SUBMITTED' | 'VERIFIED' | 'REJECTED';
 }
 
+export interface MerchantApplicationHistoryItem {
+  id: number;
+  previousStatus: string | null;
+  newStatus: string;
+  action: string;
+  actorEmail: string;
+  actorUserId?: string | null;
+  reason?: string | null;
+  createdAt: string;
+}
+
 export interface MerchantApplication {
   id: string; // e.g. "APP-2026-0819"
+  numericId?: number;
+  applicantUserId?: string | null;
+  applicantEmail?: string | null;
   businessName: string;
   legalName?: string;
   businessRegistrationNumber: string; // e.g. "PV-00214890"
@@ -50,15 +65,17 @@ export interface MerchantApplication {
   updatedAt: string; // ISO string
   status: MerchantApplicationStatus;
   statusLabel: string;
-  reviewedBy?: string;
-  reviewedAt?: string;
-  reviewNotes?: string;
+  rejectionReason?: string | null;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
+  reviewNotes?: string | null;
   documents: MerchantApplicationDocument[];
+  history?: MerchantApplicationHistoryItem[];
 }
 
 export interface MerchantApprovalSummaryMetrics {
   pendingReview: number;
-  awaitingMerchant: number; // Corrections Requested
+  awaitingMerchant: number;
   approvedThisMonth: number;
   rejectedThisMonth: number;
   totalSubmissions: number;
@@ -70,4 +87,3 @@ export interface MerchantApprovalFilterState {
   category: 'ALL' | MerchantBusinessCategory;
   sortOrder: 'newest' | 'oldest';
 }
-
