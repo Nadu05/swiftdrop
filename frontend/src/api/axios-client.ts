@@ -1,23 +1,38 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_GATEWAY_URL ?? 'http://localhost:8080';
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:8080';
 
 /**
  * Shared Axios instance for all API Gateway requests.
- * - withCredentials: true — ensures HttpOnly auth cookies are sent on every request
- * - No Authorization header — auth is cookie-based only
+ * - withCredentials: true — ensures HttpOnly auth cookies (sd_access_token, sd_refresh_token) are sent on every request
+ * - Attaches Bearer token fallback if present in browser storage
+ * - Automatically intercepts 401s and refreshes access token
  */
-const axiosClient = axios.create({
+export const axiosClient = axios.create({
   baseURL: BASE_URL,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
+    Accept: 'application/json',
   },
   timeout: 15000,
 });
 
+// Request Interceptor: optionally attaches Bearer token if present
+axiosClient.interceptors.request.use(
+  (config) => {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('swiftdrop_auth_token') || sessionStorage.getItem('swiftdrop_auth_token');
+      if (token && config.headers && !config.headers.Authorization) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
 // --- Refresh token coordination ---
-// Prevents multiple concurrent 401s from each triggering a refresh.
 let isRefreshing = false;
 let failedQueue: Array<{
   resolve: (value?: unknown) => void;
@@ -51,7 +66,6 @@ axiosClient.interceptors.response.use(
       !originalRequest.url?.includes('/auth/register')
     ) {
       if (isRefreshing) {
-        // Another request is already refreshing — queue this one
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         }).then(() => axiosClient(originalRequest));
@@ -61,7 +75,6 @@ axiosClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        // Use standalone axios call to avoid circular dependency and interceptor loops
         await axios.post(
           `${BASE_URL}/api/v1/auth/refresh`,
           {},
@@ -75,7 +88,6 @@ axiosClient.interceptors.response.use(
         return axiosClient(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError);
-        // Refresh failed — clear client state and redirect to login if in browser
         if (typeof window !== 'undefined') {
           const currentPath = window.location.pathname;
           if (currentPath !== '/login' && currentPath !== '/register') {
@@ -89,15 +101,15 @@ axiosClient.interceptors.response.use(
     }
 
     if (error.response) {
-      // Pass the structured API error through
       return Promise.reject(error);
     }
     if (error.request) {
-      // No response — network or CORS issue
       return Promise.reject(new Error('Unable to reach the server. Please check your connection.'));
     }
     return Promise.reject(error);
   }
 );
 
+// Backward-compatible export alias
+export const apiClient = axiosClient;
 export default axiosClient;

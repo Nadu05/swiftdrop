@@ -2,11 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { 
-  LayoutDashboard, 
-  Activity, 
-  Terminal, 
-  Box, 
+import {
+  LayoutDashboard,
+  Activity,
+  Terminal,
+  Box,
   Server,
   Layers,
   LogIn,
@@ -16,12 +16,14 @@ import {
   Settings,
   KeyRound,
   Users,
+  Target,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useCurrentUser, useLogout } from '@/hooks/api/use-auth';
 
 const navItems = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { name: 'Customers', href: '/customers', icon: Target },
   { name: 'Service Health', href: '/health', icon: Activity },
   { name: 'API Tester', href: '/api-tester', icon: Terminal },
 ];
@@ -45,27 +47,33 @@ export default function Sidebar() {
   const logoutMutation = useLogout();
 
   return (
-    <aside style={{
-      width: '260px',
-      background: 'rgba(11, 17, 33, 0.95)',
-      borderRight: '1px solid rgba(59, 130, 246, 0.15)',
-      display: 'flex',
-      flexDirection: 'column',
-      padding: '1.5rem 1rem',
-      gap: '1.5rem'
-    }}>
+    <aside
+      style={{
+        width: '260px',
+        minWidth: '260px',
+        background: 'rgba(11, 17, 33, 0.95)',
+        borderRight: '1px solid rgba(59, 130, 246, 0.15)',
+        display: 'flex',
+        flexDirection: 'column',
+        padding: '1.5rem 1rem',
+        gap: '1.5rem',
+        minHeight: '100vh',
+      }}
+    >
       {/* Brand Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0 0.5rem' }}>
-        <div style={{
-          width: '36px',
-          height: '36px',
-          borderRadius: '10px',
-          background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: '0 0 16px rgba(59, 130, 246, 0.4)'
-        }}>
+        <div
+          style={{
+            width: '36px',
+            height: '36px',
+            borderRadius: '10px',
+            background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 0 16px rgba(59, 130, 246, 0.4)',
+          }}
+        >
           <Box size={20} color="#ffffff" />
         </div>
         <div>
@@ -77,13 +85,13 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+      <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
         <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '0 0.5rem 0.4rem' }}>
           Navigation
         </div>
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href;
+          const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
           return (
             <Link
               key={item.href}
@@ -92,7 +100,7 @@ export default function Sidebar() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.75rem',
-                padding: '0.7rem 0.85rem',
+                padding: '0.65rem 0.85rem',
                 borderRadius: '8px',
                 fontSize: '0.875rem',
                 fontWeight: isActive ? 600 : 500,
@@ -108,6 +116,7 @@ export default function Sidebar() {
             </Link>
           );
         })}
+
         {user && (
           <>
             <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '0.8rem 0.5rem 0.4rem' }}>
@@ -124,7 +133,7 @@ export default function Sidebar() {
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.75rem',
-                    padding: '0.7rem 0.85rem',
+                    padding: '0.65rem 0.85rem',
                     borderRadius: '8px',
                     fontSize: '0.875rem',
                     fontWeight: isActive ? 600 : 500,
@@ -159,7 +168,7 @@ export default function Sidebar() {
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.75rem',
-                    padding: '0.7rem 0.85rem',
+                    padding: '0.65rem 0.85rem',
                     borderRadius: '8px',
                     fontSize: '0.875rem',
                     fontWeight: isActive ? 600 : 500,
@@ -182,15 +191,17 @@ export default function Sidebar() {
       {/* User Session / Auth Widget */}
       <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         {user ? (
-          <div style={{
-            padding: '0.85rem',
-            background: 'rgba(30, 41, 59, 0.6)',
-            borderRadius: '10px',
-            border: '1px solid rgba(59, 130, 246, 0.2)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.5rem'
-          }}>
+          <div
+            style={{
+              padding: '0.85rem',
+              background: 'rgba(30, 41, 59, 0.6)',
+              borderRadius: '10px',
+              border: '1px solid rgba(59, 130, 246, 0.2)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.5rem',
+            }}
+          >
             <Link
               href="/profile"
               style={{
@@ -203,17 +214,19 @@ export default function Sidebar() {
                 transition: 'background 0.2s',
               }}
             >
-              <div style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                background: 'rgba(59, 130, 246, 0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: '1px solid rgba(59, 130, 246, 0.4)',
-                flexShrink: 0
-              }}>
+              <div
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  background: 'rgba(59, 130, 246, 0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '1px solid rgba(59, 130, 246, 0.4)',
+                  flexShrink: 0,
+                }}
+              >
                 <UserIcon size={16} color="#60a5fa" />
               </div>
               <div style={{ overflow: 'hidden' }}>
@@ -239,7 +252,7 @@ export default function Sidebar() {
                     fontWeight: 600,
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.2rem'
+                    gap: '0.2rem',
                   }}
                 >
                   <ShieldCheck size={10} />
@@ -265,7 +278,7 @@ export default function Sidebar() {
                 fontSize: '0.75rem',
                 fontWeight: 600,
                 cursor: 'pointer',
-                transition: 'all 0.2s ease'
+                transition: 'all 0.2s ease',
               }}
             >
               <LogOut size={13} />
@@ -287,7 +300,7 @@ export default function Sidebar() {
                 color: '#ffffff',
                 fontSize: '0.8rem',
                 fontWeight: 600,
-                textDecoration: 'none'
+                textDecoration: 'none',
               }}
             >
               <LogIn size={15} />
@@ -306,7 +319,7 @@ export default function Sidebar() {
                 color: '#94a3b8',
                 fontSize: '0.78rem',
                 fontWeight: 500,
-                textDecoration: 'none'
+                textDecoration: 'none',
               }}
             >
               Create Account
@@ -314,21 +327,14 @@ export default function Sidebar() {
           </div>
         )}
 
-        {/* Infrastructure Status Summary */}
-        <div style={{ padding: '0.85rem', background: 'rgba(15, 23, 42, 0.6)', borderRadius: '10px', border: '1px solid rgba(59, 130, 246, 0.1)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
-            <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 600 }}>Architecture</span>
-            <span style={{ fontSize: '0.68rem', color: '#10b981', fontWeight: 700 }}>5 + 1 SERVICES</span>
+        {/* Infrastructure / Branch Footer */}
+        <div style={{ padding: '0.75rem', background: 'rgba(15, 23, 42, 0.6)', borderRadius: '10px', border: '1px solid rgba(59, 130, 246, 0.1)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
+            <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600 }}>Architecture</span>
+            <span style={{ fontSize: '0.65rem', color: '#10b981', fontWeight: 700 }}>5 + 1 SERVICES</span>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', fontSize: '0.7rem', color: '#64748b' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <Server size={12} color="#3b82f6" />
-              <span>Spring Cloud Gateway (8080)</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <Layers size={12} color="#10b981" />
-              <span>5x PostgreSQL + RabbitMQ</span>
-            </div>
+          <div style={{ fontSize: '0.68rem', color: '#64748b' }}>
+            Branch: Colombo Central
           </div>
         </div>
       </div>

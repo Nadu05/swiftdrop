@@ -8,9 +8,8 @@ export const metadata: Metadata = {
 };
 
 /**
- * Root layout — wraps ALL routes.
- * The Sidebar is NOT included here so that auth pages (login, register) 
- * render without it. The Sidebar is rendered by the (app) group layout instead.
+ * Root layout — wraps ALL routes with React Query Providers.
+ * The Sidebar is rendered by the (platform) group layout instead.
  */
 export default function RootLayout({
   children,
