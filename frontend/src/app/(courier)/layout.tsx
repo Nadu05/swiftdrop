@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import CourierProviders from '@/components/courier/CourierProviders';
 import CourierSidebar from '@/components/courier/CourierSidebar';
+import './courier.css';
 
 export const metadata: Metadata = {
   title: {

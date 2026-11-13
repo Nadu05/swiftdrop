@@ -22,6 +22,9 @@ import {
 } from '@/schema/branch.schema';
 import { OrganizationApiError } from '@/api/services/organization.api';
 import type { BranchResponse } from '@/types/organization.types';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 
 export interface BranchFormProps {
   mode: 'create' | 'edit';
@@ -81,8 +84,6 @@ export default function BranchForm({
     try {
       const response = await onSubmit(values);
       setSavedBranch(response);
-      // Brief pause so user sees the confirmed API success banner before navigating,
-      // while also providing an immediate "Return to Branch Directory" button.
       setTimeout(() => {
         onSuccessNavigate(response);
       }, 900);
@@ -106,99 +107,93 @@ export default function BranchForm({
       } else {
         setSubmitError(
           mode === 'create'
-            ? 'An unexpected error occurred while creating the branch.'
-            : 'An unexpected error occurred while updating the branch.'
+            ? 'Failed to create branch. Please check inputs and try again.'
+            : 'Failed to update branch. Please check inputs and try again.'
         );
       }
     }
   };
 
   const handleReset = () => {
+    reset(initialValues);
     setSubmitError(null);
     setIsConflictError(false);
-    reset(initialValues);
   };
 
   const isDisabled = isSubmitting || Boolean(savedBranch);
 
   return (
     <form
-      className="org-form"
       onSubmit={handleSubmit(handleFormSubmit)}
+      className="org-form"
       noValidate
-      aria-label={mode === 'create' ? 'Create New Branch Form' : 'Edit Branch Form'}
+      aria-label={mode === 'create' ? 'Create new branch form' : 'Edit branch form'}
     >
-      {/* API Success Confirmation Banner (shown only after API confirms 200/201) */}
+      {/* SUCCESS BANNER: Confirmed HTTP 201/200 from backend */}
       {savedBranch && (
-        <div className="org-form-alert org-form-alert--success" role="status" aria-live="polite">
+        <div
+          className="org-form-alert org-form-alert--success"
+          role="status"
+          aria-live="polite"
+        >
           <div className="org-form-alert__content">
             <CheckCircle2 size={20} className="org-form-alert__icon" aria-hidden="true" />
             <div className="org-form-alert__text">
               <strong className="org-form-alert__title">
                 {mode === 'create'
-                  ? 'Branch created successfully!'
-                  : 'Branch changes saved successfully!'}
+                  ? `Branch "${savedBranch.name}" created successfully!`
+                  : `Branch "${savedBranch.name}" updated successfully!`}
               </strong>
               <p className="org-form-alert__desc">
-                Branch <strong>{savedBranch.name}</strong> (
-                <code className="org-inline-code">{savedBranch.code}</code>) has been saved in
-                the Organization Service. Redirecting to the Branch Directory...
+                {mode === 'create'
+                  ? `Branch code ${savedBranch.code} is now registered in ${savedBranch.city}. Redirecting to directory...`
+                  : `All branch details have been persisted. Redirecting to directory...`}
               </p>
             </div>
           </div>
-
-          <button
+          <Button
             type="button"
-            className="org-btn org-btn--secondary"
+            variant="outline"
+            size="sm"
             onClick={() => onSuccessNavigate(savedBranch)}
+            className="self-start sm:self-center bg-white text-emerald-800 border-emerald-300 hover:bg-emerald-50"
           >
-            <ArrowLeft size={14} aria-hidden="true" />
-            <span>Return Now</span>
-          </button>
+            <span>Go to Directory Now</span>
+            <ArrowLeft size={13} className="rotate-180 ml-1.5" aria-hidden="true" />
+          </Button>
         </div>
       )}
 
-      {/* API Error Banner (including 409 Conflict Duplicate Branch Code) */}
+      {/* TOP ERROR BANNER: Form validation or API error */}
       {submitError && (
-        <div className="org-form-alert org-form-alert--error" role="alert">
+        <div
+          className={`org-form-alert ${
+            isConflictError ? 'org-form-alert--conflict' : 'org-form-alert--error'
+          }`}
+          role="alert"
+          aria-live="assertive"
+        >
           <div className="org-form-alert__content">
             <AlertCircle size={20} className="org-form-alert__icon" aria-hidden="true" />
             <div className="org-form-alert__text">
               <strong className="org-form-alert__title">
                 {isConflictError
-                  ? 'Duplicate Branch Code Conflict (HTTP 409)'
+                  ? 'Duplicate Branch Code Conflict'
                   : mode === 'create'
                   ? 'Unable to Create Branch'
-                  : 'Unable to Save Branch Changes'}
+                  : 'Unable to Update Branch'}
               </strong>
               <p className="org-form-alert__desc">{submitError}</p>
+              {isConflictError && (
+                <p className="org-form-alert__hint">
+                  Please modify the <strong>Branch Code</strong> below to a unique code that is
+                  not already used by another branch in the network.
+                </p>
+              )}
             </div>
           </div>
         </div>
       )}
-
-      {/* Required Fields Legend */}
-      <div className="org-form__legend">
-        <span>
-          Fields marked with <abbr title="required" className="org-form-required">*</abbr> are
-          required by the Organization Service contract.
-        </span>
-        {mode === 'edit' && branchStatus && (
-          <span className="org-form__status-note">
-            <span>Current Status:</span>
-            <span
-              className={`org-status-badge ${
-                branchStatus === 'ACTIVE'
-                  ? 'org-status-badge--active'
-                  : 'org-status-badge--inactive'
-              }`}
-            >
-              <span className="org-status-badge__dot" aria-hidden="true" />
-              <span>{branchStatus === 'ACTIVE' ? 'Active' : 'Inactive'}</span>
-            </span>
-          </span>
-        )}
-      </div>
 
       {/* SECTION 1: Branch Identity */}
       <BranchFormSection
@@ -214,15 +209,18 @@ export default function BranchForm({
               <span>Branch Name</span>
               <span className="org-form-required" aria-hidden="true">*</span>
             </label>
-            <input
+            <Input
               id="branch-name"
               type="text"
-              className={`org-form-input${errors.name ? ' org-form-input--error' : ''}`}
               placeholder="e.g. Colombo Central"
               disabled={isDisabled}
               aria-required="true"
               aria-invalid={Boolean(errors.name)}
               aria-describedby={errors.name ? 'branch-name-error' : 'branch-name-hint'}
+              className={cn(
+                'h-10 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800',
+                errors.name && 'border-red-500 focus-visible:ring-red-500'
+              )}
               {...register('name')}
             />
             <span id="branch-name-hint" className="org-form-hint">
@@ -241,17 +239,18 @@ export default function BranchForm({
               <span>Branch Code</span>
               <span className="org-form-required" aria-hidden="true">*</span>
             </label>
-            <input
+            <Input
               id="branch-code"
               type="text"
-              className={`org-form-input org-form-input--mono${
-                errors.code ? ' org-form-input--error' : ''
-              }`}
               placeholder="e.g. CMB-CENTRAL"
               disabled={isDisabled}
               aria-required="true"
               aria-invalid={Boolean(errors.code)}
               aria-describedby={errors.code ? 'branch-code-error' : 'branch-code-hint'}
+              className={cn(
+                'h-10 font-mono uppercase bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800',
+                errors.code && 'border-red-500 focus-visible:ring-red-500'
+              )}
               {...register('code')}
             />
             <span id="branch-code-hint" className="org-form-hint">
@@ -280,12 +279,9 @@ export default function BranchForm({
               <span>Address Line 1</span>
               <span className="org-form-required" aria-hidden="true">*</span>
             </label>
-            <input
+            <Input
               id="branch-address-line1"
               type="text"
-              className={`org-form-input${
-                errors.addressLine1 ? ' org-form-input--error' : ''
-              }`}
               placeholder="e.g. No. 142, Union Place"
               disabled={isDisabled}
               aria-required="true"
@@ -293,6 +289,10 @@ export default function BranchForm({
               aria-describedby={
                 errors.addressLine1 ? 'branch-address-line1-error' : undefined
               }
+              className={cn(
+                'h-10 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800',
+                errors.addressLine1 && 'border-red-500 focus-visible:ring-red-500'
+              )}
               {...register('addressLine1')}
             />
             {errors.addressLine1 && (
@@ -308,18 +308,19 @@ export default function BranchForm({
               <span>Address Line 2</span>
               <span className="org-form-optional">(Optional)</span>
             </label>
-            <input
+            <Input
               id="branch-address-line2"
               type="text"
-              className={`org-form-input${
-                errors.addressLine2 ? ' org-form-input--error' : ''
-              }`}
               placeholder="e.g. Colombo 02 / Commercial Wing"
               disabled={isDisabled}
               aria-invalid={Boolean(errors.addressLine2)}
               aria-describedby={
                 errors.addressLine2 ? 'branch-address-line2-error' : undefined
               }
+              className={cn(
+                'h-10 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800',
+                errors.addressLine2 && 'border-red-500 focus-visible:ring-red-500'
+              )}
               {...register('addressLine2')}
             />
             {errors.addressLine2 && (
@@ -337,15 +338,18 @@ export default function BranchForm({
               <span>City</span>
               <span className="org-form-required" aria-hidden="true">*</span>
             </label>
-            <input
+            <Input
               id="branch-city"
               type="text"
-              className={`org-form-input${errors.city ? ' org-form-input--error' : ''}`}
               placeholder="e.g. Colombo"
               disabled={isDisabled}
               aria-required="true"
               aria-invalid={Boolean(errors.city)}
               aria-describedby={errors.city ? 'branch-city-error' : 'branch-city-hint'}
+              className={cn(
+                'h-10 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800',
+                errors.city && 'border-red-500 focus-visible:ring-red-500'
+              )}
               {...register('city')}
             />
             <span id="branch-city-hint" className="org-form-hint">
@@ -364,13 +368,10 @@ export default function BranchForm({
               <span>Latitude</span>
               <span className="org-form-required" aria-hidden="true">*</span>
             </label>
-            <input
+            <Input
               id="branch-latitude"
               type="number"
               step="any"
-              className={`org-form-input org-form-input--mono${
-                errors.latitude ? ' org-form-input--error' : ''
-              }`}
               placeholder="e.g. 6.9218"
               disabled={isDisabled}
               aria-required="true"
@@ -378,6 +379,10 @@ export default function BranchForm({
               aria-describedby={
                 errors.latitude ? 'branch-latitude-error' : 'branch-latitude-hint'
               }
+              className={cn(
+                'h-10 font-mono bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800',
+                errors.latitude && 'border-red-500 focus-visible:ring-red-500'
+              )}
               {...register('latitude', { valueAsNumber: true })}
             />
             <span id="branch-latitude-hint" className="org-form-hint">
@@ -396,13 +401,10 @@ export default function BranchForm({
               <span>Longitude</span>
               <span className="org-form-required" aria-hidden="true">*</span>
             </label>
-            <input
+            <Input
               id="branch-longitude"
               type="number"
               step="any"
-              className={`org-form-input org-form-input--mono${
-                errors.longitude ? ' org-form-input--error' : ''
-              }`}
               placeholder="e.g. 79.8562"
               disabled={isDisabled}
               aria-required="true"
@@ -410,6 +412,10 @@ export default function BranchForm({
               aria-describedby={
                 errors.longitude ? 'branch-longitude-error' : 'branch-longitude-hint'
               }
+              className={cn(
+                'h-10 font-mono bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800',
+                errors.longitude && 'border-red-500 focus-visible:ring-red-500'
+              )}
               {...register('longitude', { valueAsNumber: true })}
             />
             <span id="branch-longitude-hint" className="org-form-hint">
@@ -438,17 +444,18 @@ export default function BranchForm({
               <span>Contact Phone</span>
               <span className="org-form-required" aria-hidden="true">*</span>
             </label>
-            <input
+            <Input
               id="branch-phone"
               type="tel"
-              className={`org-form-input org-form-input--mono${
-                errors.phone ? ' org-form-input--error' : ''
-              }`}
               placeholder="e.g. +94 11 234 5601"
               disabled={isDisabled}
               aria-required="true"
               aria-invalid={Boolean(errors.phone)}
               aria-describedby={errors.phone ? 'branch-phone-error' : 'branch-phone-hint'}
+              className={cn(
+                'h-10 font-mono bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800',
+                errors.phone && 'border-red-500 focus-visible:ring-red-500'
+              )}
               {...register('phone')}
             />
             <span id="branch-phone-hint" className="org-form-hint">
@@ -467,14 +474,17 @@ export default function BranchForm({
               <span>Contact Email</span>
               <span className="org-form-optional">(Optional)</span>
             </label>
-            <input
+            <Input
               id="branch-email"
               type="email"
-              className={`org-form-input${errors.email ? ' org-form-input--error' : ''}`}
               placeholder="e.g. colombo.central@swiftdrop.lk"
               disabled={isDisabled}
               aria-invalid={Boolean(errors.email)}
               aria-describedby={errors.email ? 'branch-email-error' : 'branch-email-hint'}
+              className={cn(
+                'h-10 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800',
+                errors.email && 'border-red-500 focus-visible:ring-red-500'
+              )}
               {...register('email')}
             />
             <span id="branch-email-hint" className="org-form-hint">
@@ -490,39 +500,42 @@ export default function BranchForm({
       </BranchFormSection>
 
       {/* Form Footer Actions */}
-      <div className="org-form-actions">
-        <div className="org-form-actions__left">
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-6 border-t border-slate-200 dark:border-slate-800">
+        <div>
           {isDirty && !isDisabled && (
-            <button
+            <Button
               type="button"
-              className="org-btn org-btn--secondary"
+              variant="outline"
+              size="sm"
               onClick={handleReset}
+              className="gap-1.5 text-slate-600 hover:text-slate-900 dark:text-slate-400"
             >
               <RotateCcw size={14} aria-hidden="true" />
               <span>Reset Changes</span>
-            </button>
+            </Button>
           )}
         </div>
 
-        <div className="org-form-actions__right">
-          <button
+        <div className="flex items-center gap-3">
+          <Button
             type="button"
-            className="org-btn org-btn--secondary"
+            variant="outline"
             onClick={onCancel}
             disabled={isSubmitting}
+            className="text-slate-700 dark:text-slate-300"
           >
             <span>Cancel</span>
-          </button>
+          </Button>
 
-          <button
+          <Button
             type="submit"
-            className="org-btn org-btn--primary org-btn--submit"
             disabled={isDisabled}
+            className="bg-blue-600 hover:bg-blue-700 text-white min-w-32 gap-2"
           >
             {isSubmitting ? (
               <>
-                <Loader2 size={15} className="org-icon--spinning" aria-hidden="true" />
-                <span>{mode === 'create' ? 'Creating Branch...' : 'Saving Changes...'}</span>
+                <Loader2 size={15} className="animate-spin" aria-hidden="true" />
+                <span>{mode === 'create' ? 'Creating...' : 'Saving...'}</span>
               </>
             ) : (
               <>
@@ -530,10 +543,9 @@ export default function BranchForm({
                 <span>{mode === 'create' ? 'Create Branch' : 'Save Changes'}</span>
               </>
             )}
-          </button>
+          </Button>
         </div>
       </div>
     </form>
   );
 }
-
