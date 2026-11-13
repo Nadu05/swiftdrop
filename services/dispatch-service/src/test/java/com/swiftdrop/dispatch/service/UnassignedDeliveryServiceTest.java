@@ -3,7 +3,6 @@ package com.swiftdrop.dispatch.service;
 import com.swiftdrop.dispatch.client.OrderServiceClient;
 import com.swiftdrop.dispatch.dto.OrderDetailsDto;
 import com.swiftdrop.dispatch.dto.UnassignedDeliveryResponse;
-import com.swiftdrop.dispatch.entity.enums.AssignmentStatus;
 import com.swiftdrop.dispatch.exception.ServiceUnavailableException;
 import com.swiftdrop.dispatch.repository.AssignmentRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,7 +21,6 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
