@@ -26,6 +26,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 /**
@@ -166,6 +167,25 @@ class OrderEventIntegrationTest extends ApplicationIntegrationTest {
 
         assertThat(result.getResponse().getStatus()).isEqualTo(500);
         assertThat(orders.count()).isEqualTo(ordersBefore);
+        assertThat(outbox.count()).isEqualTo(eventsBefore);
+    }
+
+    @Test
+    @DisplayName("if a status change fails half way, the order keeps its old status and no event is stored")
+    void statusChangeRollsBackCompletely() throws Exception {
+        JsonNode order = json(create(605, null, null));
+        long id = order.get("id").asLong();
+        long eventsBefore = outbox.count();
+        doThrow(new IllegalStateException("simulated failure")).when(historyRepository).save(any());
+
+        MvcResult result = mvc.perform(patch("/api/v1/orders/" + id + "/status")
+                .header("Authorization", "Bearer " + TestTokens.withRole(9001, "COURIER"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"PICKED_UP\"}")).andReturn();
+
+        assertThat(result.getResponse().getStatus()).isEqualTo(500);
+        assertThat(orders.findById(id).orElseThrow().getStatus().name())
+                .as("the status update was rolled back with the failed history write").isEqualTo("CREATED");
         assertThat(outbox.count()).isEqualTo(eventsBefore);
     }
 }

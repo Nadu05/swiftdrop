@@ -5,9 +5,14 @@ import com.swiftdrop.order.dto.CreateOrderRequest;
 import com.swiftdrop.order.dto.OrderResponse;
 import com.swiftdrop.order.dto.QuoteRequest;
 import com.swiftdrop.order.dto.QuoteResponse;
+import com.swiftdrop.order.dto.ReceiptResponse;
+import com.swiftdrop.order.dto.StatusChangeResponse;
+import com.swiftdrop.order.dto.TimelineResponse;
+import com.swiftdrop.order.dto.UpdateStatusRequest;
 import com.swiftdrop.order.location.CityDirectory;
 import com.swiftdrop.order.pricing.PriceQuote;
 import com.swiftdrop.order.pricing.PricingService;
+import com.swiftdrop.order.security.AuthenticatedUser;
 import com.swiftdrop.order.security.CustomerIdResolver;
 import com.swiftdrop.order.service.OrderService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -24,6 +29,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -129,5 +135,47 @@ public class OrderController {
             @PathVariable Long id) {
         long customerId = customerIds.resolve(jwt, customerIdHeader);
         return ResponseEntity.ok(orderService.getOrder(customerId, id));
+    }
+
+    @GetMapping("/{id}/timeline")
+    @Operation(summary = "The delivery status timeline of one of the caller's own orders",
+            description = "Every status the order has had, oldest first, with notes and locations. "
+                    + "Someone else's order returns 404.")
+    public ResponseEntity<TimelineResponse> timeline(
+            @AuthenticationPrincipal Jwt jwt,
+            @Parameter(description = CUSTOMER_ID_HEADER_DOC)
+            @RequestHeader(value = "X-Customer-Id", required = false)
+            @Pattern(regexp = CUSTOMER_ID_PATTERN) String customerIdHeader,
+            @PathVariable Long id) {
+        long customerId = customerIds.resolve(jwt, customerIdHeader);
+        return ResponseEntity.ok(orderService.getTimeline(customerId, id));
+    }
+
+    @GetMapping("/{id}/receipt")
+    @Operation(summary = "Receipt data for one of the caller's own orders",
+            description = "The fee breakdown and order details exactly as charged when the order was placed. "
+                    + "Someone else's order returns 404.")
+    public ResponseEntity<ReceiptResponse> receipt(
+            @AuthenticationPrincipal Jwt jwt,
+            @Parameter(description = CUSTOMER_ID_HEADER_DOC)
+            @RequestHeader(value = "X-Customer-Id", required = false)
+            @Pattern(regexp = CUSTOMER_ID_PATTERN) String customerIdHeader,
+            @PathVariable Long id) {
+        long customerId = customerIds.resolve(jwt, customerIdHeader);
+        return ResponseEntity.ok(orderService.getReceipt(customerId, id));
+    }
+
+    @PatchMapping("/{id}/status")
+    @Operation(summary = "Move an order to its next delivery status (couriers and staff)",
+            description = "Allowed moves: CREATED to PICKED_UP, PICKED_UP to IN_TRANSIT, IN_TRANSIT to "
+                    + "OUT_FOR_DELIVERY, OUT_FOR_DELIVERY to DELIVERED, and any non-final status to FAILED. "
+                    + "Anything else returns 422. Requires a courier/staff role, not CUSTOMER.")
+    public ResponseEntity<StatusChangeResponse> changeStatus(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateStatusRequest request) {
+        // With authentication off (testing) there is no token, so the change is recorded as made by the system.
+        Long actorId = jwt == null ? null : AuthenticatedUser.requireUserId(jwt);
+        return ResponseEntity.ok(orderService.changeStatus(id, request.status(), request.note(), request.location(), actorId));
     }
 }

@@ -17,6 +17,7 @@ import org.testcontainers.containers.RabbitMQContainer;
 @TestPropertySource(properties = {
         "swiftdrop.security.enabled=true",
         "swiftdrop.security.jwt-secret=" + TestTokens.SECRET,
+        "swiftdrop.security.service-api-key=" + TestTokens.SERVICE_KEY,
         "swiftdrop.outbox.enabled=false"
 })
 public abstract class ApplicationIntegrationTest extends PostgresIntegrationTest {
