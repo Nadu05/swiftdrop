@@ -1,5 +1,6 @@
 import { Building2, CheckCircle2, MapPin, PauseCircle } from 'lucide-react';
 import type { BranchSummaryMetrics } from '@/types/organization.types';
+import { Card } from '@/components/ui/card';
 
 export interface BranchSummaryCardsProps {
   metrics: BranchSummaryMetrics;
@@ -17,7 +18,7 @@ export default function BranchSummaryCards({
       value: metrics.totalBranches,
       description: 'Registered organization hubs across all regions',
       icon: Building2,
-      iconVariant: 'blue',
+      iconColors: 'bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400',
     },
     {
       id: 'active-branches',
@@ -25,7 +26,7 @@ export default function BranchSummaryCards({
       value: metrics.activeBranches,
       description: 'Operational hubs accepting delivery dispatches',
       icon: CheckCircle2,
-      iconVariant: 'green',
+      iconColors: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400',
     },
     {
       id: 'inactive-branches',
@@ -33,7 +34,7 @@ export default function BranchSummaryCards({
       value: metrics.inactiveBranches,
       description: 'Suspended or offline hubs excluded from routing',
       icon: PauseCircle,
-      iconVariant: 'slate',
+      iconColors: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
     },
     {
       id: 'cities-covered',
@@ -41,39 +42,48 @@ export default function BranchSummaryCards({
       value: metrics.citiesCovered,
       description: 'Distinct municipalities served by the network',
       icon: MapPin,
-      iconVariant: 'indigo',
+      iconColors: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400',
     },
   ] as const;
 
   return (
-    <section className="org-summary-grid" aria-label="Branch directory summary metrics">
+    <section
+      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+      aria-label="Branch directory summary metrics"
+    >
       {cards.map((card) => {
         const Icon = card.icon;
         return (
-          <article key={card.id} className="org-summary-card">
-            <div className="org-summary-card__top">
-              <div className="org-summary-card__info">
-                <span className="org-summary-card__title">{card.title}</span>
-                <div className="org-summary-card__value">
+          <Card
+            key={card.id}
+            className="p-5 border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/60 shadow-sm hover:shadow transition-shadow"
+          >
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  {card.title}
+                </span>
+                <div className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50">
                   {isLoading ? '—' : card.value}
                 </div>
               </div>
 
               <div
-                className={`org-summary-card__icon org-summary-card__icon--${card.iconVariant}`}
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${card.iconColors}`}
                 aria-hidden="true"
               >
                 <Icon size={20} strokeWidth={2.1} />
               </div>
             </div>
 
-            <div className="org-summary-card__bottom">
-              <span className="org-summary-card__desc">{card.description}</span>
+            <div className="mt-3 border-t border-slate-100 pt-3 dark:border-slate-800">
+              <span className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                {card.description}
+              </span>
             </div>
-          </article>
+          </Card>
         );
       })}
     </section>
   );
 }
-
