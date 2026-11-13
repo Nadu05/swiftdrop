@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import DispatcherShell from '@/components/dispatcher/DispatcherShell';
+import './dispatcher.css';
 
 export const metadata: Metadata = {
   title: 'Dispatch Management — SwiftDrop',
