@@ -8,16 +8,20 @@ the controller serves both paths).
 
 | Method & path | Auth | Description |
 |---|---|---|
+| `GET /api/v1/orders/cities` | `CUSTOMER` | The supported pickup/delivery towns (`code`, `name`, `district`) for the booking form. |
+| `POST /api/v1/orders/quote` | `CUSTOMER` | The delivery fee **before** confirming: `estimatedFee`, `currency`, `estimatedDistanceKm` and a `breakdown`. Stores nothing. See [docs/pricing.md](docs/pricing.md). |
 | `POST /api/v1/orders` | `CUSTOMER` | Create an order. Optional `Idempotency-Key` header (max 64 chars `A-Za-z0-9_.:-`): the same key returns the original order. |
 | `GET /api/v1/orders` | `CUSTOMER` | List **your own** orders as a JSON array, newest first. Paging: `page` (from 0, default 0) and `size` (1-100, default 20); the total is in the `X-Total-Count` response header. |
 | `GET /api/v1/orders/{id}` | `CUSTOMER` | Read one of **your own** orders. Someone else's order returns `404`. |
 
-Not implemented yet (other branches): `POST /orders/quote`, public tracking, timeline, receipts.
+Not implemented yet (other branches): public tracking, timeline, receipts.
 
-Request fields: `pickupAddress`, `pickupContactName`, `pickupContactPhone`, `dropoffAddress`, `dropoffContactName`,
-`dropoffContactPhone`, `parcelDescription?`, `parcelSize` (`SMALL|MEDIUM|LARGE|EXTRA_LARGE`), `weightKg`
-(0.01 to 100, max 2 decimals), `deliveryInstructions?`. The customer id, fee, tracking number, branch and status are
-**decided by the server**; any such fields in the body are ignored.
+Order request fields: `pickupAddress`, `pickupContactName`, `pickupContactPhone`, `dropoffAddress`,
+`dropoffContactName`, `dropoffContactPhone`, `parcelDescription?`, `parcelSize` (`SMALL|MEDIUM|LARGE|EXTRA_LARGE`),
+`weightKg` (0.01 to 100, max 2 decimals, and within the limit for the size), `deliveryInstructions?`,
+`pickupCity` and `dropoffCity` (codes from `GET /orders/cities`, both required), and optionally `expectedFee` (the fee
+the customer saw: a different current fee returns `409` instead of charging something else). The customer id, fee,
+tracking number, branch and status are **decided by the server**; any such fields in the body are ignored.
 
 Errors always have `timestamp`, `status`, `error` and `message` (or `fieldErrors` for validation, `400`).
 `401` no/invalid token, `403` wrong role, `404` not found or not yours, `409` conflict, `422` business rule.
@@ -60,8 +64,11 @@ Invoke-RestMethod http://localhost:8083/api/v1/orders -Method Post -Headers @{ A
 
 ## Pricing
 
-`fee = base-fee + per-kg-fee * weightKg`, rounded HALF_UP to 2 decimals, configured under `swiftdrop.pricing.*`.
-**Interim placeholder values** until the agreed formula is delivered in `feature/order-fee-calculation`.
+`fee = base + extra weight x rate + distance x rate + (different district ? zone surcharge : 0)`, all rounded half-up to
+2 decimals, configured under `swiftdrop.pricing.*`. Distance is the straight line between the two chosen towns.
+The formula, rates (currently **placeholders**), size limits and worked examples are in
+[docs/pricing.md](docs/pricing.md). The town list (`src/main/resources/locations/cities.csv`) has hand-drafted
+coordinates that must be verified before production use.
 
 ## Events
 
