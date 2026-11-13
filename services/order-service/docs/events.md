@@ -58,6 +58,29 @@ The AMQP message also carries `messageId` = `eventId`, content type `application
 | `branchId` | number or null | Organization branch; null until resolved |
 | `status` | string | `CREATED` |
 
+## `order.delivery.status-changed.v1`
+
+| | |
+|---|---|
+| Exchange | `swiftdrop.events` |
+| Routing key | `order.delivery.status-changed.v1` |
+| Emitted | once per real status change (`PATCH /orders/{id}/status`), after it commits. A rejected change (422) or a repeated request emits nothing |
+| Intended consumers | Notification (tell the customer), Dispatch (react to delivered/failed) |
+
+Written in the same transaction as the status update and its history row, through the same outbox as the created event.
+
+`data` (ids and stable facts only; staff notes and locations are **not** included):
+
+| Field | Type | Notes |
+|---|---|---|
+| `deliveryId` | number | Order id |
+| `trackingNumber` | string | Public tracking number |
+| `customerId` | number | Identity user id of the owner |
+| `branchId` | number or null | Organization branch; null until resolved |
+| `previousStatus` | string | Status before the change |
+| `status` | string | New status: `PICKED_UP`, `IN_TRANSIT`, `OUT_FOR_DELIVERY`, `DELIVERED` or `FAILED` |
+| `changedAt` | string | When the change was made (UTC, ISO-8601) |
+
 Compatibility: fields may be added within v1; removing or renaming a field requires a new routing key
 (`...v2`) published alongside v1 for a transition period.
 
