@@ -134,11 +134,41 @@ class OrderCreationIntegrationTest extends ApplicationIntegrationTest {
     }
 
     @Test
+    @DisplayName("listing returns only the caller's orders, newest first, with paging and a total count")
+    void listsOwnOrdersWithPaging() throws Exception {
+        long older = objectMapper.readTree(create(710, null).getResponse().getContentAsString()).get("id").asLong();
+        long newer = objectMapper.readTree(create(710, null).getResponse().getContentAsString()).get("id").asLong();
+        create(711, null); // another customer's order must never appear
+
+        MvcResult all = mvc.perform(get("/api/v1/orders").header("Authorization", "Bearer " + TestTokens.customer(710)))
+                .andExpect(status().isOk()).andReturn();
+        JsonNode items = objectMapper.readTree(all.getResponse().getContentAsString());
+        assertThat(all.getResponse().getHeader("X-Total-Count")).isEqualTo("2");
+        assertThat(items).hasSize(2);
+        assertThat(items.get(0).get("id").asLong()).as("newest first").isEqualTo(newer);
+        assertThat(items.get(1).get("id").asLong()).isEqualTo(older);
+
+        MvcResult secondPage = mvc.perform(get("/api/v1/orders?page=1&size=1")
+                        .header("Authorization", "Bearer " + TestTokens.customer(710)))
+                .andExpect(status().isOk()).andReturn();
+        JsonNode pageItems = objectMapper.readTree(secondPage.getResponse().getContentAsString());
+        assertThat(pageItems).hasSize(1);
+        assertThat(pageItems.get(0).get("id").asLong()).isEqualTo(older);
+        assertThat(secondPage.getResponse().getHeader("X-Total-Count")).isEqualTo("2");
+
+        MvcResult none = mvc.perform(get("/api/v1/orders").header("Authorization", "Bearer " + TestTokens.customer(712)))
+                .andExpect(status().isOk()).andReturn();
+        assertThat(objectMapper.readTree(none.getResponse().getContentAsString())).isEmpty();
+        assertThat(none.getResponse().getHeader("X-Total-Count")).isEqualTo("0");
+    }
+
+    @Test
     @DisplayName("an unauthenticated request cannot create or read orders")
     void requiresAuthentication() throws Exception {
         mvc.perform(post("/api/v1/orders").contentType(MediaType.APPLICATION_JSON).content(body()))
                 .andExpect(status().isUnauthorized());
         mvc.perform(get("/api/v1/orders/1")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/v1/orders")).andExpect(status().isUnauthorized());
     }
 
     @Test

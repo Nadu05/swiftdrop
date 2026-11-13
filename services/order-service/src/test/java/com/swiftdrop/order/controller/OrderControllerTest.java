@@ -22,6 +22,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -30,6 +33,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -321,5 +325,65 @@ class OrderControllerTest {
     @DisplayName("reading an order without a token: 401")
     void getWithoutToken() throws Exception {
         mvc.perform(get("/api/v1/orders/7")).andExpect(status().isUnauthorized());
+    }
+
+    // ------------------------------------------------------------------ list
+
+    @Test
+    @DisplayName("lists the caller's orders as a JSON array with the total in X-Total-Count")
+    void listsOwnOrders() throws Exception {
+        when(orderService.listOrders(42L, 0, 20)).thenReturn(
+                new PageImpl<>(List.of(sampleResponse(2), sampleResponse(1)), PageRequest.of(0, 20), 2));
+
+        mvc.perform(get("/api/v1/orders").header("Authorization", "Bearer " + TestTokens.customer(42)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Total-Count", "2"))
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].id").value(2))
+                .andExpect(jsonPath("$[1].id").value(1));
+    }
+
+    @Test
+    @DisplayName("an empty history is an empty array, not an error")
+    void emptyHistory() throws Exception {
+        when(orderService.listOrders(42L, 0, 20)).thenReturn(Page.empty());
+
+        mvc.perform(get("/api/v1/orders").header("Authorization", "Bearer " + TestTokens.customer(42)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Total-Count", "0"))
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    @DisplayName("page and size are passed through to the service, scoped to the caller from the token")
+    void pagingParameters() throws Exception {
+        when(orderService.listOrders(43L, 2, 5)).thenReturn(Page.empty());
+
+        mvc.perform(get("/api/v1/orders?page=2&size=5")
+                        .header("Authorization", "Bearer " + TestTokens.customer(43))
+                        .header("X-Customer-Id", "999"))
+                .andExpect(status().isOk());
+
+        verify(orderService).listOrders(43L, 2, 5);
+    }
+
+    @ParameterizedTest(name = "{0} is rejected")
+    @CsvSource({"page=-1", "size=0", "size=101", "page=abc", "size=abc"})
+    @DisplayName("invalid paging parameters are a 400")
+    void invalidPaging(String query) throws Exception {
+        mvc.perform(get("/api/v1/orders?" + query).header("Authorization", "Bearer " + TestTokens.customer(42)))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(orderService);
+    }
+
+    @Test
+    @DisplayName("listing without a token: 401; with the wrong role: 403")
+    void listRequiresCustomerRole() throws Exception {
+        mvc.perform(get("/api/v1/orders")).andExpect(status().isUnauthorized());
+
+        String courier = TestTokens.token(TestTokens.SECRET, "42", "COURIER", Instant.now().plusSeconds(3600));
+        mvc.perform(get("/api/v1/orders").header("Authorization", "Bearer " + courier))
+                .andExpect(status().isForbidden());
     }
 }
