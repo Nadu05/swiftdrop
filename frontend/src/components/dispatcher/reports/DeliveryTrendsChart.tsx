@@ -133,7 +133,7 @@ export default function DeliveryTrendsChart({
                 verticalAlign="top"
                 align="right"
                 wrapperStyle={{ paddingBottom: 10, fontSize: 12 }}
-                formatter={(value) => (
+                formatter={(value: any) => (
                   <span style={{ color: '#475569', fontWeight: 500, marginRight: 8 }}>
                     {value === 'delivered' ? 'Delivered' : 'Failed'}
                   </span>

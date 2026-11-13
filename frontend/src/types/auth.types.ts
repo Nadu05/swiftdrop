@@ -1,14 +1,54 @@
 /**
  * Authentication and User Profile Type Definitions for SwiftDrop
- * Member 06 - Customer UI & Profile Experience
  */
 
-export type UserRole = 'CUSTOMER' | 'MERCHANT' | 'COURIER' | 'STAFF' | 'ADMIN';
+export type UserRole = 'CUSTOMER' | 'MERCHANT' | 'COURIER' | 'DISPATCHER' | 'STAFF' | 'ADMIN';
+
+export interface AuthResponse {
+  userId: string;
+  fullName: string;
+  email: string;
+  phone: string | null;
+  roles: string[];
+  accountStatus: string;
+  emailVerified?: boolean;
+  emailVerifiedAt?: string | null;
+  createdAt: string;
+}
+
+export interface RegisterPayload {
+  fullName: string;
+  email: string;
+  phone: string;
+  password: string;
+  confirmPassword: string;
+}
+
+export interface LoginPayload {
+  email: string;
+  password: string;
+}
+
+export interface GoogleAuthPayload {
+  idToken: string;
+}
 
 export interface LoginCredentials {
   email: string;
   password?: string;
   role?: UserRole;
+}
+
+/** Minimal auth state stored in the Zustand store. */
+export interface AuthUser {
+  userId: string;
+  fullName: string;
+  email: string;
+  phone: string | null;
+  roles: string[];
+  accountStatus: string;
+  emailVerified?: boolean;
+  emailVerifiedAt?: string | null;
 }
 
 /**
@@ -35,4 +75,3 @@ export interface CustomerDeliveryStats {
   delivered: number;
   failed: number;
 }
-

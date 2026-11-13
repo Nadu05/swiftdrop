@@ -66,6 +66,7 @@ services:
       FLYWAY_DB_URL: jdbc:postgresql://${NEON_DIRECT_HOST:-${NEON_HOST}}:${NEON_PORT:-5432}/${IDENTITY_DB_NAME:-swiftdrop_identity}${NEON_SSL_MODE:-?sslmode=require}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-3600000}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     ports:
       - "${IDENTITY_SERVICE_PORT:-8081}:8081"
     healthcheck:
