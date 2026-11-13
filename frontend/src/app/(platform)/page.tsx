@@ -6,17 +6,13 @@ import {
   Database, 
   MessageSquare, 
   Layers, 
-  ArrowRight, 
-  CheckCircle2, 
   Play, 
   ExternalLink,
   Shield,
   Building,
   Package,
   Truck,
-  Bell,
-  Target,
-  Users
+  Bell
 } from 'lucide-react';
 
 const services = [
@@ -58,7 +54,7 @@ const services = [
   },
   {
     name: 'Notification Service',
-    description: 'SMS, push notifications, email alerts, customer delivery event updates',
+    description: 'SMS, push notifications, email alerts, delivery event updates',
     port: 8085,
     dbName: 'swiftdrop_notification',
     path: '/api/v1/notifications',
@@ -96,80 +92,13 @@ export default function DashboardPage() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-          <Link href="/customer/dashboard" className="btn btn-primary" style={{ background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)' }}>
-            Customer Portal →
-          </Link>
-          <Link href="/health" className="btn btn-secondary">
+          <Link href="/health" className="btn btn-primary" style={{ background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)' }}>
             <Play size={16} /> System Health
           </Link>
           <Link href="/login" className="btn btn-secondary">
             Sign In / Switch Role
           </Link>
         </div>
-      </div>
-
-      {/* Role-Based Quick Access Bar */}
-      <div
-        className="glass-card"
-        style={{
-          padding: '1rem 1.5rem',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '1rem',
-          border: '1px solid rgba(56, 189, 248, 0.25)',
-          background: 'rgba(15, 23, 42, 0.65)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase' }}>
-            Role Portals:
-          </span>
-          <Link
-            href="/customers"
-            className="badge badge-primary"
-            style={{ textDecoration: 'none', padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
-          >
-            Admin: Customers
-          </Link>
-          <Link
-            href="/customer/dashboard"
-            className="badge badge-info"
-            style={{ textDecoration: 'none', padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
-          >
-            Customer Portal
-          </Link>
-          <Link
-            href="/dispatcher/dashboard"
-            className="badge badge-warning"
-            style={{ textDecoration: 'none', padding: '0.35rem 0.75rem', fontSize: '0.8rem', background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24' }}
-          >
-            Branch Dispatcher
-          </Link>
-          <Link
-            href="/book"
-            className="badge badge-success"
-            style={{ textDecoration: 'none', padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
-          >
-            Book Delivery
-          </Link>
-          <Link
-            href="/tracking"
-            className="badge badge-info"
-            style={{ textDecoration: 'none', padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
-          >
-            Track Parcel
-          </Link>
-        </div>
-
-        <Link
-          href="/login"
-          className="btn btn-secondary"
-          style={{ fontSize: '0.8rem', padding: '0.4rem 0.85rem' }}
-        >
-          Role-Based Login →
-        </Link>
       </div>
 
       {/* Metric Cards */}
@@ -209,57 +138,6 @@ export default function DashboardPage() {
           <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#ffffff' }}>RabbitMQ</div>
           <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>AMQP (5672) & UI (15672)</div>
         </div>
-      </div>
-
-      {/* Customer Intelligence & Management Overview Banner */}
-      <div
-        className="glass-card"
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '1.25rem',
-          padding: '1.25rem 1.75rem',
-          border: '1px solid rgba(59, 130, 246, 0.25)',
-          background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(30, 58, 138, 0.2) 100%)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div
-            style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '10px',
-              background: 'rgba(56, 189, 248, 0.15)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: '1px solid rgba(56, 189, 248, 0.3)',
-            }}
-          >
-            <Target size={22} color="#38bdf8" />
-          </div>
-          <div>
-            <div style={{ fontSize: '1rem', fontWeight: 700, color: '#ffffff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              Customer Summary & Accounts Directory
-              <span className="badge badge-success" style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem' }}>
-                1,428 Customers
-              </span>
-            </div>
-            <div style={{ fontSize: '0.825rem', color: '#94a3b8', marginTop: '2px' }}>
-              1,284 active users (90% activity rate) · 5,940 total orders · LKR 8.62M customer volume
-            </div>
-          </div>
-        </div>
-
-        <Link
-          href="/customers"
-          className="btn btn-primary"
-          style={{ fontSize: '0.85rem', padding: '0.55rem 1.25rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
-        >
-          Open Customer Section <ArrowRight size={15} />
-        </Link>
       </div>
 
       {/* Services Grid */}
