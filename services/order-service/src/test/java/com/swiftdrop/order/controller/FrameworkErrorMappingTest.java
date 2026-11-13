@@ -2,6 +2,8 @@ package com.swiftdrop.order.controller;
 
 import com.swiftdrop.order.config.JacksonConfig;
 import com.swiftdrop.order.config.SecurityConfig;
+import com.swiftdrop.order.location.CityDirectory;
+import com.swiftdrop.order.pricing.PricingService;
 import com.swiftdrop.order.security.CustomerIdResolver;
 import com.swiftdrop.order.service.OrderService;
 import org.junit.jupiter.api.DisplayName;
@@ -25,12 +27,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * their proper 4xx status instead of being reported as a 500 by the catch-all handler.
  */
 @WebMvcTest(OrderController.class)
-@Import({SecurityConfig.class, JacksonConfig.class, CustomerIdResolver.class})
+@Import({SecurityConfig.class, JacksonConfig.class, CustomerIdResolver.class, CityDirectory.class})
 @TestPropertySource(properties = "swiftdrop.security.enabled=false")
 class FrameworkErrorMappingTest {
 
     @Autowired private MockMvc mvc;
     @MockBean private OrderService orderService;
+    @MockBean private PricingService pricingService;
 
     @Test
     @DisplayName("GET on a path that has no handler is 404, not 500")

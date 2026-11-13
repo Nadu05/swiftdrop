@@ -1,6 +1,7 @@
 package com.swiftdrop.order.dto;
 
 import com.swiftdrop.order.entity.enums.ParcelSize;
+import com.swiftdrop.order.location.ValidCity;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
@@ -59,7 +60,20 @@ public record CreateOrderRequest(
         BigDecimal weightKg,
 
         @Size(max = 1000, message = "Delivery instructions must be at most 1000 characters")
-        String deliveryInstructions
+        String deliveryInstructions,
+
+        @NotBlank(message = "Pickup city is required")
+        @ValidCity(message = "Pickup city is not a supported city")
+        String pickupCity,
+
+        @NotBlank(message = "Delivery city is required")
+        @ValidCity(message = "Delivery city is not a supported city")
+        String dropoffCity,
+
+        /** Optional: the fee the customer saw in the quote. If it no longer matches, the order is refused (409). */
+        @DecimalMin(value = "0.00", message = "Expected fee cannot be negative")
+        @Digits(integer = 10, fraction = 2, message = "Expected fee can have at most 2 decimal places")
+        BigDecimal expectedFee
 ) {
 
     /** Same rule as the frontend booking schema: optional +, then 7-15 digits/spaces/dashes/brackets. */

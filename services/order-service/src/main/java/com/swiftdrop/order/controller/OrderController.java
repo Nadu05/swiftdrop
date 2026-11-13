@@ -1,7 +1,13 @@
 package com.swiftdrop.order.controller;
 
+import com.swiftdrop.order.dto.CityResponse;
 import com.swiftdrop.order.dto.CreateOrderRequest;
 import com.swiftdrop.order.dto.OrderResponse;
+import com.swiftdrop.order.dto.QuoteRequest;
+import com.swiftdrop.order.dto.QuoteResponse;
+import com.swiftdrop.order.location.CityDirectory;
+import com.swiftdrop.order.pricing.PriceQuote;
+import com.swiftdrop.order.pricing.PricingService;
 import com.swiftdrop.order.security.CustomerIdResolver;
 import com.swiftdrop.order.service.OrderService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -50,10 +56,33 @@ public class OrderController {
 
     private final OrderService orderService;
     private final CustomerIdResolver customerIds;
+    private final PricingService pricingService;
+    private final CityDirectory cityDirectory;
 
-    public OrderController(OrderService orderService, CustomerIdResolver customerIds) {
+    public OrderController(OrderService orderService, CustomerIdResolver customerIds,
+                           PricingService pricingService, CityDirectory cityDirectory) {
         this.orderService = orderService;
         this.customerIds = customerIds;
+        this.pricingService = pricingService;
+        this.cityDirectory = cityDirectory;
+    }
+
+    @PostMapping("/quote")
+    @Operation(summary = "Get the delivery fee before confirming",
+            description = "Calculates the fee for a parcel between two supported towns without creating anything. "
+                    + "Creating the order uses the same calculation, so the fee does not change between quote and "
+                    + "order unless the tariff changes (send expectedFee when creating to detect that).")
+    public ResponseEntity<QuoteResponse> quote(@Valid @RequestBody QuoteRequest request) {
+        PriceQuote quote = pricingService.quote(
+                request.pickupCity(), request.dropoffCity(), request.parcelSize(), request.weightKg());
+        return ResponseEntity.ok(QuoteResponse.from(quote));
+    }
+
+    @GetMapping("/cities")
+    @Operation(summary = "List the supported pickup and delivery towns",
+            description = "Use the returned code as pickupCity / dropoffCity in quotes and orders.")
+    public ResponseEntity<List<CityResponse>> cities() {
+        return ResponseEntity.ok(cityDirectory.all().stream().map(CityResponse::from).toList());
     }
 
     @PostMapping

@@ -5,10 +5,12 @@ import com.swiftdrop.order.dto.OrderResponse;
 import com.swiftdrop.order.entity.DeliveryOrder;
 import com.swiftdrop.order.entity.OrderStatusHistory;
 import com.swiftdrop.order.entity.enums.OrderStatus;
+import com.swiftdrop.order.exception.PriceChangedException;
 import com.swiftdrop.order.exception.ResourceNotFoundException;
 import com.swiftdrop.order.messaging.OrderEventRecorder;
-import com.swiftdrop.order.pricing.FeeCalculator;
-import com.swiftdrop.order.pricing.FeeCalculator.FeeQuote;
+import com.swiftdrop.order.pricing.FeeBreakdown;
+import com.swiftdrop.order.pricing.PriceQuote;
+import com.swiftdrop.order.pricing.PricingService;
 import com.swiftdrop.order.repository.DeliveryOrderRepository;
 import com.swiftdrop.order.repository.OrderStatusHistoryRepository;
 import org.slf4j.Logger;
@@ -38,20 +40,20 @@ public class OrderService {
 
     private final DeliveryOrderRepository orders;
     private final OrderStatusHistoryRepository history;
-    private final FeeCalculator feeCalculator;
+    private final PricingService pricingService;
     private final TrackingNumberGenerator trackingNumbers;
     private final OrderEventRecorder eventRecorder;
     private final TransactionTemplate transactionTemplate;
 
     public OrderService(DeliveryOrderRepository orders,
                         OrderStatusHistoryRepository history,
-                        FeeCalculator feeCalculator,
+                        PricingService pricingService,
                         TrackingNumberGenerator trackingNumbers,
                         OrderEventRecorder eventRecorder,
                         PlatformTransactionManager transactionManager) {
         this.orders = orders;
         this.history = history;
-        this.feeCalculator = feeCalculator;
+        this.pricingService = pricingService;
         this.trackingNumbers = trackingNumbers;
         this.eventRecorder = eventRecorder;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
@@ -60,6 +62,9 @@ public class OrderService {
     /**
      * Creates an order for {@code customerId} with status CREATED and its first history entry, in one
      * transaction. The fee is always computed here, never taken from the client.
+     *
+     * <p>If the request carries an {@code expectedFee} that differs from the fee calculated now, nothing is
+     * created and {@link PriceChangedException} (HTTP 409) is thrown.
      *
      * <p>When an {@code idempotencyKey} is supplied, repeating the request returns the original order
      * instead of creating a second one, including when two identical requests race: the loser hits the
@@ -107,7 +112,13 @@ public class OrderService {
     }
 
     private OrderResponse persistNewOrder(long customerId, CreateOrderRequest request, String idempotencyKey) {
-        FeeQuote fee = feeCalculator.calculate(request.parcelSize(), request.weightKg());
+        // Same code path as POST /orders/quote: the fee charged is computed exactly like the fee shown.
+        PriceQuote price = pricingService.quote(
+                request.pickupCity(), request.dropoffCity(), request.parcelSize(), request.weightKg());
+        FeeBreakdown fee = price.fee();
+        if (request.expectedFee() != null && request.expectedFee().compareTo(fee.totalFee()) != 0) {
+            throw new PriceChangedException();
+        }
 
         DeliveryOrder order = new DeliveryOrder(customerId, allocateTrackingNumber());
         order.setPickupAddress(request.pickupAddress());
@@ -120,7 +131,14 @@ public class OrderService {
         order.setParcelSize(request.parcelSize());
         order.setWeightKg(request.weightKg().setScale(2, RoundingMode.HALF_UP));
         order.setDeliveryInstructions(blankToNull(request.deliveryInstructions()));
+        order.setPickupCity(price.pickup().code());
+        order.setDropoffCity(price.dropoff().code());
+        order.setDistanceKm(price.distanceKm());
         order.setDeliveryFee(fee.totalFee());
+        order.setBaseFee(fee.baseFee());
+        order.setWeightFee(fee.weightFee());
+        order.setDistanceFee(fee.distanceFee());
+        order.setZoneSurcharge(fee.zoneSurcharge());
         order.setCurrency(fee.currency());
         order.setStatus(OrderStatus.CREATED);
         order.setIdempotencyKey(idempotencyKey);

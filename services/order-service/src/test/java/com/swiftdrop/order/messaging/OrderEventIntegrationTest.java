@@ -64,6 +64,8 @@ class OrderEventIntegrationTest extends ApplicationIntegrationTest {
         body.put("dropoffContactPhone", "0718849201");
         body.put("parcelSize", "SMALL");
         body.put("weightKg", 0.5);
+        body.put("pickupCity", "COLOMBO");
+        body.put("dropoffCity", "KANDY");
         return objectMapper.writeValueAsString(body);
     }
 
