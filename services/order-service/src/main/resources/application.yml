@@ -33,6 +33,33 @@ spring:
     username: ${RABBITMQ_USER:swiftdrop}
     password: ${RABBITMQ_PASSWORD:password}
     connection-timeout: 10000
+    # The outbox relay waits for the broker's confirm before marking an event as published.
+    publisher-confirm-type: correlated
+    publisher-returns: true
+
+swiftdrop:
+  security:
+    # TESTING ONLY: auth is switched OFF for this development stage. Set ORDER_AUTH_ENABLED=true (or change
+    # the default below to true) once the auth routes exist. When off, orders are created for
+    # dev-customer-id, or for the customer in the X-Customer-Id header.
+    enabled: ${ORDER_AUTH_ENABLED:false}
+    dev-customer-id: ${ORDER_DEV_CUSTOMER_ID:1}
+    # Shared HS256 signing secret, injected from the environment. When empty, every request to a
+    # protected endpoint is rejected (fail closed). Only used when enabled is true.
+    jwt-secret: ${JWT_SECRET:}
+    role-claim: ${JWT_ROLE_CLAIM:role}
+  pricing:
+    # PLACEHOLDER rates until the agreed formula lands in feature/order-fee-calculation.
+    currency: LKR
+    base-fee: 500.00
+    per-kg-fee: 150.00
+  outbox:
+    # Relays committed events to RabbitMQ; see docs/events.md.
+    enabled: true
+    batch-size: 20
+    poll-interval-ms: 2000
+    confirm-timeout-ms: 5000
+    max-backoff-seconds: 300
 
 management:
   endpoints:

@@ -51,7 +51,7 @@ First, start the PostgreSQL infrastructure using Docker Compose.
 Navigate to the directory containing the relevant Compose file. For example:
 
 ```bash
-cd infrastructure/dev
+cd infrastructure/local
 ```
 
 Configure the `.env` file according to the project's `.env.example` file. Ensure that the PostgreSQL container name, username, password, and port mapping match the Compose configuration.
@@ -111,7 +111,8 @@ docker exec -it swiftdrop-postgres \
 After creating the databases, navigate to the development infrastructure directory:
 
 ```bash
-cd infrastructure/dev
+cd infrastructure/dev 
+
 ```
 
 Configure the `.env` file correctly, then execute the project's provided startup script.

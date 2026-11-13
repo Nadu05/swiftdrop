@@ -19,11 +19,11 @@ param(
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
-$DC = @("docker", "compose", "-f", "docker-compose.yml")
+function Invoke-DC { docker compose -f docker-compose.yml @args }
 
 function Write-Info($msg) { Write-Host "==> $msg" -ForegroundColor Blue }
-function Write-Ok($msg) { Write-Host "✔ $msg" -ForegroundColor Green }
-function Write-Err($msg) { Write-Host "✘ $msg" -ForegroundColor Red; exit 1 }
+function Write-Ok($msg) { Write-Host "[OK] $msg" -ForegroundColor Green }
+function Write-Err($msg) { Write-Host "[ERROR] $msg" -ForegroundColor Red; exit 1 }
 
 # Map targets
 $services = switch ($Target) {
@@ -54,35 +54,35 @@ if ($mvn) {
 switch ($Action) {
     "start" {
         Write-Info "Starting containers..."
-        & @DC up -d $services
+        Invoke-DC up -d $services
         Write-Ok "Containers started."
     }
     "stop" {
         Write-Info "Stopping containers..."
-        & @DC stop $services
+        Invoke-DC stop $services
         Write-Ok "Containers stopped."
     }
     "restart" {
         Write-Info "Restarting containers..."
-        & @DC restart $services
+        Invoke-DC restart $services
         Write-Ok "Containers restarted."
     }
     "rebuild" {
         Write-Info "Building and re-creating containers..."
         $buildArgs = @("build")
         if ($noCache) { $buildArgs += "--no-cache" }
-        & @DC @buildArgs $services
-        & @DC up -d --force-recreate --no-deps $services
+        Invoke-DC @buildArgs $services
+        Invoke-DC up -d --force-recreate --no-deps $services
         Write-Ok "Rebuilt and restarted."
     }
     "status" {
-        & @DC ps -a
+        Invoke-DC ps -a
     }
     "logs" {
-        & @DC logs -f --tail=100 $services
+        Invoke-DC logs -f --tail=100 $services
     }
     "down" {
-        & @DC down
+        Invoke-DC down
         Write-Ok "Environment torn down."
     }
     default {

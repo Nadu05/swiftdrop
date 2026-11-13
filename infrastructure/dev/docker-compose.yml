@@ -207,6 +207,23 @@ services:
       - swiftdrop-network
     restart: unless-stopped
 
+  # ==================== FRONTEND ====================
+
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
+    container_name: swiftdrop-frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    networks:
+      - swiftdrop-network
+    restart: unless-stopped
 
 
 # ==================== VOLUMES ====================
