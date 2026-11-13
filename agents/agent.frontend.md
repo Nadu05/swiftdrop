@@ -521,6 +521,20 @@ access to browser code.
 -   [ ] No unrelated refactors or unapproved dependency changes were
     introduced.
 
+## 16. Confirmed Business Workflow & UI Rules
+
+> **Authoritative Business Specifications:** See `agents/SwiftDrop_Business_Process.md` and `agents/SwiftDrop_Finalized_Business_Decisions.md` for complete operational rules.
+
+When building or updating frontend portals (Customer, Merchant, Dispatcher, Courier, Head Office Admin), adhere to the confirmed business decisions:
+
+- **Payment Selection (BD-01):** Order forms must support both **Prepaid** and **Cash on Delivery (COD)**, clearly distinguishing the delivery fee from any merchant COD collection amount.
+- **Pickup Method Selection (BD-04 & BD-05):** Both Customer and Merchant booking flows must allow choosing between **Courier Pickup** and **Branch Drop-off**.
+- **Authoritative Quotations (BD-06):** Quotes are calculated by the Order Service based on distance, parcel weight, and parcel size/dimensions. Never treat client-side calculations as final.
+- **Inter-Branch Transfers (BD-03):** Regular couriers handle inter-branch transfers via transfer manifests; Courier and Dispatcher UIs must distinguish transfer manifests from standard customer pickups and last-mile deliveries.
+- **Delivery Attempts & Dispatcher Escalation (BD-02 & BD-07):** Up to **3 delivery attempts** are permitted. After 3 failed attempts, parcels enter `Pending Dispatcher Decision` for the dispatcher to initiate Return to Sender (RTS) or another authorized action.
+- **Proof of Delivery (BD-08):** Courier delivery completion requires recipient name, timestamp, and signature or photo evidence.
+- **Merchant Approvals (Service Ownership):** Merchant registration review and approval belong to Head Office Administration / Organization Service (`:8082`), not branch dispatchers.
+
 **Default rule:** Routes compose pages; API modules perform HTTP
 requests; TanStack Query manages remote data; Zustand manages client
 state; React Hook Form manages forms; Zod validates input; and shared
