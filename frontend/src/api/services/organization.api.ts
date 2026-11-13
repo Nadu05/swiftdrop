@@ -1,13 +1,20 @@
 import { apiClient } from '@/api/axios-client';
 import type {
+  BranchCourierAssignmentPayload,
+  BranchCourierRosterItem,
   BranchCreateRequest,
+  BranchDeliveryQueueMetrics,
+  BranchDeliveryRequestItem,
   BranchResolutionRequest,
   BranchResolutionResponse,
   BranchResponse,
   BranchStatus,
   BranchSummaryMetrics,
   BranchUpdateRequest,
+  EligibleBranchCourierItem,
+  OrganizationAuditEventItem,
   OrganizationDashboardMetrics,
+  OrganizationStaffAccountItem,
   ServiceAreaResponse,
   ServiceAreaStatus,
 } from '@/types/organization.types';
@@ -390,3 +397,219 @@ export function calculateOrganizationDashboardMetrics(
     inactiveServiceAreas,
   };
 }
+
+/* ==========================================================================
+   Branch Console & Access Control Frontend Integration Boundaries
+   (Screens 28, 29, 30, and 35 — Member 04)
+   ========================================================================== */
+
+/**
+ * Computes summary counts for Screen 28 (Branch Console / Delivery Request Queue)
+ * strictly from actual backend `BranchDeliveryRequestItem[]` records.
+ * Never returns hardcoded screenshot numbers (such as 14, 32, or 6).
+ */
+export function calculateBranchDeliveryQueueMetrics(
+  requests: BranchDeliveryRequestItem[]
+): BranchDeliveryQueueMetrics {
+  const unassignedCount = requests.filter(
+    (item) => item.assignmentStatus === 'UNASSIGNED'
+  ).length;
+  const assignedTodayCount = requests.filter(
+    (item) => item.assignmentStatus === 'ASSIGNED'
+  ).length;
+  const readyForPickupCount = requests.filter(
+    (item) => item.assignmentStatus === 'READY_FOR_PICKUP'
+  ).length;
+
+  return {
+    unassignedCount,
+    assignedTodayCount,
+    readyForPickupCount,
+  };
+}
+
+/**
+ * Frontend Integration Boundary for Screen 28 — Branch Console / Delivery Request Queue.
+ *
+ * TODO (Backend Integration — Member 03 / Order & Dispatch Services):
+ * Connect to the final branch-scoped delivery queue endpoint once exposed by the backend
+ * (e.g. `GET /api/v1/organization/branches/{branchId}/delivery-requests`).
+ * Does NOT return hardcoded sample delivery requests (such as SD-10521 or SD-10520).
+ */
+export async function getBranchDeliveryQueue(
+  branchId?: number
+): Promise<BranchDeliveryRequestItem[]> {
+  if (!branchId) {
+    return [];
+  }
+
+  try {
+    const response = await apiClient.get<BranchDeliveryRequestItem[]>(
+      `${BRANCHES_BASE_PATH}/${branchId}/delivery-requests`
+    );
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error: any) {
+    throw buildOrganizationApiError(
+      error,
+      `Branch delivery queue endpoint (${BRANCHES_BASE_PATH}/${branchId}/delivery-requests) is not yet available from the backend.`
+    );
+  }
+}
+
+/**
+ * Frontend Integration Boundary for Screen 29 — Branch Console / Courier Assignment (Delivery Summary).
+ *
+ * TODO (Backend Integration — Member 03 / Order & Dispatch Services):
+ * Connect to the branch-scoped delivery request detail endpoint once exposed by the backend
+ * (e.g. `GET /api/v1/organization/branches/{branchId}/delivery-requests/{deliveryId}`).
+ * Does NOT fabricate sample delivery details.
+ */
+export async function getBranchDeliveryForAssignment(
+  deliveryId: string,
+  branchId?: number
+): Promise<BranchDeliveryRequestItem> {
+  const endpoint = branchId
+    ? `${BRANCHES_BASE_PATH}/${branchId}/delivery-requests/${encodeURIComponent(deliveryId)}`
+    : `${BRANCHES_BASE_PATH}/delivery-requests/${encodeURIComponent(deliveryId)}`;
+
+  try {
+    const response = await apiClient.get<BranchDeliveryRequestItem>(endpoint);
+    return response.data;
+  } catch (error: any) {
+    throw buildOrganizationApiError(
+      error,
+      `Delivery summary endpoint (${endpoint}) is not yet available from the backend.`
+    );
+  }
+}
+
+/**
+ * Frontend Integration Boundary for Screen 29 — Branch Console / Courier Assignment (Eligible Couriers).
+ *
+ * IMPORTANT TEAM BOUNDARY:
+ * Courier eligibility, distance calculations, and workload sorting belong strictly to the backend.
+ * This function only fetches the backend-sorted candidate list and never computes eligibility
+ * or returns hardcoded couriers (such as Kasun Perera, Nimal Silva, or Tharindu Jay).
+ *
+ * TODO (Backend Integration — Member 03 / Dispatch Service):
+ * Connect to `GET /api/v1/organization/branches/{branchId}/delivery-requests/{deliveryId}/eligible-couriers`
+ * once exposed by the backend.
+ */
+export async function getEligibleBranchCouriers(
+  deliveryId: string,
+  branchId?: number
+): Promise<EligibleBranchCourierItem[]> {
+  const endpoint = branchId
+    ? `${BRANCHES_BASE_PATH}/${branchId}/delivery-requests/${encodeURIComponent(deliveryId)}/eligible-couriers`
+    : `${BRANCHES_BASE_PATH}/delivery-requests/${encodeURIComponent(deliveryId)}/eligible-couriers`;
+
+  try {
+    const response = await apiClient.get<EligibleBranchCourierItem[]>(endpoint);
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error: any) {
+    throw buildOrganizationApiError(
+      error,
+      `Eligible couriers endpoint (${endpoint}) is not yet available from the backend.`
+    );
+  }
+}
+
+/**
+ * Frontend Integration Boundary for Screen 29 — Confirm Courier Assignment & Notify Courier.
+ *
+ * IMPORTANT:
+ * Never simulates a fake successful assignment when the backend endpoint is unavailable.
+ *
+ * TODO (Backend Integration — Member 03 / Dispatch Service):
+ * Connect to `POST /api/v1/organization/branches/{branchId}/delivery-requests/{deliveryId}/assign-courier`
+ * once exposed by the backend.
+ */
+export async function confirmBranchCourierAssignment(
+  payload: BranchCourierAssignmentPayload
+): Promise<void> {
+  const endpoint = payload.branchId
+    ? `${BRANCHES_BASE_PATH}/${payload.branchId}/delivery-requests/${encodeURIComponent(payload.deliveryId)}/assign-courier`
+    : `${BRANCHES_BASE_PATH}/delivery-requests/${encodeURIComponent(payload.deliveryId)}/assign-courier`;
+
+  try {
+    await apiClient.post(endpoint, {
+      courierId: payload.courierId,
+      assignmentNote: payload.assignmentNote?.trim() || undefined,
+    });
+  } catch (error: any) {
+    throw buildOrganizationApiError(
+      error,
+      `Courier assignment confirmation endpoint (${endpoint}) is not yet available from the backend.`
+    );
+  }
+}
+
+/**
+ * Frontend Integration Boundary for Screen 30 — Branch Console / Courier Roster.
+ *
+ * TODO (Backend Integration — Member 03 / Courier Service):
+ * Connect to `GET /api/v1/organization/branches/{branchId}/couriers` once exposed by the backend.
+ * Does NOT fabricate hardcoded courier roster entries.
+ */
+export async function getBranchCourierRoster(
+  branchId?: number
+): Promise<BranchCourierRosterItem[]> {
+  if (!branchId) {
+    return [];
+  }
+
+  try {
+    const response = await apiClient.get<BranchCourierRosterItem[]>(
+      `${BRANCHES_BASE_PATH}/${branchId}/couriers`
+    );
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error: any) {
+    throw buildOrganizationApiError(
+      error,
+      `Branch courier roster endpoint (${BRANCHES_BASE_PATH}/${branchId}/couriers) is not yet available from the backend.`
+    );
+  }
+}
+
+/**
+ * Frontend Integration Boundary for Screen 35 — Admin / Roles, Permissions and Audit Log (Staff Accounts).
+ *
+ * TODO (Backend Integration — Member 03 / Identity Service):
+ * Connect to `GET /api/v1/organization/staff` once exposed by the backend.
+ * Never fabricates fake staff account records.
+ */
+export async function getOrganizationStaffAccounts(): Promise<OrganizationStaffAccountItem[]> {
+  try {
+    const response = await apiClient.get<OrganizationStaffAccountItem[]>(
+      '/api/v1/organization/staff'
+    );
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error: any) {
+    throw buildOrganizationApiError(
+      error,
+      'Organization staff accounts endpoint (/api/v1/organization/staff) is not yet available from the backend.'
+    );
+  }
+}
+
+/**
+ * Frontend Integration Boundary for Screen 35 — Admin / Roles, Permissions and Audit Log (Recent Audit Events).
+ *
+ * TODO (Backend Integration — Member 03 / Audit Service):
+ * Connect to `GET /api/v1/organization/audit-logs` once exposed by the backend.
+ * Never fabricates fake audit log timestamps or events.
+ */
+export async function getOrganizationAuditEvents(): Promise<OrganizationAuditEventItem[]> {
+  try {
+    const response = await apiClient.get<OrganizationAuditEventItem[]>(
+      '/api/v1/organization/audit-logs'
+    );
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error: any) {
+    throw buildOrganizationApiError(
+      error,
+      'Organization audit log endpoint (/api/v1/organization/audit-logs) is not yet available from the backend.'
+    );
+  }
+}
+
