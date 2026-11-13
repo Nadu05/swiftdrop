@@ -30,21 +30,42 @@ const USE_API = process.env.NEXT_PUBLIC_DISPATCH_API_MODE === 'api';
 
 const BASE = '/api/v1/dispatch/couriers/me';
 
-function toMessage(error: unknown, fallback: string): Error {
-  const err = error as { response?: { status?: number; data?: { message?: string } }; message?: string };
-  if (err?.response?.data?.message) return new Error(err.response.data.message);
-  if (err?.response?.status === 401) return new Error('Your session has expired. Please sign in again.');
-  if (err?.response?.status === 403) return new Error('You do not have permission to do this.');
-  if (err?.response?.status === 409) return new Error('This job was changed by your branch. Refresh and try again.');
-  if (error instanceof Error && !err.response) return USE_API ? new Error(fallback) : error;
-  return new Error(fallback);
+/** Error with a safe, user-facing message and the HTTP status (when there was one). */
+export class CourierApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status?: number,
+  ) {
+    super(message);
+    this.name = 'CourierApiError';
+  }
+}
+
+const STATUS_MESSAGES: Record<number, string> = {
+  401: 'Your session has expired. Please sign in again.',
+  403: 'You do not have permission to do this.',
+  404: 'This job is no longer assigned to you.',
+  409: 'This job was changed by your branch. Refresh and try again.',
+};
+
+function toCourierError(error: unknown, fallback: string): CourierApiError {
+  const err = error as { response?: { status?: number; data?: { message?: string } } };
+  const status = err?.response?.status;
+  if (status) {
+    // Prefer known messages; never surface raw server/stack details.
+    const message = STATUS_MESSAGES[status] ?? (status === 422 || status === 400 ? err.response?.data?.message : undefined);
+    return new CourierApiError(message ?? fallback, status);
+  }
+  // Mock mode throws plain Errors with friendly business-rule messages.
+  if (!USE_API && error instanceof Error) return new CourierApiError(error.message);
+  return new CourierApiError(fallback);
 }
 
 async function call<T>(mock: () => Promise<T>, api: () => Promise<T>, fallback: string): Promise<T> {
   try {
     return await (USE_API ? api() : mock());
   } catch (error) {
-    throw toMessage(error, fallback);
+    throw toCourierError(error, fallback);
   }
 }
 

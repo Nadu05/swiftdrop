@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import Link from 'next/link';
+import { AlertCircle, ArrowRight, Loader2, type LucideIcon } from 'lucide-react';
 import type { CourierJobPriority, CourierJobStatus } from '@/types/courier.types';
 
-/* Small shared pieces for the courier pages, built on the platform's
-   existing classes (glass-card, badge-*, btn-*) from globals.css. */
+/* Shared presentational pieces for the courier pages.
+   Styling comes from globals.css (base theme + "Courier Portal" section). */
 
 const STATUS_BADGE: Record<CourierJobStatus, { label: string; className: string }> = {
   ASSIGNED: { label: 'Assigned', className: 'badge badge-warning' },
@@ -18,62 +19,90 @@ export function JobStatusBadge({ status }: { status: CourierJobStatus }) {
   return <span className={className}>{label}</span>;
 }
 
-const PRIORITY_COLOR: Record<CourierJobPriority, string> = {
-  URGENT: '#f87171',
-  HIGH: '#fbbf24',
-  NORMAL: '#94a3b8',
-};
-
 export function PriorityTag({ priority }: { priority: CourierJobPriority }) {
-  return (
-    <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.05em', color: PRIORITY_COLOR[priority] }}>
-      {priority}
-    </span>
-  );
+  return <span className={`courier-priority courier-priority--${priority.toLowerCase()}`}>{priority}</span>;
 }
 
 export function PageHeader({ title, subtitle, action }: { title: string; subtitle: string; action?: ReactNode }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
+    <header className="courier-page-header">
       <div>
-        <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>{title}</h1>
-        <p style={{ color: '#94a3b8', fontSize: '0.95rem', marginTop: '0.25rem' }}>{subtitle}</p>
+        <h1 className="courier-page-header__title">{title}</h1>
+        <p className="courier-page-header__subtitle">{subtitle}</p>
       </div>
       {action}
+    </header>
+  );
+}
+
+export function SectionHeader({
+  id,
+  title,
+  subtitle,
+  link,
+}: {
+  id: string;
+  title: string;
+  subtitle: string;
+  link?: { href: string; label: string };
+}) {
+  return (
+    <div className="courier-section__head">
+      <div>
+        <h2 id={id} className="courier-section__title">
+          {title}
+        </h2>
+        <p className="courier-section__subtitle">{subtitle}</p>
+      </div>
+      {link && (
+        <Link href={link.href} className="courier-link">
+          {link.label} <ArrowRight size={14} aria-hidden="true" />
+        </Link>
+      )}
     </div>
   );
 }
 
-export function StatCard({ label, value, hint, icon }: { label: string; value: ReactNode; hint: string; icon: ReactNode }) {
+type IconTone = 'primary' | 'success' | 'warning' | 'purple' | 'danger';
+
+export function StatCard({
+  label,
+  value,
+  hint,
+  icon: Icon,
+  tone,
+}: {
+  label: string;
+  value: ReactNode;
+  hint: string;
+  icon: LucideIcon;
+  tone: IconTone;
+}) {
   return (
     <div className="glass-card">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-        <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: 600 }}>{label}</span>
-        {icon}
+      <div className="courier-stat__head">
+        <span>{label}</span>
+        <Icon size={18} className={`courier-icon--${tone}`} aria-hidden={true} />
       </div>
-      <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#ffffff' }}>{value}</div>
-      <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>{hint}</div>
+      <div className="courier-stat__value">{value}</div>
+      <div className="courier-stat__hint">{hint}</div>
     </div>
   );
 }
 
 export function LoadingState({ text = 'Loading…' }: { text?: string }) {
   return (
-    <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#94a3b8' }}>
-      <Loader2 size={18} className="animate-spin" /> {text}
+    <div className="glass-card courier-state" role="status" aria-live="polite">
+      <Loader2 size={18} className="courier-spin" aria-hidden="true" /> {text}
     </div>
   );
 }
 
 export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <div
-      className="glass-card"
-      role="alert"
-      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', borderColor: 'rgba(239, 68, 68, 0.4)' }}
-    >
-      <span style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', color: '#fca5a5' }}>
-        <AlertCircle size={18} /> {message}
+    <div className="glass-card courier-state courier-state--error" role="alert">
+      <span className="courier-row">
+        <AlertCircle size={18} aria-hidden="true" /> {message}
       </span>
       {onRetry && (
         <button type="button" className="btn btn-secondary" onClick={onRetry}>
@@ -86,31 +115,23 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
 
 export function EmptyState({ text, action }: { text: string; action?: ReactNode }) {
   return (
-    <div className="glass-card" style={{ textAlign: 'center', color: '#94a3b8', padding: '2rem' }}>
+    <div className="glass-card courier-state courier-state--empty">
       <p>{text}</p>
-      {action && <div style={{ marginTop: '1rem' }}>{action}</div>}
+      {action}
     </div>
   );
 }
 
-export const formatLkr = (amount: number) => `LKR ${amount.toLocaleString('en-LK')}`;
-
-export const formatTime = (iso?: string) =>
-  iso ? new Intl.DateTimeFormat('en-LK', { hour: 'numeric', minute: '2-digit' }).format(new Date(iso)) : '—';
-
-export const formatDateTime = (iso?: string) =>
-  iso
-    ? new Intl.DateTimeFormat('en-LK', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }).format(new Date(iso))
-    : '—';
-
-/** Muted label + white value pair used in detail panels. */
+/** Muted label + value pair used in detail panels. */
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', minWidth: 0 }}>
-      <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-        {label}
-      </span>
-      <span style={{ fontSize: '0.9rem', color: '#e2e8f0' }}>{children}</span>
+    <div className="courier-field">
+      <span className="courier-field__label">{label}</span>
+      <span className="courier-field__value">{children}</span>
     </div>
   );
 }
+
+/** Readable message from any thrown value (CourierApiError, Error, unknown). */
+export const errorMessage = (error: unknown, fallback = 'Something went wrong. Please try again.') =>
+  error instanceof Error && error.message ? error.message : fallback;
