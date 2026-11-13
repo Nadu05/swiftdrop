@@ -49,6 +49,8 @@ export default function DeliveryStatusChart({
             Current operational parcel distribution
           </p>
         </div>
+
+        <span className="dispatcher-pill-badge dispatcher-pill-badge--live">LIVE</span>
       </div>
 
       <div className="dispatcher-status-chart-body">

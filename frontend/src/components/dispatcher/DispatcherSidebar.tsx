@@ -64,7 +64,7 @@ export const DISPATCHER_NAV_SECTIONS: readonly NavSection[] = [
     items: [
       { label: 'User Management', href: '/dispatcher/users', icon: UserCog },
       { label: 'Merchant Management', href: '/dispatcher/merchants', icon: Store },
-      { label: 'Delivery Zones & Pricing', href: '/dispatcher/zones', icon: MapPinned },
+      { label: 'Delivery Zones & Pricing', href: '/dispatcher/zones-pricing', icon: MapPinned },
     ],
   },
   {
@@ -94,6 +94,12 @@ const ALL_HREFS: readonly string[] = [
  */
 function getActiveHref(pathname: string | null): string | null {
   if (!pathname) return null;
+  if (pathname === '/dispatcher/zones' || pathname.startsWith('/dispatcher/zones/')) {
+    return '/dispatcher/zones-pricing';
+  }
+  if (pathname === '/dispatcher/merchant-approvals' || pathname.startsWith('/dispatcher/merchant-approvals/')) {
+    return '/dispatcher/merchants';
+  }
 
   let match: string | null = null;
   for (const href of ALL_HREFS) {
@@ -171,7 +177,7 @@ function DispatcherSidebar({ id, isOpen, onClose, onNavigate, onLogout }: Dispat
             </span>
             <span className="dispatcher-sidebar__brand-text">
               <span className="dispatcher-sidebar__brand-name">SwiftDrop</span>
-              <span className="dispatcher-sidebar__brand-subtitle">Dispatch Management</span>
+              <span className="dispatcher-sidebar__brand-subtitle">DELIVERY NETWORK</span>
             </span>
           </Link>
 
@@ -219,6 +225,16 @@ function DispatcherSidebar({ id, isOpen, onClose, onNavigate, onLogout }: Dispat
               </button>
             </li>
           </ul>
+
+          <div className="dispatcher-sidebar__profile">
+            <div className="dispatcher-sidebar__profile-avatar" aria-hidden="true">
+              DP
+            </div>
+            <div className="dispatcher-sidebar__profile-info">
+              <span className="dispatcher-sidebar__profile-name">Dispatch Operations</span>
+              <span className="dispatcher-sidebar__profile-role">Head Office Control</span>
+            </div>
+          </div>
         </div>
       </aside>
     </>
