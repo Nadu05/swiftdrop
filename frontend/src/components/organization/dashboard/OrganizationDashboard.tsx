@@ -1,108 +1,65 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
   AlertCircle,
   RefreshCw,
 } from 'lucide-react';
-import {
-  calculateOrganizationDashboardMetrics,
-  getBranches,
-  getServiceAreas,
-} from '@/api/services/organization.api';
-import type {
-  BranchResponse,
-  ServiceAreaResponse,
-} from '@/types/organization.types';
+import { calculateOrganizationDashboardMetrics } from '@/api/services/organization.api';
+import { useBranches, useServiceAreas } from '@/hooks/api/use-organization';
 import OrganizationWelcome from './OrganizationWelcome';
 import OrganizationSummaryCards from './OrganizationSummaryCards';
 import BranchStatusOverview from './BranchStatusOverview';
 import ServiceAreaOverview from './ServiceAreaOverview';
 
 export default function OrganizationDashboard() {
-  const [branches, setBranches] = useState<BranchResponse[]>([]);
-  const [serviceAreas, setServiceAreas] = useState<ServiceAreaResponse[]>([]);
+  const {
+    data: branches = [],
+    isLoading: isLoadingBranches,
+    isRefetching: isRefetchingBranches,
+    error: rawBranchesError,
+    refetch: refetchBranches,
+    dataUpdatedAt: branchesUpdatedAt,
+  } = useBranches();
 
-  const [isLoadingBranches, setIsLoadingBranches] = useState<boolean>(true);
-  const [isLoadingServiceAreas, setIsLoadingServiceAreas] = useState<boolean>(true);
-  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const {
+    data: serviceAreas = [],
+    isLoading: isLoadingServiceAreas,
+    isRefetching: isRefetchingServiceAreas,
+    error: rawServiceAreasError,
+    refetch: refetchServiceAreas,
+  } = useServiceAreas();
 
-  const [branchesError, setBranchesError] = useState<string | null>(null);
-  const [serviceAreasError, setServiceAreasError] = useState<string | null>(null);
+  const isRefreshing = isRefetchingBranches || isRefetchingServiceAreas;
 
-  const [lastUpdatedLabel, setLastUpdatedLabel] = useState<string | null>(null);
+  const branchesError = rawBranchesError
+    ? rawBranchesError instanceof Error
+      ? rawBranchesError.message
+      : 'Failed to load organization branches from backend.'
+    : null;
 
-  const loadDashboardData = useCallback(async (isManualRefresh = false) => {
-    if (isManualRefresh) {
-      setIsRefreshing(true);
-    } else {
-      setIsLoadingBranches(true);
-      setIsLoadingServiceAreas(true);
-    }
+  const serviceAreasError = rawServiceAreasError
+    ? rawServiceAreasError instanceof Error
+      ? rawServiceAreasError.message
+      : 'Failed to load service areas from backend.'
+    : null;
 
-    setBranchesError(null);
-    setServiceAreasError(null);
+  const lastUpdatedLabel = branchesUpdatedAt
+    ? new Date(branchesUpdatedAt).toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      })
+    : null;
 
-    const [branchesResult, serviceAreasResult] = await Promise.allSettled([
-      getBranches(),
-      getServiceAreas(),
-    ]);
+  const handleRefreshAll = () => {
+    refetchBranches();
+    refetchServiceAreas();
+  };
 
-    if (branchesResult.status === 'fulfilled') {
-      setBranches(branchesResult.value);
-      setLastUpdatedLabel(
-        new Date().toLocaleTimeString([], {
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-        })
-      );
-    } else {
-      setBranches([]);
-      setBranchesError(
-        branchesResult.reason instanceof Error
-          ? branchesResult.reason.message
-          : 'Failed to load organization branches from backend.'
-      );
-    }
-
-    if (serviceAreasResult.status === 'fulfilled') {
-      setServiceAreas(serviceAreasResult.value);
-    } else {
-      setServiceAreas([]);
-      setServiceAreasError(
-        serviceAreasResult.reason instanceof Error
-          ? serviceAreasResult.reason.message
-          : 'Failed to load service areas from backend.'
-      );
-    }
-
-    setIsLoadingBranches(false);
-    setIsLoadingServiceAreas(false);
-    setIsRefreshing(false);
-  }, []);
-
-  const retryServiceAreasOnly = useCallback(async () => {
-    setIsLoadingServiceAreas(true);
-    setServiceAreasError(null);
-    try {
-      const data = await getServiceAreas();
-      setServiceAreas(data);
-    } catch (err: any) {
-      setServiceAreas([]);
-      setServiceAreasError(
-        err instanceof Error
-          ? err.message
-          : 'Failed to load service areas from backend.'
-      );
-    } finally {
-      setIsLoadingServiceAreas(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadDashboardData(false);
-  }, [loadDashboardData]);
+  const retryServiceAreasOnly = () => {
+    refetchServiceAreas();
+  };
 
   const metrics = useMemo(
     () => calculateOrganizationDashboardMetrics(branches, serviceAreas),
@@ -117,7 +74,7 @@ export default function OrganizationDashboard() {
         lastUpdatedLabel={lastUpdatedLabel}
         isLoading={isLoadingBranches}
         isRefreshing={isRefreshing}
-        onRefresh={() => loadDashboardData(true)}
+        onRefresh={handleRefreshAll}
       />
 
       {/* Explicit API Error State when Backend is Unreachable */}
@@ -137,7 +94,7 @@ export default function OrganizationDashboard() {
             <button
               type="button"
               className="org-btn org-btn--primary"
-              onClick={() => loadDashboardData(true)}
+              onClick={handleRefreshAll}
             >
               <RefreshCw size={14} aria-hidden="true" />
               <span>Retry Live API</span>

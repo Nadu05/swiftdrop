@@ -11,9 +11,9 @@ import {
   Users,
 } from 'lucide-react';
 import {
-  getOrganizationAuditEvents,
-  getOrganizationStaffAccounts,
-} from '@/api/services/organization.api';
+  useOrganizationAuditEvents,
+  useOrganizationStaffAccounts,
+} from '@/hooks/api/use-organization';
 import type {
   OrganizationAuditEventItem,
   OrganizationStaffAccountItem,
@@ -81,68 +81,38 @@ export default function RolesPermissionsAuditView() {
     return 'role-permissions';
   });
 
-  const [staffAccounts, setStaffAccounts] = useState<
-    OrganizationStaffAccountItem[]
-  >([]);
-  const [auditEvents, setAuditEvents] = useState<OrganizationAuditEventItem[]>(
-    []
-  );
-  const [isLoadingStaff, setIsLoadingStaff] = useState<boolean>(false);
-  const [isLoadingAudit, setIsLoadingAudit] = useState<boolean>(true);
-  const [staffUnavailableMessage, setStaffUnavailableMessage] = useState<
-    string | null
-  >(null);
-  const [auditUnavailableMessage, setAuditUnavailableMessage] = useState<
-    string | null
-  >(null);
+  const {
+    data: staffAccounts = [],
+    isLoading: isLoadingStaff,
+    error: rawStaffError,
+    refetch: refetchStaff,
+  } = useOrganizationStaffAccounts();
 
-  const loadAuditEvents = useCallback(async () => {
-    setIsLoadingAudit(true);
-    setAuditUnavailableMessage(null);
+  const {
+    data: auditEvents = [],
+    isLoading: isLoadingAudit,
+    error: rawAuditError,
+    refetch: refetchAudit,
+  } = useOrganizationAuditEvents();
 
-    try {
-      const events = await getOrganizationAuditEvents();
-      setAuditEvents(events);
-    } catch (err: unknown) {
-      setAuditEvents([]);
-      setAuditUnavailableMessage(
-        err instanceof Error
-          ? err.message
-          : 'Organization audit log endpoint is not yet available from the backend.'
-      );
-    } finally {
-      setIsLoadingAudit(false);
-    }
-  }, []);
+  const staffUnavailableMessage = rawStaffError
+    ? rawStaffError instanceof Error
+      ? rawStaffError.message
+      : 'Organization staff accounts endpoint is not yet available from the backend.'
+    : null;
 
-  const loadStaffAccounts = useCallback(async () => {
-    setIsLoadingStaff(true);
-    setStaffUnavailableMessage(null);
+  const auditUnavailableMessage = rawAuditError
+    ? rawAuditError instanceof Error
+      ? rawAuditError.message
+      : 'Organization audit log endpoint is not yet available from the backend.'
+    : null;
 
-    try {
-      const staff = await getOrganizationStaffAccounts();
-      setStaffAccounts(staff);
-    } catch (err: unknown) {
-      setStaffAccounts([]);
-      setStaffUnavailableMessage(
-        err instanceof Error
-          ? err.message
-          : 'Organization staff accounts endpoint is not yet available from the backend.'
-      );
-    } finally {
-      setIsLoadingStaff(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadAuditEvents();
-  }, [loadAuditEvents]);
-
-  useEffect(() => {
+  const handleRefresh = () => {
+    refetchAudit();
     if (activeTab === 'staff-accounts') {
-      loadStaffAccounts();
+      refetchStaff();
     }
-  }, [activeTab, loadStaffAccounts]);
+  };
 
   return (
     <div className="org-page org-console-page">
@@ -163,12 +133,7 @@ export default function RolesPermissionsAuditView() {
             <button
               type="button"
               className="org-btn org-btn--secondary"
-              onClick={() => {
-                loadAuditEvents();
-                if (activeTab === 'staff-accounts') {
-                  loadStaffAccounts();
-                }
-              }}
+              onClick={handleRefresh}
               disabled={isLoadingAudit || isLoadingStaff}
             >
               <RefreshCw

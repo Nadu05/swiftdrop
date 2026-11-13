@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
@@ -13,17 +13,15 @@ import {
 } from 'lucide-react';
 import BranchDetails from '@/components/organization/branches/BranchDetails';
 import BranchStatusDialog from '@/components/organization/branches/BranchStatusDialog';
-import {
-  getBranchById,
-  OrganizationApiError,
-} from '@/api/services/organization.api';
+import { OrganizationApiError } from '@/api/services/organization.api';
+import { useBranch } from '@/hooks/api/use-organization';
 import type { BranchResponse } from '@/types/organization.types';
 
 /**
  * Branch Details Page (/organization/branches/[id])
  * Member 04 — Organization Admin UI (Phase 3)
  *
- * Fetches a single branch via `GET /api/v1/organization/branches/{id}`
+ * Fetches a single branch via `GET /api/v1/organization/branches/{id}` using TanStack Query
  * and supports status activation/deactivation via `PATCH /api/v1/organization/branches/{id}`.
  */
 export default function BranchDetailsPage() {
@@ -32,53 +30,32 @@ export default function BranchDetailsPage() {
   const numericId = Number(rawId);
   const isValidBranchId = Number.isInteger(numericId) && numericId > 0;
 
-  const [branch, setBranch] = useState<BranchResponse | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isNotFound, setIsNotFound] = useState<boolean>(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const {
+    data: branch,
+    isLoading: isQueryLoading,
+    error: queryError,
+    refetch,
+  } = useBranch(numericId);
 
   // Status confirmation dialog state
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState<boolean>(false);
   const [statusSuccessMessage, setStatusSuccessMessage] = useState<string | null>(null);
 
-  const fetchBranch = useCallback(async () => {
-    if (!isValidBranchId) {
-      setIsLoading(false);
-      setIsNotFound(true);
-      setLoadError(`Invalid branch ID "${rawId}". Branch ID must be a positive integer.`);
-      return;
-    }
+  const isLoading = isValidBranchId && isQueryLoading;
 
-    setIsLoading(true);
-    setIsNotFound(false);
-    setLoadError(null);
+  const isNotFound =
+    !isValidBranchId ||
+    (queryError instanceof OrganizationApiError && queryError.status === 404);
 
-    try {
-      const data = await getBranchById(numericId);
-      setBranch(data);
-    } catch (err: unknown) {
-      setBranch(null);
-      if (err instanceof OrganizationApiError && err.status === 404) {
-        setIsNotFound(true);
-        setLoadError(err.message);
-      } else {
-        setLoadError(
-          err instanceof Error
-            ? err.message
-            : `Unable to load branch #${numericId} from the Organization Service.`
-        );
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isValidBranchId, numericId, rawId]);
-
-  useEffect(() => {
-    fetchBranch();
-  }, [fetchBranch]);
+  const loadError = !isValidBranchId
+    ? `Invalid branch ID "${rawId}". Branch ID must be a positive integer.`
+    : queryError
+    ? queryError instanceof Error
+      ? queryError.message
+      : `Unable to load branch #${numericId} from the Organization Service.`
+    : null;
 
   const handleStatusUpdated = (updatedBranch: BranchResponse) => {
-    setBranch(updatedBranch);
     setIsStatusDialogOpen(false);
     const actionWord =
       updatedBranch.status === 'ACTIVE' ? 'activated' : 'deactivated';
@@ -86,6 +63,10 @@ export default function BranchDetailsPage() {
       `Branch "${updatedBranch.name}" (${updatedBranch.code}) has been ${actionWord} and is now ${updatedBranch.status}.`
     );
   };
+
+  const fetchBranch = useCallback(() => {
+    refetch();
+  }, [refetch]);
 
   return (
     <div className="org-page">

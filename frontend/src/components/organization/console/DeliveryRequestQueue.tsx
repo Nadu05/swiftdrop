@@ -12,11 +12,8 @@ import {
   RefreshCw,
   Search,
 } from 'lucide-react';
-import {
-  calculateBranchDeliveryQueueMetrics,
-  getBranchDeliveryQueue,
-  getBranches,
-} from '@/api/services/organization.api';
+import { calculateBranchDeliveryQueueMetrics } from '@/api/services/organization.api';
+import { useBranches, useBranchDeliveryQueue } from '@/hooks/api/use-organization';
 import type {
   BranchDeliveryQueueFilter,
   BranchDeliveryQueueStatus,
@@ -50,96 +47,60 @@ export default function DeliveryRequestQueue() {
   const searchParams = useSearchParams();
   const branchIdParam = searchParams.get('branchId');
 
-  const [branches, setBranches] = useState<BranchResponse[]>([]);
-  const [selectedBranchId, setSelectedBranchId] = useState<number | undefined>(
+  const {
+    data: branches = [],
+    isLoading: isLoadingBranches,
+    error: rawBranchError,
+  } = useBranches();
+
+  const [explicitBranchId, setExplicitBranchId] = useState<number | undefined>(
     branchIdParam && !Number.isNaN(Number(branchIdParam))
       ? Number(branchIdParam)
       : undefined
   );
 
-  const [requests, setRequests] = useState<BranchDeliveryRequestItem[]>([]);
-  const [isLoadingBranches, setIsLoadingBranches] = useState<boolean>(true);
-  const [isLoadingQueue, setIsLoadingQueue] = useState<boolean>(false);
-  const [branchError, setBranchError] = useState<string | null>(null);
-  const [queueUnavailableMessage, setQueueUnavailableMessage] = useState<string | null>(
-    null
-  );
+  const selectedBranchId = useMemo(() => {
+    if (explicitBranchId !== undefined) return explicitBranchId;
+    if (branches.length === 0) return undefined;
+    const requestedId =
+      branchIdParam && !Number.isNaN(Number(branchIdParam))
+        ? Number(branchIdParam)
+        : undefined;
+    const matchingBranch = requestedId
+      ? branches.find((b) => b.id === requestedId)
+      : undefined;
+    return (
+      matchingBranch ??
+      branches.find((b) => b.status === 'ACTIVE') ??
+      branches[0]
+    )?.id;
+  }, [branches, explicitBranchId, branchIdParam]);
+
+  const setSelectedBranchId = (id: number | undefined) => {
+    setExplicitBranchId(id);
+  };
+
+  const {
+    data: requests = [],
+    isLoading: isLoadingQueue,
+    error: rawQueueError,
+    refetch: refetchQueue,
+  } = useBranchDeliveryQueue(selectedBranchId);
 
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<BranchDeliveryQueueFilter>('OPEN');
 
-  const loadBranchContext = useCallback(async () => {
-    setIsLoadingBranches(true);
-    setBranchError(null);
+  const branchError = rawBranchError
+    ? rawBranchError instanceof Error
+      ? rawBranchError.message
+      : 'Unable to load branch context from Organization Service.'
+    : null;
 
-    try {
-      const branchList = await getBranches();
-      setBranches(branchList);
-
-      if (branchList.length > 0) {
-        const requestedId =
-          branchIdParam && !Number.isNaN(Number(branchIdParam))
-            ? Number(branchIdParam)
-            : undefined;
-        const matchingBranch = requestedId
-          ? branchList.find((b) => b.id === requestedId)
-          : undefined;
-        const defaultBranch =
-          matchingBranch ??
-          branchList.find((b) => b.status === 'ACTIVE') ??
-          branchList[0];
-
-        setSelectedBranchId(defaultBranch.id);
-      } else {
-        setSelectedBranchId(undefined);
-      }
-    } catch (err: unknown) {
-      setBranches([]);
-      setSelectedBranchId(undefined);
-      setBranchError(
-        err instanceof Error
-          ? err.message
-          : 'Unable to load branch context from Organization Service.'
-      );
-    } finally {
-      setIsLoadingBranches(false);
-    }
-  }, [branchIdParam]);
-
-  const loadDeliveryQueue = useCallback(async (branchId?: number) => {
-    if (!branchId) {
-      setRequests([]);
-      setQueueUnavailableMessage(null);
-      return;
-    }
-
-    setIsLoadingQueue(true);
-    setQueueUnavailableMessage(null);
-
-    try {
-      const queueItems = await getBranchDeliveryQueue(branchId);
-      setRequests(queueItems);
-    } catch (err: unknown) {
-      setRequests([]);
-      setQueueUnavailableMessage(
-        err instanceof Error
-          ? err.message
-          : 'Branch delivery request queue API is not yet available from the backend.'
-      );
-    } finally {
-      setIsLoadingQueue(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadBranchContext();
-  }, [loadBranchContext]);
-
-  useEffect(() => {
-    if (!isLoadingBranches) {
-      loadDeliveryQueue(selectedBranchId);
-    }
-  }, [isLoadingBranches, selectedBranchId, loadDeliveryQueue]);
+  const queueUnavailableMessage = rawQueueError
+    ? rawQueueError instanceof Error
+      ? rawQueueError.message
+      : 'Branch delivery request queue API is not yet available from the backend.'
+    : null;
 
   const selectedBranch = useMemo(
     () => branches.find((b) => b.id === selectedBranchId) ?? null,
@@ -203,13 +164,7 @@ export default function DeliveryRequestQueue() {
             <button
               type="button"
               className="org-btn org-btn--secondary"
-              onClick={() => {
-                if (selectedBranchId) {
-                  loadDeliveryQueue(selectedBranchId);
-                } else {
-                  loadBranchContext();
-                }
-              }}
+              onClick={() => refetchQueue()}
               disabled={isLoading}
             >
               <RefreshCw
@@ -420,7 +375,7 @@ export default function DeliveryRequestQueue() {
               <button
                 type="button"
                 className="org-btn org-btn--primary"
-                onClick={loadBranchContext}
+                onClick={() => refetchQueue()}
               >
                 <RefreshCw size={14} aria-hidden="true" />
                 <span>Retry Connection</span>
@@ -467,7 +422,7 @@ export default function DeliveryRequestQueue() {
               <button
                 type="button"
                 className="org-btn org-btn--secondary"
-                onClick={() => loadDeliveryQueue(selectedBranchId)}
+                onClick={() => refetchQueue()}
               >
                 <RefreshCw size={14} aria-hidden="true" />
                 <span>Retry Queue Fetch</span>

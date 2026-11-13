@@ -14,10 +14,8 @@ import BranchSummaryCards from '@/components/organization/branches/BranchSummary
 import BranchFilters from '@/components/organization/branches/BranchFilters';
 import BranchTable from '@/components/organization/branches/BranchTable';
 import BranchStatusDialog from '@/components/organization/branches/BranchStatusDialog';
-import {
-  calculateBranchSummaryMetrics,
-  getBranches,
-} from '@/api/services/organization.api';
+import { calculateBranchSummaryMetrics } from '@/api/services/organization.api';
+import { useBranches } from '@/hooks/api/use-organization';
 import type {
   BranchResponse,
   BranchStatusFilter,
@@ -51,11 +49,14 @@ const DIRECTORY_TABS = [
 ] as const;
 
 export default function OrganizationBranchesPage() {
-  const [branches, setBranches] = useState<BranchResponse[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<string>('');
+  const {
+    data: branches = [],
+    isLoading,
+    isRefetching,
+    error: queryError,
+    refetch,
+    dataUpdatedAt,
+  } = useBranches();
 
   // Search & Status Filter state
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -71,35 +72,21 @@ export default function OrganizationBranchesPage() {
   // Phase boundary notice for sibling tabs (Staff accounts, Roles & permissions, Audit log)
   const [phaseNotice, setPhaseNotice] = useState<string | null>(null);
 
-  const formatTimestamp = () =>
-    new Intl.DateTimeFormat('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    }).format(new Date());
+  const error = queryError
+    ? queryError instanceof Error
+      ? queryError.message
+      : 'Unable to load branch directory from the Organization Service.'
+    : null;
 
-  const loadLiveBranches = useCallback(async () => {
-    try {
-      setError(null);
-      const data = await getBranches();
-      setBranches(data);
-      setLastUpdated(formatTimestamp());
-    } catch (err: unknown) {
-      setBranches([]);
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Unable to load branch directory from the Organization Service.'
-      );
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, []);
+  const lastUpdated = dataUpdatedAt
+    ? new Intl.DateTimeFormat('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      }).format(new Date(dataUpdatedAt))
+    : '';
 
   useEffect(() => {
-    loadLiveBranches();
-
     if (typeof window !== 'undefined') {
       const searchParams = new URLSearchParams(window.location.search);
       const createdCode = searchParams.get('created');
@@ -117,17 +104,15 @@ export default function OrganizationBranchesPage() {
         window.history.replaceState({}, '', '/organization/branches');
       }
     }
-  }, [loadLiveBranches]);
+  }, []);
 
   const handleRefresh = useCallback(() => {
-    setIsRefreshing(true);
-    loadLiveBranches();
-  }, [loadLiveBranches]);
+    refetch();
+  }, [refetch]);
 
   const handleRetry = useCallback(() => {
-    setIsLoading(true);
-    loadLiveBranches();
-  }, [loadLiveBranches]);
+    refetch();
+  }, [refetch]);
 
   const handleResetFilters = useCallback(() => {
     setSearchQuery('');
@@ -167,29 +152,14 @@ export default function OrganizationBranchesPage() {
   }, []);
 
   const handleStatusUpdated = useCallback(
-    async (updatedBranch: BranchResponse) => {
+    (updatedBranch: BranchResponse) => {
       setBranchPendingStatusToggle(null);
-
-      // Immediately update local state so table row and summary cards reflect the confirmed change
-      setBranches((prev) =>
-        prev.map((item) => (item.id === updatedBranch.id ? updatedBranch : item))
-      );
-      setLastUpdated(formatTimestamp());
 
       const actionWord =
         updatedBranch.status === 'ACTIVE' ? 'activated' : 'deactivated';
       setSuccessBanner(
         `Branch "${updatedBranch.name}" (${updatedBranch.code}) has been ${actionWord} and is now ${updatedBranch.status}.`
       );
-
-      // Re-fetch authoritative list from the backend
-      try {
-        const freshList = await getBranches();
-        setBranches(freshList);
-        setLastUpdated(formatTimestamp());
-      } catch {
-        // Keep the confirmed updatedBranch in state if the background refresh fails
-      }
     },
     []
   );
@@ -237,15 +207,15 @@ export default function OrganizationBranchesPage() {
             type="button"
             className="org-btn org-btn--secondary"
             onClick={handleRefresh}
-            disabled={isLoading || isRefreshing}
+            disabled={isLoading || isRefetching}
             aria-label="Refresh branch directory"
           >
             <RefreshCw
               size={14}
-              className={isRefreshing ? 'org-icon--spinning' : ''}
+              className={isRefetching ? 'org-icon--spinning' : ''}
               aria-hidden="true"
             />
-            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+            <span>{isRefetching ? 'Refreshing...' : 'Refresh'}</span>
           </button>
 
           <Link

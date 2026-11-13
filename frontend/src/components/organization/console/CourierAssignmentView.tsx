@@ -14,10 +14,10 @@ import {
   X,
 } from 'lucide-react';
 import {
-  confirmBranchCourierAssignment,
-  getBranchDeliveryForAssignment,
-  getEligibleBranchCouriers,
-} from '@/api/services/organization.api';
+  useBranchDeliveryForAssignment,
+  useConfirmBranchCourierAssignment,
+  useEligibleBranchCouriers,
+} from '@/hooks/api/use-organization';
 import type {
   BranchDeliveryRequestItem,
   EligibleBranchCourierItem,
@@ -56,74 +56,56 @@ export default function CourierAssignmentView() {
       ? Number(branchIdParam)
       : undefined;
 
-  const [delivery, setDelivery] = useState<BranchDeliveryRequestItem | null>(null);
-  const [eligibleCouriers, setEligibleCouriers] = useState<
-    EligibleBranchCourierItem[]
-  >([]);
+  const {
+    data: deliveryData,
+    isLoading: isLoadingDelivery,
+    error: rawDeliveryError,
+    refetch: refetchDelivery,
+  } = useBranchDeliveryForAssignment(deliveryIdParam, branchId);
+
+  const {
+    data: eligibleCouriers = [],
+    isLoading: isLoadingCouriers,
+    error: rawCouriersError,
+    refetch: refetchCouriers,
+  } = useEligibleBranchCouriers(deliveryIdParam, branchId);
+
+  const assignMutation = useConfirmBranchCourierAssignment();
+
+  const delivery = deliveryData ?? null;
+
   const [selectedCourierId, setSelectedCourierId] = useState<string | null>(null);
   const [assignmentNote, setAssignmentNote] = useState<string>('');
 
-  const [isLoading, setIsLoading] = useState<boolean>(Boolean(deliveryIdParam));
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [deliveryError, setDeliveryError] = useState<string | null>(null);
-  const [couriersError, setCouriersError] = useState<string | null>(null);
   const [actionFeedback, setActionFeedback] = useState<{
     type: 'success' | 'error' | 'info';
     message: string;
   } | null>(null);
 
-  const loadAssignmentContext = useCallback(async () => {
-    if (!deliveryIdParam) {
-      setDelivery(null);
-      setEligibleCouriers([]);
-      setSelectedCourierId(null);
-      setDeliveryError(null);
-      setCouriersError(null);
-      setIsLoading(false);
-      return;
-    }
+  const isLoading = Boolean(deliveryIdParam) && (isLoadingDelivery || isLoadingCouriers);
+  const isSubmitting = assignMutation.isPending;
 
-    setIsLoading(true);
-    setDeliveryError(null);
-    setCouriersError(null);
+  const deliveryError = rawDeliveryError
+    ? rawDeliveryError instanceof Error
+      ? rawDeliveryError.message
+      : 'Delivery summary endpoint is not yet available from the backend.'
+    : null;
 
-    const [deliveryResult, couriersResult] = await Promise.allSettled([
-      getBranchDeliveryForAssignment(deliveryIdParam, branchId),
-      getEligibleBranchCouriers(deliveryIdParam, branchId),
-    ]);
-
-    if (deliveryResult.status === 'fulfilled') {
-      setDelivery(deliveryResult.value);
-    } else {
-      setDelivery(null);
-      setDeliveryError(
-        deliveryResult.reason instanceof Error
-          ? deliveryResult.reason.message
-          : 'Delivery summary endpoint is not yet available from the backend.'
-      );
-    }
-
-    if (couriersResult.status === 'fulfilled') {
-      setEligibleCouriers(couriersResult.value);
-      setSelectedCourierId(
-        couriersResult.value.length > 0 ? couriersResult.value[0].id : null
-      );
-    } else {
-      setEligibleCouriers([]);
-      setSelectedCourierId(null);
-      setCouriersError(
-        couriersResult.reason instanceof Error
-          ? couriersResult.reason.message
-          : 'Eligible couriers endpoint is not yet available from the backend.'
-      );
-    }
-
-    setIsLoading(false);
-  }, [deliveryIdParam, branchId]);
+  const couriersError = rawCouriersError
+    ? rawCouriersError instanceof Error
+      ? rawCouriersError.message
+      : 'Eligible couriers endpoint is not yet available from the backend.'
+    : null;
 
   useEffect(() => {
-    loadAssignmentContext();
-  }, [loadAssignmentContext]);
+    if (eligibleCouriers.length > 0 && !selectedCourierId) {
+      setSelectedCourierId(eligibleCouriers[0].id);
+    }
+  }, [eligibleCouriers, selectedCourierId]);
+
+  const loadAssignmentContext = useCallback(async () => {
+    await Promise.allSettled([refetchDelivery(), refetchCouriers()]);
+  }, [refetchDelivery, refetchCouriers]);
 
   const selectedCourier = useMemo(
     () =>
@@ -152,9 +134,8 @@ export default function CourierAssignmentView() {
       return;
     }
 
-    setIsSubmitting(true);
     try {
-      await confirmBranchCourierAssignment({
+      await assignMutation.mutateAsync({
         deliveryId: deliveryIdParam,
         branchId,
         courierId: selectedCourier.id,
@@ -174,8 +155,6 @@ export default function CourierAssignmentView() {
             ? err.message
             : 'Unable to confirm courier assignment with the backend.',
       });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
