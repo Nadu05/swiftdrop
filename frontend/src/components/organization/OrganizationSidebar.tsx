@@ -7,9 +7,8 @@ import type { LucideIcon } from 'lucide-react';
 import {
   Building2,
   ChartColumn,
-  ClipboardList,
+  Headphones,
   LayoutDashboard,
-  ShieldCheck,
   Settings,
   Store,
   Truck,
@@ -27,8 +26,7 @@ export interface OrganizationNavItem {
 
 /**
  * Navigation items matching Figma Frame 34 — Admin / Branch Directory and Staff (node 20:843).
- * In Phase 1, `/organization` and `/organization/branches` are active routes;
- * sibling Head Office items are rendered to match the Figma sidebar design.
+ * Head Office Organization Admin navigation.
  */
 export const ORGANIZATION_NAV_ITEMS: readonly OrganizationNavItem[] = [
   {
@@ -39,34 +37,6 @@ export const ORGANIZATION_NAV_ITEMS: readonly OrganizationNavItem[] = [
     implemented: true,
   },
   {
-    id: 'merchant-approvals',
-    label: 'Merchant approvals',
-    href: '/organization/branches#merchant-approvals',
-    icon: Store,
-    implemented: false,
-  },
-  {
-    id: 'orders',
-    label: 'Orders',
-    href: '/organization/console/requests',
-    icon: ClipboardList,
-    implemented: true,
-  },
-  {
-    id: 'customers',
-    label: 'Customers',
-    href: '/organization/branches#customers',
-    icon: Users,
-    implemented: false,
-  },
-  {
-    id: 'couriers',
-    label: 'Couriers',
-    href: '/organization/console/couriers',
-    icon: Truck,
-    implemented: true,
-  },
-  {
     id: 'branches',
     label: 'Branches',
     href: '/organization/branches',
@@ -74,72 +44,44 @@ export const ORGANIZATION_NAV_ITEMS: readonly OrganizationNavItem[] = [
     implemented: true,
   },
   {
-    id: 'reports',
-    label: 'Reports',
-    href: '/organization/branches#reports',
-    icon: ChartColumn,
+    id: 'dispatchers',
+    label: 'Dispatchers',
+    href: '/organization/dispatchers',
+    icon: Headphones,
+    implemented: true,
+  },
+  {
+    id: 'couriers',
+    label: 'Couriers',
+    href: '/organization/couriers',
+    icon: Truck,
+    implemented: true,
+  },
+  {
+    id: 'users',
+    label: 'Users',
+    href: '/organization/users',
+    icon: Users,
+    implemented: true,
+  },
+  {
+    id: 'merchant-approvals',
+    label: 'Merchant approvals',
+    href: '/organization/branches#merchant-approvals',
+    icon: Store,
     implemented: false,
   },
   {
-    id: 'roles-audit',
-    label: 'Roles & audit',
-    href: '/organization/roles-audit',
-    icon: ShieldCheck,
+    id: 'reports',
+    label: 'Reports & Analytics',
+    href: '/organization/reports',
+    icon: ChartColumn,
     implemented: true,
   },
   {
     id: 'settings',
     label: 'Settings',
     href: '/organization/branches#settings',
-    icon: Settings,
-    implemented: false,
-  },
-];
-
-/**
- * Branch Console navigation items matching Figma Screens 28, 29, and 30
- * (Branch Console / Delivery Request Queue, Courier Assignment, Courier Roster).
- */
-export const BRANCH_CONSOLE_NAV_ITEMS: readonly OrganizationNavItem[] = [
-  {
-    id: 'overview',
-    label: 'Overview',
-    href: '/organization',
-    icon: LayoutDashboard,
-    implemented: true,
-  },
-  {
-    id: 'delivery-requests',
-    label: 'Delivery requests',
-    href: '/organization/console/requests',
-    icon: ClipboardList,
-    implemented: true,
-  },
-  {
-    id: 'courier-roster',
-    label: 'Courier roster',
-    href: '/organization/console/couriers',
-    icon: Truck,
-    implemented: true,
-  },
-  {
-    id: 'branch-staff',
-    label: 'Branch staff',
-    href: '/organization/roles-audit?tab=staff-accounts',
-    icon: Users,
-    implemented: true,
-  },
-  {
-    id: 'reports',
-    label: 'Reports',
-    href: '/organization/console/requests#reports',
-    icon: ChartColumn,
-    implemented: false,
-  },
-  {
-    id: 'settings',
-    label: 'Settings',
-    href: '/organization/console/requests#settings',
     icon: Settings,
     implemented: false,
   },
@@ -167,13 +109,6 @@ function OrganizationSidebar({
     }
   }, [isOpen]);
 
-  const isBranchConsoleMode = Boolean(
-    pathname?.startsWith('/organization/console')
-  );
-  const navItems = isBranchConsoleMode
-    ? BRANCH_CONSOLE_NAV_ITEMS
-    : ORGANIZATION_NAV_ITEMS;
-
   const isItemActive = (item: OrganizationNavItem): boolean => {
     if (!pathname) return false;
     if (item.id === 'branches') {
@@ -182,20 +117,32 @@ function OrganizationSidebar({
         pathname.startsWith('/organization/branches/')
       );
     }
+    if (item.id === 'dispatchers') {
+      return (
+        pathname === '/organization/dispatchers' ||
+        pathname.startsWith('/organization/dispatchers/')
+      );
+    }
+    if (item.id === 'couriers') {
+      return (
+        pathname === '/organization/couriers' ||
+        pathname.startsWith('/organization/couriers/')
+      );
+    }
+    if (item.id === 'users') {
+      return (
+        pathname === '/organization/users' ||
+        pathname.startsWith('/organization/users/')
+      );
+    }
     if (item.id === 'overview') {
       return pathname === '/organization';
     }
-    if (item.id === 'roles-audit') {
-      return pathname === '/organization/roles-audit';
-    }
-    if (item.id === 'delivery-requests' || item.id === 'orders') {
+    if (item.id === 'reports') {
       return (
-        pathname === '/organization/console/requests' ||
-        pathname === '/organization/console/assign'
+        pathname === '/organization/reports' ||
+        pathname.startsWith('/organization/reports/')
       );
-    }
-    if (item.id === 'courier-roster' || item.id === 'couriers') {
-      return pathname === '/organization/console/couriers';
     }
     return false;
   };
@@ -211,31 +158,17 @@ function OrganizationSidebar({
       <aside
         id={id}
         className={`org-sidebar${isOpen ? ' org-sidebar--open' : ''}`}
-        aria-label={
-          isBranchConsoleMode
-            ? 'Branch Console sidebar'
-            : 'Organization Head Office sidebar'
-        }
+        aria-label="Organization Head Office sidebar"
       >
         <div className="org-sidebar__header">
           <Link
-            href={
-              isBranchConsoleMode
-                ? '/organization/console/requests'
-                : '/organization'
-            }
+            href="/organization"
             className="org-sidebar__brand"
-            aria-label={
-              isBranchConsoleMode
-                ? 'SwiftDrop Branch Console'
-                : 'SwiftDrop Head Office — Organization Admin Dashboard'
-            }
+            aria-label="SwiftDrop Head Office — Organization Admin Dashboard"
             onClick={onNavigate}
           >
             <span className="org-sidebar__brand-name">SwiftDrop</span>
-            <span className="org-sidebar__brand-subtitle">
-              {isBranchConsoleMode ? 'BRANCH CONSOLE' : 'HEAD OFFICE'}
-            </span>
+            <span className="org-sidebar__brand-subtitle">HEAD OFFICE</span>
           </Link>
 
           <button
@@ -251,7 +184,7 @@ function OrganizationSidebar({
 
         <nav className="org-sidebar__nav" aria-label="Organization navigation">
           <ul className="org-sidebar__list">
-            {navItems.map((item) => {
+            {ORGANIZATION_NAV_ITEMS.map((item) => {
               const Icon = item.icon;
               const active = isItemActive(item);
 
@@ -260,7 +193,7 @@ function OrganizationSidebar({
                   <li key={item.id}>
                     <span
                       className="org-sidebar__link org-sidebar__link--disabled"
-                      title={`${item.label} (Available in a future phase)`}
+                      title={`${item.label} (Managed in dedicated domain module)`}
                       aria-disabled="true"
                     >
                       <Icon className="org-sidebar__icon" size={17} aria-hidden="true" />
@@ -289,28 +222,9 @@ function OrganizationSidebar({
         </nav>
 
         <div className="org-sidebar__footer">
-          <Link
-            href={
-              isBranchConsoleMode
-                ? '/organization/branches'
-                : '/organization/console/requests'
-            }
-            className="org-sidebar__mode-switch"
-            onClick={onNavigate}
-          >
-            <span>
-              {isBranchConsoleMode
-                ? 'Switch to Head Office Admin'
-                : 'Open Branch Console'}
-            </span>
-          </Link>
           <div className="org-sidebar__signed-in">
             <span className="org-sidebar__status-dot" aria-hidden="true" />
-            <span>
-              {isBranchConsoleMode
-                ? 'Signed in: BRANCH CONSOLE'
-                : 'Signed in: Head Office'}
-            </span>
+            <span>Signed in: Head Office</span>
           </div>
         </div>
       </aside>
@@ -319,4 +233,3 @@ function OrganizationSidebar({
 }
 
 export default memo(OrganizationSidebar);
-

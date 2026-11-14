@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
@@ -13,18 +13,22 @@ import {
 } from 'lucide-react';
 import BranchDetails from '@/components/organization/branches/BranchDetails';
 import BranchStatusDialog from '@/components/organization/branches/BranchStatusDialog';
+import { OrganizationApiError } from '@/api/services/organization.api';
 import {
-  getBranchById,
-  OrganizationApiError,
-} from '@/api/services/organization.api';
+  useBranch,
+  useBranchPerformanceSummary,
+  useBranchServiceAreas,
+} from '@/hooks/api/use-organization';
 import type { BranchResponse } from '@/types/organization.types';
 
 /**
  * Branch Details Page (/organization/branches/[id])
- * Member 04 — Organization Admin UI (Phase 3)
+ * Member 04 — Organization Admin UI
  *
- * Fetches a single branch via `GET /api/v1/organization/branches/{id}`
- * and supports status activation/deactivation via `PATCH /api/v1/organization/branches/{id}`.
+ * Fetches:
+ * - `GET /api/v1/organization/branches/{id}` (Branch identity, address, coordinates, status)
+ * - `GET /api/v1/organization/service-areas/branch/{branchId}` (Member 03 circular service-area radius zones)
+ * - `GET /api/v1/organization/branches/{id}/performance-summary` (Branch operational analytics contract)
  */
 export default function BranchDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -32,53 +36,58 @@ export default function BranchDetailsPage() {
   const numericId = Number(rawId);
   const isValidBranchId = Number.isInteger(numericId) && numericId > 0;
 
-  const [branch, setBranch] = useState<BranchResponse | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isNotFound, setIsNotFound] = useState<boolean>(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const {
+    data: branch,
+    isLoading: isQueryLoading,
+    error: queryError,
+    refetch: refetchBranch,
+  } = useBranch(numericId);
+
+  const {
+    data: serviceAreas = [],
+    isLoading: isLoadingServiceAreas,
+    error: rawServiceAreasError,
+    refetch: refetchServiceAreas,
+  } = useBranchServiceAreas(numericId);
+
+  const {
+    data: performanceSummary = null,
+    isLoading: isLoadingPerformance,
+    error: rawPerformanceError,
+    refetch: refetchPerformance,
+  } = useBranchPerformanceSummary(numericId);
 
   // Status confirmation dialog state
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState<boolean>(false);
   const [statusSuccessMessage, setStatusSuccessMessage] = useState<string | null>(null);
 
-  const fetchBranch = useCallback(async () => {
-    if (!isValidBranchId) {
-      setIsLoading(false);
-      setIsNotFound(true);
-      setLoadError(`Invalid branch ID "${rawId}". Branch ID must be a positive integer.`);
-      return;
-    }
+  const isLoading = isValidBranchId && isQueryLoading;
 
-    setIsLoading(true);
-    setIsNotFound(false);
-    setLoadError(null);
+  const isNotFound =
+    !isValidBranchId ||
+    (queryError instanceof OrganizationApiError && queryError.status === 404);
 
-    try {
-      const data = await getBranchById(numericId);
-      setBranch(data);
-    } catch (err: unknown) {
-      setBranch(null);
-      if (err instanceof OrganizationApiError && err.status === 404) {
-        setIsNotFound(true);
-        setLoadError(err.message);
-      } else {
-        setLoadError(
-          err instanceof Error
-            ? err.message
-            : `Unable to load branch #${numericId} from the Organization Service.`
-        );
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isValidBranchId, numericId, rawId]);
+  const loadError = !isValidBranchId
+    ? `Invalid branch ID "${rawId}". Branch ID must be a positive integer.`
+    : queryError
+    ? queryError instanceof Error
+      ? queryError.message
+      : `Unable to load branch #${numericId} from the Organization Service.`
+    : null;
 
-  useEffect(() => {
-    fetchBranch();
-  }, [fetchBranch]);
+  const serviceAreasError = rawServiceAreasError
+    ? rawServiceAreasError instanceof Error
+      ? rawServiceAreasError.message
+      : `Unable to load service areas for branch #${numericId}.`
+    : null;
+
+  const performanceError = rawPerformanceError
+    ? rawPerformanceError instanceof Error
+      ? rawPerformanceError.message
+      : `Branch analytics endpoint is currently unavailable for branch #${numericId}.`
+    : null;
 
   const handleStatusUpdated = (updatedBranch: BranchResponse) => {
-    setBranch(updatedBranch);
     setIsStatusDialogOpen(false);
     const actionWord =
       updatedBranch.status === 'ACTIVE' ? 'activated' : 'deactivated';
@@ -86,6 +95,20 @@ export default function BranchDetailsPage() {
       `Branch "${updatedBranch.name}" (${updatedBranch.code}) has been ${actionWord} and is now ${updatedBranch.status}.`
     );
   };
+
+  const fetchBranch = useCallback(() => {
+    refetchBranch();
+    refetchServiceAreas();
+    refetchPerformance();
+  }, [refetchBranch, refetchServiceAreas, refetchPerformance]);
+
+  const handleRetryServiceAreas = useCallback(() => {
+    refetchServiceAreas();
+  }, [refetchServiceAreas]);
+
+  const handleRetryPerformance = useCallback(() => {
+    refetchPerformance();
+  }, [refetchPerformance]);
 
   return (
     <div className="org-page">
@@ -125,8 +148,8 @@ export default function BranchDetailsPage() {
             {branch ? branch.name : 'Branch Details'}
           </h1>
           <p className="org-page-header__subtitle">
-            View complete branch identity, physical address, geographic coordinates, contact
-            channels, and operational status.
+            View complete branch identity, physical address, interactive map coverage, circular
+            service-area radius zones, and branch analytics.
           </p>
         </div>
       </header>
@@ -195,6 +218,14 @@ export default function BranchDetailsPage() {
           <BranchDetails
             branch={branch}
             onRequestStatusToggle={() => setIsStatusDialogOpen(true)}
+            serviceAreas={serviceAreas}
+            isLoadingServiceAreas={isLoadingServiceAreas}
+            serviceAreasError={serviceAreasError}
+            onRetryServiceAreas={handleRetryServiceAreas}
+            performanceSummary={performanceSummary}
+            isLoadingPerformance={isLoadingPerformance}
+            performanceError={performanceError}
+            onRetryPerformance={handleRetryPerformance}
           />
 
           <BranchStatusDialog
@@ -208,4 +239,3 @@ export default function BranchDetailsPage() {
     </div>
   );
 }
-

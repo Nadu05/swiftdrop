@@ -14,52 +14,35 @@ import BranchSummaryCards from '@/components/organization/branches/BranchSummary
 import BranchFilters from '@/components/organization/branches/BranchFilters';
 import BranchTable from '@/components/organization/branches/BranchTable';
 import BranchStatusDialog from '@/components/organization/branches/BranchStatusDialog';
-import {
-  calculateBranchSummaryMetrics,
-  getBranches,
-} from '@/api/services/organization.api';
+import { calculateBranchSummaryMetrics } from '@/api/services/organization.api';
+import { useBranches, useServiceAreas } from '@/hooks/api/use-organization';
 import type {
   BranchResponse,
   BranchStatusFilter,
+  ServiceAreaResponse,
 } from '@/types/organization.types';
 
-const DIRECTORY_TABS = [
-  {
-    id: 'branch-directory',
-    label: 'Branch directory',
-    href: '/organization/branches',
-    active: true,
-  },
-  {
-    id: 'staff-accounts',
-    label: 'Staff accounts',
-    href: '/organization/roles-audit?tab=staff-accounts',
-    active: false,
-  },
-  {
-    id: 'roles-permissions',
-    label: 'Roles & permissions',
-    href: '/organization/roles-audit?tab=role-permissions',
-    active: false,
-  },
-  {
-    id: 'audit-log',
-    label: 'Audit log',
-    href: '/organization/roles-audit?tab=audit-log',
-    active: false,
-  },
-] as const;
-
 export default function OrganizationBranchesPage() {
-  const [branches, setBranches] = useState<BranchResponse[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<string>('');
+  const {
+    data: branches = [],
+    isLoading,
+    isRefetching,
+    error: queryError,
+    refetch,
+    dataUpdatedAt,
+  } = useBranches();
 
-  // Search & Status Filter state
+  const {
+    data: serviceAreas = [],
+    isLoading: isLoadingServiceAreas,
+    error: serviceAreasError,
+    refetch: refetchServiceAreas,
+  } = useServiceAreas();
+
+  // Search, Status & City Filter state
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<BranchStatusFilter>('ALL');
+  const [cityFilter, setCityFilter] = useState<string>('ALL');
 
   // Confirmed operation toast banner (Create, Edit, Activate, Deactivate)
   const [successBanner, setSuccessBanner] = useState<string | null>(null);
@@ -68,38 +51,21 @@ export default function OrganizationBranchesPage() {
   const [branchPendingStatusToggle, setBranchPendingStatusToggle] =
     useState<BranchResponse | null>(null);
 
-  // Phase boundary notice for sibling tabs (Staff accounts, Roles & permissions, Audit log)
-  const [phaseNotice, setPhaseNotice] = useState<string | null>(null);
+  const error = queryError
+    ? queryError instanceof Error
+      ? queryError.message
+      : 'Unable to load branch directory from the Organization Service.'
+    : null;
 
-  const formatTimestamp = () =>
-    new Intl.DateTimeFormat('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    }).format(new Date());
-
-  const loadLiveBranches = useCallback(async () => {
-    try {
-      setError(null);
-      const data = await getBranches();
-      setBranches(data);
-      setLastUpdated(formatTimestamp());
-    } catch (err: unknown) {
-      setBranches([]);
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Unable to load branch directory from the Organization Service.'
-      );
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, []);
+  const lastUpdated = dataUpdatedAt
+    ? new Intl.DateTimeFormat('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      }).format(new Date(dataUpdatedAt))
+    : '';
 
   useEffect(() => {
-    loadLiveBranches();
-
     if (typeof window !== 'undefined') {
       const searchParams = new URLSearchParams(window.location.search);
       const createdCode = searchParams.get('created');
@@ -117,21 +83,22 @@ export default function OrganizationBranchesPage() {
         window.history.replaceState({}, '', '/organization/branches');
       }
     }
-  }, [loadLiveBranches]);
+  }, []);
 
   const handleRefresh = useCallback(() => {
-    setIsRefreshing(true);
-    loadLiveBranches();
-  }, [loadLiveBranches]);
+    refetch();
+    refetchServiceAreas();
+  }, [refetch, refetchServiceAreas]);
 
   const handleRetry = useCallback(() => {
-    setIsLoading(true);
-    loadLiveBranches();
-  }, [loadLiveBranches]);
+    refetch();
+    refetchServiceAreas();
+  }, [refetch, refetchServiceAreas]);
 
   const handleResetFilters = useCallback(() => {
     setSearchQuery('');
     setStatusFilter('ALL');
+    setCityFilter('ALL');
   }, []);
 
   // Summary metrics derived from the full loaded branch list
@@ -140,12 +107,40 @@ export default function OrganizationBranchesPage() {
     [branches]
   );
 
-  // Filtered branch list by search query (code, name, or city) and status filter
+  // Distinct sorted city options from loaded branches
+  const availableCities = useMemo(() => {
+    const citySet = new Set<string>();
+    for (const branch of branches) {
+      const trimmed = branch.city.trim();
+      if (trimmed) {
+        citySet.add(trimmed);
+      }
+    }
+    return Array.from(citySet).sort((a, b) => a.localeCompare(b));
+  }, [branches]);
+
+  // Group service areas by branchId
+  const serviceAreasByBranchId = useMemo(() => {
+    const grouped: Record<number, ServiceAreaResponse[]> = {};
+    for (const area of serviceAreas) {
+      if (!grouped[area.branchId]) {
+        grouped[area.branchId] = [];
+      }
+      grouped[area.branchId].push(area);
+    }
+    return grouped;
+  }, [serviceAreas]);
+
+  // Filtered branch list by search query (code, name, or city), status filter, and city filter
   const filteredBranches = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
 
     return branches.filter((branch) => {
       if (statusFilter !== 'ALL' && branch.status !== statusFilter) {
+        return false;
+      }
+
+      if (cityFilter !== 'ALL' && branch.city.trim().toLowerCase() !== cityFilter.toLowerCase()) {
         return false;
       }
 
@@ -158,38 +153,26 @@ export default function OrganizationBranchesPage() {
 
       return true;
     });
-  }, [branches, searchQuery, statusFilter]);
+  }, [branches, searchQuery, statusFilter, cityFilter]);
 
-  const hasActiveFilters = searchQuery.trim().length > 0 || statusFilter !== 'ALL';
+  const hasActiveFilters =
+    searchQuery.trim().length > 0 || statusFilter !== 'ALL' || cityFilter !== 'ALL';
+
+  const serviceAreasAvailable = !isLoadingServiceAreas && !serviceAreasError;
 
   const handleRequestToggleStatus = useCallback((branch: BranchResponse) => {
     setBranchPendingStatusToggle(branch);
   }, []);
 
   const handleStatusUpdated = useCallback(
-    async (updatedBranch: BranchResponse) => {
+    (updatedBranch: BranchResponse) => {
       setBranchPendingStatusToggle(null);
-
-      // Immediately update local state so table row and summary cards reflect the confirmed change
-      setBranches((prev) =>
-        prev.map((item) => (item.id === updatedBranch.id ? updatedBranch : item))
-      );
-      setLastUpdated(formatTimestamp());
 
       const actionWord =
         updatedBranch.status === 'ACTIVE' ? 'activated' : 'deactivated';
       setSuccessBanner(
         `Branch "${updatedBranch.name}" (${updatedBranch.code}) has been ${actionWord} and is now ${updatedBranch.status}.`
       );
-
-      // Re-fetch authoritative list from the backend
-      try {
-        const freshList = await getBranches();
-        setBranches(freshList);
-        setLastUpdated(formatTimestamp());
-      } catch {
-        // Keep the confirmed updatedBranch in state if the background refresh fails
-      }
     },
     []
   );
@@ -214,14 +197,14 @@ export default function OrganizationBranchesPage() {
         </div>
       )}
 
-      {/* Figma Frame Context + Page Heading & Primary Action */}
+      {/* Page Heading & Primary Action */}
       <header className="org-page-header">
         <div className="org-page-header__titles">
-          <p className="org-page-header__eyebrow">Admin / Branch Directory and Staff</p>
+          <p className="org-page-header__eyebrow">Admin / Branch Directory</p>
           <h1 className="org-page-header__title">Branch Management</h1>
           <p className="org-page-header__subtitle">
-            Manage regional branches, contact details, and operational status across the
-            SwiftDrop Head Office network.
+            Manage regional branches, contact details, interactive map locations, and circular
+            service-area coverage across the SwiftDrop Head Office network.
           </p>
         </div>
 
@@ -237,15 +220,15 @@ export default function OrganizationBranchesPage() {
             type="button"
             className="org-btn org-btn--secondary"
             onClick={handleRefresh}
-            disabled={isLoading || isRefreshing}
+            disabled={isLoading || isRefetching}
             aria-label="Refresh branch directory"
           >
             <RefreshCw
               size={14}
-              className={isRefreshing ? 'org-icon--spinning' : ''}
+              className={isRefetching ? 'org-icon--spinning' : ''}
               aria-hidden="true"
             />
-            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+            <span>{isRefetching ? 'Refreshing...' : 'Refresh'}</span>
           </button>
 
           <Link
@@ -258,47 +241,18 @@ export default function OrganizationBranchesPage() {
         </div>
       </header>
 
-      {/* Figma Sub-navigation Pills (Frame 34 — Branches and staff tabs) */}
-      <div className="org-tabs" role="navigation" aria-label="Branches and staff sections">
-        {DIRECTORY_TABS.map((tab) => (
-          <Link
-            key={tab.id}
-            href={tab.href}
-            className={`org-tabs__pill${tab.active ? ' org-tabs__pill--active' : ''}`}
-            aria-current={tab.active ? 'page' : undefined}
-          >
-            {tab.label}
-          </Link>
-        ))}
-      </div>
-
-      {/* Dismissible Phase Action Feedback Notice */}
-      {phaseNotice && (
-        <div className="org-phase-notice" role="status" aria-live="polite">
-          <div className="org-phase-notice__left">
-            <Info size={16} className="org-phase-notice__icon" aria-hidden="true" />
-            <span>{phaseNotice}</span>
-          </div>
-          <button
-            type="button"
-            className="org-phase-notice__close"
-            onClick={() => setPhaseNotice(null)}
-            aria-label="Dismiss notification"
-          >
-            <X size={15} aria-hidden="true" />
-          </button>
-        </div>
-      )}
-
       {/* Branch Summary Cards */}
       <BranchSummaryCards metrics={summaryMetrics} isLoading={isLoading} />
 
-      {/* Search & Status Filter Toolbar */}
+      {/* Search, Status & City Filter Toolbar */}
       <BranchFilters
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         statusFilter={statusFilter}
         onStatusFilterChange={setStatusFilter}
+        cityFilter={cityFilter}
+        onCityFilterChange={setCityFilter}
+        availableCities={availableCities}
         totalCount={branches.length}
         filteredCount={filteredBranches.length}
         activeCount={summaryMetrics.activeBranches}
@@ -316,6 +270,8 @@ export default function OrganizationBranchesPage() {
         onRetry={handleRetry}
         onResetFilters={handleResetFilters}
         onToggleStatus={handleRequestToggleStatus}
+        serviceAreasByBranchId={serviceAreasByBranchId}
+        serviceAreasAvailable={serviceAreasAvailable}
       />
 
       {/* Activate / Deactivate Confirmation Dialog */}

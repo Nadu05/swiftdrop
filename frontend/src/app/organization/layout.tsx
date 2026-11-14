@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import OrganizationShell from '@/components/organization/OrganizationShell';
+import OrganizationProviders from '@/components/organization/OrganizationProviders';
 import './organization.css';
 
 export const metadata: Metadata = {
@@ -12,6 +13,10 @@ export default function OrganizationLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <OrganizationShell>{children}</OrganizationShell>;
+  return (
+    <OrganizationProviders>
+      <OrganizationShell>{children}</OrganizationShell>
+    </OrganizationProviders>
+  );
 }
 
