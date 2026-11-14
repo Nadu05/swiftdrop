@@ -4,8 +4,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createBranch,
   getBranchById,
+  getBranchCouriers,
+  getBranchDispatchers,
   getBranches,
   getBranchPerformanceSummary,
+  getBranchUsers,
   getOrganizationAuditEvents,
   getOrganizationStaffAccounts,
   getServiceAreas,
@@ -18,6 +21,8 @@ import type {
   BranchResponse,
   BranchStatus,
   BranchUpdateRequest,
+  BranchUserType,
+  CourierVehicleType,
   ServiceAreaStatus,
 } from '@/types/organization.types';
 
@@ -38,6 +43,12 @@ export const organizationKeys = {
     [...organizationKeys.all, 'branch-performance', branchId ?? 'none'] as const,
   staffAccounts: () => [...organizationKeys.all, 'staff-accounts'] as const,
   auditEvents: () => [...organizationKeys.all, 'audit-events'] as const,
+  dispatchers: (branchId?: number) =>
+    [...organizationKeys.all, 'dispatchers', branchId ?? 'all'] as const,
+  couriers: (branchId?: number, vehicleType?: CourierVehicleType) =>
+    [...organizationKeys.all, 'couriers', { branchId: branchId ?? 'all', vehicleType: vehicleType ?? 'all' }] as const,
+  branchUsers: (branchId?: number, userType?: BranchUserType) =>
+    [...organizationKeys.all, 'branch-users', { branchId: branchId ?? 'all', userType: userType ?? 'all' }] as const,
 };
 
 // ---------------------------------------------------------------------------
@@ -93,6 +104,27 @@ export function useOrganizationAuditEvents() {
   return useQuery({
     queryKey: organizationKeys.auditEvents(),
     queryFn: getOrganizationAuditEvents,
+  });
+}
+
+export function useBranchDispatchers(branchId?: number) {
+  return useQuery({
+    queryKey: organizationKeys.dispatchers(branchId),
+    queryFn: () => getBranchDispatchers(branchId),
+  });
+}
+
+export function useBranchCouriers(branchId?: number, vehicleType?: CourierVehicleType) {
+  return useQuery({
+    queryKey: organizationKeys.couriers(branchId, vehicleType),
+    queryFn: () => getBranchCouriers(branchId, vehicleType),
+  });
+}
+
+export function useBranchUsers(branchId?: number, userType?: BranchUserType) {
+  return useQuery({
+    queryKey: organizationKeys.branchUsers(branchId, userType),
+    queryFn: () => getBranchUsers(branchId, userType),
   });
 }
 

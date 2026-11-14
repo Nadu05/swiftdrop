@@ -22,33 +22,6 @@ import type {
   ServiceAreaResponse,
 } from '@/types/organization.types';
 
-const DIRECTORY_TABS = [
-  {
-    id: 'branch-directory',
-    label: 'Branch directory',
-    href: '/organization/branches',
-    active: true,
-  },
-  {
-    id: 'staff-accounts',
-    label: 'Staff accounts',
-    href: '/organization/roles-audit?tab=staff-accounts',
-    active: false,
-  },
-  {
-    id: 'roles-permissions',
-    label: 'Roles & permissions',
-    href: '/organization/roles-audit?tab=role-permissions',
-    active: false,
-  },
-  {
-    id: 'audit-log',
-    label: 'Audit log',
-    href: '/organization/roles-audit?tab=audit-log',
-    active: false,
-  },
-] as const;
-
 export default function OrganizationBranchesPage() {
   const {
     data: branches = [],
@@ -77,9 +50,6 @@ export default function OrganizationBranchesPage() {
   // Branch selected for Activate / Deactivate confirmation modal
   const [branchPendingStatusToggle, setBranchPendingStatusToggle] =
     useState<BranchResponse | null>(null);
-
-  // Phase boundary notice for sibling tabs (Staff accounts, Roles & permissions, Audit log)
-  const [phaseNotice, setPhaseNotice] = useState<string | null>(null);
 
   const error = queryError
     ? queryError instanceof Error
@@ -227,10 +197,10 @@ export default function OrganizationBranchesPage() {
         </div>
       )}
 
-      {/* Figma Frame Context + Page Heading & Primary Action */}
+      {/* Page Heading & Primary Action */}
       <header className="org-page-header">
         <div className="org-page-header__titles">
-          <p className="org-page-header__eyebrow">Admin / Branch Directory and Staff</p>
+          <p className="org-page-header__eyebrow">Admin / Branch Directory</p>
           <h1 className="org-page-header__title">Branch Management</h1>
           <p className="org-page-header__subtitle">
             Manage regional branches, contact details, interactive map locations, and circular
@@ -270,38 +240,6 @@ export default function OrganizationBranchesPage() {
           </Link>
         </div>
       </header>
-
-      {/* Figma Sub-navigation Pills (Frame 34 — Branches and staff tabs) */}
-      <div className="org-tabs" role="navigation" aria-label="Branches and staff sections">
-        {DIRECTORY_TABS.map((tab) => (
-          <Link
-            key={tab.id}
-            href={tab.href}
-            className={`org-tabs__pill${tab.active ? ' org-tabs__pill--active' : ''}`}
-            aria-current={tab.active ? 'page' : undefined}
-          >
-            {tab.label}
-          </Link>
-        ))}
-      </div>
-
-      {/* Dismissible Phase Action Feedback Notice */}
-      {phaseNotice && (
-        <div className="org-phase-notice" role="status" aria-live="polite">
-          <div className="org-phase-notice__left">
-            <Info size={16} className="org-phase-notice__icon" aria-hidden="true" />
-            <span>{phaseNotice}</span>
-          </div>
-          <button
-            type="button"
-            className="org-phase-notice__close"
-            onClick={() => setPhaseNotice(null)}
-            aria-label="Dismiss notification"
-          >
-            <X size={15} aria-hidden="true" />
-          </button>
-        </div>
-      )}
 
       {/* Branch Summary Cards */}
       <BranchSummaryCards metrics={summaryMetrics} isLoading={isLoading} />

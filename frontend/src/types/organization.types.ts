@@ -193,3 +193,66 @@ export interface OrganizationAuditEventItem {
   referenceCode: string;
   outcome: string;
 }
+
+// ---------------------------------------------------------------------------
+// Branch-Wise Dispatchers & Associated Users (Merchants & Customers)
+// ---------------------------------------------------------------------------
+
+export type DispatcherShiftStatus = 'ON_DUTY' | 'OFF_DUTY' | 'ON_BREAK';
+
+export interface BranchDispatcherItem {
+  id: string;
+  name: string;
+  branchId: number;
+  branchCode: string;
+  branchName: string;
+  phone: string;
+  email: string;
+  shiftStatus: DispatcherShiftStatus;
+  activeDeliveriesCount: number;
+  activeCouriersSupervised: number;
+  shiftHours: string;
+}
+
+export type BranchUserType = 'MERCHANT' | 'CUSTOMER';
+export type BranchUserStatus = 'ACTIVE' | 'INACTIVE' | 'PENDING';
+
+export interface BranchUserItem {
+  id: string;
+  userType: BranchUserType;
+  name: string;
+  branchId: number;
+  branchCode: string;
+  branchName: string;
+  city: string;
+  district: string;
+  phone: string;
+  email: string;
+  status: BranchUserStatus;
+  totalOrders: number;
+  registeredDate: string;
+}
+
+// ---------------------------------------------------------------------------
+// Branch-Wise Couriers
+// ---------------------------------------------------------------------------
+
+export type CourierVehicleType = 'MOTORCYCLE' | 'VAN' | 'BICYCLE' | 'THREE_WHEELER';
+export type CourierShiftStatus = 'AVAILABLE' | 'ON_DELIVERY' | 'OFF_DUTY';
+
+export interface BranchCourierItem {
+  id: string;
+  courierCode: string;
+  name: string;
+  branchId: number;
+  branchCode: string;
+  branchName: string;
+  phone: string;
+  email: string;
+  vehicleType: CourierVehicleType;
+  vehiclePlate: string;
+  status: CourierShiftStatus;
+  rating: number;
+  activeDeliveriesCount: number;
+  completedDeliveriesTotal: number;
+}

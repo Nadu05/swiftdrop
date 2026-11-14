@@ -9,6 +9,7 @@ import {
   Building2,
   Calendar,
   Compass,
+  Headphones,
   Info,
   Mail,
   MapPin,
@@ -17,11 +18,19 @@ import {
   Power,
   Radar,
   RefreshCw,
+  ShoppingBag,
+  Store,
+  UserCheck,
+  Users,
 } from 'lucide-react';
 import {
   calculateBranchPerformanceMetrics,
   resolveBranchDistrict,
 } from '@/api/services/organization.api';
+import {
+  useBranchDispatchers,
+  useBranchUsers,
+} from '@/hooks/api/use-organization';
 import InteractiveBranchMap from '@/components/organization/map/InteractiveBranchMap';
 import type {
   BranchPerformanceSummaryResponse,
@@ -88,6 +97,11 @@ export default function BranchDetails({
     () => calculateBranchPerformanceMetrics(performanceSummary),
     [performanceSummary]
   );
+
+  const { data: dispatchers = [], isLoading: isLoadingDispatchers } =
+    useBranchDispatchers(branch.id);
+  const { data: users = [], isLoading: isLoadingUsers } =
+    useBranchUsers(branch.id);
 
   return (
     <div className="org-details">
@@ -670,6 +684,216 @@ export default function BranchDetails({
                   <span>Check Endpoint</span>
                 </button>
               )}
+            </div>
+          )}
+        </section>
+
+        {/* Card F: Stationed Branch Dispatchers */}
+        <section
+          className="org-details-card org-details-card--full"
+          aria-labelledby="org-details-dispatchers-heading"
+          data-testid="branch-dispatchers-section"
+        >
+          <div className="org-details-card__header flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="org-details-card__icon" aria-hidden="true">
+                <Headphones size={18} strokeWidth={2.1} />
+              </div>
+              <div>
+                <h3 id="org-details-dispatchers-heading" className="org-details-card__title">
+                  Stationed Branch Dispatchers ({dispatchers.length})
+                </h3>
+                <p className="org-details-card__subtitle">
+                  Dispatchers stationed at {branch.name} managing local assignments and courier oversight.
+                </p>
+              </div>
+            </div>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/organization/dispatchers">
+                View All Dispatchers
+              </Link>
+            </Button>
+          </div>
+
+          {isLoadingDispatchers ? (
+            <div className="org-state-box" role="status" aria-live="polite">
+              <span className="org-spinner" aria-hidden="true" />
+              <p className="org-state-box__title">Loading branch dispatchers...</p>
+            </div>
+          ) : dispatchers.length === 0 ? (
+            <div className="p-8 text-center text-slate-500">
+              <Users size={28} className="mx-auto mb-2 text-slate-400" />
+              <p className="text-sm font-medium">No dispatchers assigned to this branch yet.</p>
+            </div>
+          ) : (
+            <div className="org-table-wrapper">
+              <table className="org-table">
+                <thead>
+                  <tr>
+                    <th>Dispatcher</th>
+                    <th>Shift Status</th>
+                    <th>Couriers Supervised</th>
+                    <th>Contact Channels</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dispatchers.map((d) => (
+                    <tr key={d.id} className="org-table__row">
+                      <td>
+                        <div className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                          <UserCheck size={14} className="text-blue-600" />
+                          <span>{d.name}</span>
+                        </div>
+                        <div className="text-xs text-slate-500">{d.id}</div>
+                      </td>
+                      <td>
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            d.shiftStatus === 'ON_DUTY'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : d.shiftStatus === 'ON_BREAK'
+                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                              : 'bg-slate-100 text-slate-600 border border-slate-200'
+                          }`}
+                        >
+                          {d.shiftStatus === 'ON_DUTY'
+                            ? 'On Duty'
+                            : d.shiftStatus === 'ON_BREAK'
+                            ? 'On Break'
+                            : 'Off Duty'}
+                        </span>
+                      </td>
+                      <td>
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">
+                          {d.activeCouriersSupervised}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="flex flex-col text-xs text-slate-600 dark:text-slate-300 gap-0.5">
+                          <span className="flex items-center gap-1">
+                            <Phone size={11} className="text-slate-400" /> {d.phone}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Mail size={11} className="text-slate-400" /> {d.email}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        {/* Card G: Branch Users (Merchants & Customers) */}
+        <section
+          className="org-details-card org-details-card--full"
+          aria-labelledby="org-details-users-heading"
+          data-testid="branch-users-section"
+        >
+          <div className="org-details-card__header flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="org-details-card__icon" aria-hidden="true">
+                <Users size={18} strokeWidth={2.1} />
+              </div>
+              <div>
+                <h3 id="org-details-users-heading" className="org-details-card__title">
+                  Branch Users — Merchants &amp; Customers ({users.length})
+                </h3>
+                <p className="org-details-card__subtitle">
+                  Merchants and customer accounts registered and served under {branch.name}.
+                </p>
+              </div>
+            </div>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/organization/users">
+                View All Branch Users
+              </Link>
+            </Button>
+          </div>
+
+          {isLoadingUsers ? (
+            <div className="org-state-box" role="status" aria-live="polite">
+              <span className="org-spinner" aria-hidden="true" />
+              <p className="org-state-box__title">Loading branch users...</p>
+            </div>
+          ) : users.length === 0 ? (
+            <div className="p-8 text-center text-slate-500">
+              <Users size={28} className="mx-auto mb-2 text-slate-400" />
+              <p className="text-sm font-medium">No merchants or customers linked to this branch yet.</p>
+            </div>
+          ) : (
+            <div className="org-table-wrapper">
+              <table className="org-table">
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>User Type</th>
+                    <th>City / District</th>
+                    <th>Total Orders</th>
+                    <th>Status</th>
+                    <th>Contact Channels</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((u) => (
+                    <tr key={u.id} className="org-table__row">
+                      <td>
+                        <div className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                          {u.userType === 'MERCHANT' ? (
+                            <Store size={14} className="text-purple-600" />
+                          ) : (
+                            <ShoppingBag size={14} className="text-blue-600" />
+                          )}
+                          <span>{u.name}</span>
+                        </div>
+                        <div className="text-xs text-slate-500">{u.id}</div>
+                      </td>
+                      <td>
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            u.userType === 'MERCHANT'
+                              ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                              : 'bg-blue-50 text-blue-700 border border-blue-200'
+                          }`}
+                        >
+                          {u.userType === 'MERCHANT' ? 'Merchant' : 'Customer'}
+                        </span>
+                      </td>
+                      <td className="text-xs text-slate-600 dark:text-slate-300">
+                        {u.city}, {u.district}
+                      </td>
+                      <td>
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">
+                          {u.totalOrders}
+                        </span>
+                      </td>
+                      <td>
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            u.status === 'ACTIVE'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : 'bg-slate-100 text-slate-600 border border-slate-200'
+                          }`}
+                        >
+                          {u.status}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="flex flex-col text-xs text-slate-600 dark:text-slate-300 gap-0.5">
+                          <span className="flex items-center gap-1">
+                            <Phone size={11} className="text-slate-400" /> {u.phone}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Mail size={11} className="text-slate-400" /> {u.email}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </section>

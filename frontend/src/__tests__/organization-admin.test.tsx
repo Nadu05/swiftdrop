@@ -2,6 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import {
   calculateBranchDistributionByCity,
@@ -12,7 +13,10 @@ import {
 import {
   createMockBranch,
   getMockBranches,
+  getMockBranchCouriers,
+  getMockBranchDispatchers,
   getMockBranchPerformanceSummary,
+  getMockBranchUsers,
   getMockOrganizationAuditEvents,
   getMockOrganizationStaffAccounts,
   getMockServiceAreas,
@@ -32,6 +36,9 @@ import ServiceAreaOverview from '@/components/organization/dashboard/ServiceArea
 import BranchDetails from '@/components/organization/branches/BranchDetails';
 import BranchTable from '@/components/organization/branches/BranchTable';
 import BranchFilters from '@/components/organization/branches/BranchFilters';
+import BranchDispatchersTab from '@/components/organization/branches/BranchDispatchersTab';
+import BranchCouriersTab from '@/components/organization/branches/BranchCouriersTab';
+import BranchUsersTab from '@/components/organization/branches/BranchUsersTab';
 import InteractiveBranchMap from '@/components/organization/map/InteractiveBranchMap';
 import BranchLocationPicker from '@/components/organization/branches/BranchLocationPicker';
 import OrganizationSidebar, {
@@ -41,6 +48,18 @@ import type {
   BranchResponse,
   ServiceAreaResponse,
 } from '@/types/organization.types';
+
+const testQueryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+    },
+  },
+});
+
+function wrapWithQueryClient(element: React.ReactElement) {
+  return React.createElement(QueryClientProvider, { client: testQueryClient }, element);
+}
 
 const SAMPLE_BRANCHES: BranchResponse[] = [
   {
@@ -150,7 +169,7 @@ describe('SwiftDrop Member 04 — Head Office Organization Admin UI Suite', () =
   });
 
   it('2. renders Head Office OrganizationSidebar without any Branch Manager or Branch Console links', () => {
-    assert.equal(ORGANIZATION_NAV_ITEMS.length, 9);
+    assert.equal(ORGANIZATION_NAV_ITEMS.length, 8);
     for (const item of ORGANIZATION_NAV_ITEMS) {
       assert.ok(
         !item.href.includes('/organization/console'),
@@ -162,7 +181,11 @@ describe('SwiftDrop Member 04 — Head Office Organization Admin UI Suite', () =
     assert.ok(html.includes('Head Office'));
     assert.ok(html.includes('Overview'));
     assert.ok(html.includes('Branches'));
-    assert.ok(html.includes('Roles &amp; audit'));
+    assert.ok(html.includes('Dispatchers'));
+    assert.ok(html.includes('Couriers'));
+    assert.ok(html.includes('Users'));
+    assert.ok(!html.includes('Roles &amp; audit'));
+    assert.ok(!html.includes('Orders'));
     assert.ok(!html.includes('Branch Console'));
     assert.ok(!html.includes('Branch Manager'));
     assert.ok(!html.includes('/organization/console'));
@@ -306,15 +329,17 @@ describe('SwiftDrop Member 04 — Head Office Organization Admin UI Suite', () =
   it('7. renders BranchDetails with circular service-area coverage, explicit "No service area configured" state, and no Branch Console link', () => {
     // Case A: Branch with configured circular service area
     const populatedHtml = renderToStaticMarkup(
-      React.createElement(BranchDetails, {
-        branch: SAMPLE_BRANCHES[0],
-        onRequestStatusToggle: () => {},
-        serviceAreas: [SAMPLE_SERVICE_AREAS[0]],
-        isLoadingServiceAreas: false,
-        serviceAreasError: null,
-        performanceSummary: null,
-        isLoadingPerformance: false,
-      })
+      wrapWithQueryClient(
+        React.createElement(BranchDetails, {
+          branch: SAMPLE_BRANCHES[0],
+          onRequestStatusToggle: () => {},
+          serviceAreas: [SAMPLE_SERVICE_AREAS[0]],
+          isLoadingServiceAreas: false,
+          serviceAreasError: null,
+          performanceSummary: null,
+          isLoadingPerformance: false,
+        })
+      )
     );
     assert.ok(populatedHtml.includes('Colombo Central 25 km Coverage Zone'));
     assert.ok(populatedHtml.includes('25 km radius'));
@@ -322,16 +347,20 @@ describe('SwiftDrop Member 04 — Head Office Organization Admin UI Suite', () =
     assert.ok(populatedHtml.includes('Deactivate Branch'));
     assert.ok(!populatedHtml.includes('Branch Console'));
     assert.ok(!populatedHtml.includes('/organization/console'));
+    assert.ok(populatedHtml.includes('Stationed Branch Dispatchers'));
+    assert.ok(populatedHtml.includes('Branch Users — Merchants &amp; Customers'));
 
     // Case B: Branch with 0 service areas -> must show "No service area configured" and never invent a default radius
     const emptyAreaHtml = renderToStaticMarkup(
-      React.createElement(BranchDetails, {
-        branch: SAMPLE_BRANCHES[2],
-        onRequestStatusToggle: () => {},
-        serviceAreas: [],
-        isLoadingServiceAreas: false,
-        serviceAreasError: null,
-      })
+      wrapWithQueryClient(
+        React.createElement(BranchDetails, {
+          branch: SAMPLE_BRANCHES[2],
+          onRequestStatusToggle: () => {},
+          serviceAreas: [],
+          isLoadingServiceAreas: false,
+          serviceAreasError: null,
+        })
+      )
     );
     assert.ok(emptyAreaHtml.includes('No service area configured'));
     assert.ok(!emptyAreaHtml.includes('25 km radius'));
@@ -375,6 +404,20 @@ describe('SwiftDrop Member 04 — Head Office Organization Admin UI Suite', () =
     const auditBefore = getMockOrganizationAuditEvents();
     assert.ok(auditBefore.length >= 6);
 
+    const dispatchers = getMockBranchDispatchers();
+    assert.ok(dispatchers.length >= 8);
+    assert.ok(dispatchers.some((d) => d.branchCode === 'CMB-CENTRAL'));
+
+    const couriers = getMockBranchCouriers();
+    assert.ok(couriers.length >= 8);
+    assert.ok(couriers.some((c) => c.branchCode === 'CMB-CENTRAL'));
+    assert.ok(couriers.some((c) => c.vehicleType === 'MOTORCYCLE'));
+
+    const branchUsers = getMockBranchUsers();
+    assert.ok(branchUsers.length >= 8);
+    assert.ok(branchUsers.some((u) => u.userType === 'MERCHANT'));
+    assert.ok(branchUsers.some((u) => u.userType === 'CUSTOMER'));
+
     // Create a new branch in the mock store and verify service area + audit log creation
     const created = createMockBranch({
       code: 'BTL-EAST',
@@ -406,5 +449,46 @@ describe('SwiftDrop Member 04 — Head Office Organization Admin UI Suite', () =
     const html = renderToStaticMarkup(React.createElement(OrganizationSidebar));
     assert.ok(html.includes('/organization/reports'));
     assert.ok(html.includes('Reports &amp; Analytics'));
+  });
+
+  it('10. renders BranchDispatchersTab, BranchCouriersTab, and BranchUsersTab with branch-wise filtering and details', () => {
+    const dispatchersHtml = renderToStaticMarkup(
+      wrapWithQueryClient(
+        React.createElement(BranchDispatchersTab, {
+          initialBranchId: 1,
+        })
+      )
+    );
+    assert.ok(dispatchersHtml.includes('Total Branch Dispatchers'));
+    assert.ok(dispatchersHtml.includes('Actively On Duty'));
+    assert.ok(dispatchersHtml.includes('Couriers Supervised'));
+    assert.ok(dispatchersHtml.includes('All Regional Hubs'));
+    assert.ok(!dispatchersHtml.includes('Active Orders Monitored'));
+    assert.ok(!dispatchersHtml.includes('Shift Schedule'));
+
+    const couriersHtml = renderToStaticMarkup(
+      wrapWithQueryClient(
+        React.createElement(BranchCouriersTab, {
+          initialBranchId: 1,
+        })
+      )
+    );
+    assert.ok(couriersHtml.includes('Total Fleet Couriers'));
+    assert.ok(couriersHtml.includes('Active On Delivery'));
+    assert.ok(couriersHtml.includes('Lifetime Completed'));
+    assert.ok(couriersHtml.includes('All Regional Hubs'));
+    assert.ok(!couriersHtml.includes('Available for Dispatch'));
+
+    const usersHtml = renderToStaticMarkup(
+      wrapWithQueryClient(
+        React.createElement(BranchUsersTab, {
+          initialBranchId: 1,
+        })
+      )
+    );
+    assert.ok(usersHtml.includes('Registered Merchants'));
+    assert.ok(usersHtml.includes('Customer Delivery Accounts'));
+    assert.ok(usersHtml.includes('All Users'));
+    assert.ok(usersHtml.includes('All Regional Hubs'));
   });
 });

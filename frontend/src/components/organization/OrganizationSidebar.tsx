@@ -7,9 +7,8 @@ import type { LucideIcon } from 'lucide-react';
 import {
   Building2,
   ChartColumn,
-  ClipboardList,
+  Headphones,
   LayoutDashboard,
-  ShieldCheck,
   Settings,
   Store,
   Truck,
@@ -38,34 +37,6 @@ export const ORGANIZATION_NAV_ITEMS: readonly OrganizationNavItem[] = [
     implemented: true,
   },
   {
-    id: 'merchant-approvals',
-    label: 'Merchant approvals',
-    href: '/organization/branches#merchant-approvals',
-    icon: Store,
-    implemented: false,
-  },
-  {
-    id: 'orders',
-    label: 'Orders',
-    href: '/organization/branches#orders',
-    icon: ClipboardList,
-    implemented: false,
-  },
-  {
-    id: 'customers',
-    label: 'Customers',
-    href: '/organization/branches#customers',
-    icon: Users,
-    implemented: false,
-  },
-  {
-    id: 'couriers',
-    label: 'Couriers',
-    href: '/organization/branches#couriers',
-    icon: Truck,
-    implemented: false,
-  },
-  {
     id: 'branches',
     label: 'Branches',
     href: '/organization/branches',
@@ -73,17 +44,38 @@ export const ORGANIZATION_NAV_ITEMS: readonly OrganizationNavItem[] = [
     implemented: true,
   },
   {
+    id: 'dispatchers',
+    label: 'Dispatchers',
+    href: '/organization/dispatchers',
+    icon: Headphones,
+    implemented: true,
+  },
+  {
+    id: 'couriers',
+    label: 'Couriers',
+    href: '/organization/couriers',
+    icon: Truck,
+    implemented: true,
+  },
+  {
+    id: 'users',
+    label: 'Users',
+    href: '/organization/users',
+    icon: Users,
+    implemented: true,
+  },
+  {
+    id: 'merchant-approvals',
+    label: 'Merchant approvals',
+    href: '/organization/branches#merchant-approvals',
+    icon: Store,
+    implemented: false,
+  },
+  {
     id: 'reports',
     label: 'Reports & Analytics',
     href: '/organization/reports',
     icon: ChartColumn,
-    implemented: true,
-  },
-  {
-    id: 'roles-audit',
-    label: 'Roles & audit',
-    href: '/organization/roles-audit',
-    icon: ShieldCheck,
     implemented: true,
   },
   {
@@ -125,11 +117,32 @@ function OrganizationSidebar({
         pathname.startsWith('/organization/branches/')
       );
     }
+    if (item.id === 'dispatchers') {
+      return (
+        pathname === '/organization/dispatchers' ||
+        pathname.startsWith('/organization/dispatchers/')
+      );
+    }
+    if (item.id === 'couriers') {
+      return (
+        pathname === '/organization/couriers' ||
+        pathname.startsWith('/organization/couriers/')
+      );
+    }
+    if (item.id === 'users') {
+      return (
+        pathname === '/organization/users' ||
+        pathname.startsWith('/organization/users/')
+      );
+    }
     if (item.id === 'overview') {
       return pathname === '/organization';
     }
-    if (item.id === 'roles-audit') {
-      return pathname === '/organization/roles-audit';
+    if (item.id === 'reports') {
+      return (
+        pathname === '/organization/reports' ||
+        pathname.startsWith('/organization/reports/')
+      );
     }
     return false;
   };

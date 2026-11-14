@@ -4,8 +4,11 @@ import { inferSriLankanDistrict } from '@/lib/geocoding';
 import {
   createMockBranch,
   getMockBranchById,
+  getMockBranchCouriers,
+  getMockBranchDispatchers,
   getMockBranches,
   getMockBranchPerformanceSummary,
+  getMockBranchUsers,
   getMockOrganizationAuditEvents,
   getMockOrganizationStaffAccounts,
   getMockServiceAreas,
@@ -15,13 +18,18 @@ import {
 } from '@/api/mock/organization-admin.mock';
 import type {
   BranchComputedPerformanceMetrics,
+  BranchCourierItem,
   BranchCreateRequest,
+  BranchDispatcherItem,
   BranchPerformanceSummaryResponse,
   BranchResponse,
   BranchStatus,
   BranchSummaryMetrics,
   BranchUpdateRequest,
+  BranchUserItem,
+  BranchUserType,
   CityBranchDistributionItem,
+  CourierVehicleType,
   OrganizationAuditEventItem,
   OrganizationDashboardMetrics,
   OrganizationStaffAccountItem,
@@ -636,4 +644,91 @@ export function calculateBranchPerformanceMetrics(
     averageDeliveryDurationMinutes: avgDuration,
     updatedAt: summary.updatedAt,
   };
+}
+
+/**
+ * Fetch branch-wise dispatchers.
+ */
+export async function getBranchDispatchers(branchId?: number): Promise<BranchDispatcherItem[]> {
+  try {
+    const params = branchId ? { branchId } : undefined;
+    const response = await apiClient.get<BranchDispatcherItem[]>(
+      '/api/v1/organization/dispatchers',
+      { params }
+    );
+    if (Array.isArray(response.data) && response.data.length > 0) {
+      return response.data;
+    }
+    if (isOrganizationMockFallbackEnabled()) {
+      return getMockBranchDispatchers(branchId);
+    }
+    return [];
+  } catch {
+    if (isOrganizationMockFallbackEnabled()) {
+      return getMockBranchDispatchers(branchId);
+    }
+    return [];
+  }
+}
+
+/**
+ * Fetch branch-wise registered users (merchants and customers).
+ */
+export async function getBranchUsers(
+  branchId?: number,
+  userType?: BranchUserType
+): Promise<BranchUserItem[]> {
+  try {
+    const params = {
+      ...(branchId ? { branchId } : {}),
+      ...(userType ? { userType } : {}),
+    };
+    const response = await apiClient.get<BranchUserItem[]>(
+      '/api/v1/organization/branch-users',
+      { params }
+    );
+    if (Array.isArray(response.data) && response.data.length > 0) {
+      return response.data;
+    }
+    if (isOrganizationMockFallbackEnabled()) {
+      return getMockBranchUsers(branchId, userType);
+    }
+    return [];
+  } catch {
+    if (isOrganizationMockFallbackEnabled()) {
+      return getMockBranchUsers(branchId, userType);
+    }
+    return [];
+  }
+}
+
+/**
+ * Fetch branch-wise delivery couriers.
+ */
+export async function getBranchCouriers(
+  branchId?: number,
+  vehicleType?: CourierVehicleType
+): Promise<BranchCourierItem[]> {
+  try {
+    const params = {
+      ...(branchId ? { branchId } : {}),
+      ...(vehicleType ? { vehicleType } : {}),
+    };
+    const response = await apiClient.get<BranchCourierItem[]>(
+      '/api/v1/organization/branch-couriers',
+      { params }
+    );
+    if (Array.isArray(response.data) && response.data.length > 0) {
+      return response.data;
+    }
+    if (isOrganizationMockFallbackEnabled()) {
+      return getMockBranchCouriers(branchId, vehicleType);
+    }
+    return [];
+  } catch {
+    if (isOrganizationMockFallbackEnabled()) {
+      return getMockBranchCouriers(branchId, vehicleType);
+    }
+    return [];
+  }
 }

@@ -28,8 +28,20 @@ function getBreadcrumbsForPath(pathname: string | null): BreadcrumbSegment[] {
     return [...base, { label: 'Organization Dashboard' }];
   }
 
-  if (pathname === '/organization/roles-audit') {
-    return [...base, { label: 'Roles, Permissions and Audit Log' }];
+  if (pathname === '/organization/dispatchers') {
+    return [...base, { label: 'Dispatchers' }];
+  }
+
+  if (pathname === '/organization/couriers') {
+    return [...base, { label: 'Couriers' }];
+  }
+
+  if (pathname === '/organization/users') {
+    return [...base, { label: 'Users' }];
+  }
+
+  if (pathname === '/organization/reports') {
+    return [...base, { label: 'Reports & Analytics' }];
   }
 
   if (pathname === '/organization/branches/create') {
