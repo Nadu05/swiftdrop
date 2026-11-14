@@ -10,7 +10,7 @@ import {
   Loader2,
   ArrowLeft,
 } from 'lucide-react';
-import { getCustomerOrders } from '@/api/services/orders.api';
+import { listMyOrders } from '@/api/services/orders.api';
 import DeliveriesTable from '@/components/customer/DeliveriesTable';
 import type { DeliveryOrder } from '@/types/order.types';
 
@@ -55,7 +55,7 @@ export default function CustomerBookingsPage() {
     setError(null);
 
     try {
-      const orderData = await getCustomerOrders();
+      const orderData = await listMyOrders();
       setOrders(Array.isArray(orderData) ? orderData : []);
     } catch (err: any) {
       setError(

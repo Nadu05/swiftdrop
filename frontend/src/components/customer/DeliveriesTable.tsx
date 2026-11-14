@@ -25,6 +25,13 @@ const SIZE_LABEL: Record<ParcelSize, string> = {
   EXTRA_LARGE: 'XL Bulk',
 };
 
+/** 'OUT_FOR_DELIVERY' -> 'Out for delivery' (the Order Service returns status codes) */
+function statusLabel(status?: string): string {
+  if (!status) return 'Created';
+  const text = status.replace(/_/g, ' ').toLowerCase();
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 function formatDate(iso?: string): string {
   if (!iso) return '';
   const date = new Date(iso);
@@ -81,7 +88,7 @@ export default function DeliveriesTable({ orders, emptyMessage, emptyIcon = 'par
                     <div className="cust-order-title-row">
                       <code className="cust-order-code">{order.trackingNumber || `#${order.id}`}</code>
                       <span className={`cust-status-badge ${isDelivered ? 'delivered' : 'active'}`}>
-                        {order.status || 'Created'}
+                        {statusLabel(order.status)}
                       </span>
                     </div>
                     <div className="cust-order-route">

@@ -160,8 +160,8 @@ export default function CustomerReceiptPage() {
         <div class="tracking-title">Authoritative Tracking Number</div>
         <div class="tracking-code">${order.trackingNumber || 'SD-' + order.id}</div>
       </div>
-      <div style="font-size: 12px; color: #16a34a; font-weight: 700; background: #f0fdf4; padding: 4px 10px; border-radius: 999px; border: 1px solid #bbf7d0;">
-        PAID IN FULL
+      <div style="font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; ${(order.status || '').toUpperCase() === 'DELIVERED' ? 'color: #16a34a; background: #f0fdf4; border: 1px solid #bbf7d0;' : 'color: #dc2626; background: #fef2f2; border: 1px solid #fecaca;'}">
+        ${(order.status || '').toUpperCase() === 'DELIVERED' ? 'PAID IN FULL' : 'NOT PAID'}
       </div>
     </div>
 
@@ -248,6 +248,7 @@ export default function CustomerReceiptPage() {
   };
 
   const receiptRef = order ? `REC-${String(order.id).padStart(6, '0')}` : 'REC-000000';
+  const isDelivered = (order?.status || '').toUpperCase() === 'DELIVERED';
   const feeAmount = order ? Number(order.deliveryFee || 1250).toFixed(2) : '1250.00';
   const currencyCode = order?.currency || 'LKR';
 
@@ -407,9 +408,15 @@ export default function CustomerReceiptPage() {
                     </div>
                     <div className="sd-meta-line">
                       <span className="lbl">Status:</span>
-                      <span className="val status-paid">
-                        <CheckCircle2 size={12} /> Paid &amp; Confirmed
-                      </span>
+                      {isDelivered ? (
+                        <span className="val status-paid">
+                          <CheckCircle2 size={12} /> Paid &amp; Confirmed
+                        </span>
+                      ) : (
+                        <span className="val status-unpaid">
+                          <AlertCircle size={12} /> Not Paid
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -422,6 +429,14 @@ export default function CustomerReceiptPage() {
                   </div>
 
                   <div className="sd-tracking-right">
+                    <div className="sd-barcode-simulated">
+                      <span className="sd-barcode-lines">
+                        {'||| | |||| | ||| |||| | || | |||| ||| | ||||'.split('').map((bar, i) => (
+                          <span key={i}>{bar === ' ' ? ' ' : bar}</span>
+                        ))}
+                      </span>
+                      <span className="sd-barcode-text">{order.trackingNumber}</span>
+                    </div>
                     <button
                       type="button"
                       onClick={handleCopyTracking}
@@ -431,10 +446,6 @@ export default function CustomerReceiptPage() {
                       {copied ? <Check size={12} color="#16a34a" /> : <Copy size={12} />}
                       <span>{copied ? 'Copied' : 'Copy'}</span>
                     </button>
-                    <div className="sd-barcode-simulated">
-                      <span className="sd-barcode-lines">||| | |||| | ||| |||| | || | |||| ||| | ||||</span>
-                      <span className="sd-barcode-text">{order.trackingNumber}</span>
-                    </div>
                   </div>
                 </div>
 
@@ -895,6 +906,14 @@ export default function CustomerReceiptPage() {
           border-radius: 4px;
         }
 
+        .sd-meta-line .val.status-unpaid {
+          color: #b45309;
+          font-weight: 700;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.3rem;
+        }
+
         .sd-meta-line .val.status-paid {
           color: #15803d;
           display: inline-flex;
@@ -942,6 +961,9 @@ export default function CustomerReceiptPage() {
           display: flex;
           align-items: center;
           gap: 1rem;
+          flex: 1;
+          min-width: 0;
+          justify-content: flex-end;
         }
 
         .sd-copy-pill {
@@ -965,6 +987,9 @@ export default function CustomerReceiptPage() {
         }
 
         .sd-barcode-simulated {
+          flex: 1;
+          min-width: 0;
+          overflow: hidden;
           display: flex;
           flex-direction: column;
           align-items: flex-end;
@@ -975,6 +1000,9 @@ export default function CustomerReceiptPage() {
         }
 
         .sd-barcode-lines {
+          display: flex;
+          justify-content: space-between;
+          width: 100%;
           font-family: monospace;
           font-size: 0.95rem;
           letter-spacing: 0.15em;
