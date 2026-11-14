@@ -100,6 +100,51 @@ export interface ServiceAreaResponse {
 }
 
 /**
+ * Request payload for creating a new branch service area (`ServiceAreaCreateRequest.java`).
+ * Sent to: POST /api/v1/organization/service-areas
+ */
+export interface ServiceAreaCreateRequest {
+  branchId: number;
+  areaName: string;
+  centerLatitude: number;
+  centerLongitude: number;
+  maxRadiusKm: number;
+}
+
+/**
+ * Request payload for partially updating an existing branch service area (`ServiceAreaUpdateRequest.java`).
+ * Sent to: PATCH /api/v1/organization/service-areas/{id}
+ */
+export interface ServiceAreaUpdateRequest {
+  areaName?: string;
+  centerLatitude?: number;
+  centerLongitude?: number;
+  maxRadiusKm?: number;
+  status?: ServiceAreaStatus;
+}
+
+/**
+ * Request payload for resolving the nearest eligible branch (`BranchResolutionRequest.java`).
+ * Sent to: POST /api/v1/organization/branches/resolve
+ */
+export interface BranchResolutionRequest {
+  latitude: number;
+  longitude: number;
+}
+
+/**
+ * Response payload returned when an eligible branch is selected (`BranchResolutionResponse.java`).
+ * Returned by: POST /api/v1/organization/branches/resolve
+ */
+export interface BranchResolutionResponse {
+  branchId: number;
+  branchCode: string;
+  branchName: string;
+  distanceKm: number;
+  eligible: boolean;
+}
+
+/**
  * Summary statistics derived from `BranchResponse[]` for the Branch Directory.
  */
 export interface BranchSummaryMetrics {

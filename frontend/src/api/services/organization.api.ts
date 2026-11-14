@@ -22,6 +22,8 @@ import type {
   BranchCreateRequest,
   BranchDispatcherItem,
   BranchPerformanceSummaryResponse,
+  BranchResolutionRequest,
+  BranchResolutionResponse,
   BranchResponse,
   BranchStatus,
   BranchSummaryMetrics,
@@ -33,8 +35,10 @@ import type {
   OrganizationAuditEventItem,
   OrganizationDashboardMetrics,
   OrganizationStaffAccountItem,
+  ServiceAreaCreateRequest,
   ServiceAreaResponse,
   ServiceAreaStatus,
+  ServiceAreaUpdateRequest,
 } from '@/types/organization.types';
 
 /**
@@ -61,6 +65,7 @@ export class OrganizationApiError extends Error {
   public readonly status?: number;
   public readonly fieldErrors?: Record<string, string>;
   public readonly isConflict: boolean;
+  public readonly isUnsupportedServiceArea: boolean;
 
   constructor(
     message: string,
@@ -74,6 +79,7 @@ export class OrganizationApiError extends Error {
     this.status = options?.status;
     this.fieldErrors = options?.fieldErrors;
     this.isConflict = options?.status === 409;
+    this.isUnsupportedServiceArea = options?.status === 422;
   }
 }
 
@@ -170,12 +176,6 @@ export async function getBranches(status?: BranchStatus): Promise<BranchResponse
     const response = await apiClient.get<BranchResponse[]>(BRANCHES_BASE_PATH, {
       params,
     });
-    if (Array.isArray(response.data) && response.data.length > 0) {
-      return response.data;
-    }
-    if (isOrganizationMockFallbackEnabled()) {
-      return getMockBranches(status);
-    }
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: unknown) {
     if (isOrganizationMockFallbackEnabled()) {
@@ -317,12 +317,6 @@ export async function getServiceAreas(
     const response = await apiClient.get<ServiceAreaResponse[]>(SERVICE_AREAS_BASE_PATH, {
       params,
     });
-    if (Array.isArray(response.data) && response.data.length > 0) {
-      return response.data;
-    }
-    if (isOrganizationMockFallbackEnabled()) {
-      return getMockServiceAreas(status);
-    }
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: unknown) {
     if (isOrganizationMockFallbackEnabled()) {
@@ -331,6 +325,53 @@ export async function getServiceAreas(
     throw buildOrganizationApiError(
       error,
       'An unexpected error occurred while loading organization service areas.'
+    );
+  }
+}
+
+/**
+ * Create a new circular service area assigned to a branch (`ServiceAreaController.create`).
+ *
+ * Endpoint:
+ * POST /api/v1/organization/service-areas
+ */
+export async function createServiceArea(
+  payload: ServiceAreaCreateRequest
+): Promise<ServiceAreaResponse> {
+  try {
+    const response = await apiClient.post<ServiceAreaResponse>(
+      SERVICE_AREAS_BASE_PATH,
+      payload
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw buildOrganizationApiError(
+      error,
+      'Failed to create service area. Please verify your inputs and try again.'
+    );
+  }
+}
+
+/**
+ * Partially update an existing service area (`ServiceAreaController.update`).
+ *
+ * Endpoint:
+ * PATCH /api/v1/organization/service-areas/{id}
+ */
+export async function updateServiceArea(
+  id: number,
+  payload: ServiceAreaUpdateRequest
+): Promise<ServiceAreaResponse> {
+  try {
+    const response = await apiClient.patch<ServiceAreaResponse>(
+      `${SERVICE_AREAS_BASE_PATH}/${id}`,
+      payload
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw buildOrganizationApiError(
+      error,
+      `Failed to update service area #${id}. Please verify your changes and try again.`
     );
   }
 }
@@ -359,6 +400,29 @@ export async function getServiceAreasByBranch(
     throw buildOrganizationApiError(
       error,
       `Unable to load service areas for branch #${branchId}.`
+    );
+  }
+}
+
+/**
+ * Resolve the nearest eligible active branch for a parcel pickup location (`BranchResolutionController.resolveBranch`).
+ *
+ * Endpoint:
+ * POST /api/v1/organization/branches/resolve
+ */
+export async function resolveNearestBranch(
+  payload: BranchResolutionRequest
+): Promise<BranchResolutionResponse> {
+  try {
+    const response = await apiClient.post<BranchResolutionResponse>(
+      `${BRANCHES_BASE_PATH}/resolve`,
+      payload
+    );
+    return response.data;
+  } catch (error: unknown) {
+    throw buildOrganizationApiError(
+      error,
+      'Unable to resolve the nearest eligible branch for this pickup location.'
     );
   }
 }

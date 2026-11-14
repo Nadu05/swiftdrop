@@ -977,7 +977,7 @@ let mockBranchUsersStore: BranchUserItem[] = [...INITIAL_MOCK_BRANCH_USERS];
 let mockCouriersStore: BranchCourierItem[] = [...INITIAL_MOCK_COURIERS];
 
 export function isOrganizationMockFallbackEnabled(): boolean {
-  return process.env.NEXT_PUBLIC_ORG_ADMIN_MOCK !== 'false';
+  return process.env.NEXT_PUBLIC_ORG_ADMIN_MOCK === 'true';
 }
 
 export function getMockBranches(status?: BranchStatus): BranchResponse[] {
