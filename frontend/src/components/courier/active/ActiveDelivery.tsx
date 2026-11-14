@@ -151,9 +151,7 @@ function JobActions({ job }: { job: CourierJob }) {
         <button type="button" className="btn btn-primary" disabled={pickup.isPending} onClick={() => pickup.mutate(job.assignmentId)}>
           {pickup.isPending ? 'Saving…' : 'Mark as picked up'}
         </button>
-        <button type="button" className="btn btn-secondary" disabled={pickup.isPending} onClick={() => setReportingFailure(true)}>
-          Report a problem
-        </button>
+        <p className="courier-hint">Can&apos;t collect it? Contact your branch dispatcher to reassign the job.</p>
         {pickup.isError && (
           <p className="courier-alert" role="alert">
             {errorMessage(pickup.error, 'Could not mark this parcel as picked up.')}

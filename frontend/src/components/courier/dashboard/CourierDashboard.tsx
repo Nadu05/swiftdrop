@@ -72,7 +72,7 @@ export default function CourierDashboard() {
           icon={Navigation}
           tone="warning"
         />
-        <StatCard label="Rating" value={`${profile.rating.toFixed(1)} ★`} hint="Customer average" icon={Star} tone="purple" />
+        <StatCard label="Rating" value={profile.rating != null ? `${profile.rating.toFixed(1)} ★` : '—'} hint="Customer average" icon={Star} tone="purple" />
       </section>
 
       {current && (
