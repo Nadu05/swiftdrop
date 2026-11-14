@@ -2,40 +2,48 @@
 
 import Link from 'next/link';
 import { memo } from 'react';
-import { Building2, Clock, Plus, RefreshCw } from 'lucide-react';
+import { Building2, Plus, RefreshCw, ShieldCheck } from 'lucide-react';
 
 export interface OrganizationWelcomeProps {
-  lastUpdatedLabel: string | null;
+  lastUpdatedLabel?: string | null;
   isLoading: boolean;
   isRefreshing: boolean;
   onRefresh: () => void;
 }
 
 function OrganizationWelcome({
-  lastUpdatedLabel,
   isLoading,
   isRefreshing,
   onRefresh,
 }: OrganizationWelcomeProps) {
   return (
-    <div className="org-page-header">
-      <div className="org-page-header__titles">
-        <p className="org-page-header__eyebrow">Admin / Head Office Operations</p>
-        <h1 className="org-page-header__title">Organization Admin Dashboard</h1>
+    <section
+      className="org-welcome-banner"
+      aria-labelledby="org-admin-welcome-heading"
+    >
+      <div className="org-welcome-banner__titles">
+        <div className="org-welcome-banner__eyebrow-row">
+          <span className="org-welcome-banner__eyebrow">
+            SwiftDrop Head Office
+          </span>
+          <span className="org-welcome-banner__role-pill">
+            <ShieldCheck size={12} aria-hidden="true" />
+            <span>Organization Admin</span>
+          </span>
+        </div>
+
+        <h1 id="org-admin-welcome-heading" className="org-page-header__title">
+          Welcome back, Organization Admin 👋
+        </h1>
+
         <p className="org-page-header__subtitle">
-          Head Office overview of organization branches, operational status, and service-area
-          coverage across the SwiftDrop delivery network.
+          Good to have you at the SwiftDrop Head Office console. Manage regional delivery hubs
+          across Sri Lankan districts, oversee 25 km circular service-area coverage zones, and
+          monitor daily branch performance from one central workspace.
         </p>
       </div>
 
-      <div className="org-page-header__actions">
-        {lastUpdatedLabel && (
-          <span className="org-timestamp-badge" title="Last synchronized with backend">
-            <Clock size={14} aria-hidden="true" />
-            <span>Synced {lastUpdatedLabel}</span>
-          </span>
-        )}
-
+      <div className="org-welcome-banner__actions org-page-header__actions">
         <button
           type="button"
           className="org-btn org-btn--secondary"
@@ -69,9 +77,8 @@ function OrganizationWelcome({
           <span>Add branch</span>
         </Link>
       </div>
-    </div>
+    </section>
   );
 }
 
 export default memo(OrganizationWelcome);
-

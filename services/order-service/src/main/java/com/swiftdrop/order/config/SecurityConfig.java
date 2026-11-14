@@ -74,12 +74,18 @@ public class SecurityConfig {
                                 "/orders/tracking/**", "/api/v1/orders/tracking/**").permitAll()
                         // Delivery status changes are for couriers/staff, never for customers. Must stay above
                         // the CUSTOMER rule below. With no configured role nobody can change a status.
-                        .requestMatchers(HttpMethod.PATCH, "/orders/*/status", "/api/v1/orders/*/status")
+                        .requestMatchers(HttpMethod.PATCH, "/*/status", "/orders/*/status", "/api/v1/orders/*/status")
                                 .hasAnyRole(properties.statusUpdateRoles().toArray(String[]::new))
                         // Orders waiting for a courier include recipient contact details: dispatch/staff roles, or
                         // the Dispatch service itself with the shared service key (ServiceKeyAuthenticationFilter).
-                        .requestMatchers(HttpMethod.GET, "/orders/ready-for-dispatch", "/api/v1/orders/ready-for-dispatch")
+                        .requestMatchers(HttpMethod.GET, "/ready-for-dispatch", "/orders/ready-for-dispatch",
+                                "/api/v1/orders/ready-for-dispatch")
                                 .hasAnyAuthority(dispatchAuthorities(properties))
+                        // Customer endpoints. The first group is what the gateway forwards after stripping
+                        // /api/v1/orders (POST / , GET /cities, /quote, /{id}, /{id}/timeline, /{id}/receipt); they
+                        // must be listed here, otherwise "anyRequest().authenticated()" would let ANY logged-in
+                        // role (for example a courier) use them.
+                        .requestMatchers("/", "/cities", "/quote", "/*", "/*/timeline", "/*/receipt").hasRole("CUSTOMER")
                         .requestMatchers("/orders/**", "/api/v1/orders/**").hasRole("CUSTOMER")
                         .anyRequest().authenticated())
                 .addFilterBefore(new ServiceKeyAuthenticationFilter(properties.serviceApiKey()),

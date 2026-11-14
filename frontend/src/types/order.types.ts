@@ -19,10 +19,20 @@ export type OrderStatus =
  * Used to get an official price estimate before confirming a booking.
  */
 export interface OrderQuoteRequest {
-  pickupAddress: string;
-  dropoffAddress: string;
+  /** Town codes from GET /api/v1/orders/cities (e.g. COLOMBO, KANDY). */
+  pickupCity: string;
+  dropoffCity: string;
   weightKg: number;
-  parcelSize?: ParcelSize;
+  parcelSize: ParcelSize;
+}
+
+/**
+ * A supported pickup / delivery town returned by GET /api/v1/orders/cities.
+ */
+export interface CityOption {
+  code: string;
+  name: string;
+  district?: string;
 }
 
 /**
@@ -35,6 +45,10 @@ export interface OrderQuoteResponse {
   breakdown?: {
     baseFee: number;
     weightFee: number;
+    distanceFee?: number;
+    zoneSurcharge?: number;
+    totalFee?: number;
+    currency?: string;
   };
 }
 
@@ -53,6 +67,11 @@ export interface CreateOrderRequest {
   parcelSize: ParcelSize;
   weightKg: number;
   deliveryInstructions?: string;
+  /** Town codes from GET /api/v1/orders/cities. */
+  pickupCity: string;
+  dropoffCity: string;
+  /** The fee the customer saw in the quote; a different current fee is rejected with 409. */
+  expectedFee?: number;
 }
 
 /**

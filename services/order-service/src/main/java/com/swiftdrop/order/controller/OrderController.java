@@ -42,14 +42,21 @@ import java.net.URI;
 import java.util.List;
 
 /**
- * Customer order endpoints. Dual-mapped so it works both directly ({@code /api/v1/orders}) and behind
- * the gateway, which strips the first three path segments ({@code /orders}).
+ * Customer order endpoints, reachable on every path a caller can end up with:
+ * <ul>
+ *   <li>{@code /api/v1/orders/...}: directly, or through the gateway when it strips fewer segments;</li>
+ *   <li>{@code /orders/...}: when the gateway strips two segments;</li>
+ *   <li>{@code /...}: what the gateway actually forwards today. Its order route is
+ *       {@code /api/v1/orders/**} with {@code StripPrefix=3}, which removes {@code api}, {@code v1} AND
+ *       {@code orders}, so {@code POST /api/v1/orders} arrives as {@code POST /} and
+ *       {@code GET /api/v1/orders/cities} as {@code GET /cities}.</li>
+ * </ul>
  *
  * <p>The customer id always comes from the verified JWT, never from the request.
  */
 @RestController
 @Validated
-@RequestMapping({"/api/v1/orders", "/orders"})
+@RequestMapping({"/api/v1/orders", "/orders", "/"})
 @Tag(name = "Orders", description = "Customer delivery orders")
 public class OrderController {
 

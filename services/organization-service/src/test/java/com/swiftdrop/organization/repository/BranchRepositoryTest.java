@@ -1,13 +1,20 @@
 package com.swiftdrop.organization.repository;
 
+import com.swiftdrop.organization.dto.BranchCreateRequest;
+import com.swiftdrop.organization.dto.BranchResponse;
 import com.swiftdrop.organization.entity.Branch;
+import com.swiftdrop.organization.entity.ServiceArea;
 import com.swiftdrop.organization.entity.enums.BranchStatus;
+import com.swiftdrop.organization.entity.enums.ServiceAreaStatus;
+import com.swiftdrop.organization.service.BranchService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,10 +25,17 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
         "spring.flyway.enabled=false",
         "spring.jpa.hibernate.ddl-auto=create-drop"
 })
+@Import(BranchService.class)
 class BranchRepositoryTest {
 
     @Autowired
     private BranchRepository branchRepository;
+
+    @Autowired
+    private ServiceAreaRepository serviceAreaRepository;
+
+    @Autowired
+    private BranchService branchService;
 
     @Test
     @DisplayName("Persists branch with audit timestamps and retrieves by code and existsByCode")
@@ -70,6 +84,39 @@ class BranchRepositoryTest {
         List<Branch> inactiveBranches = branchRepository.findByStatusOrderByNameAsc(BranchStatus.INACTIVE);
         assertThat(inactiveBranches).extracting(Branch::getName)
                 .containsExactly("Galle Hub");
+    }
+
+    @Test
+    @DisplayName("BranchService.create persists both branch and one default 25.00 km service area in the same transaction")
+    void branchServiceCreate_PersistsBranchAndDefault25KmServiceAreaTransactionally() {
+        BranchCreateRequest request = new BranchCreateRequest(
+                "CMB-CENTRAL",
+                "Colombo Central Hub",
+                "No. 45, Union Place",
+                "Colombo 02",
+                "Colombo",
+                "+94 11 234 5678",
+                "colombo.central@swiftdrop.lk",
+                6.9218,
+                79.8612
+        );
+
+        BranchResponse createdBranch = branchService.create(request);
+        branchRepository.flush();
+        serviceAreaRepository.flush();
+
+        assertThat(createdBranch.getId()).isNotNull();
+
+        List<ServiceArea> serviceAreas = serviceAreaRepository.findByBranchIdOrderByAreaNameAsc(createdBranch.getId());
+        assertThat(serviceAreas).hasSize(1);
+
+        ServiceArea defaultArea = serviceAreas.get(0);
+        assertThat(defaultArea.getBranch().getId()).isEqualTo(createdBranch.getId());
+        assertThat(defaultArea.getCenterLatitude()).isEqualTo(6.9218);
+        assertThat(defaultArea.getCenterLongitude()).isEqualTo(79.8612);
+        assertThat(defaultArea.getMaxRadiusKm()).isEqualByComparingTo(new BigDecimal("25.00"));
+        assertThat(defaultArea.getStatus()).isEqualTo(ServiceAreaStatus.ACTIVE);
+        assertThat(defaultArea.getAreaName()).isEqualTo("Colombo Central Hub - 25 km Coverage Zone");
     }
 
     private Branch buildBranch(String code, String name, BranchStatus status) {

@@ -1,5 +1,8 @@
 package com.swiftdrop.order.service;
 
+import com.swiftdrop.order.branch.BranchResolver;
+import com.swiftdrop.order.branch.BranchServiceUnavailableException;
+import com.swiftdrop.order.branch.ResolvedBranch;
 import com.swiftdrop.order.dto.CreateOrderRequest;
 import com.swiftdrop.order.dto.OrderResponse;
 import com.swiftdrop.order.entity.DeliveryOrder;
@@ -10,6 +13,7 @@ import com.swiftdrop.order.exception.BusinessRuleException;
 import com.swiftdrop.order.exception.PriceChangedException;
 import com.swiftdrop.order.exception.ResourceNotFoundException;
 import com.swiftdrop.order.location.City;
+import com.swiftdrop.order.location.CityDirectory;
 import com.swiftdrop.order.messaging.OrderEventRecorder;
 import com.swiftdrop.order.pricing.FeeBreakdown;
 import com.swiftdrop.order.pricing.PriceQuote;
@@ -61,6 +65,8 @@ class OrderServiceTest {
     @Mock private PricingService pricing;
     @Mock private TrackingNumberGenerator trackingNumbers;
     @Mock private OrderEventRecorder eventRecorder;
+    @Mock private CityDirectory cities;
+    @Mock private BranchResolver branches;
     @Mock private PlatformTransactionManager transactionManager;
 
     private OrderService service;
@@ -68,7 +74,10 @@ class OrderServiceTest {
     @BeforeEach
     void setUp() {
         lenient().when(transactionManager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
-        service = new OrderService(orders, history, pricing, trackingNumbers, eventRecorder, transactionManager);
+        lenient().when(cities.require("COLOMBO")).thenReturn(COLOMBO);
+        lenient().when(branches.resolve(COLOMBO)).thenReturn(Optional.empty());
+        service = new OrderService(orders, history, pricing, trackingNumbers, eventRecorder, cities, branches,
+                transactionManager);
     }
 
     private static CreateOrderRequest request(BigDecimal expectedFee) {
@@ -178,6 +187,82 @@ class OrderServiceTest {
 
         verify(orders, never()).saveAndFlush(any());
         verify(eventRecorder, never()).recordOrderCreated(any());
+    }
+
+    @Test
+    @DisplayName("stores the branch the Organization service chose for the pickup town")
+    void storesResolvedBranch() {
+        stubHappyPath();
+        when(branches.resolve(COLOMBO))
+                .thenReturn(Optional.of(new ResolvedBranch(7L, "CMB-CEN", "Colombo Central", 2.81)));
+
+        OrderResponse response = service.createOrder(CUSTOMER, request(), null);
+
+        ArgumentCaptor<DeliveryOrder> saved = ArgumentCaptor.forClass(DeliveryOrder.class);
+        verify(orders).saveAndFlush(saved.capture());
+        assertThat(saved.getValue().getBranchId()).isEqualTo(7L);
+        assertThat(response.branchId()).isEqualTo(7L);
+    }
+
+    @Test
+    @DisplayName("with branch resolution switched off the order is stored without a branch")
+    void noBranchWhenResolutionOff() {
+        stubHappyPath();
+
+        OrderResponse response = service.createOrder(CUSTOMER, request(), null);
+
+        assertThat(response.branchId()).isNull();
+    }
+
+    @Test
+    @DisplayName("a pickup no service area covers (422) creates nothing")
+    void pickupNotServed() {
+        when(branches.resolve(COLOMBO)).thenThrow(new BusinessRuleException("We do not collect parcels from this pickup area yet"));
+
+        assertThatThrownBy(() -> service.createOrder(CUSTOMER, request(), null))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("pickup area");
+
+        verify(orders, never()).saveAndFlush(any());
+        verify(history, never()).save(any());
+        verify(eventRecorder, never()).recordOrderCreated(any());
+    }
+
+    @Test
+    @DisplayName("an Organization service that cannot answer (503) creates nothing")
+    void organizationUnavailable() {
+        when(branches.resolve(COLOMBO)).thenThrow(new BranchServiceUnavailableException("try again"));
+
+        assertThatThrownBy(() -> service.createOrder(CUSTOMER, request(), null))
+                .isInstanceOf(BranchServiceUnavailableException.class);
+
+        verify(orders, never()).saveAndFlush(any());
+        verify(history, never()).save(any());
+        verify(eventRecorder, never()).recordOrderCreated(any());
+    }
+
+    @Test
+    @DisplayName("an unsupported pickup town is refused before the Organization service is asked")
+    void unsupportedPickupTown() {
+        when(cities.require("COLOMBO")).thenThrow(new BusinessRuleException("Unsupported city"));
+
+        assertThatThrownBy(() -> service.createOrder(CUSTOMER, request(), null))
+                .isInstanceOf(BusinessRuleException.class);
+
+        verify(branches, never()).resolve(any());
+        verify(orders, never()).saveAndFlush(any());
+    }
+
+    @Test
+    @DisplayName("a repeated request with the same idempotency key does not ask the Organization service again")
+    void idempotentReplayDoesNotResolveBranch() {
+        DeliveryOrder existing = new DeliveryOrder(CUSTOMER, "SD-261113-ORIG2222");
+        existing.setDeliveryFee(new BigDecimal("725.00"));
+        when(orders.findByCustomerIdAndIdempotencyKey(CUSTOMER, "key-2")).thenReturn(Optional.of(existing));
+
+        service.createOrder(CUSTOMER, request(), "key-2");
+
+        verify(branches, never()).resolve(any());
     }
 
     @Test
