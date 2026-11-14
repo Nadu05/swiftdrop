@@ -256,3 +256,25 @@ export interface BranchCourierItem {
   activeDeliveriesCount: number;
   completedDeliveriesTotal: number;
 }
+
+/**
+ * Request payload for resolving the nearest eligible branch for a pickup location:
+ * POST /api/v1/organization/branches/resolve (BranchResolutionRequest).
+ */
+export interface BranchResolutionRequest {
+  latitude: number;
+  longitude: number;
+}
+
+/**
+ * Response of POST /api/v1/organization/branches/resolve (BranchResolutionResponse).
+ * When no active branch service area covers the coordinates the backend answers HTTP 422
+ * (UnsupportedServiceAreaException).
+ */
+export interface BranchResolutionResponse {
+  branchId: number;
+  branchCode: string;
+  branchName: string;
+  distanceKm: number;
+  eligible: boolean;
+}

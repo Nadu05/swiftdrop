@@ -22,6 +22,8 @@ import type {
   BranchCreateRequest,
   BranchDispatcherItem,
   BranchPerformanceSummaryResponse,
+  BranchResolutionRequest,
+  BranchResolutionResponse,
   BranchResponse,
   BranchStatus,
   BranchSummaryMetrics,
@@ -51,6 +53,7 @@ import type {
 
 const BRANCHES_BASE_PATH = '/api/v1/organization/branches';
 const SERVICE_AREAS_BASE_PATH = '/api/v1/organization/service-areas';
+const BRANCH_RESOLUTION_PATH = '/api/v1/organization/branches/resolve';
 
 /**
  * Structured error thrown by Organization API functions so UI views and forms can
@@ -61,6 +64,8 @@ export class OrganizationApiError extends Error {
   public readonly status?: number;
   public readonly fieldErrors?: Record<string, string>;
   public readonly isConflict: boolean;
+  /** True when no active branch service area covers the requested pickup point (HTTP 422). */
+  public readonly isUnsupportedServiceArea: boolean;
 
   constructor(
     message: string,
@@ -74,6 +79,7 @@ export class OrganizationApiError extends Error {
     this.status = options?.status;
     this.fieldErrors = options?.fieldErrors;
     this.isConflict = options?.status === 409;
+    this.isUnsupportedServiceArea = options?.status === 422;
   }
 }
 
@@ -98,6 +104,14 @@ function buildOrganizationApiError(
         status: 409,
         fieldErrors: { code: conflictMsg },
       });
+    }
+
+    if (status === 422) {
+      return new OrganizationApiError(
+        data?.message ||
+          'This pickup location falls outside all active branch service areas and cannot be served right now.',
+        { status: 422 }
+      );
     }
 
     if (status === 400) {
@@ -374,6 +388,26 @@ export function resolveBranchDistrict(
     branch.district,
     branch.addressLine2
   );
+}
+
+/**
+ * Resolve the nearest active branch whose service area covers the pickup coordinates.
+ *
+ * Endpoint: POST /api/v1/organization/branches/resolve
+ * Rejects with `isUnsupportedServiceArea` when no branch covers the point (HTTP 422).
+ */
+export async function resolveNearestBranch(
+  payload: BranchResolutionRequest
+): Promise<BranchResolutionResponse> {
+  try {
+    const response = await apiClient.post<BranchResolutionResponse>(BRANCH_RESOLUTION_PATH, payload);
+    return response.data;
+  } catch (error: unknown) {
+    throw buildOrganizationApiError(
+      error,
+      'Unable to resolve an eligible branch for the specified pickup coordinates.'
+    );
+  }
 }
 
 /**
