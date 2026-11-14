@@ -6,6 +6,7 @@ import type { ActiveDeliveryRecord } from './types';
 interface ActiveDeliveryTableProps {
   deliveries: ActiveDeliveryRecord[];
   isLoading?: boolean;
+  error?: string | null;
   onViewDetails: (delivery: ActiveDeliveryRecord) => void;
   currentPage: number;
   totalPages: number;
@@ -44,6 +45,7 @@ const statusBadgeConfig: Record<
 export default function ActiveDeliveryTable({
   deliveries,
   isLoading = false,
+  error = null,
   onViewDetails,
   currentPage,
   totalPages,
@@ -89,6 +91,15 @@ export default function ActiveDeliveryTable({
                   <div className="flex items-center justify-center gap-2 py-4 text-slate-500">
                     <span className="dispatcher-spinner" aria-hidden="true" />
                     <span>Loading active deliveries...</span>
+                  </div>
+                </td>
+              </tr>
+            ) : error ? (
+              <tr>
+                <td colSpan={9} className="dispatcher-table__empty text-rose-600 font-medium py-6">
+                  <div className="flex flex-col items-center gap-1">
+                    <AlertTriangle size={20} />
+                    <span>{error}</span>
                   </div>
                 </td>
               </tr>
