@@ -65,6 +65,7 @@ export class OrganizationApiError extends Error {
   public readonly status?: number;
   public readonly fieldErrors?: Record<string, string>;
   public readonly isConflict: boolean;
+  /** True when no active branch service area covers the requested pickup point (HTTP 422). */
   public readonly isUnsupportedServiceArea: boolean;
 
   constructor(
@@ -104,6 +105,14 @@ function buildOrganizationApiError(
         status: 409,
         fieldErrors: { code: conflictMsg },
       });
+    }
+
+    if (status === 422) {
+      return new OrganizationApiError(
+        data?.message ||
+          'This pickup location falls outside all active branch service areas and cannot be served right now.',
+        { status: 422 }
+      );
     }
 
     if (status === 400) {

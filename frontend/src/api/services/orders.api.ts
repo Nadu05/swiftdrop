@@ -269,6 +269,43 @@ export async function getCustomerOrders(): Promise<DeliveryOrder[]> {
 }
 
 /**
+ * Fetch every delivery order of the signed-in customer from the Order Service (newest first).
+ * Used by My Deliveries: it never substitutes sample data, so an empty list means no orders and a
+ * failure is thrown with a message the customer can act on.
+ *
+ * Endpoint: GET /api/v1/orders?page=&size= (paged by the Order Service, up to 100 per page)
+ */
+export async function listMyOrders(): Promise<DeliveryOrder[]> {
+  const pageSize = 100;
+  const orders: DeliveryOrder[] = [];
+  try {
+    for (let page = 0; page < 50; page++) {
+      const response = await apiClient.get<DeliveryOrder[]>('/api/v1/orders', {
+        params: { page, size: pageSize },
+      });
+      const batch = Array.isArray(response.data) ? response.data : [];
+      orders.push(...batch);
+      if (batch.length < pageSize) break;
+    }
+    return orders;
+  } catch (error: any) {
+    const status: number | undefined = error?.response?.status;
+    if (!error?.response) {
+      throw new Error(
+        'Unable to reach the API Gateway or Order Service. Please check that the backend is running at http://localhost:8080.'
+      );
+    }
+    if (status === 401) {
+      throw new Error('Your session has expired. Please sign in again to see your deliveries.');
+    }
+    if (status === 403) {
+      throw new Error('Your account is not allowed to view deliveries.');
+    }
+    throw new Error(error?.response?.data?.message || 'We could not load your deliveries. Please try again.');
+  }
+}
+
+/**
  * Fetch individual order details by ID (Authenticated/Private).
  * 
  * Endpoint: GET /api/v1/orders/{id}

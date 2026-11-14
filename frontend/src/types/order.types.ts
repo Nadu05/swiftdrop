@@ -91,6 +91,19 @@ export interface CreateOrderResponse {
 }
 
 /**
+ * How an order's delivery fee was calculated (as stored when the order was placed).
+ * baseFee + weightFee + distanceFee + zoneSurcharge = totalFee.
+ */
+export interface FeeBreakdown {
+  baseFee: number;
+  weightFee: number;
+  distanceFee: number;
+  zoneSurcharge: number;
+  totalFee: number;
+  currency?: string;
+}
+
+/**
  * Full Delivery Order representation returned by:
  * GET /api/v1/orders (List)
  * GET /api/v1/orders/{id} (Single Order Details - Authenticated/Private)
@@ -118,6 +131,8 @@ export interface DeliveryOrder {
   courierPhone?: string;
   branch?: string;
   distanceKm?: number;
+  /** How the delivery fee was calculated; absent on records that do not carry it. */
+  feeBreakdown?: FeeBreakdown;
 }
 
 /**

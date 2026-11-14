@@ -48,7 +48,8 @@ export default function CustomerSidebar() {
       return pathname === '/customer/dashboard' || pathname === '/customer';
     }
     if (href === '/book') {
-      return pathname.startsWith('/book');
+      // '/book' and its sub-pages only: '/bookings' belongs to My Deliveries
+      return pathname === '/book' || pathname.startsWith('/book/');
     }
     if (href === '/bookings') {
       return pathname.startsWith('/bookings');
