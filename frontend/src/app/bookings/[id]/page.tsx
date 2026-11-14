@@ -6,23 +6,23 @@ import { useParams } from 'next/navigation';
 import {
   ArrowLeft,
   Package,
+  Building2,
+  Scale,
   MapPin,
   Calendar,
   AlertCircle,
   Loader2,
   Copy,
+  Download,
   Check,
   ShieldCheck,
   Truck,
-  PlusCircle,
-  FileText,
   User,
   Phone,
   CheckCircle2,
   Clock,
   Compass,
   RotateCcw,
-  Star,
   ExternalLink,
 } from 'lucide-react';
 import { getOrderById } from '@/api/services/orders.api';
@@ -193,18 +193,6 @@ export default function OrderDetailsPage() {
           </div>
 
           <div className="sd-header-actions">
-            {order?.trackingNumber && (
-              <button
-                type="button"
-                onClick={handleCopy}
-                className="sd-header-btn"
-                title="Copy Tracking Number"
-              >
-                {copied ? <Check size={14} color="#34d399" /> : <Copy size={14} />}
-                <span>{copied ? 'Copied' : 'Copy Tracking #'}</span>
-              </button>
-            )}
-
             <button
               type="button"
               onClick={fetchOrder}
@@ -215,6 +203,15 @@ export default function OrderDetailsPage() {
               <RotateCcw size={14} className={isLoading ? 'animate-spin' : ''} />
               <span>Refresh</span>
             </button>
+
+            <Link
+              href={`/bookings/${id}/receipt`}
+              className="sd-header-btn"
+              title="Download your receipt"
+            >
+              <Download size={14} />
+              <span>Download Receipt</span>
+            </Link>
 
             {order?.trackingNumber && (
               <Link
@@ -232,6 +229,14 @@ export default function OrderDetailsPage() {
       {/* ---------------- MAIN BODY CANVAS (LIGHT THEME) ---------------- */}
       <main className="sd-fullpage-body">
         <div className="sd-content-wrapper">
+          {/* PAGE HEADING */}
+          <div className="sd-page-heading">
+            <h2 className="sd-page-heading-title">Delivery Details</h2>
+            <p className="sd-page-heading-sub">
+              Follow your parcel's progress and see everything about this delivery.
+            </p>
+          </div>
+
           {/* LOADING STATE */}
           {isLoading && (
             <div className="sd-card sd-state-card">
@@ -296,20 +301,40 @@ export default function OrderDetailsPage() {
                 {/* Key Metrics Quick Ribbon */}
                 <div className="sd-hero-ribbon">
                   <div className="sd-ribbon-item">
-                    <span className="lbl">Branch Operations</span>
-                    <span className="val">{order.branch || 'Colombo Central Branch'}</span>
+                    <span className="sd-ribbon-icon">
+                      <Building2 size={17} />
+                    </span>
+                    <div className="sd-ribbon-text">
+                      <span className="lbl">Branch Operations</span>
+                      <span className="val">{order.branch || 'Colombo Central Branch'}</span>
+                    </div>
                   </div>
                   <div className="sd-ribbon-item">
-                    <span className="lbl">Parcel Category</span>
-                    <span className="val">{order.parcelSize || 'STANDARD'} Parcel</span>
+                    <span className="sd-ribbon-icon">
+                      <Package size={17} />
+                    </span>
+                    <div className="sd-ribbon-text">
+                      <span className="lbl">Parcel Category</span>
+                      <span className="val">{order.parcelSize || 'STANDARD'} Parcel</span>
+                    </div>
                   </div>
                   <div className="sd-ribbon-item">
-                    <span className="lbl">Weight</span>
-                    <span className="val">{order.weightKg || '0.5'} kg</span>
+                    <span className="sd-ribbon-icon">
+                      <Scale size={17} />
+                    </span>
+                    <div className="sd-ribbon-text">
+                      <span className="lbl">Weight</span>
+                      <span className="val">{order.weightKg || '0.5'} kg</span>
+                    </div>
                   </div>
                   <div className="sd-ribbon-item">
-                    <span className="lbl">Assigned Courier</span>
-                    <span className="val">{order.courierName || 'Kasun Perera'}</span>
+                    <span className="sd-ribbon-icon">
+                      <User size={17} />
+                    </span>
+                    <div className="sd-ribbon-text">
+                      <span className="lbl">Assigned Courier</span>
+                      <span className="val">{order.courierName || 'Kasun Perera'}</span>
+                    </div>
                   </div>
                 </div>
               </section>
@@ -413,10 +438,6 @@ export default function OrderDetailsPage() {
                       </div>
                       <div className="sd-courier-meta">
                         <span>Colombo Central Fleet</span>
-                        <span className="sd-dot">·</span>
-                        <span className="sd-rating">
-                          4.9 <Star size={11} fill="#f59e0b" color="#f59e0b" />
-                        </span>
                       </div>
                     </div>
                     <div className="sd-courier-actions">
@@ -509,7 +530,7 @@ export default function OrderDetailsPage() {
                     </div>
                   </section>
 
-                  {/* Card 3: Parcel Specifications & Payment */}
+                  {/* Card 3: Parcel Specifications */}
                   <section className="sd-card sd-detail-card" aria-label="Parcel Specifications">
                     <div className="sd-card-header-row">
                       <div className="sd-section-icon-box purple-soft">
@@ -517,7 +538,7 @@ export default function OrderDetailsPage() {
                       </div>
                       <div>
                         <h3 className="sd-card-title">Parcel Specifications</h3>
-                        <span className="sd-card-subtitle">Package details &amp; payment</span>
+                        <span className="sd-card-subtitle">Package details</span>
                       </div>
                     </div>
 
@@ -530,15 +551,10 @@ export default function OrderDetailsPage() {
                       </div>
                       <div className="sd-spec-box">
                         <span className="sd-detail-lbl">Size Category</span>
-                        <span className="sd-size-badge">{order.parcelSize || 'SMALL'}</span>
-                      </div>
-                      <div className="sd-spec-box">
-                        <span className="sd-detail-lbl">Weight</span>
-                        <span className="sd-detail-val">{order.weightKg || '0.5'} kg</span>
-                      </div>
-                      <div className="sd-spec-box">
-                        <span className="sd-detail-lbl">Payment Status</span>
-                        <span className="sd-paid-tag">Paid in Full</span>
+                        <span className="sd-size-with-weight">
+                          <span className="sd-size-badge">{order.parcelSize || 'SMALL'}</span>
+                          <span className="sd-detail-val">{order.weightKg || '0.5'} kg</span>
+                        </span>
                       </div>
                     </div>
 
@@ -549,35 +565,6 @@ export default function OrderDetailsPage() {
                       </div>
                     )}
                   </section>
-                </div>
-              </div>
-
-              {/* Bottom Navigation & Actions Toolbar */}
-              <div className="sd-bottom-toolbar">
-                <Link href="/bookings" className="sd-toolbar-back-btn">
-                  <ArrowLeft size={16} /> Return to All Deliveries
-                </Link>
-
-                <div className="sd-toolbar-right">
-                  <Link
-                    href={`/bookings/${id}/receipt`}
-                    className="sd-toolbar-action-btn secondary"
-                  >
-                    <FileText size={15} /> Official Receipt
-                  </Link>
-
-                  {order.trackingNumber && (
-                    <Link
-                      href={`/tracking?trackingNumber=${encodeURIComponent(order.trackingNumber)}`}
-                      className="sd-toolbar-action-btn secondary"
-                    >
-                      <Compass size={15} /> Live Tracking
-                    </Link>
-                  )}
-
-                  <Link href="/book" className="sd-toolbar-action-btn primary">
-                    <PlusCircle size={15} /> Book Another Delivery
-                  </Link>
                 </div>
               </div>
             </div>
@@ -754,6 +741,29 @@ export default function OrderDetailsPage() {
           gap: 1.5rem;
         }
 
+        /* Page heading under the top bar */
+        .sd-page-heading {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+          margin-bottom: 1.5rem;
+        }
+
+        .sd-page-heading-title {
+          font-size: 1.625rem;
+          font-weight: 800;
+          letter-spacing: -0.025em;
+          color: #0f172a;
+          margin: 0;
+        }
+
+        .sd-page-heading-sub {
+          font-size: 0.875rem;
+          color: #64748b;
+          font-weight: 500;
+          margin: 0;
+        }
+
         /* Hero Summary Card */
         .sd-hero-card {
           padding: 1.5rem 1.75rem;
@@ -861,8 +871,28 @@ export default function OrderDetailsPage() {
 
         .sd-ribbon-item {
           display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          min-width: 0;
+        }
+
+        .sd-ribbon-icon {
+          width: 36px;
+          height: 36px;
+          border-radius: 10px;
+          background: #eff6ff;
+          color: #2563eb;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+
+        .sd-ribbon-text {
+          display: flex;
           flex-direction: column;
           gap: 0.2rem;
+          min-width: 0;
         }
 
         .sd-ribbon-item .lbl {
@@ -922,7 +952,7 @@ export default function OrderDetailsPage() {
           display: grid;
           grid-template-columns: 1.15fr 0.85fr;
           gap: 1.5rem;
-          align-items: start;
+          align-items: stretch;
         }
 
         /* Timeline Section */
@@ -1144,6 +1174,7 @@ export default function OrderDetailsPage() {
 
         /* Assigned Courier Box */
         .sd-courier-box {
+          margin-top: auto;
           display: flex;
           align-items: center;
           gap: 0.85rem;
@@ -1196,14 +1227,6 @@ export default function OrderDetailsPage() {
           align-items: center;
           gap: 0.4rem;
           margin-top: 2px;
-        }
-
-        .sd-rating {
-          color: #b45309;
-          font-weight: 700;
-          display: inline-flex;
-          align-items: center;
-          gap: 0.2rem;
         }
 
         .sd-courier-actions {
@@ -1337,6 +1360,12 @@ export default function OrderDetailsPage() {
           padding: 0.15rem 0.5rem;
           border-radius: 5px;
           width: fit-content;
+        }
+
+        .sd-size-with-weight {
+          display: flex;
+          align-items: center;
+          gap: 0.6rem;
         }
 
         .sd-paid-tag {
