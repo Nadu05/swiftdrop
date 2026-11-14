@@ -22,9 +22,12 @@ function getBreadcrumbsForPath(pathname: string | null): BreadcrumbSegment[] {
   if (pathname?.startsWith('/organization/console')) {
     const consoleBase: BreadcrumbSegment[] = [
       { label: 'SwiftDrop', href: '/' },
-      { label: 'Branch Console', href: '/organization/console/requests' },
+      { label: 'Branch Console', href: '/organization/console' },
     ];
 
+    if (pathname === '/organization/console') {
+      return [...consoleBase, { label: 'Branch Manager Dashboard' }];
+    }
     if (pathname === '/organization/console/requests') {
       return [...consoleBase, { label: 'Delivery Request Queue' }];
     }
@@ -34,7 +37,7 @@ function getBreadcrumbsForPath(pathname: string | null): BreadcrumbSegment[] {
     if (pathname === '/organization/console/couriers') {
       return [...consoleBase, { label: 'Courier Roster' }];
     }
-    return [...consoleBase, { label: 'Delivery Request Queue' }];
+    return [...consoleBase, { label: 'Branch Manager Dashboard' }];
   }
 
   const base: BreadcrumbSegment[] = [

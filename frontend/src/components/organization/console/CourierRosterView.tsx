@@ -14,6 +14,12 @@ import {
   X,
 } from 'lucide-react';
 import { useBranches, useBranchCourierRoster } from '@/hooks/api/use-organization';
+import { useBranchConsoleStore } from '@/store/branch-console.store';
+import {
+  isBranchDashboardPreviewActive,
+  MOCK_BRANCH_INFO,
+  MOCK_COURIER_ROSTER,
+} from '@/api/mock/branch-dashboard.mock';
 import type {
   BranchCourierAvailability,
   BranchCourierAvailabilityFilter,
@@ -54,14 +60,19 @@ export default function CourierRosterView() {
     error: rawBranchError,
   } = useBranches();
 
+  const assignedBranchId = useBranchConsoleStore((s) => s.assignedBranchId);
+  const setAssignedBranchId = useBranchConsoleStore((s) => s.setAssignedBranchId);
+
   const [explicitBranchId, setExplicitBranchId] = useState<number | undefined>(
-    branchIdParam && !Number.isNaN(Number(branchIdParam))
-      ? Number(branchIdParam)
-      : undefined
+    assignedBranchId ??
+      (branchIdParam && !Number.isNaN(Number(branchIdParam))
+        ? Number(branchIdParam)
+        : undefined)
   );
 
   const selectedBranchId = useMemo(() => {
     if (explicitBranchId !== undefined) return explicitBranchId;
+    if (assignedBranchId !== null) return assignedBranchId;
     if (branches.length === 0) return undefined;
     const requestedId =
       branchIdParam && !Number.isNaN(Number(branchIdParam))
@@ -75,10 +86,11 @@ export default function CourierRosterView() {
       branches.find((b) => b.status === 'ACTIVE') ??
       branches[0]
     )?.id;
-  }, [branches, explicitBranchId, branchIdParam]);
+  }, [branches, explicitBranchId, assignedBranchId, branchIdParam]);
 
   const setSelectedBranchId = (id: number | undefined) => {
     setExplicitBranchId(id);
+    setAssignedBranchId(id ?? null);
   };
 
   const {
@@ -106,15 +118,25 @@ export default function CourierRosterView() {
       : 'Branch courier roster endpoint is not yet available from the backend.'
     : null;
 
+  const isPreview = isBranchDashboardPreviewActive();
+
   const selectedBranch = useMemo(
-    () => branches.find((b) => b.id === selectedBranchId) ?? null,
-    [branches, selectedBranchId]
+    () => branches.find((b) => b.id === selectedBranchId) ?? (isPreview ? MOCK_BRANCH_INFO : null),
+    [branches, selectedBranchId, isPreview]
   );
+
+  const effectiveCouriers = useMemo(() => {
+    if (couriers.length > 0) return couriers;
+    if (isPreview && (couriers.length === 0 || Boolean(rawRosterError))) {
+      return MOCK_COURIER_ROSTER;
+    }
+    return couriers;
+  }, [couriers, isPreview, rawRosterError]);
 
   const filteredCouriers = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
 
-    return couriers.filter((courier) => {
+    return effectiveCouriers.filter((courier) => {
       if (
         availabilityFilter !== 'ALL' &&
         courier.availability !== availabilityFilter
@@ -132,9 +154,12 @@ export default function CourierRosterView() {
 
       return true;
     });
-  }, [couriers, searchQuery, availabilityFilter]);
+  }, [effectiveCouriers, searchQuery, availabilityFilter]);
 
-  const isLoading = isLoadingBranches || isLoadingRoster;
+  const isLoading = !isPreview && (isLoadingBranches || isLoadingRoster);
+  const isBackendRosterUnavailable = isPreview
+    ? false
+    : Boolean(branchError) || Boolean(rosterUnavailableMessage);
 
   const handleInviteCourierClick = () => {
     // TODO (Backend Integration — Member 03 / Courier Onboarding Service):
@@ -167,9 +192,16 @@ export default function CourierRosterView() {
       {/* Screen 30 Page Title & Section Header Row */}
       <header className="org-console-header">
         <div className="org-console-header__top">
-          <h1 className="org-console-header__page-title">
-            Branch Console / Courier Roster
-          </h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="org-console-header__page-title">
+              Branch Console / Courier Roster
+            </h1>
+            {isPreview && (
+              <span className="org-dashboard-badge org-dashboard-badge--preview">
+                Development Preview
+              </span>
+            )}
+          </div>
 
           <div className="org-console-header__utility">
             {branches.length > 1 && (

@@ -1,10 +1,14 @@
 import { apiClient } from '@/api/axios-client';
 import type {
+  BranchComputedPerformanceMetrics,
   BranchCourierAssignmentPayload,
+  BranchCourierOperationsMetrics,
   BranchCourierRosterItem,
   BranchCreateRequest,
+  BranchDeliveryOperationsMetrics,
   BranchDeliveryQueueMetrics,
   BranchDeliveryRequestItem,
+  BranchPerformanceSummaryResponse,
   BranchResolutionRequest,
   BranchResolutionResponse,
   BranchResponse,
@@ -612,4 +616,206 @@ export async function getOrganizationAuditEvents(): Promise<OrganizationAuditEve
     );
   }
 }
+
+/* ==========================================================================
+   Branch Manager Dashboard Operational Functions & Metric Derivations
+   (Member 04 — Branch Manager Dashboard UI)
+   ========================================================================== */
+
+/**
+ * Frontend Integration Boundary for Branch Manager Dashboard Section 5.E — Branch Performance Summary.
+ *
+ * TODO (Backend Analytics Integration — Member 03 / Order & Dispatch Services):
+ * Connect to `GET /api/v1/organization/branches/{branchId}/performance-summary` once exposed
+ * by the backend. Does NOT fabricate KPI statistics on the frontend.
+ */
+export async function getBranchPerformanceSummary(
+  branchId?: number
+): Promise<BranchPerformanceSummaryResponse | null> {
+  if (!branchId) {
+    return null;
+  }
+
+  const endpoint = `${BRANCHES_BASE_PATH}/${branchId}/performance-summary`;
+  try {
+    const response = await apiClient.get<BranchPerformanceSummaryResponse>(endpoint);
+    return response.data ?? null;
+  } catch (error: any) {
+    throw buildOrganizationApiError(
+      error,
+      `Branch performance analytics endpoint (${endpoint}) is not yet available from the backend.`
+    );
+  }
+}
+
+/**
+ * Safely computes Branch Manager Delivery Operations Summary metrics (Section 5.B)
+ * strictly from backend-provided data.
+ *
+ * Rules enforced:
+ * - If the delivery queue API is unavailable (`!isQueueAvailable`), queue-derived counts return `null`
+ *   so the UI renders an explicit unavailable state rather than a misleading `0`.
+ * - `completedTodayCount` and `failedCount` are populated ONLY when provided by an authoritative
+ *   backend performance/summary payload — never fabricated from open dispatch queue items.
+ */
+export function calculateBranchDeliveryOperationsMetrics(
+  requests: BranchDeliveryRequestItem[] | null | undefined,
+  performanceSummary?: BranchPerformanceSummaryResponse | null,
+  isQueueAvailable = true
+): BranchDeliveryOperationsMetrics {
+  const safeQueue = isQueueAvailable && Array.isArray(requests) ? requests : null;
+
+  const incomingCount = safeQueue ? safeQueue.length : null;
+  const unassignedCount = safeQueue
+    ? safeQueue.filter((item) => item.assignmentStatus === 'UNASSIGNED').length
+    : null;
+  const assignedCount = safeQueue
+    ? safeQueue.filter((item) => item.assignmentStatus === 'ASSIGNED').length
+    : null;
+  const readyForPickupCount = safeQueue
+    ? safeQueue.filter((item) => item.assignmentStatus === 'READY_FOR_PICKUP').length
+    : null;
+
+  const completedTodayCount =
+    performanceSummary?.deliveriesCompletedToday !== undefined &&
+    performanceSummary?.deliveriesCompletedToday !== null
+      ? performanceSummary.deliveriesCompletedToday
+      : null;
+
+  const failedCount =
+    performanceSummary?.failedDeliveriesToday !== undefined &&
+    performanceSummary?.failedDeliveriesToday !== null
+      ? performanceSummary.failedDeliveriesToday
+      : null;
+
+  return {
+    incomingCount,
+    unassignedCount,
+    assignedCount,
+    readyForPickupCount,
+    completedTodayCount,
+    failedCount,
+  };
+}
+
+/**
+ * Safely computes Courier Operations Overview metrics (Section 5.C) strictly from
+ * backend `BranchCourierRosterItem[]` records.
+ *
+ * Rules enforced:
+ * - Never calculates courier eligibility or automatic selection.
+ * - Returns `null` counts when the courier roster API is unavailable (`!isRosterAvailable`).
+ */
+export function calculateBranchCourierOperationsMetrics(
+  couriers: BranchCourierRosterItem[] | null | undefined,
+  isRosterAvailable = true
+): BranchCourierOperationsMetrics {
+  if (!isRosterAvailable || !Array.isArray(couriers)) {
+    return {
+      totalCouriers: null,
+      availableCouriers: null,
+      busyCouriers: null,
+      offlineCouriers: null,
+      totalActiveJobs: null,
+    };
+  }
+
+  const totalCouriers = couriers.length;
+  const availableCouriers = couriers.filter(
+    (c) => c.availability === 'AVAILABLE'
+  ).length;
+  const busyCouriers = couriers.filter((c) => c.availability === 'BUSY').length;
+  const offlineCouriers = couriers.filter(
+    (c) => c.availability === 'OFFLINE'
+  ).length;
+  const totalActiveJobs = couriers.reduce(
+    (sum, c) => sum + (Number.isFinite(c.activeJobs) ? c.activeJobs : 0),
+    0
+  );
+
+  return {
+    totalCouriers,
+    availableCouriers,
+    busyCouriers,
+    offlineCouriers,
+    totalActiveJobs,
+  };
+}
+
+/**
+ * Safely derives Branch Performance Overview metrics (Section 5.E) from the backend
+ * `BranchPerformanceSummaryResponse`.
+ *
+ * IMPORTANT KPI RULE (Prompt §5.E):
+ * "Do not calculate business KPIs from incomplete or misleading data.
+ * For example, calculate completion rate only when the backend data provides
+ * the correct numerator and denominator for the selected period."
+ */
+export function calculateBranchPerformanceMetrics(
+  summary: BranchPerformanceSummaryResponse | null | undefined
+): BranchComputedPerformanceMetrics {
+  if (!summary) {
+    return {
+      periodLabel: 'Today',
+      deliveriesReceivedToday: null,
+      deliveriesCompletedToday: null,
+      pendingDeliveries: null,
+      failedDeliveriesToday: null,
+      completionRatePercent: null,
+      averageDeliveryDurationMinutes: null,
+    };
+  }
+
+  const received =
+    typeof summary.deliveriesReceivedToday === 'number' &&
+    summary.deliveriesReceivedToday >= 0
+      ? summary.deliveriesReceivedToday
+      : null;
+
+  const completed =
+    typeof summary.deliveriesCompletedToday === 'number' &&
+    summary.deliveriesCompletedToday >= 0
+      ? summary.deliveriesCompletedToday
+      : null;
+
+  const pending =
+    typeof summary.pendingDeliveries === 'number' && summary.pendingDeliveries >= 0
+      ? summary.pendingDeliveries
+      : null;
+
+  const failed =
+    typeof summary.failedDeliveriesToday === 'number' &&
+    summary.failedDeliveriesToday >= 0
+      ? summary.failedDeliveriesToday
+      : null;
+
+  const avgDuration =
+    typeof summary.averageDeliveryDurationMinutes === 'number' &&
+    summary.averageDeliveryDurationMinutes >= 0
+      ? summary.averageDeliveryDurationMinutes
+      : null;
+
+  // Completion rate is derived ONLY when both numerator (completed) and denominator (received > 0)
+  // are present and consistent for the period.
+  let completionRatePercent: number | null = null;
+  if (
+    received !== null &&
+    received > 0 &&
+    completed !== null &&
+    completed <= received
+  ) {
+    completionRatePercent = Math.round((completed / received) * 1000) / 10;
+  }
+
+  return {
+    periodLabel: summary.periodLabel || 'Today',
+    deliveriesReceivedToday: received,
+    deliveriesCompletedToday: completed,
+    pendingDeliveries: pending,
+    failedDeliveriesToday: failed,
+    completionRatePercent,
+    averageDeliveryDurationMinutes: avgDuration,
+  };
+}
+
 

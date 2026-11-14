@@ -9,6 +9,7 @@ import {
   getBranchDeliveryForAssignment,
   getBranchDeliveryQueue,
   getBranches,
+  getBranchPerformanceSummary,
   getEligibleBranchCouriers,
   getOrganizationAuditEvents,
   getOrganizationStaffAccounts,
@@ -49,6 +50,8 @@ export const organizationKeys = {
     [...organizationKeys.all, 'eligible-couriers', branchId] as const,
   courierRoster: (branchId?: number) =>
     [...organizationKeys.all, 'courier-roster', branchId ?? 'all'] as const,
+  branchPerformance: (branchId?: number) =>
+    [...organizationKeys.all, 'branch-performance', branchId ?? 'none'] as const,
   staffAccounts: () => [...organizationKeys.all, 'staff-accounts'] as const,
   auditEvents: () => [...organizationKeys.all, 'audit-events'] as const,
 };
@@ -114,6 +117,14 @@ export function useBranchCourierRoster(branchId?: number) {
   return useQuery({
     queryKey: organizationKeys.courierRoster(branchId),
     queryFn: () => getBranchCourierRoster(branchId),
+  });
+}
+
+export function useBranchPerformanceSummary(branchId?: number) {
+  return useQuery({
+    queryKey: organizationKeys.branchPerformance(branchId),
+    queryFn: () => getBranchPerformanceSummary(branchId),
+    enabled: Boolean(branchId && Number.isInteger(branchId) && branchId > 0),
   });
 }
 

@@ -18,6 +18,11 @@ import {
   useConfirmBranchCourierAssignment,
   useEligibleBranchCouriers,
 } from '@/hooks/api/use-organization';
+import {
+  isBranchDashboardPreviewActive,
+  MOCK_DELIVERY_QUEUE,
+  MOCK_ELIGIBLE_COURIERS,
+} from '@/api/mock/branch-dashboard.mock';
 import type {
   BranchDeliveryRequestItem,
   EligibleBranchCourierItem,
@@ -72,7 +77,24 @@ export default function CourierAssignmentView() {
 
   const assignMutation = useConfirmBranchCourierAssignment();
 
-  const delivery = deliveryData ?? null;
+  const isPreview = isBranchDashboardPreviewActive();
+
+  const delivery = useMemo(() => {
+    if (deliveryData) return deliveryData;
+    if (isPreview) {
+      const match = MOCK_DELIVERY_QUEUE.find(
+        (d) => d.orderCode === deliveryIdParam || d.id === deliveryIdParam
+      );
+      return match ?? MOCK_DELIVERY_QUEUE[0];
+    }
+    return null;
+  }, [deliveryData, isPreview, deliveryIdParam]);
+
+  const effectiveEligibleCouriers = useMemo(() => {
+    if (eligibleCouriers.length > 0) return eligibleCouriers;
+    if (isPreview) return MOCK_ELIGIBLE_COURIERS;
+    return eligibleCouriers;
+  }, [eligibleCouriers, isPreview]);
 
   const [selectedCourierId, setSelectedCourierId] = useState<string | null>(null);
   const [assignmentNote, setAssignmentNote] = useState<string>('');
@@ -82,26 +104,30 @@ export default function CourierAssignmentView() {
     message: string;
   } | null>(null);
 
-  const isLoading = Boolean(deliveryIdParam) && (isLoadingDelivery || isLoadingCouriers);
+  const isLoading = !isPreview && Boolean(deliveryIdParam) && (isLoadingDelivery || isLoadingCouriers);
   const isSubmitting = assignMutation.isPending;
 
-  const deliveryError = rawDeliveryError
-    ? rawDeliveryError instanceof Error
-      ? rawDeliveryError.message
-      : 'Delivery summary endpoint is not yet available from the backend.'
-    : null;
+  const deliveryError = isPreview
+    ? null
+    : rawDeliveryError
+      ? rawDeliveryError instanceof Error
+        ? rawDeliveryError.message
+        : 'Delivery summary endpoint is not yet available from the backend.'
+      : null;
 
-  const couriersError = rawCouriersError
-    ? rawCouriersError instanceof Error
-      ? rawCouriersError.message
-      : 'Eligible couriers endpoint is not yet available from the backend.'
-    : null;
+  const couriersError = isPreview
+    ? null
+    : rawCouriersError
+      ? rawCouriersError instanceof Error
+        ? rawCouriersError.message
+        : 'Eligible couriers endpoint is not yet available from the backend.'
+      : null;
 
   useEffect(() => {
-    if (eligibleCouriers.length > 0 && !selectedCourierId) {
-      setSelectedCourierId(eligibleCouriers[0].id);
+    if (effectiveEligibleCouriers.length > 0 && !selectedCourierId) {
+      setSelectedCourierId(effectiveEligibleCouriers[0].id);
     }
-  }, [eligibleCouriers, selectedCourierId]);
+  }, [effectiveEligibleCouriers, selectedCourierId]);
 
   const loadAssignmentContext = useCallback(async () => {
     await Promise.allSettled([refetchDelivery(), refetchCouriers()]);
@@ -109,12 +135,21 @@ export default function CourierAssignmentView() {
 
   const selectedCourier = useMemo(
     () =>
-      eligibleCouriers.find((c) => c.id === selectedCourierId) ?? null,
-    [eligibleCouriers, selectedCourierId]
+      effectiveEligibleCouriers.find((c) => c.id === selectedCourierId) ?? null,
+    [effectiveEligibleCouriers, selectedCourierId]
   );
 
   const handleConfirmAssignment = async () => {
     setActionFeedback(null);
+
+    if (isPreview) {
+      setActionFeedback({
+        type: 'info',
+        message:
+          'Development Preview Boundary: In preview mode, actual courier assignments and notifications are not modified. Dispatch Service (:8080) processes real assignments once backend integration is live.',
+      });
+      return;
+    }
 
     if (!deliveryIdParam) {
       setActionFeedback({
@@ -207,9 +242,16 @@ export default function CourierAssignmentView() {
       {/* Screen 29 Page Title & Sub-heading Row */}
       <header className="org-console-header">
         <div className="org-console-header__top">
-          <h1 className="org-console-header__page-title">
-            Branch Console / Courier Assignment
-          </h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="org-console-header__page-title">
+              Branch Console / Courier Assignment
+            </h1>
+            {isPreview && (
+              <span className="org-dashboard-badge org-dashboard-badge--preview">
+                Development Preview
+              </span>
+            )}
+          </div>
 
           <div className="org-console-header__utility">
             <Link href={backHref} className="org-btn org-btn--secondary">

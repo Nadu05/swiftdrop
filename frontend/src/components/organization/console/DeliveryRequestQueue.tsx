@@ -14,6 +14,12 @@ import {
 } from 'lucide-react';
 import { calculateBranchDeliveryQueueMetrics } from '@/api/services/organization.api';
 import { useBranches, useBranchDeliveryQueue } from '@/hooks/api/use-organization';
+import { useBranchConsoleStore } from '@/store/branch-console.store';
+import {
+  isBranchDashboardPreviewActive,
+  MOCK_BRANCH_INFO,
+  MOCK_DELIVERY_QUEUE,
+} from '@/api/mock/branch-dashboard.mock';
 import type {
   BranchDeliveryQueueFilter,
   BranchDeliveryQueueStatus,
@@ -53,14 +59,19 @@ export default function DeliveryRequestQueue() {
     error: rawBranchError,
   } = useBranches();
 
+  const assignedBranchId = useBranchConsoleStore((s) => s.assignedBranchId);
+  const setAssignedBranchId = useBranchConsoleStore((s) => s.setAssignedBranchId);
+
   const [explicitBranchId, setExplicitBranchId] = useState<number | undefined>(
-    branchIdParam && !Number.isNaN(Number(branchIdParam))
-      ? Number(branchIdParam)
-      : undefined
+    assignedBranchId ??
+      (branchIdParam && !Number.isNaN(Number(branchIdParam))
+        ? Number(branchIdParam)
+        : undefined)
   );
 
   const selectedBranchId = useMemo(() => {
     if (explicitBranchId !== undefined) return explicitBranchId;
+    if (assignedBranchId !== null) return assignedBranchId;
     if (branches.length === 0) return undefined;
     const requestedId =
       branchIdParam && !Number.isNaN(Number(branchIdParam))
@@ -74,10 +85,11 @@ export default function DeliveryRequestQueue() {
       branches.find((b) => b.status === 'ACTIVE') ??
       branches[0]
     )?.id;
-  }, [branches, explicitBranchId, branchIdParam]);
+  }, [branches, explicitBranchId, assignedBranchId, branchIdParam]);
 
   const setSelectedBranchId = (id: number | undefined) => {
     setExplicitBranchId(id);
+    setAssignedBranchId(id ?? null);
   };
 
   const {
@@ -102,20 +114,30 @@ export default function DeliveryRequestQueue() {
       : 'Branch delivery request queue API is not yet available from the backend.'
     : null;
 
+  const isPreview = isBranchDashboardPreviewActive();
+
   const selectedBranch = useMemo(
-    () => branches.find((b) => b.id === selectedBranchId) ?? null,
-    [branches, selectedBranchId]
+    () => branches.find((b) => b.id === selectedBranchId) ?? (isPreview ? MOCK_BRANCH_INFO : null),
+    [branches, selectedBranchId, isPreview]
   );
 
+  const effectiveRequests = useMemo(() => {
+    if (requests.length > 0) return requests;
+    if (isPreview && (requests.length === 0 || Boolean(rawQueueError))) {
+      return MOCK_DELIVERY_QUEUE;
+    }
+    return requests;
+  }, [requests, isPreview, rawQueueError]);
+
   const metrics = useMemo(
-    () => calculateBranchDeliveryQueueMetrics(requests),
-    [requests]
+    () => calculateBranchDeliveryQueueMetrics(effectiveRequests),
+    [effectiveRequests]
   );
 
   const filteredRequests = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
 
-    return requests.filter((req) => {
+    return effectiveRequests.filter((req) => {
       if (statusFilter === 'OPEN' && req.assignmentStatus === 'ASSIGNED') {
         return false;
       }
@@ -147,18 +169,26 @@ export default function DeliveryRequestQueue() {
     });
   }, [requests, searchQuery, statusFilter]);
 
-  const isLoading = isLoadingBranches || isLoadingQueue;
-  const isBackendQueueUnavailable =
-    Boolean(branchError) || Boolean(queueUnavailableMessage);
+  const isLoading = !isPreview && (isLoadingBranches || isLoadingQueue);
+  const isBackendQueueUnavailable = isPreview
+    ? false
+    : Boolean(branchError) || Boolean(queueUnavailableMessage);
 
   return (
     <div className="org-page org-console-page">
       {/* Screen 28 Page Title & Incoming Delivery Requests Section Header */}
       <header className="org-console-header">
         <div className="org-console-header__top">
-          <h1 className="org-console-header__page-title">
-            Branch Console / Delivery Request Queue
-          </h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="org-console-header__page-title">
+              Branch Console / Delivery Request Queue
+            </h1>
+            {isPreview && (
+              <span className="org-dashboard-badge org-dashboard-badge--preview">
+                Development Preview
+              </span>
+            )}
+          </div>
 
           <div className="org-console-header__utility">
             <button

@@ -295,3 +295,86 @@ export interface OrganizationAuditEventItem {
   outcome: string;
 }
 
+/* ==========================================================================
+   Branch Manager Dashboard Operational Contracts (Member 04 — Branch Console)
+   ========================================================================== */
+
+/**
+ * Operational delivery metrics for the Branch Manager Dashboard (Section 5.B).
+ * A `null` field indicates that the required backend contract is not yet available
+ * or does not expose that metric — the UI must display an unavailable indicator
+ * rather than fabricating `0` or a placeholder number.
+ */
+export interface BranchDeliveryOperationsMetrics {
+  incomingCount: number | null;
+  unassignedCount: number | null;
+  assignedCount: number | null;
+  readyForPickupCount: number | null;
+  completedTodayCount: number | null;
+  failedCount: number | null;
+}
+
+/**
+ * Courier availability and workload metrics for the Branch Manager Dashboard (Section 5.C),
+ * derived strictly from the branch courier roster returned by the backend.
+ * A `null` value indicates that the courier roster endpoint is currently unavailable.
+ */
+export interface BranchCourierOperationsMetrics {
+  totalCouriers: number | null;
+  availableCouriers: number | null;
+  busyCouriers: number | null;
+  offlineCouriers: number | null;
+  totalActiveJobs: number | null;
+}
+
+/**
+ * Expected backend response contract for Branch Performance Analytics (Section 5.E).
+ *
+ * TODO (Backend Analytics Integration — Member 03 / Order & Dispatch Services):
+ * To be returned by `GET /api/v1/organization/branches/{branchId}/performance-summary`
+ * (or equivalent Gateway-routed analytics endpoint) once exposed by the backend.
+ */
+export interface BranchPerformanceSummaryResponse {
+  branchId: number;
+  periodLabel?: string;
+  deliveriesReceivedToday?: number | null;
+  deliveriesCompletedToday?: number | null;
+  pendingDeliveries?: number | null;
+  failedDeliveriesToday?: number | null;
+  averageDeliveryDurationMinutes?: number | null;
+  updatedAt?: string;
+}
+
+/**
+ * Safely derived Branch Performance metrics for UI presentation.
+ * Completion rate (`completionRatePercent`) is calculated ONLY when the backend
+ * provides a valid non-zero denominator (`deliveriesReceivedToday > 0`) and a
+ * valid numerator (`deliveriesCompletedToday`) for the same period.
+ */
+export interface BranchComputedPerformanceMetrics {
+  periodLabel: string;
+  deliveriesReceivedToday: number | null;
+  deliveriesCompletedToday: number | null;
+  pendingDeliveries: number | null;
+  failedDeliveriesToday: number | null;
+  completionRatePercent: number | null;
+  averageDeliveryDurationMinutes: number | null;
+}
+
+/**
+ * Client-side session & authorization boundary context for the Branch Console.
+ *
+ * TODO (Authentication & Authorization Integration — Member 01 Identity Service):
+ * Once Member 01's authentication and JWT/session context are merged, populate
+ * `assignedBranchId`, `managerDisplayName`, `canAccessHeadOffice`, and
+ * `canEditBranchConfig` from the verified user context.
+ */
+export interface BranchManagerSessionContext {
+  assignedBranchId: number | null;
+  managerDisplayName: string | null;
+  managerEmail: string | null;
+  canAccessHeadOffice: boolean;
+  canEditBranchConfig: boolean;
+}
+
+

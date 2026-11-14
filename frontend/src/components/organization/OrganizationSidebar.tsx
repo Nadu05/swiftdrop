@@ -16,6 +16,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
+import { useBranchConsoleStore } from '@/store/branch-console.store';
 
 export interface OrganizationNavItem {
   id: string;
@@ -97,51 +98,45 @@ export const ORGANIZATION_NAV_ITEMS: readonly OrganizationNavItem[] = [
 ];
 
 /**
- * Branch Console navigation items matching Figma Screens 28, 29, and 30
- * (Branch Console / Delivery Request Queue, Courier Assignment, Courier Roster).
+ * Branch Console navigation items for the Branch Manager role.
+ * Covers Overview (Branch Manager Dashboard), Delivery Requests, Courier Roster,
+ * Branch Performance, and Branch Information without mixing Head Office admin permissions.
  */
 export const BRANCH_CONSOLE_NAV_ITEMS: readonly OrganizationNavItem[] = [
   {
     id: 'overview',
     label: 'Overview',
-    href: '/organization',
+    href: '/organization/console',
     icon: LayoutDashboard,
     implemented: true,
   },
   {
     id: 'delivery-requests',
-    label: 'Delivery requests',
+    label: 'Delivery Requests',
     href: '/organization/console/requests',
     icon: ClipboardList,
     implemented: true,
   },
   {
     id: 'courier-roster',
-    label: 'Courier roster',
+    label: 'Courier Roster',
     href: '/organization/console/couriers',
     icon: Truck,
     implemented: true,
   },
   {
-    id: 'branch-staff',
-    label: 'Branch staff',
-    href: '/organization/roles-audit?tab=staff-accounts',
-    icon: Users,
+    id: 'branch-performance',
+    label: 'Branch Performance',
+    href: '/organization/console#branch-performance',
+    icon: ChartColumn,
     implemented: true,
   },
   {
-    id: 'reports',
-    label: 'Reports',
-    href: '/organization/console/requests#reports',
-    icon: ChartColumn,
-    implemented: false,
-  },
-  {
-    id: 'settings',
-    label: 'Settings',
-    href: '/organization/console/requests#settings',
-    icon: Settings,
-    implemented: false,
+    id: 'branch-information',
+    label: 'Branch Information',
+    href: '/organization/console#branch-information',
+    icon: Building2,
+    implemented: true,
   },
 ];
 
@@ -150,6 +145,11 @@ export interface OrganizationSidebarProps {
   isOpen: boolean;
   onClose: () => void;
   onNavigate: () => void;
+  /**
+   * Optional override for whether the current user is permitted to switch to
+   * the Head Office Organization Admin Console. Defaults to `useBranchConsoleStore.canAccessHeadOffice` (false for Branch Managers).
+   */
+  canAccessHeadOffice?: boolean;
 }
 
 function OrganizationSidebar({
@@ -157,9 +157,15 @@ function OrganizationSidebar({
   isOpen,
   onClose,
   onNavigate,
+  canAccessHeadOffice: canAccessHeadOfficeProp,
 }: OrganizationSidebarProps) {
   const pathname = usePathname();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const storeCanAccessHeadOffice = useBranchConsoleStore(
+    (s) => s.canAccessHeadOffice
+  );
+  const canAccessHeadOffice =
+    canAccessHeadOfficeProp ?? storeCanAccessHeadOffice;
 
   useEffect(() => {
     if (isOpen) {
@@ -183,7 +189,9 @@ function OrganizationSidebar({
       );
     }
     if (item.id === 'overview') {
-      return pathname === '/organization';
+      return isBranchConsoleMode
+        ? pathname === '/organization/console'
+        : pathname === '/organization';
     }
     if (item.id === 'roles-audit') {
       return pathname === '/organization/roles-audit';
@@ -221,13 +229,13 @@ function OrganizationSidebar({
           <Link
             href={
               isBranchConsoleMode
-                ? '/organization/console/requests'
+                ? '/organization/console'
                 : '/organization'
             }
             className="org-sidebar__brand"
             aria-label={
               isBranchConsoleMode
-                ? 'SwiftDrop Branch Console'
+                ? 'SwiftDrop Branch Console — Branch Manager Dashboard'
                 : 'SwiftDrop Head Office — Organization Admin Dashboard'
             }
             onClick={onNavigate}
@@ -289,21 +297,30 @@ function OrganizationSidebar({
         </nav>
 
         <div className="org-sidebar__footer">
-          <Link
-            href={
-              isBranchConsoleMode
-                ? '/organization/branches'
-                : '/organization/console/requests'
-            }
-            className="org-sidebar__mode-switch"
-            onClick={onNavigate}
-          >
-            <span>
-              {isBranchConsoleMode
-                ? 'Switch to Head Office Admin'
-                : 'Open Branch Console'}
-            </span>
-          </Link>
+          {!isBranchConsoleMode ? (
+            <Link
+              href="/organization/console"
+              className="org-sidebar__mode-switch"
+              onClick={onNavigate}
+            >
+              <span>Open Branch Console</span>
+            </Link>
+          ) : canAccessHeadOffice ? (
+            <Link
+              href="/organization"
+              className="org-sidebar__mode-switch"
+              onClick={onNavigate}
+            >
+              <span>Switch to Head Office Admin</span>
+            </Link>
+          ) : (
+            <div
+              className="org-sidebar__scope-pill"
+              title="Branch Manager access is restricted to your assigned branch."
+            >
+              <span>Scope: Assigned Branch Only</span>
+            </div>
+          )}
           <div className="org-sidebar__signed-in">
             <span className="org-sidebar__status-dot" aria-hidden="true" />
             <span>
