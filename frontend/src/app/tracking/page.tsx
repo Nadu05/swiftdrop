@@ -1,134 +1,118 @@
 'use client';
 
-import { Suspense, useState, useEffect, useCallback } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { useQuery } from '@tanstack/react-query';
 import {
   ArrowLeft,
   Search,
   Check,
   AlertCircle,
   Loader2,
-  Star,
   Package,
-  MapPin,
-  Calendar,
-  Clock,
   Copy,
   Truck,
   ShieldCheck,
 } from 'lucide-react';
-import { getPublicTracking, getOrderById } from '@/api/services/orders.api';
-import type { PublicTrackingResponse } from '@/types/order.types';
+import { getPublicTracking, OrderApiError } from '@/api/services/orders.api';
+import { useBookingStore } from '@/store/booking.store';
+
+const trackingSearchSchema = z.object({
+  trackingNumber: z
+    .string()
+    .trim()
+    .min(3, 'Please enter a valid tracking number (e.g. SD-10518)'),
+});
+
+type TrackingSearchForm = z.infer<typeof trackingSearchSchema>;
 
 function DeliveryTrackingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialNumber = searchParams.get('number') || searchParams.get('trackingNumber') || '';
+  const initialNumber = (searchParams.get('number') || searchParams.get('trackingNumber') || '').trim();
 
-  const [queryInput, setQueryInput] = useState<string>(initialNumber || 'SD-10518');
-  const [currentTrackingNumber, setCurrentTrackingNumber] = useState<string>(initialNumber || 'SD-10518');
-  const [trackingData, setTrackingData] = useState<PublicTrackingResponse | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const [currentTrackingNumber, setCurrentTrackingNumber] = useState<string>(initialNumber);
   const [copied, setCopied] = useState<boolean>(false);
+  const { recentTrackingSearches, addRecentTrackingSearch } = useBookingStore();
 
-  // Perform tracking search
-  const fetchTracking = useCallback(async (num: string) => {
-    const clean = num.trim();
-    if (!clean) return;
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    formState: { errors },
+  } = useForm<TrackingSearchForm>({
+    resolver: zodResolver(trackingSearchSchema),
+    defaultValues: {
+      trackingNumber: initialNumber,
+    },
+  });
 
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      // First attempt public tracking API
-      const data = await getPublicTracking(clean);
-      setTrackingData(data);
-      setCurrentTrackingNumber(data.trackingNumber);
-    } catch (err: any) {
-      // If 404 or public endpoint fails, attempt authenticated order lookup as fallback
-      try {
-        const orderData = await getOrderById(clean);
-        setTrackingData({
-          trackingNumber: orderData.trackingNumber || clean,
-          status: orderData.status,
-          origin: orderData.pickupAddress,
-          destination: orderData.dropoffAddress,
-          parcelCategory: orderData.parcelDescription || 'Standard Parcel',
-          estimatedDelivery: 'Today, 2:15 PM',
-          courierName: orderData.courierName || 'Kasun Perera',
-          courierPhone: orderData.courierPhone || '+94 77 123 4567',
-          branch: orderData.branch || 'Colombo Central Branch',
-          distanceKm: 3.2,
-        });
-        setCurrentTrackingNumber(orderData.trackingNumber || clean);
-      } catch {
-        // Fallback demo presentation for standard preview matching reference images
-        if (clean.toUpperCase() === 'SD-10518' || clean.toUpperCase().startsWith('SD-')) {
-          setTrackingData({
-            trackingNumber: clean.toUpperCase(),
-            status: 'In Transit',
-            origin: 'Union Place, Colombo 02',
-            destination: 'Galle Road, Colombo 03',
-            parcelCategory: 'Documents & Small Parcel',
-            estimatedDelivery: '2:15 PM',
-            courierName: 'Kasun Perera',
-            courierPhone: '+94 77 123 4567',
-            branch: 'Colombo Central Branch',
-            distanceKm: 3.2,
-          });
-          setCurrentTrackingNumber(clean.toUpperCase());
-        } else {
-          setError(
-            err.message || `We couldn't find a parcel with tracking number "${clean}".`
-          );
-        }
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  // Run on mount or when number param changes
   useEffect(() => {
-    const numToTrack = initialNumber.trim() || 'SD-10518';
-    fetchTracking(numToTrack);
-  }, [initialNumber, fetchTracking]);
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (queryInput.trim()) {
-      fetchTracking(queryInput.trim());
+    if (initialNumber) {
+      setValue('trackingNumber', initialNumber);
+      setCurrentTrackingNumber(initialNumber);
     }
+  }, [initialNumber, setValue]);
+
+  const {
+    data: trackingData,
+    isFetching: isLoading,
+    error: errorRaw,
+    refetch,
+  } = useQuery({
+    queryKey: ['public-tracking', currentTrackingNumber],
+    queryFn: async () => {
+      const res = await getPublicTracking(currentTrackingNumber);
+      addRecentTrackingSearch(res.trackingNumber);
+      return res;
+    },
+    enabled: Boolean(currentTrackingNumber),
+    retry: false,
+  });
+
+  const errorObj = errorRaw as OrderApiError | null;
+  const error = errorObj?.message || null;
+
+  const onSearchSubmit = (values: TrackingSearchForm) => {
+    const clean = values.trackingNumber.trim().toUpperCase();
+    setCurrentTrackingNumber(clean);
+    router.replace(`/tracking?trackingNumber=${encodeURIComponent(clean)}`);
   };
 
   const handleCopy = () => {
-    if (currentTrackingNumber) {
-      navigator.clipboard.writeText(currentTrackingNumber);
+    if (trackingData?.trackingNumber) {
+      navigator.clipboard.writeText(trackingData.trackingNumber);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
   };
 
-  // Courier initials helper (e.g. "Kasun Perera" -> "KP")
-  const getInitials = (name?: string) => {
-    if (!name) return 'KP';
-    const parts = name.trim().split(' ');
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[1][0]).toUpperCase();
+  const originBranch = trackingData?.branch || 'Origin Dispatch Branch';
+  const destinationBranch = trackingData?.destinationBranch || 'Destination Hub';
+  const distance = trackingData?.distanceKm ?? 0;
+
+  const statusCode = (trackingData?.status || '').toUpperCase();
+  const statusLabel = trackingData?.statusLabel || trackingData?.status || 'In Progress';
+  const isDelivered = statusCode === 'DELIVERED';
+  const isCreated = statusCode === 'CREATED' || statusCode === 'CONFIRMED';
+
+  const formatEventTime = (ts?: string) => {
+    if (!ts) return '';
+    try {
+      return new Date(ts).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return ts;
     }
-    return name.slice(0, 2).toUpperCase();
   };
-
-  const courierName = trackingData?.courierName || 'Kasun Perera';
-  const branchName = trackingData?.branch || 'Colombo Central Branch';
-  const distance = trackingData?.distanceKm || 3.2;
-
-  // Normalized status determination
-  const statusStr = (trackingData?.status || 'In Transit').toLowerCase();
-  const isDelivered = statusStr === 'delivered';
-  const isCreated = statusStr === 'created';
 
   return (
     <div className="sd-fullpage-root">
@@ -142,20 +126,19 @@ function DeliveryTrackingContent() {
             <div>
               <h1 className="sd-header-title">Delivery tracking</h1>
               <div className="sd-header-sub">
-                Order {currentTrackingNumber}
+                {currentTrackingNumber ? `Tracking ${currentTrackingNumber}` : 'Public Parcel Tracking Portal'}
               </div>
             </div>
           </div>
 
-          {/* Quick Header Search / Switcher */}
+          {/* Quick Header Search */}
           <div className="sd-header-search-wrap">
-            <form onSubmit={handleSearchSubmit} className="sd-hdr-search-form">
+            <form onSubmit={handleSubmit(onSearchSubmit)} className="sd-hdr-search-form" noValidate>
               <Search size={14} color="#8fa3bf" />
               <input
                 type="text"
-                placeholder="Track parcel #..."
-                value={queryInput}
-                onChange={(e) => setQueryInput(e.target.value)}
+                placeholder="Enter SD-XXXXX..."
+                {...register('trackingNumber')}
                 className="sd-hdr-search-inp"
               />
               <button type="submit" className="sd-hdr-search-btn">
@@ -169,27 +152,66 @@ function DeliveryTrackingContent() {
       {/* ---------------- MAIN TRACKING CANVAS ---------------- */}
       <main className="sd-fullpage-body">
         <div className="sd-content-wrapper">
+          {errors.trackingNumber && (
+            <div className="sd-error-card" style={{ marginBottom: '1rem', padding: '1rem' }}>
+              <div className="sd-error-sub" style={{ margin: 0 }}>{errors.trackingNumber.message}</div>
+            </div>
+          )}
+
+          {/* EMPTY PROMPT WHEN NO TRACKING NUMBER SPECIFIED */}
+          {!currentTrackingNumber && !isLoading && (
+            <div className="sd-white-panel" style={{ padding: '3rem 2rem', textAlign: 'center', maxWidth: '640px', margin: '0 auto' }}>
+              <Package size={38} color="#2563eb" style={{ margin: '0 auto 0.75rem auto' }} />
+              <h2 className="sd-hero-title" style={{ fontSize: '1.35rem', marginBottom: '0.5rem' }}>
+                Track a SwiftDrop Parcel
+              </h2>
+              <p className="sd-hero-sub" style={{ marginBottom: '1.25rem' }}>
+                Enter your tracking number (e.g. <code>SD-XXXXX</code>) above to view live parcel status and public milestone history.
+              </p>
+              {recentTrackingSearches.length > 0 && (
+                <div className="sd-quick-badges-row" style={{ justifyContent: 'center' }}>
+                  <span className="sd-quick-lbl">Recent lookups:</span>
+                  {recentTrackingSearches.map((num) => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => {
+                        setValue('trackingNumber', num);
+                        setCurrentTrackingNumber(num);
+                      }}
+                      className="sd-quick-pill"
+                    >
+                      {num}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* LOADING STATE */}
           {isLoading && (
             <div className="sd-loading-card">
               <Loader2 size={32} color="#2563eb" className="animate-spin" />
-              <div className="sd-loading-title">Updating live parcel telemetry...</div>
-              <p className="sd-loading-sub">Connecting to SwiftDrop Order & Dispatch Service</p>
+              <div className="sd-loading-title">Looking up parcel {currentTrackingNumber}...</div>
+              <p className="sd-loading-sub">Querying SwiftDrop Order Service public tracking endpoint</p>
             </div>
           )}
 
-          {/* ERROR STATE */}
+          {/* ERROR STATE (404 Tracking Not Found or Service Error) */}
           {!isLoading && error && (
             <div className="sd-error-card">
-              <AlertCircle size={24} color="#dc2626" />
-              <div className="sd-error-title">Tracking Record Not Found</div>
+              <AlertCircle size={28} color="#dc2626" />
+              <div className="sd-error-title">
+                {errorObj?.status === 404 ? 'Tracking Record Not Found' : 'Tracking Lookup Failed'}
+              </div>
               <p className="sd-error-sub">{error}</p>
               <button
                 type="button"
-                onClick={() => fetchTracking('SD-10518')}
+                onClick={() => refetch()}
                 className="sd-retry-btn"
               >
-                View Live Demo (SD-10518)
+                Retry Lookup
               </button>
             </div>
           )}
@@ -197,19 +219,16 @@ function DeliveryTrackingContent() {
           {/* ---------------- BALANCED 2-COLUMN DESKTOP / 1-COLUMN MOBILE LAYOUT ---------------- */}
           {!isLoading && !error && trackingData && (
             <div className="sd-tracking-grid">
-              {/* ==============================================================
-                  LEFT COLUMN: STATUS HERO, MAP GRAPHIC & COURIER CARD
-                 ============================================================== */}
+              {/* LEFT COLUMN: STATUS HERO, ROUTE MAP & SAFE NETWORK SUMMARY */}
               <div className="sd-tracking-left-col">
-                {/* Status Badge & Hero Headings */}
                 <div className="sd-status-hero">
                   <div>
                     {isDelivered ? (
-                      <span className="sd-badge-success">DELIVERED</span>
+                      <span className="sd-badge-success">{statusLabel}</span>
                     ) : isCreated ? (
-                      <span className="sd-badge-pending">DISPATCH IN PROGRESS</span>
+                      <span className="sd-badge-pending">{statusLabel}</span>
                     ) : (
-                      <span className="sd-badge-assigned">COURIER ASSIGNED</span>
+                      <span className="sd-badge-assigned">{statusLabel}</span>
                     )}
                   </div>
 
@@ -217,25 +236,18 @@ function DeliveryTrackingContent() {
                     {isDelivered
                       ? 'Your parcel has been delivered'
                       : isCreated
-                      ? 'Booking received & confirmed'
-                      : 'Your delivery is on its way'}
+                      ? 'Order registered with SwiftDrop'
+                      : `Parcel status: ${statusLabel}`}
                   </h2>
 
                   <p className="sd-hero-sub">
-                    {isDelivered
-                      ? 'Successfully handed over to recipient. Thank you for using SwiftDrop.'
-                      : isCreated
-                      ? `${branchName} is preparing courier fleet assignment.`
-                      : `${branchName} has assigned your courier.`}
+                    Route managed from <strong>{originBranch}</strong> to <strong>{destinationBranch}</strong>.
                   </p>
                 </div>
 
                 {/* Live Route Map Graphic */}
                 <div className="sd-map-card">
-                  {/* Grid Lines Pattern */}
                   <div className="sd-map-grid-bg" />
-
-                  {/* Route SVG Curve */}
                   <svg className="sd-map-svg" viewBox="0 0 400 180" preserveAspectRatio="none">
                     <path
                       d="M 60,65 Q 150,40 200,90 T 320,125"
@@ -245,202 +257,130 @@ function DeliveryTrackingContent() {
                       strokeDasharray="6 4"
                     />
                   </svg>
-
-                  {/* Pickup Marker (P) */}
-                  <div className="sd-map-marker marker-p" title="Pickup Location">
-                    <span>P</span>
+                  <div className="sd-map-marker marker-p" title="Origin">
+                    <span>O</span>
                   </div>
-
-                  {/* Live Courier Marker (Moving Pulse) */}
-                  <div className="sd-map-marker marker-courier" title="Courier Current Location">
+                  <div className="sd-map-marker marker-courier" title="Parcel Status">
                     <div className="sd-courier-pulse" />
                     <div className="sd-courier-core" />
                   </div>
-
-                  {/* Destination Marker (D) */}
                   <div className="sd-map-marker marker-d" title="Destination">
                     <span>D</span>
                   </div>
-
-                  {/* Route Distance Overlay */}
                   <div className="sd-map-distance-tag">
-                    Courier route · {distance} km
+                    Estimated route distance · {Number(distance).toFixed(2)} km
                   </div>
                 </div>
 
-                {/* Courier Information Card */}
+                {/* Safe Network Dispatch Card (No private phone numbers or emails exposed) */}
                 <div className="sd-courier-card">
                   <div className="sd-courier-top-row">
                     <div className="sd-courier-left">
                       <div className="sd-courier-avatar">
-                        {getInitials(courierName)}
+                        <Truck size={20} />
                       </div>
                       <div>
-                        <div className="sd-courier-name">{courierName}</div>
-                        <div className="sd-courier-verified">Verified SwiftDrop courier</div>
-                        <div className="sd-courier-rating">
-                          <span>4.9</span>
-                          <Star size={13} fill="#f59e0b" color="#f59e0b" />
+                        <div className="sd-courier-name">{originBranch}</div>
+                        <div className="sd-courier-verified">
+                          Destination Hub: {destinationBranch}
                         </div>
                       </div>
                     </div>
-
-                    {/* Action Links */}
-                    <div className="sd-courier-actions">
-                      <a href={`tel:${trackingData.courierPhone || '+94771234567'}`} className="sd-action-link">
-                        Call
-                      </a>
-                      <a href={`sms:${trackingData.courierPhone || '+94771234567'}`} className="sd-action-link">
-                        Message
-                      </a>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', color: '#16a34a', fontWeight: 600 }}>
+                      <ShieldCheck size={14} /> Privacy Protected
                     </div>
                   </div>
 
-                  {/* Estimated Arrival Row */}
                   <div className="sd-courier-bottom-row">
-                    <span className="sd-eta-label">Estimated arrival</span>
-                    <span className="sd-eta-time">2:15 PM</span>
+                    <span className="sd-eta-label">Estimated delivery</span>
+                    <span className="sd-eta-time">{trackingData.estimatedDelivery || 'Within 24 hours'}</span>
                   </div>
                 </div>
               </div>
 
-              {/* ==============================================================
-                  RIGHT COLUMN: DELIVERY PROGRESS STEPPER & SHIPMENT SUMMARY
-                 ============================================================== */}
+              {/* RIGHT COLUMN: PUBLIC TRACKING EVENTS TIMELINE & SHIPMENT SUMMARY */}
               <div className="sd-tracking-right-col">
-                {/* Delivery Progress Card */}
                 <div className="sd-white-panel sd-progress-panel">
-                  <h3 className="sd-progress-heading">Delivery progress</h3>
+                  <h3 className="sd-progress-heading">Public Tracking Event Timeline</h3>
 
-                  {/* Stepper */}
-                  <div className="sd-stepper-list">
-                    {/* Step 1: Request received */}
-                    <div className="sd-step-item">
-                      <div className="sd-step-indicator completed">
-                        <Check size={13} strokeWidth={3} />
-                        <div className="sd-step-line solid" />
-                      </div>
-                      <div className="sd-step-content">
-                        <span className="sd-step-name">Request received</span>
-                        <span className="sd-step-time">1:42 PM</span>
-                      </div>
+                  {trackingData.events && trackingData.events.length > 0 ? (
+                    <div className="sd-stepper-list">
+                      {trackingData.events.map((ev, idx) => {
+                        const isLast = idx === trackingData.events!.length - 1;
+                        return (
+                          <div key={`${ev.status}-${idx}`} className="sd-step-item">
+                            <div className="sd-step-indicator completed">
+                              <Check size={13} strokeWidth={3} />
+                              {!isLast && <div className="sd-step-line solid" />}
+                            </div>
+                            <div className="sd-step-content" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '0.15rem' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', gap: '0.5rem' }}>
+                                <span className="sd-step-name">{ev.statusLabel || ev.status}</span>
+                                <span className="sd-step-time">{formatEventTime(ev.timestamp)}</span>
+                              </div>
+                              {ev.location && (
+                                <span style={{ fontSize: '0.75rem', color: '#2563eb', fontWeight: 600 }}>
+                                  {ev.location}
+                                </span>
+                              )}
+                              {ev.description && (
+                                <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                                  {ev.description}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-
-                    {/* Step 2: Accepted by Colombo Central Branch */}
-                    <div className="sd-step-item">
-                      <div className="sd-step-indicator completed">
-                        <Check size={13} strokeWidth={3} />
-                        <div className="sd-step-line solid" />
-                      </div>
-                      <div className="sd-step-content">
-                        <span className="sd-step-name">Accepted by {branchName}</span>
-                        <span className="sd-step-time">1:44 PM</span>
-                      </div>
+                  ) : (
+                    <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                      Current Status: <strong>{statusLabel}</strong>
                     </div>
-
-                    {/* Step 3: Courier Kasun assigned */}
-                    <div className="sd-step-item">
-                      <div className="sd-step-indicator completed">
-                        <Check size={13} strokeWidth={3} />
-                        <div className={`sd-step-line ${isDelivered ? 'solid' : 'active'}`} />
-                      </div>
-                      <div className="sd-step-content">
-                        <span className="sd-step-name">Courier {courierName.split(' ')[0]} assigned</span>
-                        <span className="sd-step-time">1:47 PM</span>
-                      </div>
-                    </div>
-
-                    {/* Step 4: Courier picked up your parcel */}
-                    <div className="sd-step-item">
-                      <div className={`sd-step-indicator ${isDelivered ? 'completed' : 'pending'}`}>
-                        {isDelivered ? <Check size={13} strokeWidth={3} /> : <span>4</span>}
-                        <div className={`sd-step-line ${isDelivered ? 'solid' : 'gray'}`} />
-                      </div>
-                      <div className="sd-step-content">
-                        <span className={`sd-step-name ${isDelivered ? '' : 'muted'}`}>
-                          Courier picked up your parcel
-                        </span>
-                        <span className="sd-step-time next-step">
-                          {isDelivered ? '2:01 PM' : 'Next step'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Step 5: Delivered to recipient */}
-                    <div className="sd-step-item">
-                      <div className={`sd-step-indicator ${isDelivered ? 'completed' : 'pending'}`}>
-                        {isDelivered ? <Check size={13} strokeWidth={3} /> : <span>5</span>}
-                      </div>
-                      <div className="sd-step-content">
-                        <span className={`sd-step-name ${isDelivered ? '' : 'muted'}`}>
-                          Delivered to recipient
-                        </span>
-                        <span className="sd-step-time next-step">
-                          {isDelivered ? '2:15 PM' : ''}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* Shipment Details Summary Box */}
                 <div className="sd-white-panel sd-shipment-details-card">
                   <div className="sd-shipment-header">
                     <Package size={17} color="#2563eb" />
-                    <span>Shipment Specifications</span>
+                    <span>Public Shipment Summary</span>
                   </div>
 
                   <div className="sd-shipment-rows">
                     <div className="sd-shipment-row">
                       <span className="lbl">Tracking Number:</span>
                       <span className="val bold" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-                        {currentTrackingNumber}
+                        {trackingData.trackingNumber}
                         <button type="button" onClick={handleCopy} className="sd-copy-mini-btn" title="Copy tracking number">
                           {copied ? <Check size={12} color="#16a34a" /> : <Copy size={12} />}
                         </button>
                       </span>
                     </div>
                     <div className="sd-shipment-row">
-                      <span className="lbl">Origin:</span>
-                      <span className="val">{trackingData.origin || 'Union Place, Colombo 02'}</span>
+                      <span className="lbl">Current Status:</span>
+                      <span className="val bold">{statusLabel}</span>
                     </div>
                     <div className="sd-shipment-row">
-                      <span className="lbl">Destination:</span>
-                      <span className="val">{trackingData.destination || 'Galle Road, Colombo 03'}</span>
+                      <span className="lbl">Origin City / Hub:</span>
+                      <span className="val">{trackingData.origin || originBranch}</span>
                     </div>
                     <div className="sd-shipment-row">
-                      <span className="lbl">Category:</span>
-                      <span className="val">{trackingData.parcelCategory || 'Documents & Small Parcel'}</span>
+                      <span className="lbl">Destination City / Hub:</span>
+                      <span className="val">{trackingData.destination || destinationBranch}</span>
                     </div>
                     <div className="sd-shipment-row">
-                      <span className="lbl">Assigned Branch:</span>
-                      <span className="val">{branchName}</span>
+                      <span className="lbl">Parcel Category:</span>
+                      <span className="val">{trackingData.parcelCategory || 'Standard Parcel'}</span>
                     </div>
-                  </div>
-
-                  {/* Quick Demo Switcher */}
-                  <div className="sd-quick-badges-row">
-                    <span className="sd-quick-lbl">Demo Presets:</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setQueryInput('SD-10518');
-                        fetchTracking('SD-10518');
-                      }}
-                      className={`sd-quick-pill ${currentTrackingNumber === 'SD-10518' ? 'active' : ''}`}
-                    >
-                      SD-10518 (Active)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setQueryInput('SD-10498');
-                        fetchTracking('SD-10498');
-                      }}
-                      className={`sd-quick-pill ${currentTrackingNumber === 'SD-10498' ? 'active' : ''}`}
-                    >
-                      SD-10498 (Delivered)
-                    </button>
+                    <div className="sd-shipment-row">
+                      <span className="lbl">Origin Branch:</span>
+                      <span className="val">{originBranch}</span>
+                    </div>
+                    <div className="sd-shipment-row">
+                      <span className="lbl">Destination Branch:</span>
+                      <span className="val">{destinationBranch}</span>
+                    </div>
                   </div>
                 </div>
               </div>

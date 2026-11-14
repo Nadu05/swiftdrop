@@ -1,15 +1,15 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import {
   ArrowLeft,
   Printer,
   Download,
   Package,
   MapPin,
-  Calendar,
   AlertCircle,
   Loader2,
   Copy,
@@ -19,9 +19,8 @@ import {
   User,
   Phone,
   FileText,
-  Clock,
-  CheckCircle2,
-  ExternalLink,
+  Building2,
+  CreditCard,
 } from 'lucide-react';
 import { getOrderById } from '@/api/services/orders.api';
 import type { DeliveryOrder } from '@/types/order.types';
@@ -30,38 +29,27 @@ import type { DeliveryOrder } from '@/types/order.types';
  * Member 06: Customer Booking Receipt View + Print/Download
  * Route: /bookings/[id]/receipt
  *
- * Fetches authoritative booking record from GET /api/v1/orders/{id}.
+ * Fetches authoritative booking record from GET /api/v1/orders/{id} via TanStack Query.
  * Formatted as an official business receipt ready for printing or saving as PDF.
  */
 export default function CustomerReceiptPage() {
   const params = useParams();
   const id = params?.id as string;
 
-  const [order, setOrder] = useState<DeliveryOrder | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
 
-  const fetchOrder = useCallback(async () => {
-    if (!id) return;
-    setIsLoading(true);
-    setError(null);
+  const orderQuery = useQuery<DeliveryOrder, Error>({
+    queryKey: ['customer-order', id],
+    queryFn: () => getOrderById(id),
+    enabled: Boolean(id),
+    retry: false,
+  });
 
-    try {
-      const data = await getOrderById(id);
-      setOrder(data);
-    } catch (err: any) {
-      setError(
-        err.message || 'Unable to retrieve order receipt. Please check your network connection.'
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    fetchOrder();
-  }, [fetchOrder]);
+  const order = orderQuery.data ?? null;
+  const isLoading = orderQuery.isLoading || orderQuery.isFetching;
+  const error = orderQuery.error
+    ? orderQuery.error.message || 'Unable to retrieve order receipt. Please check your network connection.'
+    : null;
 
   const handleCopyTracking = () => {
     if (order?.trackingNumber) {
@@ -202,7 +190,7 @@ export default function CustomerReceiptPage() {
           <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#ef4444' }}>Unable to Load Receipt</h2>
           <p style={{ fontSize: '0.875rem', color: '#cbd5e1', maxWidth: '480px' }}>{error}</p>
           <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
-            <button type="button" onClick={fetchOrder} className="btn btn-primary" style={{ fontSize: '0.85rem' }}>
+            <button type="button" onClick={() => orderQuery.refetch()} className="btn btn-primary" style={{ fontSize: '0.85rem' }}>
               Try Again
             </button>
             <Link href="/bookings" className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
@@ -241,7 +229,7 @@ export default function CustomerReceiptPage() {
               </div>
               <div className="meta-row">
                 <span className="meta-label">Order Status:</span>
-                <span className="status-badge">{order.status || 'Created'}</span>
+                <span className="status-badge">{order.statusLabel || order.status || 'Created'}</span>
               </div>
             </div>
           </div>
@@ -289,6 +277,11 @@ export default function CustomerReceiptPage() {
                     <Phone size={13} /> Phone: <strong>{order.pickupContactPhone}</strong>
                   </div>
                 )}
+                {order.originBranchName && (
+                  <div className="contact-row">
+                    <Building2 size={13} /> Origin Branch: <strong>{order.originBranchName} {order.originBranchCode ? `(${order.originBranchCode})` : ''}</strong>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -309,6 +302,11 @@ export default function CustomerReceiptPage() {
                     <Phone size={13} /> Phone: <strong>{order.dropoffContactPhone}</strong>
                   </div>
                 )}
+                {order.destinationBranchName && (
+                  <div className="contact-row">
+                    <Building2 size={13} /> Destination Branch: <strong>{order.destinationBranchName} {order.destinationBranchCode ? `(${order.destinationBranchCode})` : ''}</strong>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -324,6 +322,7 @@ export default function CustomerReceiptPage() {
                   <th>Description</th>
                   <th>Size Category</th>
                   <th>Weight (KG)</th>
+                  <th>Pickup Method</th>
                   <th>Booking ID</th>
                 </tr>
               </thead>
@@ -334,6 +333,7 @@ export default function CustomerReceiptPage() {
                     <span className="size-badge">{order.parcelSize || 'STANDARD'}</span>
                   </td>
                   <td>{order.weightKg ? `${order.weightKg} kg` : '—'}</td>
+                  <td>{order.pickupMethod === 'BRANCH_DROPOFF' ? 'Branch Drop-Off' : 'Courier Pickup'}</td>
                   <td>#{order.id}</td>
                 </tr>
               </tbody>
@@ -349,6 +349,23 @@ export default function CustomerReceiptPage() {
           {/* Pricing & Fee Summary */}
           <div className="financial-card">
             <div className="financial-row">
+              <span className="fee-label">
+                <CreditCard size={13} style={{ display: 'inline', marginRight: '0.35rem', verticalAlign: 'middle' }} />
+                Payment Method & Status
+              </span>
+              <span className="fee-amount">
+                {order.paymentMethod || 'PREPAID'} · {order.paymentStatus || 'UNPAID'}
+              </span>
+            </div>
+            {order.paymentMethod === 'COD' && Number(order.codAmount || 0) > 0 && (
+              <div className="financial-row">
+                <span className="fee-label">COD Item Collection Value (Separate from Delivery Fee)</span>
+                <span className="fee-amount">
+                  {order.currency || 'LKR'} {Number(order.codAmount || 0).toFixed(2)}
+                </span>
+              </div>
+            )}
+            <div className="financial-row">
               <span className="fee-label">Standard Delivery & Handling Fee</span>
               <span className="fee-amount">
                 {order.currency || 'LKR'} {Number(order.deliveryFee || 0).toFixed(2)}
@@ -356,7 +373,7 @@ export default function CustomerReceiptPage() {
             </div>
             <div className="financial-divider" />
             <div className="total-row">
-              <span className="total-label">TOTAL AMOUNT</span>
+              <span className="total-label">TOTAL DELIVERY FEE</span>
               <span className="total-amount">
                 {order.currency || 'LKR'} {Number(order.deliveryFee || 0).toFixed(2)}
               </span>

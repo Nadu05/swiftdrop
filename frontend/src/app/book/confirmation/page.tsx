@@ -30,6 +30,11 @@ function ConfirmationContent() {
   const status = searchParams.get('status') || 'Created';
   const pickupAddress = searchParams.get('pickup') || '';
   const dropoffAddress = searchParams.get('dropoff') || '';
+  const originBranch = searchParams.get('originBranch') || '';
+  const destinationBranch = searchParams.get('destinationBranch') || '';
+  const paymentMethod = searchParams.get('paymentMethod') || '';
+  const paymentStatus = searchParams.get('paymentStatus') || '';
+  const pickupMethod = searchParams.get('pickupMethod') || '';
 
   const handleCopy = () => {
     if (trackingNumber && trackingNumber !== 'TRK-PENDING') {
@@ -182,15 +187,25 @@ function ConfirmationContent() {
         <div className="glass-card" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', padding: '1.5rem' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#60a5fa', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.5rem' }}>
-              <MapPin size={16} /> Pickup Address
+              <MapPin size={16} /> Pickup Address {originBranch ? `(${originBranch})` : ''}
             </div>
             <div style={{ fontSize: '0.875rem', color: '#e2e8f0' }}>{pickupAddress || '—'}</div>
+            {pickupMethod && (
+              <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.35rem' }}>
+                Method: {pickupMethod === 'BRANCH_DROPOFF' ? 'Branch Drop-Off' : 'Courier Pickup'}
+              </div>
+            )}
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#34d399', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.5rem' }}>
-              <MapPin size={16} /> Destination Address
+              <MapPin size={16} /> Destination Address {destinationBranch ? `(${destinationBranch})` : ''}
             </div>
             <div style={{ fontSize: '0.875rem', color: '#e2e8f0' }}>{dropoffAddress || '—'}</div>
+            {paymentMethod && (
+              <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.35rem' }}>
+                Payment: {paymentMethod} {paymentStatus ? `(${paymentStatus})` : ''}
+              </div>
+            )}
           </div>
         </div>
       )}

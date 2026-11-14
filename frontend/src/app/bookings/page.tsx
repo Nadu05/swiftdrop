@@ -1,14 +1,14 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
 import {
   Package,
   PlusCircle,
   RotateCcw,
   Search,
   MapPin,
-  Calendar,
   AlertCircle,
   Loader2,
   ChevronRight,
@@ -17,67 +17,51 @@ import {
   Phone,
   CheckCircle2,
   Compass,
-  Building,
-  HelpCircle,
-  Bell,
   ArrowLeft,
   FileText,
+  CreditCard,
 } from 'lucide-react';
-import { getCustomerOrders } from '@/api/services/orders.api';
+import { getCustomerOrders, OrderApiError } from '@/api/services/orders.api';
 import { getCurrentUserProfile } from '@/api/services/auth.api';
 import type { DeliveryOrder, OrderStatus } from '@/types/order.types';
-import type { UserProfile } from '@/types/auth.types';
 
 type DeliveryTab = 'ACTIVE' | 'HISTORY' | 'ADDRESSES';
 
-/**
- * Member 06: SwiftDrop Customer App — Tracking and History / My Deliveries
- * Route: /bookings
- *
- * Fully integrated with the unified SwiftDrop Customer Light Theme:
- * - #0f1f38 Navy top header with back button to Customer Dashboard
- * - #f4f7fb light canvas connecting seamlessly to Customer Navigation
- * - Clean white cards with #e2e8f0 borders and soft shadows
- * - Real backend data from Order Service
- * - Capsule tabs: [ ACTIVE ] [ HISTORY ] [ ADDRESSES ]
- */
 export default function CustomerBookingsPage() {
   const [activeTab, setActiveTab] = useState<DeliveryTab>('ACTIVE');
-  const [orders, setOrders] = useState<DeliveryOrder[]>([]);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
   const [historySearch, setHistorySearch] = useState<string>('');
 
-  // Fetch authenticated customer orders and profile concurrently
-  const loadDeliveries = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
+  const {
+    data: orders = [],
+    isLoading,
+    isFetching,
+    error: ordersErrorRaw,
+    refetch: loadDeliveries,
+  } = useQuery({
+    queryKey: ['customer-orders'],
+    queryFn: () => getCustomerOrders(),
+    retry: false,
+  });
 
-    try {
-      const [orderData, userProfile] = await Promise.all([
-        getCustomerOrders(),
-        getCurrentUserProfile().catch(() => null),
-      ]);
-      setOrders(Array.isArray(orderData) ? orderData : []);
-      setProfile(userProfile);
-    } catch (err: any) {
-      setError(
-        err.message || 'We could not load your deliveries. Please check your connection and try again.'
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const { data: profile = null } = useQuery({
+    queryKey: ['current-user-profile'],
+    queryFn: getCurrentUserProfile,
+    retry: false,
+    staleTime: 60_000,
+  });
 
-  useEffect(() => {
-    loadDeliveries();
-  }, [loadDeliveries]);
+  const errorObj = ordersErrorRaw as OrderApiError | null;
+  const error = errorObj?.message || null;
 
-  // Determine active deliveries vs completed/history
+  // Determine active deliveries vs completed/history across all 14 Order Service statuses
   const isActiveStatus = (status: OrderStatus) => {
-    const s = (status || '').toUpperCase();
-    return s === 'CREATED' || s === 'PICKED UP' || s === 'IN TRANSIT' || s === 'OUT FOR DELIVERY';
+    const s = (status || '').toUpperCase().replace(/\s+/g, '_');
+    return (
+      s !== 'DELIVERED' &&
+      s !== 'RETURNED_TO_SENDER' &&
+      s !== 'CANCELLED' &&
+      s !== 'FAILED'
+    );
   };
 
   const activeDeliveries = orders.filter((o) => isActiveStatus(o.status));
@@ -101,22 +85,39 @@ export default function CustomerBookingsPage() {
   };
 
   // Human-readable status milestone description
-  const getMilestoneSummary = (status?: OrderStatus) => {
-    const s = (status || '').toUpperCase();
+  const getMilestoneSummary = (status?: OrderStatus, pickupMethod?: string) => {
+    const s = (status || '').toUpperCase().replace(/\s+/g, '_');
     switch (s) {
       case 'CREATED':
-        return 'Booking confirmed · Awaiting courier pickup';
-      case 'PICKED UP':
-        return 'Courier collected parcel · In transit to branch';
-      case 'IN TRANSIT':
-        return 'Pickup complete · Moving through network';
-      case 'OUT FOR DELIVERY':
-        return 'Out for delivery · Arriving today';
+        return 'Order created · Awaiting payment confirmation or dispatch';
+      case 'CONFIRMED':
+        return pickupMethod === 'BRANCH_DROPOFF'
+          ? 'Order confirmed · Ready for drop-off at origin branch'
+          : 'Order confirmed · Awaiting courier pickup assignment';
+      case 'PICKUP_ASSIGNED':
+        return 'Courier assigned for parcel pickup';
+      case 'PICKED_UP':
+        return 'Courier collected parcel · En route to origin branch';
+      case 'AT_ORIGIN_BRANCH':
+        return 'Parcel received at origin branch · Queued for transit';
+      case 'IN_TRANSIT':
+        return 'Parcel in inter-branch transit to destination hub';
+      case 'AT_DESTINATION_BRANCH':
+        return 'Parcel arrived at destination branch · Ready for final delivery';
+      case 'OUT_FOR_DELIVERY':
+        return 'Out for final-mile delivery to recipient';
       case 'DELIVERED':
-        return 'Delivered successfully';
-      case 'FAILED':
+        return 'Delivered successfully to recipient';
+      case 'DELIVERY_FAILED':
+        return 'Delivery attempt unsuccessful · Retrying (max 3 attempts)';
+      case 'PENDING_DISPATCHER_DECISION':
+        return 'Maximum delivery attempts reached · Awaiting dispatcher decision';
+      case 'RETURN_TO_SENDER':
+        return 'Parcel returning to sender';
+      case 'RETURNED_TO_SENDER':
+        return 'Parcel returned to sender';
       case 'CANCELLED':
-        return 'Delivery unfulfilled · Refund processed';
+        return 'Order cancelled';
       default:
         return 'Order in progress';
     }
@@ -124,12 +125,12 @@ export default function CustomerBookingsPage() {
 
   // Branch / Origin location helper
   const getBranchLocation = (order: DeliveryOrder) => {
-    if (order.branch) return order.branch;
-    if (order.pickupAddress) {
-      const parts = order.pickupAddress.split(',');
-      return parts[0].trim() || 'Central Dispatch Hub';
+    if (order.originBranchName && order.destinationBranchName) {
+      return `${order.originBranchName} → ${order.destinationBranchName}`;
     }
-    return 'Colombo Central Branch';
+    if (order.originBranchName) return order.originBranchName;
+    if (order.branch) return order.branch;
+    return 'Assigned Dispatch Branch';
   };
 
   return (
@@ -152,12 +153,12 @@ export default function CustomerBookingsPage() {
           <div className="sd-header-actions">
             <button
               type="button"
-              onClick={loadDeliveries}
-              disabled={isLoading}
+              onClick={() => loadDeliveries()}
+              disabled={isLoading || isFetching}
               className="sd-header-refresh-btn"
               title="Refresh deliveries"
             >
-              <RotateCcw size={14} className={isLoading ? 'animate-spin' : ''} />
+              <RotateCcw size={14} className={isLoading || isFetching ? 'animate-spin' : ''} />
               <span>Refresh</span>
             </button>
             <Link href="/book" className="sd-header-book-btn">
@@ -223,9 +224,16 @@ export default function CustomerBookingsPage() {
                   <div className="sd-error-sub">{error}</div>
                 </div>
               </div>
-              <button type="button" onClick={loadDeliveries} className="sd-btn-danger">
-                Try again
-              </button>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                {errorObj?.status === 401 && (
+                  <Link href="/login?callbackUrl=/bookings" className="sd-btn-danger" style={{ textDecoration: 'none' }}>
+                    Sign In
+                  </Link>
+                )}
+                <button type="button" onClick={() => loadDeliveries()} className="sd-btn-danger">
+                  Try again
+                </button>
+              </div>
             </div>
           )}
 
@@ -245,7 +253,17 @@ export default function CustomerBookingsPage() {
                           <div className="sd-code-wrap">
                             <span className="sd-order-code">{primaryActiveOrder.trackingNumber}</span>
                             <span className="sd-dot">·</span>
-                            <span className="sd-status-pill active">Active</span>
+                            <span className="sd-status-pill active">
+                              {primaryActiveOrder.statusLabel || primaryActiveOrder.status}
+                            </span>
+                            {primaryActiveOrder.paymentMethod && (
+                              <>
+                                <span className="sd-dot">·</span>
+                                <span className="sd-status-pill">
+                                  {primaryActiveOrder.paymentMethod} ({primaryActiveOrder.paymentStatus || 'PENDING'})
+                                </span>
+                              </>
+                            )}
                           </div>
                           <span className="sd-branch-tag">{getBranchLocation(primaryActiveOrder)}</span>
                         </div>
@@ -254,22 +272,39 @@ export default function CustomerBookingsPage() {
                           <div className="sd-courier-avatar">
                             <Truck size={18} color="#2563eb" />
                           </div>
-                          <div>
+                          <div style={{ flex: 1 }}>
                             <div className="sd-courier-name">
                               {primaryActiveOrder.courierName ||
-                                (primaryActiveOrder.status !== 'Created'
-                                  ? 'Verified Courier Assigned'
-                                  : 'Dispatching Courier')}
+                                (primaryActiveOrder.pickupMethod === 'BRANCH_DROPOFF'
+                                  ? 'Branch Drop-Off Parcel'
+                                  : 'Courier Assignment Managed by Dispatch Service')}
                             </div>
                             <div className="sd-courier-vehicle">
-                              {primaryActiveOrder.courierVehicle || 'Motorbike · Standard Fleet'}
+                              {primaryActiveOrder.courierVehicle ||
+                                `${primaryActiveOrder.parcelSize || 'MEDIUM'} Parcel · ${
+                                  primaryActiveOrder.weightKg || 1
+                                } kg`}
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>
+                              Delivery Charge
+                            </div>
+                            <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0f172a' }}>
+                              {primaryActiveOrder.currency || 'LKR'}{' '}
+                              {Number(primaryActiveOrder.deliveryFee || 0).toFixed(2)}
                             </div>
                           </div>
                         </div>
 
                         <div className="sd-milestone-box">
                           <CheckCircle2 size={15} color="#16a34a" />
-                          <span>{getMilestoneSummary(primaryActiveOrder.status)}</span>
+                          <span>
+                            {getMilestoneSummary(
+                              primaryActiveOrder.status,
+                              primaryActiveOrder.pickupMethod
+                            )}
+                          </span>
                         </div>
 
                         <div className="sd-address-preview-grid">
@@ -450,7 +485,15 @@ export default function CustomerBookingsPage() {
                               <div className="sd-history-title-wrap">
                                 <span className="sd-order-code">{item.trackingNumber || `#${item.id}`}</span>
                                 <span className="sd-dot">·</span>
-                                <span className="sd-status-pill">{item.status}</span>
+                                <span className="sd-status-pill">{item.statusLabel || item.status}</span>
+                                {item.paymentMethod && (
+                                  <>
+                                    <span className="sd-dot">·</span>
+                                    <span className="sd-recent-date">
+                                      {item.paymentMethod} ({item.paymentStatus || 'PENDING'})
+                                    </span>
+                                  </>
+                                )}
                                 {item.createdAt && (
                                   <>
                                     <span className="sd-dot">·</span>

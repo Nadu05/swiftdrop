@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import {
   LayoutDashboard,
   Package,
@@ -17,73 +18,92 @@ import {
   RotateCcw,
   ArrowRight,
   MapPin,
-  Calendar,
   Box,
-  ShieldCheck,
   Search,
   FileText,
   Mail,
-  Phone,
-  Sparkles,
 } from 'lucide-react';
 import { getCustomerOrders } from '@/api/services/orders.api';
 import { getCurrentUserProfile } from '@/api/services/auth.api';
 import type { DeliveryOrder } from '@/types/order.types';
 import type { UserProfile, CustomerDeliveryStats } from '@/types/auth.types';
 
+const ACTIVE_ORDER_STATUSES = new Set([
+  'CREATED',
+  'CONFIRMED',
+  'PICKUP_ASSIGNED',
+  'PICKED_UP',
+  'PICKED UP',
+  'AT_ORIGIN_BRANCH',
+  'IN_TRANSIT',
+  'IN TRANSIT',
+  'AT_DESTINATION_BRANCH',
+  'OUT_FOR_DELIVERY',
+  'OUT FOR DELIVERY',
+  'DELIVERY_FAILED',
+  'PENDING_DISPATCHER_DECISION',
+]);
+
+const EXCEPTION_ORDER_STATUSES = new Set([
+  'FAILED',
+  'CANCELLED',
+  'DELIVERY_FAILED',
+  'PENDING_DISPATCHER_DECISION',
+  'RETURN_TO_SENDER',
+  'RETURNED_TO_SENDER',
+]);
+
 export default function CustomerDashboardPage() {
   const router = useRouter();
-
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [orders, setOrders] = useState<DeliveryOrder[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
   const [quickTrackingInput, setQuickTrackingInput] = useState<string>('');
 
-  // Fetch authenticated customer profile and orders concurrently
-  const loadDashboardData = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
+  const profileQuery = useQuery<UserProfile, Error>({
+    queryKey: ['current-user-profile'],
+    queryFn: getCurrentUserProfile,
+    retry: false,
+  });
 
-    try {
-      const [userProfile, customerOrders] = await Promise.all([
-        getCurrentUserProfile(),
-        getCustomerOrders().catch(() => [] as DeliveryOrder[]),
-      ]);
+  const ordersQuery = useQuery<DeliveryOrder[], Error>({
+    queryKey: ['customer-orders'],
+    queryFn: () => getCustomerOrders(),
+    retry: false,
+  });
 
-      setProfile(userProfile);
-      setOrders(Array.isArray(customerOrders) ? customerOrders : []);
-    } catch (err: any) {
-      setError(
-        err.message || 'Unable to load customer dashboard data. Please check your backend connection.'
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const profile = profileQuery.data ?? null;
+  const orders = Array.isArray(ordersQuery.data) ? ordersQuery.data : [];
+  const isLoading =
+    profileQuery.isLoading ||
+    ordersQuery.isLoading ||
+    profileQuery.isFetching ||
+    ordersQuery.isFetching;
+  const error =
+    profileQuery.error?.message ||
+    ordersQuery.error?.message ||
+    null;
 
-  useEffect(() => {
-    loadDashboardData();
-  }, [loadDashboardData]);
+  const loadDashboardData = useCallback(() => {
+    void profileQuery.refetch();
+    void ordersQuery.refetch();
+  }, [profileQuery, ordersQuery]);
 
   // Compute delivery statistics dynamically from real backend order records
   const stats: CustomerDeliveryStats = {
     total: orders.length,
     active: orders.filter((o) => {
       const s = (o.status || '').toUpperCase();
-      return s === 'CREATED' || s === 'PICKED UP' || s === 'IN TRANSIT' || s === 'OUT FOR DELIVERY';
+      return ACTIVE_ORDER_STATUSES.has(s);
     }).length,
     delivered: orders.filter((o) => (o.status || '').toUpperCase() === 'DELIVERED').length,
     failed: orders.filter((o) => {
       const s = (o.status || '').toUpperCase();
-      return s === 'FAILED' || s === 'CANCELLED';
+      return EXCEPTION_ORDER_STATUSES.has(s);
     }).length,
   };
 
   // Find the most recent active order to spotlight
   const activeOrder = orders.find((o) => {
     const s = (o.status || '').toUpperCase();
-    return s === 'CREATED' || s === 'PICKED UP' || s === 'IN TRANSIT' || s === 'OUT FOR DELIVERY';
+    return ACTIVE_ORDER_STATUSES.has(s);
   });
 
   // Recent 4 deliveries for the table/cards
@@ -377,7 +397,7 @@ export default function CustomerDashboardPage() {
                     </div>
                     <div className="sd-spotlight-loc">
                       <div className="sd-loc-label">CURRENT STATUS</div>
-                      <span className="sd-status-badge active">{activeOrder.status || 'In Transit'}</span>
+                      <span className="sd-status-badge active">{activeOrder.statusLabel || activeOrder.status || 'In Transit'}</span>
                     </div>
                   </div>
                 </div>
@@ -433,12 +453,22 @@ export default function CustomerDashboardPage() {
                                   {order.trackingNumber || `#${order.id}`}
                                 </code>
                                 <span className={`sd-status-badge ${isDelivered ? 'delivered' : 'active'}`}>
-                                  {order.status || 'Created'}
+                                  {order.statusLabel || order.status || 'Created'}
                                 </span>
+                                {order.paymentMethod && (
+                                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b' }}>
+                                    {order.paymentMethod} · {order.paymentStatus || 'UNPAID'}
+                                  </span>
+                                )}
                               </div>
                               <div className="sd-order-route">
                                 {order.pickupAddress} <span style={{ color: '#94a3b8' }}>→</span> {order.dropoffAddress}
                               </div>
+                              {(order.originBranchName || order.destinationBranchName) && (
+                                <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '2px' }}>
+                                  Hubs: {order.originBranchName || 'Origin Hub'} → {order.destinationBranchName || 'Destination Hub'}
+                                </div>
+                              )}
                             </div>
                           </div>
 
