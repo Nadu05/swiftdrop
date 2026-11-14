@@ -6,6 +6,7 @@ import type { AssignmentRecord } from './types';
 interface AssignmentTableProps {
   assignments: AssignmentRecord[];
   isLoading?: boolean;
+  error?: string | null;
   onViewDetails: (assignment: AssignmentRecord) => void;
   onReassignCourier: (assignment: AssignmentRecord) => void;
   currentPage: number;
@@ -27,6 +28,7 @@ const statusBadgeClasses: Record<string, string> = {
 export default function AssignmentTable({
   assignments,
   isLoading = false,
+  error = null,
   onViewDetails,
   onReassignCourier,
   currentPage,
@@ -72,6 +74,15 @@ export default function AssignmentTable({
                   <div className="flex items-center justify-center gap-2 py-4 text-slate-500">
                     <span className="dispatcher-spinner" aria-hidden="true" />
                     <span>Loading courier assignments...</span>
+                  </div>
+                </td>
+              </tr>
+            ) : error ? (
+              <tr>
+                <td colSpan={8} className="dispatcher-table__empty text-rose-600 font-medium py-6">
+                  <div className="flex flex-col items-center gap-1">
+                    <AlertTriangle size={20} />
+                    <span>{error}</span>
                   </div>
                 </td>
               </tr>

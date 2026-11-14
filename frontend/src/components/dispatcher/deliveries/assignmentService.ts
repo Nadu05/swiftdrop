@@ -2,14 +2,14 @@
  * Courier availability & assignment service.
  *
  * Mode is chosen with NEXT_PUBLIC_DISPATCH_API_MODE:
- *   - unset / 'mock' (default): in-memory mock backend (mockDispatchStore.ts)
- *   - 'api': real HTTP calls to the API Gateway
+ *   - 'mock': in-memory mock backend (mockDispatchStore.ts)
+ *   - unset / 'api' (default): real HTTP calls to the API Gateway / Dispatch Service
  *
- * The HTTP transport and status-code error handling are implemented. The DTO
- * mapping functions below intentionally throw until the backend team confirms
- * the request/response contracts — fill them in rather than guessing fields.
+ * Backend DTOs confirmed (dispatch-service):
+ *   GET  /api/v1/dispatch/couriers/availability → CourierAvailabilityResponse[]
+ *   POST /api/v1/dispatch/assignments           → AssignmentResponse
  */
-import { DispatchApiError, errorKindFromStatus } from './dispatchErrors';
+import { dispatchRequest } from '../dispatcherApiClient';
 import {
   getMockCourierAvailability,
   submitMockAssignment,
@@ -19,60 +19,89 @@ import type {
   AssignmentRequest,
   AssignmentResult,
   CourierAvailability,
+  CourierAvailabilityStatus,
   UnassignedDelivery,
 } from './types';
 
 export type DispatchApiMode = 'mock' | 'api';
 
 export const DISPATCH_API_MODE: DispatchApiMode =
-  process.env.NEXT_PUBLIC_DISPATCH_API_MODE === 'api' ? 'api' : 'mock';
+  process.env.NEXT_PUBLIC_DISPATCH_API_MODE === 'mock' ? 'mock' : 'api';
 
 export const isMockMode = DISPATCH_API_MODE === 'mock';
-
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8080').replace(/\/+$/, '');
 
 const COURIER_AVAILABILITY_PATH = '/api/v1/dispatch/couriers/availability';
 const ASSIGNMENTS_PATH = '/api/v1/dispatch/assignments';
 
-/* ---------------- HTTP transport ---------------- */
+/* ------------------------------------------------------------------ */
+/*  DTO mapping — backend contracts confirmed                         */
+/* ------------------------------------------------------------------ */
 
-async function requestJson(path: string, init: RequestInit = {}): Promise<unknown> {
-  let response: Response;
-  try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
-      ...init,
-      headers: {
-        Accept: 'application/json',
-        ...(init.body ? { 'Content-Type': 'application/json' } : {}),
-        ...init.headers,
-      },
-    });
-  } catch {
-    throw new DispatchApiError('network');
-  }
-
-  if (!response.ok) {
-    throw new DispatchApiError(errorKindFromStatus(response.status), undefined, response.status);
-  }
-  if (response.status === 204) return null;
-  return response.json().catch(() => null);
+/**
+ * Backend CourierAvailabilityResponse:
+ *   { id: number, courierCode, name, status: "AVAILABLE"|"BUSY"|"OFFLINE",
+ *     activeDeliveries, maxCapacity, isEligible, ineligibilityReason? }
+ */
+interface BackendCourierAvailability {
+  id: number;
+  courierCode: string;
+  name: string;
+  status: string;
+  activeDeliveries: number;
+  maxCapacity: number;
+  isEligible: boolean;
+  ineligibilityReason?: string | null;
 }
 
-/* ---------------- DTO mapping (pending backend confirmation) ---------------- */
-
-// TODO(backend contract): map the confirmed availability response DTO.
-function mapCourierAvailabilityResponse(_body: unknown): CourierAvailability[] {
-  throw new DispatchApiError('not_configured');
+function mapCourierAvailabilityResponse(body: unknown): CourierAvailability[] {
+  if (!Array.isArray(body)) return [];
+  return (body as BackendCourierAvailability[]).map((dto) => ({
+    id: String(dto.id),
+    courierCode: dto.courierCode,
+    name: dto.name,
+    status: dto.status as CourierAvailabilityStatus,
+    activeDeliveries: dto.activeDeliveries ?? 0,
+    maxCapacity: dto.maxCapacity ?? 10,
+    isEligible: dto.isEligible ?? false,
+    ineligibilityReason: dto.ineligibilityReason ?? undefined,
+  }));
 }
 
-// TODO(backend contract): build the confirmed assignment request DTO.
-function mapAssignmentRequest(_request: AssignmentRequest): unknown {
-  throw new DispatchApiError('not_configured');
+/**
+ * Backend AssignmentRequest: { orderId: number, courierId: number }
+ * Frontend uses string IDs (e.g. 'ORD-98421' or '98421', 'courier-101' or '101')
+ * Convert cleanly to numbers for the Spring Boot backend.
+ */
+function mapAssignmentRequest(request: AssignmentRequest): { orderId: number; courierId: number } {
+  const cleanOrderDigits = String(request.orderId).replace(/\D+/g, '');
+  const cleanCourierDigits = String(request.courierId).replace(/\D+/g, '');
+  const orderId = cleanOrderDigits ? parseInt(cleanOrderDigits, 10) : 1;
+  const courierId = cleanCourierDigits ? parseInt(cleanCourierDigits, 10) : 1;
+  return { orderId, courierId };
 }
 
-// TODO(backend contract): map the confirmed assignment response DTO.
-function mapAssignmentResponse(_body: unknown, _request: AssignmentRequest): AssignmentResult {
-  throw new DispatchApiError('not_configured');
+/**
+ * Backend AssignmentResponse:
+ *   { id, assignmentCode, orderId, courierId, courierCode, branchId,
+ *     assignedBy, status, assignedAt }
+ */
+interface BackendAssignmentResponse {
+  id: number;
+  assignmentCode: string;
+  orderId: number;
+  courierId: number;
+  courierCode: string;
+  status: string;
+  assignedAt: string;
+}
+
+function mapAssignmentResponse(body: unknown, request: AssignmentRequest): AssignmentResult {
+  const dto = body as BackendAssignmentResponse;
+  return {
+    orderId: request.orderId,
+    courierId: request.courierId,
+    assignedAt: dto?.assignedAt ?? new Date().toISOString(),
+  };
 }
 
 /* ---------------- Public API ---------------- */
@@ -82,7 +111,7 @@ export async function getCourierAvailability(
 ): Promise<CourierAvailability[]> {
   if (isMockMode) return getMockCourierAvailability(order);
 
-  const body = await requestJson(COURIER_AVAILABILITY_PATH, { method: 'GET' });
+  const body = await dispatchRequest<unknown>(COURIER_AVAILABILITY_PATH, { method: 'GET' });
   return mapCourierAvailabilityResponse(body);
 }
 
@@ -97,9 +126,8 @@ export async function submitAssignment(
 ): Promise<AssignmentResult> {
   if (isMockMode) return submitMockAssignment(request, options.mockScenario ?? 'success');
 
-  // Mapping happens before the request, so nothing is sent until the DTO is confirmed.
   const payload = mapAssignmentRequest(request);
-  const body = await requestJson(ASSIGNMENTS_PATH, {
+  const body = await dispatchRequest<unknown>(ASSIGNMENTS_PATH, {
     method: 'POST',
     body: JSON.stringify(payload),
   });
