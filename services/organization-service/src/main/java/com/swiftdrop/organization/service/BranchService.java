@@ -3,6 +3,7 @@ package com.swiftdrop.organization.service;
 import com.swiftdrop.organization.dto.BranchCreateRequest;
 import com.swiftdrop.organization.dto.BranchResponse;
 import com.swiftdrop.organization.dto.BranchUpdateRequest;
+import com.swiftdrop.organization.dto.MerchantValidationPatterns;
 import com.swiftdrop.organization.entity.Branch;
 import com.swiftdrop.organization.entity.enums.BranchStatus;
 import com.swiftdrop.organization.exception.DuplicateResourceException;
@@ -12,6 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Locale;
+import java.util.regex.Pattern;
 
 /**
  * Service layer for branch management operations.
@@ -25,6 +28,9 @@ import java.util.List;
 @Service
 @Transactional
 public class BranchService {
+
+    private static final Pattern BRANCH_CODE_PATTERN = Pattern.compile(MerchantValidationPatterns.BRANCH_CODE);
+    private static final Pattern PHONE_PATTERN = Pattern.compile(MerchantValidationPatterns.PHONE);
 
     private final BranchRepository repository;
 
@@ -40,19 +46,22 @@ public class BranchService {
      * @throws DuplicateResourceException if a branch with the same code already exists
      */
     public BranchResponse create(BranchCreateRequest request) {
-        if (repository.existsByCode(request.getCode())) {
+        String normalizedCode = validateAndNormalizeCode(request.getCode());
+        if (repository.existsByCode(normalizedCode)) {
             throw new DuplicateResourceException(
-                    "Branch with code '" + request.getCode() + "' already exists");
+                    "Branch with code '" + normalizedCode + "' already exists");
         }
 
+        String normalizedPhone = validateAndTrimPhone(request.getPhone());
+
         Branch branch = new Branch();
-        branch.setCode(request.getCode());
-        branch.setName(request.getName());
-        branch.setAddressLine1(request.getAddressLine1());
-        branch.setAddressLine2(request.getAddressLine2());
-        branch.setCity(request.getCity());
-        branch.setPhone(request.getPhone());
-        branch.setEmail(request.getEmail());
+        branch.setCode(normalizedCode);
+        branch.setName(requireNonBlank(request.getName(), "Branch name"));
+        branch.setAddressLine1(requireNonBlank(request.getAddressLine1(), "Address line 1"));
+        branch.setAddressLine2(trimToNull(request.getAddressLine2()));
+        branch.setCity(requireNonBlank(request.getCity(), "City"));
+        branch.setPhone(normalizedPhone);
+        branch.setEmail(trimToNull(request.getEmail()));
         branch.setLatitude(request.getLatitude());
         branch.setLongitude(request.getLongitude());
         branch.setStatus(BranchStatus.ACTIVE);
@@ -108,39 +117,38 @@ public class BranchService {
                 .orElseThrow(() -> new ResourceNotFoundException("Branch", id));
 
         if (request.getCode() != null) {
-            if (!request.getCode().isBlank()) {
-                // Check for code conflict only if the code is changing
-                if (!request.getCode().equals(branch.getCode()) && repository.existsByCode(request.getCode())) {
-                    throw new DuplicateResourceException(
-                            "Branch with code '" + request.getCode() + "' already exists");
-                }
-                branch.setCode(request.getCode());
+            String normalizedCode = validateAndNormalizeCode(request.getCode());
+            // Check for code conflict only if the code is changing
+            if (!normalizedCode.equals(branch.getCode()) && repository.existsByCode(normalizedCode)) {
+                throw new DuplicateResourceException(
+                        "Branch with code '" + normalizedCode + "' already exists");
             }
+            branch.setCode(normalizedCode);
         }
 
-        if (request.getName() != null && !request.getName().isBlank()) {
-            branch.setName(request.getName());
+        if (request.getName() != null) {
+            branch.setName(requireNonBlank(request.getName(), "Branch name"));
         }
 
-        if (request.getAddressLine1() != null && !request.getAddressLine1().isBlank()) {
-            branch.setAddressLine1(request.getAddressLine1());
+        if (request.getAddressLine1() != null) {
+            branch.setAddressLine1(requireNonBlank(request.getAddressLine1(), "Address line 1"));
         }
 
-        // addressLine2 can be set to any value including empty (nullable column)
+        // addressLine2 is optional: empty/blank string clears it to null, null leaves it unchanged
         if (request.getAddressLine2() != null) {
-            branch.setAddressLine2(request.getAddressLine2());
+            branch.setAddressLine2(trimToNull(request.getAddressLine2()));
         }
 
-        if (request.getCity() != null && !request.getCity().isBlank()) {
-            branch.setCity(request.getCity());
+        if (request.getCity() != null) {
+            branch.setCity(requireNonBlank(request.getCity(), "City"));
         }
 
-        if (request.getPhone() != null && !request.getPhone().isBlank()) {
-            branch.setPhone(request.getPhone());
+        if (request.getPhone() != null) {
+            branch.setPhone(validateAndTrimPhone(request.getPhone()));
         }
 
         if (request.getEmail() != null) {
-            branch.setEmail(request.getEmail());
+            branch.setEmail(trimToNull(request.getEmail()));
         }
 
         if (request.getLatitude() != null) {
@@ -152,8 +160,13 @@ public class BranchService {
         }
 
         if (request.getStatus() != null) {
+            String trimmedStatus = request.getStatus().trim();
+            if (trimmedStatus.isEmpty()) {
+                throw new IllegalArgumentException(
+                        "Invalid branch status: '" + request.getStatus() + "'. Allowed values: ACTIVE, INACTIVE");
+            }
             try {
-                BranchStatus newStatus = BranchStatus.valueOf(request.getStatus().toUpperCase());
+                BranchStatus newStatus = BranchStatus.valueOf(trimmedStatus.toUpperCase(Locale.ROOT));
                 branch.setStatus(newStatus);
             } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException(
@@ -162,6 +175,37 @@ public class BranchService {
         }
 
         return toResponse(repository.save(branch));
+    }
+
+    static String validateAndNormalizeCode(String code) {
+        if (code == null || code.isBlank() || !BRANCH_CODE_PATTERN.matcher(code).matches()) {
+            throw new IllegalArgumentException(
+                    "Branch code must not be blank and may contain only letters, numbers, hyphens, and underscores");
+        }
+        return code.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private static String validateAndTrimPhone(String phone) {
+        if (phone == null || phone.isBlank() || !PHONE_PATTERN.matcher(phone.trim()).matches()) {
+            throw new IllegalArgumentException(
+                    "Phone must be a valid phone number (e.g. +94 11 234 5678)");
+        }
+        return phone.trim();
+    }
+
+    private static String requireNonBlank(String value, String fieldLabel) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(fieldLabel + " must not be blank");
+        }
+        return value.trim();
+    }
+
+    private static String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     /**

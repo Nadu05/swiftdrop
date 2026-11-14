@@ -1,108 +1,74 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, MapPin, Store } from 'lucide-react';
-import { acceptJob } from '@/api/services/courier.api';
+import { useAcceptJob } from '@/hooks/api/use-courier';
 import type { CourierJob } from '@/types/courier.types';
-import { Field, JobStatusBadge, PriorityTag, formatLkr, formatTime } from './CourierUI';
+import { Field, JobStatusBadge, PriorityTag, errorMessage } from './CourierUI';
+import { formatLkr, formatTime } from './courierUtils';
 
 /**
  * One job assigned by the branch. Shows Accept while ASSIGNED and a link to the
  * Active Delivery screen once accepted / in transit.
  */
-export default function AssignedJobCard({
-  job,
-  canAccept,
-  onUpdated,
-}: {
-  job: CourierJob;
-  canAccept: boolean;
-  onUpdated: (job: CourierJob) => void;
-}) {
-  const [accepting, setAccepting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const accept = async () => {
-    setAccepting(true);
-    setError(null);
-    try {
-      onUpdated(await acceptJob(job.assignmentId));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not accept this job.');
-    } finally {
-      setAccepting(false);
-    }
-  };
+export default function AssignedJobCard({ job, canAccept }: { job: CourierJob; canAccept: boolean }) {
+  const accept = useAcceptJob();
 
   return (
-    <article className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <span style={{ fontSize: '1.05rem', fontWeight: 700, color: '#ffffff' }}>{job.trackingNumber}</span>
+    <article className="glass-card courier-stack" aria-label={`Job ${job.trackingNumber}`}>
+      <div className="courier-row courier-row--between">
+        <div className="courier-row">
+          <span className="courier-job__id">{job.trackingNumber}</span>
           <PriorityTag priority={job.priority} />
         </div>
         <JobStatusBadge status={job.status} />
       </div>
 
-      <div className="grid-cols-2" style={{ gap: '1rem' }}>
-        <div style={{ display: 'flex', gap: '0.6rem' }}>
-          <Store size={18} color="#60a5fa" style={{ flexShrink: 0, marginTop: '0.15rem' }} />
+      <div className="grid-cols-2">
+        <div className="courier-job__stop">
+          <Store size={18} className="courier-icon--primary" aria-hidden="true" />
           <Field label="Pickup">
             {job.merchantName}
-            <br />
-            <span style={{ color: '#94a3b8' }}>{job.pickupAddress}</span>
+            <small>{job.pickupAddress}</small>
           </Field>
         </div>
-        <div style={{ display: 'flex', gap: '0.6rem' }}>
-          <MapPin size={18} color="#34d399" style={{ flexShrink: 0, marginTop: '0.15rem' }} />
+        <div className="courier-job__stop">
+          <MapPin size={18} className="courier-icon--success" aria-hidden="true" />
           <Field label="Drop-off">
             {job.recipient.name}
-            <br />
-            <span style={{ color: '#94a3b8' }}>
+            <small>
               {job.recipient.address}, {job.recipient.city}
-            </span>
+            </small>
           </Field>
         </div>
       </div>
 
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: '0.75rem',
-          flexWrap: 'wrap',
-          paddingTop: '0.9rem',
-          borderTop: '1px solid rgba(59, 130, 246, 0.12)',
-        }}
-      >
-        <span style={{ fontSize: '0.82rem', color: '#94a3b8' }}>
+      <div className="courier-job__footer">
+        <span className="courier-job__meta">
           {job.parcel.category} · {job.parcel.weightKg} kg · {job.distanceKm} km ·{' '}
-          <span style={{ color: '#34d399', fontWeight: 600 }}>{formatLkr(job.payoutLkr)} payout</span> · assigned{' '}
-          {formatTime(job.assignedAt)}
+          <span className="courier-payout">{formatLkr(job.payoutLkr)} payout</span> · assigned {formatTime(job.assignedAt)}
         </span>
 
         {job.status === 'ASSIGNED' ? (
           <button
             type="button"
             className="btn btn-primary"
-            onClick={accept}
-            disabled={!canAccept || accepting}
+            onClick={() => accept.mutate(job.assignmentId)}
+            disabled={!canAccept || accept.isPending}
             title={canAccept ? undefined : 'Go online to accept jobs'}
           >
-            {accepting ? 'Accepting…' : 'Accept job'}
+            {accept.isPending ? 'Accepting…' : 'Accept job'}
           </button>
         ) : (
           <Link href={`/courier/active?job=${job.assignmentId}`} className="btn btn-secondary">
-            Open delivery <ArrowRight size={16} />
+            Open delivery <ArrowRight size={16} aria-hidden="true" />
           </Link>
         )}
       </div>
 
-      {error && (
-        <p role="alert" style={{ fontSize: '0.85rem', color: '#fca5a5' }}>
-          {error}
+      {accept.isError && (
+        <p className="courier-alert" role="alert">
+          {errorMessage(accept.error, 'Could not accept this job.')}
         </p>
       )}
     </article>

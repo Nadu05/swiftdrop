@@ -14,6 +14,8 @@ import {
   SearchX,
 } from 'lucide-react';
 import type { BranchResponse } from '@/types/organization.types';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 export interface BranchTableProps {
   branches: BranchResponse[];
@@ -67,14 +69,14 @@ export default function BranchTable({
           <h3 className="org-state-box__title">Unable to load branch directory</h3>
           <p className="org-state-box__desc">{error}</p>
           <div className="org-state-box__actions">
-            <button
+            <Button
               type="button"
-              className="org-btn org-btn--primary"
+              className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
               onClick={onRetry}
             >
               <RefreshCw size={15} aria-hidden="true" />
               <span>Retry Connection</span>
-            </button>
+            </Button>
           </div>
         </div>
       ) : totalCount === 0 ? (
@@ -89,9 +91,11 @@ export default function BranchTable({
             branch to register the first organization branch.
           </p>
           <div className="org-state-box__actions">
-            <Link href="/organization/branches/create" className="org-btn org-btn--primary">
-              <span>Create First Branch</span>
-            </Link>
+            <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white">
+              <Link href="/organization/branches/create">
+                <span>Create First Branch</span>
+              </Link>
+            </Button>
           </div>
         </div>
       ) : branches.length === 0 && hasActiveFilters ? (
@@ -106,13 +110,13 @@ export default function BranchTable({
             search terms or clearing the active filters.
           </p>
           <div className="org-state-box__actions">
-            <button
+            <Button
               type="button"
-              className="org-btn org-btn--secondary"
+              variant="outline"
               onClick={onResetFilters}
             >
               <span>Clear Search &amp; Filters</span>
-            </button>
+            </Button>
           </div>
         </div>
       ) : (
@@ -204,55 +208,74 @@ export default function BranchTable({
 
                     {/* Branch Status */}
                     <td data-label="Status">
-                      <span
-                        className={`org-status-badge ${
+                      <Badge
+                        variant={isActive ? 'default' : 'secondary'}
+                        className={
                           isActive
-                            ? 'org-status-badge--active'
-                            : 'org-status-badge--inactive'
-                        }`}
+                            ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-100 border-slate-200 dark:bg-slate-800 dark:text-slate-400'
+                        }
                       >
-                        <span className="org-status-badge__dot" aria-hidden="true" />
-                        <span>{isActive ? 'Active' : 'Inactive'}</span>
-                      </span>
+                        <span
+                          className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
+                            isActive ? 'bg-emerald-500' : 'bg-slate-400'
+                          }`}
+                        />
+                        {isActive ? 'Active' : 'Inactive'}
+                      </Badge>
                     </td>
 
                     {/* Available Actions */}
                     <td data-label="Actions" className="org-table__td--actions">
-                      <div className="org-row-actions">
-                        <Link
-                          href={`/organization/branches/${branch.id}`}
-                          className="org-action-btn"
-                          aria-label={`View details for ${branch.name}`}
-                          title="View branch details"
+                      <div className="flex items-center gap-1.5 justify-end">
+                        <Button
+                          asChild
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2.5 text-xs text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
                         >
-                          <Eye size={14} aria-hidden="true" />
-                          <span>View</span>
-                        </Link>
+                          <Link
+                            href={`/organization/branches/${branch.id}`}
+                            aria-label={`View details for ${branch.name}`}
+                            title="View branch details"
+                          >
+                            <Eye size={14} className="mr-1" aria-hidden="true" />
+                            <span>View</span>
+                          </Link>
+                        </Button>
 
-                        <Link
-                          href={`/organization/branches/${branch.id}/edit`}
-                          className="org-action-btn"
-                          aria-label={`Edit ${branch.name}`}
-                          title="Edit branch"
+                        <Button
+                          asChild
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2.5 text-xs text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
                         >
-                          <Pencil size={14} aria-hidden="true" />
-                          <span>Edit</span>
-                        </Link>
+                          <Link
+                            href={`/organization/branches/${branch.id}/edit`}
+                            aria-label={`Edit ${branch.name}`}
+                            title="Edit branch"
+                          >
+                            <Pencil size={14} className="mr-1" aria-hidden="true" />
+                            <span>Edit</span>
+                          </Link>
+                        </Button>
 
-                        <button
+                        <Button
                           type="button"
-                          className={`org-action-btn ${
-                            isActive
-                              ? 'org-action-btn--deactivate'
-                              : 'org-action-btn--activate'
-                          }`}
+                          variant="ghost"
+                          size="sm"
                           onClick={() => onToggleStatus(branch)}
+                          className={`h-8 px-2.5 text-xs ${
+                            isActive
+                              ? 'text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40'
+                              : 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/40'
+                          }`}
                           aria-label={`${isActive ? 'Deactivate' : 'Activate'} ${branch.name}`}
                           title={isActive ? 'Deactivate branch' : 'Activate branch'}
                         >
-                          <Power size={14} aria-hidden="true" />
+                          <Power size={13} className="mr-1" aria-hidden="true" />
                           <span>{isActive ? 'Deactivate' : 'Activate'}</span>
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   </tr>

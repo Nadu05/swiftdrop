@@ -19,6 +19,24 @@ interface BreadcrumbSegment {
 }
 
 function getBreadcrumbsForPath(pathname: string | null): BreadcrumbSegment[] {
+  if (pathname?.startsWith('/organization/console')) {
+    const consoleBase: BreadcrumbSegment[] = [
+      { label: 'SwiftDrop', href: '/' },
+      { label: 'Branch Console', href: '/organization/console/requests' },
+    ];
+
+    if (pathname === '/organization/console/requests') {
+      return [...consoleBase, { label: 'Delivery Request Queue' }];
+    }
+    if (pathname === '/organization/console/assign') {
+      return [...consoleBase, { label: 'Courier Assignment' }];
+    }
+    if (pathname === '/organization/console/couriers') {
+      return [...consoleBase, { label: 'Courier Roster' }];
+    }
+    return [...consoleBase, { label: 'Delivery Request Queue' }];
+  }
+
   const base: BreadcrumbSegment[] = [
     { label: 'SwiftDrop', href: '/' },
     { label: 'Admin', href: '/organization' },
@@ -26,6 +44,10 @@ function getBreadcrumbsForPath(pathname: string | null): BreadcrumbSegment[] {
 
   if (!pathname || pathname === '/organization') {
     return [...base, { label: 'Organization Dashboard' }];
+  }
+
+  if (pathname === '/organization/roles-audit') {
+    return [...base, { label: 'Roles, Permissions and Audit Log' }];
   }
 
   if (pathname === '/organization/branches/create') {

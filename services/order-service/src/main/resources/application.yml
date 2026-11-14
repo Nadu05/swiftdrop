@@ -33,6 +33,55 @@ spring:
     username: ${RABBITMQ_USER:swiftdrop}
     password: ${RABBITMQ_PASSWORD:password}
     connection-timeout: 10000
+    # The outbox relay waits for the broker's confirm before marking an event as published.
+    publisher-confirm-type: correlated
+    publisher-returns: true
+
+swiftdrop:
+  security:
+    # TESTING ONLY: auth is switched OFF for this development stage. Set ORDER_AUTH_ENABLED=true (or change
+    # the default below to true) once the auth routes exist. When off, orders are created for
+    # dev-customer-id, or for the customer in the X-Customer-Id header.
+    enabled: ${ORDER_AUTH_ENABLED:false}
+    dev-customer-id: ${ORDER_DEV_CUSTOMER_ID:1}
+    # Shared HS256 signing secret, injected from the environment. When empty, every request to a
+    # protected endpoint is rejected (fail closed). Only used when enabled is true.
+    jwt-secret: ${JWT_SECRET:}
+    role-claim: ${JWT_ROLE_CLAIM:role}
+    # Roles allowed to change a delivery status (PATCH /orders/{id}/status). Placeholder names until the
+    # Identity service fixes its role list; CUSTOMER is never accepted here.
+    status-update-roles: ${ORDER_STATUS_UPDATE_ROLES:COURIER,BRANCH_ADMIN,ADMIN}
+    # Roles allowed to read GET /orders/ready-for-dispatch (it returns recipient contact details). Placeholder
+    # names until the Identity service fixes its role list; CUSTOMER is never accepted here.
+    dispatch-read-roles: ${ORDER_DISPATCH_READ_ROLES:DISPATCHER,BRANCH_ADMIN,ADMIN}
+    # Shared secret that lets the Dispatch service read GET /orders/ready-for-dispatch with an X-Service-Key header
+    # (it has no user token). Empty = feature off. When set it must be at least 32 characters, and it must be the same
+    # value in the Dispatch service. Only that one endpoint accepts it. Keep it in the environment, never in git.
+    service-api-key: ${ORDER_SERVICE_API_KEY:}
+  pricing:
+    # Tariff (formula and worked examples in docs/pricing.md):
+    #   fee = base-fee + max(0, weight - included-weight-kg) * extra-weight-fee-per-kg
+    #         + distance-km * distance-fee-per-km + (different district ? zone-surcharge : 0)
+    # The rates below are PLACEHOLDERS until the team agrees the real tariff.
+    currency: LKR
+    base-fee: 500.00
+    included-weight-kg: 1.00
+    extra-weight-fee-per-kg: 100.00
+    distance-fee-per-km: 10.00
+    zone-surcharge: 200.00
+    road-distance-factor: 1.0      # 1.0 = straight-line distance between town centres
+    max-weight-kg:                 # heaviest parcel allowed per size
+      SMALL: 2.00
+      MEDIUM: 10.00
+      LARGE: 30.00
+      EXTRA_LARGE: 100.00
+  outbox:
+    # Relays committed events to RabbitMQ; see docs/events.md.
+    enabled: true
+    batch-size: 20
+    poll-interval-ms: 2000
+    confirm-timeout-ms: 5000
+    max-backoff-seconds: 300
 
 management:
   endpoints:

@@ -45,6 +45,8 @@ public class RabbitMQConfig {
     public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory) {
         RabbitTemplate template = new RabbitTemplate(connectionFactory);
         template.setMessageConverter(messageConverter());
+        // Report events the broker could not route to any queue (see OutboxPublisher).
+        template.setMandatory(true);
         return template;
     }
 }

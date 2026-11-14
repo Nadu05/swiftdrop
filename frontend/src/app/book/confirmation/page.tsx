@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Truck,
   ExternalLink,
+  FileText,
 } from 'lucide-react';
 
 function ConfirmationContent() {
@@ -203,8 +204,8 @@ function ConfirmationContent() {
           paddingTop: '1rem',
         }}
       >
-        <Link href="/" className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <LayoutDashboard size={16} /> Return to Dashboard
+        <Link href="/customer/dashboard" className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <LayoutDashboard size={16} /> Customer Dashboard
         </Link>
 
         <div style={{ display: 'flex', gap: '0.75rem' }}>
@@ -215,6 +216,16 @@ function ConfirmationContent() {
           <Link href="/bookings" className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Package size={16} /> View My Deliveries
           </Link>
+
+          {orderId && orderId !== '—' && (
+            <Link
+              href={`/bookings/${orderId}/receipt`}
+              className="btn btn-secondary"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              <FileText size={16} /> View Receipt
+            </Link>
+          )}
 
           <Link
             href={`/tracking?number=${encodeURIComponent(trackingNumber)}`}

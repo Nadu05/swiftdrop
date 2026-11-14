@@ -12,6 +12,8 @@ import {
   Power,
 } from 'lucide-react';
 import type { BranchResponse } from '@/types/organization.types';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 export interface BranchDetailsProps {
   branch: BranchResponse;
@@ -56,16 +58,21 @@ export default function BranchDetails({
             <div className="org-details-hero__title-row">
               <h2 className="org-details-hero__name">{branch.name}</h2>
               <span className="org-branch-code">{branch.code}</span>
-              <span
-                className={`org-status-badge ${
+              <Badge
+                variant={isActive ? 'default' : 'secondary'}
+                className={
                   isActive
-                    ? 'org-status-badge--active'
-                    : 'org-status-badge--inactive'
-                }`}
+                    ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-100 border-slate-200 dark:bg-slate-800 dark:text-slate-400'
+                }
               >
-                <span className="org-status-badge__dot" aria-hidden="true" />
-                <span>{isActive ? 'Active' : 'Inactive'}</span>
-              </span>
+                <span
+                  className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
+                    isActive ? 'bg-emerald-500' : 'bg-slate-400'
+                  }`}
+                />
+                {isActive ? 'Active' : 'Inactive'}
+              </Badge>
             </div>
 
             <div className="org-details-hero__meta">
@@ -89,25 +96,34 @@ export default function BranchDetails({
           </div>
         </div>
 
-        <div className="org-details-hero__actions">
-          <Link
-            href={`/organization/branches/${branch.id}/edit`}
-            className="org-btn org-btn--primary"
-          >
-            <Pencil size={14} aria-hidden="true" />
-            <span>Edit Branch</span>
-          </Link>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/organization/console/requests?branchId=${branch.id}`}>
+              <span>Branch Console</span>
+            </Link>
+          </Button>
 
-          <button
+          <Button asChild size="sm" className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5">
+            <Link href={`/organization/branches/${branch.id}/edit`}>
+              <Pencil size={14} aria-hidden="true" />
+              <span>Edit Branch</span>
+            </Link>
+          </Button>
+
+          <Button
             type="button"
-            className={`org-btn ${
-              isActive ? 'org-btn--danger-outline' : 'org-btn--success-outline'
-            }`}
+            variant="outline"
+            size="sm"
             onClick={() => onRequestStatusToggle(branch)}
+            className={
+              isActive
+                ? 'border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-800 dark:hover:bg-red-950/40 gap-1.5'
+                : 'border-emerald-300 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:border-emerald-800 dark:hover:bg-emerald-950/40 gap-1.5'
+            }
           >
             <Power size={14} aria-hidden="true" />
             <span>{isActive ? 'Deactivate Branch' : 'Activate Branch'}</span>
-          </button>
+          </Button>
         </div>
       </section>
 

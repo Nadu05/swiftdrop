@@ -6,8 +6,6 @@ import {
   Database, 
   MessageSquare, 
   Layers, 
-  ArrowRight, 
-  CheckCircle2, 
   Play, 
   ExternalLink,
   Shield,
@@ -56,7 +54,7 @@ const services = [
   },
   {
     name: 'Notification Service',
-    description: 'SMS, push notifications, email alerts, customer delivery event updates',
+    description: 'SMS, push notifications, email alerts, delivery event updates',
     port: 8085,
     dbName: 'swiftdrop_notification',
     path: '/api/v1/notifications',
@@ -93,12 +91,12 @@ export default function DashboardPage() {
             Microservices architecture featuring Spring Cloud Gateway, 5 isolated Spring Boot microservices, 5 dedicated PostgreSQL instances, and RabbitMQ event streaming.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          <Link href="/health" className="btn btn-primary">
-            <Play size={16} /> Check System Health
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+          <Link href="/health" className="btn btn-primary" style={{ background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)' }}>
+            <Play size={16} /> System Health
           </Link>
-          <Link href="/api-tester" className="btn btn-secondary">
-            Test Endpoints <ArrowRight size={16} />
+          <Link href="/login" className="btn btn-secondary">
+            Sign In / Switch Role
           </Link>
         </div>
       </div>
