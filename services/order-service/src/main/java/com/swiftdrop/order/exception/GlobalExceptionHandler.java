@@ -1,5 +1,6 @@
 package com.swiftdrop.order.exception;
 
+import com.swiftdrop.order.branch.BranchServiceUnavailableException;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +40,17 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessRuleException.class)
     public ResponseEntity<Map<String, Object>> handleBusinessRule(BusinessRuleException ex) {
         return buildResponse(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+    }
+
+    @ExceptionHandler(PriceChangedException.class)
+    public ResponseEntity<Map<String, Object>> handlePriceChanged(PriceChangedException ex) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    /** The Organization service could not assign a branch: nothing was created, trying again is safe. */
+    @ExceptionHandler(BranchServiceUnavailableException.class)
+    public ResponseEntity<Map<String, Object>> handleBranchUnavailable(BranchServiceUnavailableException ex) {
+        return buildResponse(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

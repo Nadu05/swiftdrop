@@ -1,0 +1,43 @@
+# Supported pickup / delivery towns used for distance and zone pricing.
+#
+# code       stable identifier sent by clients (upper case, A-Z 0-9 and underscore)
+# name       display name
+# district   the "zone": a delivery between different districts pays the zone surcharge
+# latitude / longitude   approximate town-centre coordinates in decimal degrees (WGS84)
+#
+# DATA QUALITY: coordinates are a starter set drafted by hand to about 0.01 degrees (roughly 1 km). They MUST be
+# reviewed against an authoritative source (e.g. GeoNames or OpenStreetMap) before production use, because
+# they directly determine delivery fees. Changing a value changes quotes; see docs/pricing.md.
+code,name,district,latitude,longitude
+COLOMBO,Colombo,Colombo,6.9271,79.8612
+DEHIWALA,Dehiwala-Mount Lavinia,Colombo,6.8518,79.8650
+KOTTE,Sri Jayawardenepura Kotte,Colombo,6.8940,79.9020
+MORATUWA,Moratuwa,Colombo,6.7730,79.8816
+NEGOMBO,Negombo,Gampaha,7.2083,79.8358
+GAMPAHA,Gampaha,Gampaha,7.0873,79.9925
+KALUTARA,Kalutara,Kalutara,6.5854,79.9607
+PANADURA,Panadura,Kalutara,6.7133,79.9026
+KANDY,Kandy,Kandy,7.2906,80.6337
+MATALE,Matale,Matale,7.4675,80.6234
+DAMBULLA,Dambulla,Matale,7.8731,80.6511
+NUWARA_ELIYA,Nuwara Eliya,Nuwara Eliya,6.9497,80.7891
+GALLE,Galle,Galle,6.0535,80.2210
+MATARA,Matara,Matara,5.9549,80.5550
+HAMBANTOTA,Hambantota,Hambantota,6.1241,81.1185
+RATNAPURA,Ratnapura,Ratnapura,6.7056,80.3847
+KEGALLE,Kegalle,Kegalle,7.2513,80.3464
+BADULLA,Badulla,Badulla,6.9934,81.0550
+MONARAGALA,Monaragala,Monaragala,6.8728,81.3507
+BATTICALOA,Batticaloa,Batticaloa,7.7102,81.6924
+AMPARA,Ampara,Ampara,7.2912,81.6724
+TRINCOMALEE,Trincomalee,Trincomalee,8.5874,81.2152
+JAFFNA,Jaffna,Jaffna,9.6615,80.0255
+KILINOCHCHI,Kilinochchi,Kilinochchi,9.3803,80.3770
+MANNAR,Mannar,Mannar,8.9810,79.9044
+MULLAITIVU,Mullaitivu,Mullaitivu,9.2671,80.8142
+VAVUNIYA,Vavuniya,Vavuniya,8.7542,80.4982
+KURUNEGALA,Kurunegala,Kurunegala,7.4863,80.3647
+PUTTALAM,Puttalam,Puttalam,8.0408,79.8394
+CHILAW,Chilaw,Puttalam,7.5758,79.7953
+ANURADHAPURA,Anuradhapura,Anuradhapura,8.3114,80.4037
+POLONNARUWA,Polonnaruwa,Polonnaruwa,7.9403,81.0188

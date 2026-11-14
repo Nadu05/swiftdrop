@@ -1,15 +1,23 @@
 package com.swiftdrop.order.service;
 
+import com.swiftdrop.order.branch.BranchResolver;
+import com.swiftdrop.order.branch.BranchServiceUnavailableException;
+import com.swiftdrop.order.branch.ResolvedBranch;
 import com.swiftdrop.order.dto.CreateOrderRequest;
 import com.swiftdrop.order.dto.OrderResponse;
 import com.swiftdrop.order.entity.DeliveryOrder;
 import com.swiftdrop.order.entity.OrderStatusHistory;
 import com.swiftdrop.order.entity.enums.OrderStatus;
 import com.swiftdrop.order.entity.enums.ParcelSize;
+import com.swiftdrop.order.exception.BusinessRuleException;
+import com.swiftdrop.order.exception.PriceChangedException;
 import com.swiftdrop.order.exception.ResourceNotFoundException;
+import com.swiftdrop.order.location.City;
+import com.swiftdrop.order.location.CityDirectory;
 import com.swiftdrop.order.messaging.OrderEventRecorder;
-import com.swiftdrop.order.pricing.FeeCalculator;
-import com.swiftdrop.order.pricing.FeeCalculator.FeeQuote;
+import com.swiftdrop.order.pricing.FeeBreakdown;
+import com.swiftdrop.order.pricing.PriceQuote;
+import com.swiftdrop.order.pricing.PricingService;
 import com.swiftdrop.order.repository.DeliveryOrderRepository;
 import com.swiftdrop.order.repository.OrderStatusHistoryRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,12 +54,19 @@ import static org.mockito.Mockito.when;
 class OrderServiceTest {
 
     private static final long CUSTOMER = 42L;
+    private static final City COLOMBO = new City("COLOMBO", "Colombo", "Colombo", 6.9271, 79.8612);
+    private static final City KANDY = new City("KANDY", "Kandy", "Kandy", 7.2906, 80.6337);
+    private static final FeeBreakdown FEE = new FeeBreakdown(new BigDecimal("500.00"), new BigDecimal("50.00"),
+            new BigDecimal("943.40"), new BigDecimal("200.00"), new BigDecimal("1693.40"), "LKR");
+    private static final PriceQuote PRICE = new PriceQuote(FEE, new BigDecimal("94.34"), COLOMBO, KANDY, true);
 
     @Mock private DeliveryOrderRepository orders;
     @Mock private OrderStatusHistoryRepository history;
-    @Mock private FeeCalculator feeCalculator;
+    @Mock private PricingService pricing;
     @Mock private TrackingNumberGenerator trackingNumbers;
     @Mock private OrderEventRecorder eventRecorder;
+    @Mock private CityDirectory cities;
+    @Mock private BranchResolver branches;
     @Mock private PlatformTransactionManager transactionManager;
 
     private OrderService service;
@@ -59,21 +74,32 @@ class OrderServiceTest {
     @BeforeEach
     void setUp() {
         lenient().when(transactionManager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
-        service = new OrderService(orders, history, feeCalculator, trackingNumbers, eventRecorder, transactionManager);
+        lenient().when(cities.require("COLOMBO")).thenReturn(COLOMBO);
+        lenient().when(branches.resolve(COLOMBO)).thenReturn(Optional.empty());
+        service = new OrderService(orders, history, pricing, trackingNumbers, eventRecorder, cities, branches,
+                transactionManager);
     }
 
-    private static CreateOrderRequest request() {
+    private static CreateOrderRequest request(BigDecimal expectedFee) {
         return new CreateOrderRequest(
                 "45 Galle Road, Colombo 03", "Nuwan Pradeep", "+94771234567",
                 "12/4 Peradeniya Road, Kandy", "Ayesha Perera", "+94718849201",
-                "  ", ParcelSize.MEDIUM, new BigDecimal("1.5"), "");
+                "  ", ParcelSize.MEDIUM, new BigDecimal("1.5"), "",
+                "COLOMBO", "KANDY", expectedFee);
+    }
+
+    private static CreateOrderRequest request() {
+        return request(null);
+    }
+
+    private void stubPricing() {
+        when(pricing.quote("COLOMBO", "KANDY", ParcelSize.MEDIUM, new BigDecimal("1.5"))).thenReturn(PRICE);
     }
 
     private void stubHappyPath() {
+        stubPricing();
         when(trackingNumbers.next()).thenReturn("SD-261113-AAAA2222");
         when(orders.existsByTrackingNumber("SD-261113-AAAA2222")).thenReturn(false);
-        when(feeCalculator.calculate(ParcelSize.MEDIUM, new BigDecimal("1.5")))
-                .thenReturn(new FeeQuote(new BigDecimal("725.00"), "LKR", new BigDecimal("500.00"), new BigDecimal("225.00")));
         when(orders.saveAndFlush(any(DeliveryOrder.class))).thenAnswer(inv -> inv.getArgument(0));
     }
 
@@ -90,7 +116,6 @@ class OrderServiceTest {
         assertThat(order.getCustomerId()).isEqualTo(CUSTOMER);
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CREATED);
         assertThat(order.getTrackingNumber()).isEqualTo("SD-261113-AAAA2222");
-        assertThat(order.getDeliveryFee()).isEqualByComparingTo("725.00");
         assertThat(order.getWeightKg()).isEqualTo(new BigDecimal("1.50"));
         assertThat(order.getParcelDescription()).as("blank optional text is stored as null").isNull();
         assertThat(order.getDeliveryInstructions()).isNull();
@@ -106,6 +131,141 @@ class OrderServiceTest {
     }
 
     @Test
+    @DisplayName("stores the towns, distance and the full fee breakdown from the pricing service")
+    void storesPricing() {
+        stubHappyPath();
+
+        OrderResponse response = service.createOrder(CUSTOMER, request(), null);
+
+        ArgumentCaptor<DeliveryOrder> saved = ArgumentCaptor.forClass(DeliveryOrder.class);
+        verify(orders).saveAndFlush(saved.capture());
+        DeliveryOrder order = saved.getValue();
+        assertThat(order.getPickupCity()).isEqualTo("COLOMBO");
+        assertThat(order.getDropoffCity()).isEqualTo("KANDY");
+        assertThat(order.getDistanceKm()).isEqualByComparingTo("94.34");
+        assertThat(order.getDeliveryFee()).isEqualByComparingTo("1693.40");
+        assertThat(order.getBaseFee()).isEqualByComparingTo("500.00");
+        assertThat(order.getWeightFee()).isEqualByComparingTo("50.00");
+        assertThat(order.getDistanceFee()).isEqualByComparingTo("943.40");
+        assertThat(order.getZoneSurcharge()).isEqualByComparingTo("200.00");
+        assertThat(order.getCurrency()).isEqualTo("LKR");
+
+        assertThat(response.feeBreakdown().totalFee()).isEqualByComparingTo("1693.40");
+        assertThat(response.pickupCity()).isEqualTo("COLOMBO");
+    }
+
+    @Test
+    @DisplayName("an expectedFee equal to the calculated fee is accepted (compared by value: 1693.4 equals 1693.40)")
+    void expectedFeeMatches() {
+        stubHappyPath();
+
+        OrderResponse response = service.createOrder(CUSTOMER, request(new BigDecimal("1693.4")), null);
+
+        assertThat(response.deliveryFee()).isEqualByComparingTo("1693.40");
+    }
+
+    @Test
+    @DisplayName("an expectedFee that differs from the calculated fee refuses the order and stores nothing")
+    void expectedFeeMismatch() {
+        stubPricing();
+
+        assertThatThrownBy(() -> service.createOrder(CUSTOMER, request(new BigDecimal("1500.00")), null))
+                .isInstanceOf(PriceChangedException.class);
+
+        verify(orders, never()).saveAndFlush(any());
+        verify(history, never()).save(any());
+        verify(eventRecorder, never()).recordOrderCreated(any());
+    }
+
+    @Test
+    @DisplayName("a pricing business-rule error (unsupported city, weight too heavy for the size) creates nothing")
+    void pricingRejectsRequest() {
+        when(pricing.quote(any(), any(), any(), any())).thenThrow(new BusinessRuleException("Unsupported city"));
+
+        assertThatThrownBy(() -> service.createOrder(CUSTOMER, request(), null))
+                .isInstanceOf(BusinessRuleException.class);
+
+        verify(orders, never()).saveAndFlush(any());
+        verify(eventRecorder, never()).recordOrderCreated(any());
+    }
+
+    @Test
+    @DisplayName("stores the branch the Organization service chose for the pickup town")
+    void storesResolvedBranch() {
+        stubHappyPath();
+        when(branches.resolve(COLOMBO))
+                .thenReturn(Optional.of(new ResolvedBranch(7L, "CMB-CEN", "Colombo Central", 2.81)));
+
+        OrderResponse response = service.createOrder(CUSTOMER, request(), null);
+
+        ArgumentCaptor<DeliveryOrder> saved = ArgumentCaptor.forClass(DeliveryOrder.class);
+        verify(orders).saveAndFlush(saved.capture());
+        assertThat(saved.getValue().getBranchId()).isEqualTo(7L);
+        assertThat(response.branchId()).isEqualTo(7L);
+    }
+
+    @Test
+    @DisplayName("with branch resolution switched off the order is stored without a branch")
+    void noBranchWhenResolutionOff() {
+        stubHappyPath();
+
+        OrderResponse response = service.createOrder(CUSTOMER, request(), null);
+
+        assertThat(response.branchId()).isNull();
+    }
+
+    @Test
+    @DisplayName("a pickup no service area covers (422) creates nothing")
+    void pickupNotServed() {
+        when(branches.resolve(COLOMBO)).thenThrow(new BusinessRuleException("We do not collect parcels from this pickup area yet"));
+
+        assertThatThrownBy(() -> service.createOrder(CUSTOMER, request(), null))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("pickup area");
+
+        verify(orders, never()).saveAndFlush(any());
+        verify(history, never()).save(any());
+        verify(eventRecorder, never()).recordOrderCreated(any());
+    }
+
+    @Test
+    @DisplayName("an Organization service that cannot answer (503) creates nothing")
+    void organizationUnavailable() {
+        when(branches.resolve(COLOMBO)).thenThrow(new BranchServiceUnavailableException("try again"));
+
+        assertThatThrownBy(() -> service.createOrder(CUSTOMER, request(), null))
+                .isInstanceOf(BranchServiceUnavailableException.class);
+
+        verify(orders, never()).saveAndFlush(any());
+        verify(history, never()).save(any());
+        verify(eventRecorder, never()).recordOrderCreated(any());
+    }
+
+    @Test
+    @DisplayName("an unsupported pickup town is refused before the Organization service is asked")
+    void unsupportedPickupTown() {
+        when(cities.require("COLOMBO")).thenThrow(new BusinessRuleException("Unsupported city"));
+
+        assertThatThrownBy(() -> service.createOrder(CUSTOMER, request(), null))
+                .isInstanceOf(BusinessRuleException.class);
+
+        verify(branches, never()).resolve(any());
+        verify(orders, never()).saveAndFlush(any());
+    }
+
+    @Test
+    @DisplayName("a repeated request with the same idempotency key does not ask the Organization service again")
+    void idempotentReplayDoesNotResolveBranch() {
+        DeliveryOrder existing = new DeliveryOrder(CUSTOMER, "SD-261113-ORIG2222");
+        existing.setDeliveryFee(new BigDecimal("725.00"));
+        when(orders.findByCustomerIdAndIdempotencyKey(CUSTOMER, "key-2")).thenReturn(Optional.of(existing));
+
+        service.createOrder(CUSTOMER, request(), "key-2");
+
+        verify(branches, never()).resolve(any());
+    }
+
+    @Test
     @DisplayName("a repeated request with the same idempotency key returns the original order and creates nothing")
     void idempotentReplay() {
         DeliveryOrder existing = new DeliveryOrder(CUSTOMER, "SD-261113-ORIG2222");
@@ -118,6 +278,7 @@ class OrderServiceTest {
         verify(orders, never()).saveAndFlush(any());
         verify(history, never()).save(any());
         verify(eventRecorder, never()).recordOrderCreated(any());
+        verify(pricing, never()).quote(any(), any(), any(), any());
     }
 
     @Test
@@ -127,9 +288,8 @@ class OrderServiceTest {
         when(orders.findByCustomerIdAndIdempotencyKey(CUSTOMER, "key-2"))
                 .thenReturn(Optional.empty())
                 .thenReturn(Optional.of(winner));
+        stubPricing();
         when(trackingNumbers.next()).thenReturn("SD-261113-LOSE2222");
-        when(feeCalculator.calculate(any(), any()))
-                .thenReturn(new FeeQuote(new BigDecimal("725.00"), "LKR", new BigDecimal("500.00"), new BigDecimal("225.00")));
         when(orders.saveAndFlush(any())).thenThrow(new DataIntegrityViolationException("uq_orders_customer_idempotency"));
 
         OrderResponse response = service.createOrder(CUSTOMER, request(), "key-2");
@@ -140,9 +300,8 @@ class OrderServiceTest {
     @Test
     @DisplayName("a constraint violation without an idempotency key is not swallowed")
     void violationWithoutKeyIsRethrown() {
+        stubPricing();
         when(trackingNumbers.next()).thenReturn("SD-261113-AAAA2222");
-        when(feeCalculator.calculate(any(), any()))
-                .thenReturn(new FeeQuote(new BigDecimal("725.00"), "LKR", new BigDecimal("500.00"), new BigDecimal("225.00")));
         when(orders.saveAndFlush(any())).thenThrow(new DataIntegrityViolationException("boom"));
 
         assertThatThrownBy(() -> service.createOrder(CUSTOMER, request(), null))
@@ -152,11 +311,10 @@ class OrderServiceTest {
     @Test
     @DisplayName("retries with a fresh tracking number when the first one is taken")
     void trackingNumberCollisionRetries() {
+        stubPricing();
         when(trackingNumbers.next()).thenReturn("SD-261113-TAKEN222", "SD-261113-FREE2222");
         when(orders.existsByTrackingNumber("SD-261113-TAKEN222")).thenReturn(true);
         when(orders.existsByTrackingNumber("SD-261113-FREE2222")).thenReturn(false);
-        when(feeCalculator.calculate(any(), any()))
-                .thenReturn(new FeeQuote(new BigDecimal("725.00"), "LKR", new BigDecimal("500.00"), new BigDecimal("225.00")));
         when(orders.saveAndFlush(any(DeliveryOrder.class))).thenAnswer(inv -> inv.getArgument(0));
 
         OrderResponse response = service.createOrder(CUSTOMER, request(), null);
@@ -168,10 +326,9 @@ class OrderServiceTest {
     @Test
     @DisplayName("gives up after repeated tracking number collisions")
     void trackingNumberExhaustion() {
+        stubPricing();
         when(trackingNumbers.next()).thenReturn("SD-261113-TAKEN222");
         when(orders.existsByTrackingNumber("SD-261113-TAKEN222")).thenReturn(true);
-        when(feeCalculator.calculate(any(), any()))
-                .thenReturn(new FeeQuote(new BigDecimal("725.00"), "LKR", new BigDecimal("500.00"), new BigDecimal("225.00")));
 
         assertThatThrownBy(() -> service.createOrder(CUSTOMER, request(), null))
                 .isInstanceOf(IllegalStateException.class);

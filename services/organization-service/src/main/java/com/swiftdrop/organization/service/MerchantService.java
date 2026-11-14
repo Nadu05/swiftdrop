@@ -1,5 +1,6 @@
 package com.swiftdrop.organization.service;
 
+import com.swiftdrop.organization.config.CorrelationIdFilter;
 import com.swiftdrop.organization.dto.MerchantRegistrationRequest;
 import com.swiftdrop.organization.dto.MerchantResponse;
 import com.swiftdrop.organization.dto.MerchantUpdateRequest;
@@ -54,7 +55,7 @@ public class MerchantService {
 
     @Autowired
     public MerchantService(MerchantProfileRepository repository, ApplicationEventPublisher eventPublisher) {
-        this(repository, eventPublisher, Clock.systemDefaultZone());
+        this(repository, eventPublisher, Clock.systemUTC());
     }
 
     MerchantService(MerchantProfileRepository repository, ApplicationEventPublisher eventPublisher, Clock clock) {
@@ -238,12 +239,14 @@ public class MerchantService {
         MerchantProfile saved = repository.save(merchant);
 
         MerchantEventType type = MerchantEventType.forTransition(previous, target);
+        String correlationId = CorrelationIdFilter.currentOrGenerate();
         eventPublisher.publishEvent(new MerchantLifecycleEvent(
                 UUID.randomUUID().toString(),
                 type.eventType(),
                 MerchantEventType.VERSION,
                 clock.instant().toString(),
                 MerchantLifecycleEvent.PRODUCER,
+                correlationId,
                 saved.getId(),
                 saved.getIdentityUserId(),
                 saved.getBusinessName(),

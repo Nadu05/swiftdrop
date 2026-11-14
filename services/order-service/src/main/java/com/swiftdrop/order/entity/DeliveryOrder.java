@@ -85,6 +85,26 @@ public class DeliveryOrder {
     @Column(name = "distance_km", precision = 8, scale = 2)
     private BigDecimal distanceKm;
 
+    /** Supported town codes. Null only for orders created before the town list existed. */
+    @Column(name = "pickup_city", length = 40)
+    private String pickupCity;
+
+    @Column(name = "dropoff_city", length = 40)
+    private String dropoffCity;
+
+    /** The parts of {@code deliveryFee}; the database enforces that they add up to it. */
+    @Column(name = "base_fee", nullable = false, precision = 12, scale = 2)
+    private BigDecimal baseFee = BigDecimal.ZERO;
+
+    @Column(name = "weight_fee", nullable = false, precision = 12, scale = 2)
+    private BigDecimal weightFee = BigDecimal.ZERO;
+
+    @Column(name = "distance_fee", nullable = false, precision = 12, scale = 2)
+    private BigDecimal distanceFee = BigDecimal.ZERO;
+
+    @Column(name = "zone_surcharge", nullable = false, precision = 12, scale = 2)
+    private BigDecimal zoneSurcharge = BigDecimal.ZERO;
+
     @Column(name = "idempotency_key", length = 64, updatable = false)
     private String idempotencyKey;
 
@@ -163,6 +183,24 @@ public class DeliveryOrder {
 
     public BigDecimal getDistanceKm() { return distanceKm; }
     public void setDistanceKm(BigDecimal distanceKm) { this.distanceKm = distanceKm; }
+
+    public String getPickupCity() { return pickupCity; }
+    public void setPickupCity(String pickupCity) { this.pickupCity = pickupCity; }
+
+    public String getDropoffCity() { return dropoffCity; }
+    public void setDropoffCity(String dropoffCity) { this.dropoffCity = dropoffCity; }
+
+    public BigDecimal getBaseFee() { return baseFee; }
+    public void setBaseFee(BigDecimal baseFee) { this.baseFee = baseFee; }
+
+    public BigDecimal getWeightFee() { return weightFee; }
+    public void setWeightFee(BigDecimal weightFee) { this.weightFee = weightFee; }
+
+    public BigDecimal getDistanceFee() { return distanceFee; }
+    public void setDistanceFee(BigDecimal distanceFee) { this.distanceFee = distanceFee; }
+
+    public BigDecimal getZoneSurcharge() { return zoneSurcharge; }
+    public void setZoneSurcharge(BigDecimal zoneSurcharge) { this.zoneSurcharge = zoneSurcharge; }
 
     public String getIdempotencyKey() { return idempotencyKey; }
     public void setIdempotencyKey(String idempotencyKey) { this.idempotencyKey = idempotencyKey; }

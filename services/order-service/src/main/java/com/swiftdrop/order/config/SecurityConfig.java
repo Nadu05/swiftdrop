@@ -3,6 +3,7 @@ package com.swiftdrop.order.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.swiftdrop.order.security.JwtRoleConverter;
 import com.swiftdrop.order.security.RestSecurityErrorHandler;
+import com.swiftdrop.order.security.ServiceKeyAuthenticationFilter;
 import com.swiftdrop.order.security.SecurityProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,10 +19,17 @@ import org.springframework.security.oauth2.jwt.BadJwtException;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
+import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.util.stream.Stream;
 
 /**
  * Stateless JWT resource-server security. Order endpoints require the CUSTOMER role; ownership of an
@@ -61,18 +69,59 @@ public class SecurityConfig {
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/api-docs/**", "/v3/api-docs/**").permitAll()
                         // Temporary infrastructure-test scaffolding; remove together with TestItem.
                         .requestMatchers("/test-items/**", "/api/v1/test-items/**").permitAll()
-                        // Public tracking (added with the tracking-timeline work) exposes only safe data.
-                        .requestMatchers(HttpMethod.GET, "/orders/tracking/**", "/api/v1/orders/tracking/**").permitAll()
+                        // Public tracking exposes only safe data (see PublicTrackingResponse).
+                        .requestMatchers(HttpMethod.GET, "/tracking/**", "/api/v1/tracking/**",
+                                "/orders/tracking/**", "/api/v1/orders/tracking/**").permitAll()
+                        // Delivery status changes are for couriers/staff, never for customers. Must stay above
+                        // the CUSTOMER rule below. With no configured role nobody can change a status.
+                        .requestMatchers(HttpMethod.PATCH, "/*/status", "/orders/*/status", "/api/v1/orders/*/status")
+                                .hasAnyRole(properties.statusUpdateRoles().toArray(String[]::new))
+                        // Orders waiting for a courier include recipient contact details: dispatch/staff roles, or
+                        // the Dispatch service itself with the shared service key (ServiceKeyAuthenticationFilter).
+                        .requestMatchers(HttpMethod.GET, "/ready-for-dispatch", "/orders/ready-for-dispatch",
+                                "/api/v1/orders/ready-for-dispatch")
+                                .hasAnyAuthority(dispatchAuthorities(properties))
+                        // Customer endpoints. The first group is what the gateway forwards after stripping
+                        // /api/v1/orders (POST / , GET /cities, /quote, /{id}, /{id}/timeline, /{id}/receipt); they
+                        // must be listed here, otherwise "anyRequest().authenticated()" would let ANY logged-in
+                        // role (for example a courier) use them.
+                        .requestMatchers("/", "/cities", "/quote", "/*", "/*/timeline", "/*/receipt").hasRole("CUSTOMER")
                         .requestMatchers("/orders/**", "/api/v1/orders/**").hasRole("CUSTOMER")
                         .anyRequest().authenticated())
+                .addFilterBefore(new ServiceKeyAuthenticationFilter(properties.serviceApiKey()),
+                        BearerTokenAuthenticationFilter.class)
                 .exceptionHandling(e -> e
                         .authenticationEntryPoint(errorHandler)
                         .accessDeniedHandler(errorHandler))
                 .oauth2ResourceServer(o -> o
+                        .bearerTokenResolver(publicTrackingAwareTokenResolver())
                         .authenticationEntryPoint(errorHandler)
                         .accessDeniedHandler(errorHandler)
                         .jwt(j -> j.jwtAuthenticationConverter(converter)));
         return http.build();
+    }
+
+    /** The ready-for-dispatch roles as authorities (ROLE_ prefix), plus the service-key authority. */
+    private static String[] dispatchAuthorities(SecurityProperties properties) {
+        return Stream.concat(
+                        properties.dispatchReadRoles().stream().map(role -> "ROLE_" + role),
+                        Stream.of(ServiceKeyAuthenticationFilter.AUTHORITY))
+                .toArray(String[]::new);
+    }
+
+    /**
+     * Public tracking must work for anyone. Without this, a logged-in browser that still sends an expired or
+     * invalid {@code Authorization} header would be answered 401 by the JWT filter even though the endpoint is
+     * open. On the tracking paths the header is simply not looked at.
+     */
+    private static BearerTokenResolver publicTrackingAwareTokenResolver() {
+        DefaultBearerTokenResolver defaultResolver = new DefaultBearerTokenResolver();
+        RequestMatcher publicTracking = new OrRequestMatcher(
+                new AntPathRequestMatcher("/tracking/**", "GET"),
+                new AntPathRequestMatcher("/api/v1/tracking/**", "GET"),
+                new AntPathRequestMatcher("/orders/tracking/**", "GET"),
+                new AntPathRequestMatcher("/api/v1/orders/tracking/**", "GET"));
+        return request -> publicTracking.matches(request) ? null : defaultResolver.resolve(request);
     }
 
     @Bean

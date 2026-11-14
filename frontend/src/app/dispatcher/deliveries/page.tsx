@@ -26,6 +26,7 @@ export default function UnassignedDeliveriesPage() {
   });
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Modals state
   const [selectedDetailsDelivery, setSelectedDetailsDelivery] = useState<UnassignedDelivery | null>(null);
@@ -39,14 +40,16 @@ export default function UnassignedDeliveriesPage() {
 
   const loadData = useCallback(async () => {
     try {
+      setError(null);
       const [deliveriesData, metricsData] = await Promise.all([
         getUnassignedDeliveries(),
         getDeliverySummaryMetrics(),
       ]);
       setDeliveries(deliveriesData);
       setMetrics(metricsData);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load unassigned deliveries:', err);
+      setError('Unable to load unassigned orders. Please check that backend services are active.');
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -141,6 +144,7 @@ export default function UnassignedDeliveriesPage() {
       <UnassignedDeliveryTable
         deliveries={deliveries}
         isLoading={isLoading}
+        error={error}
         onViewDetails={handleOpenDetails}
         onAssignCourier={handleOpenAssignModal}
       />

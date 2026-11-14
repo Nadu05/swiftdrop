@@ -7,7 +7,14 @@ import com.swiftdrop.order.dto.CreateOrderRequest;
 import com.swiftdrop.order.dto.OrderResponse;
 import com.swiftdrop.order.entity.enums.OrderStatus;
 import com.swiftdrop.order.entity.enums.ParcelSize;
+import com.swiftdrop.order.exception.BusinessRuleException;
+import com.swiftdrop.order.exception.PriceChangedException;
 import com.swiftdrop.order.exception.ResourceNotFoundException;
+import com.swiftdrop.order.location.City;
+import com.swiftdrop.order.location.CityDirectory;
+import com.swiftdrop.order.pricing.FeeBreakdown;
+import com.swiftdrop.order.pricing.PriceQuote;
+import com.swiftdrop.order.pricing.PricingService;
 import com.swiftdrop.order.security.CustomerIdResolver;
 import com.swiftdrop.order.service.OrderService;
 import com.swiftdrop.order.support.TestTokens;
@@ -52,7 +59,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(OrderController.class)
-@Import({SecurityConfig.class, JacksonConfig.class, CustomerIdResolver.class})
+@Import({SecurityConfig.class, JacksonConfig.class, CustomerIdResolver.class, CityDirectory.class})
 @TestPropertySource(properties = {
         "swiftdrop.security.enabled=true",
         "swiftdrop.security.jwt-secret=" + TestTokens.SECRET
@@ -62,6 +69,7 @@ class OrderControllerTest {
     @Autowired private MockMvc mvc;
     @Autowired private ObjectMapper objectMapper;
     @MockBean private OrderService orderService;
+    @MockBean private PricingService pricingService;
 
     // ------------------------------------------------------------------ helpers
 
@@ -77,7 +85,17 @@ class OrderControllerTest {
         body.put("parcelSize", "MEDIUM");
         body.put("weightKg", 1.8);
         body.put("deliveryInstructions", "Call on arrival");
+        body.put("pickupCity", "COLOMBO");
+        body.put("dropoffCity", "KANDY");
         return body;
+    }
+
+    private static PriceQuote sampleQuote() {
+        FeeBreakdown fee = new FeeBreakdown(new BigDecimal("500.00"), new BigDecimal("80.00"),
+                new BigDecimal("943.40"), new BigDecimal("200.00"), new BigDecimal("1723.40"), "LKR");
+        return new PriceQuote(fee, new BigDecimal("94.34"),
+                new City("COLOMBO", "Colombo", "Colombo", 6.9271, 79.8612),
+                new City("KANDY", "Kandy", "Kandy", 7.2906, 80.6337), true);
     }
 
     private MockHttpServletRequestBuilder createRequest(String token, Map<String, Object> body) throws Exception {
@@ -92,7 +110,8 @@ class OrderControllerTest {
                 "45 Galle Road, Colombo 03", "Nuwan Pradeep", "+94 77 123 4567",
                 "12/4 Peradeniya Road, Kandy", "Ayesha Perera", "0718849201",
                 "Electronic accessories", ParcelSize.MEDIUM, new BigDecimal("1.80"), "Call on arrival",
-                null, null, Instant.parse("2026-11-13T10:00:00Z"), Instant.parse("2026-11-13T10:00:00Z"));
+                new BigDecimal("94.34"), null, Instant.parse("2026-11-13T10:00:00Z"), Instant.parse("2026-11-13T10:00:00Z"),
+                "COLOMBO", "KANDY", sampleQuote().fee());
     }
 
     // ------------------------------------------------------------------ create: success
@@ -188,7 +207,13 @@ class OrderControllerTest {
                 Arguments.of("weightKg", -1),
                 Arguments.of("weightKg", new BigDecimal("100.01")),
                 Arguments.of("weightKg", new BigDecimal("1.234")),
-                Arguments.of("parcelSize", null));
+                Arguments.of("parcelSize", null),
+                Arguments.of("pickupCity", null),
+                Arguments.of("pickupCity", "ATLANTIS"),
+                Arguments.of("dropoffCity", ""),
+                Arguments.of("dropoffCity", "ATLANTIS"),
+                Arguments.of("expectedFee", -1),
+                Arguments.of("expectedFee", new BigDecimal("10.123")));
     }
 
     @ParameterizedTest(name = "{0} = {1} is rejected")
@@ -385,5 +410,170 @@ class OrderControllerTest {
         String courier = TestTokens.token(TestTokens.SECRET, "42", "COURIER", Instant.now().plusSeconds(3600));
         mvc.perform(get("/api/v1/orders").header("Authorization", "Bearer " + courier))
                 .andExpect(status().isForbidden());
+    }
+
+    // ------------------------------------------------------------------ quote
+
+    private Map<String, Object> quoteBody() {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("pickupCity", "COLOMBO");
+        body.put("dropoffCity", "KANDY");
+        body.put("parcelSize", "MEDIUM");
+        body.put("weightKg", 1.8);
+        return body;
+    }
+
+    private MockHttpServletRequestBuilder quoteRequest(String path, String token, Map<String, Object> body) throws Exception {
+        MockHttpServletRequestBuilder builder = post(path)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body));
+        return token == null ? builder : builder.header("Authorization", "Bearer " + token);
+    }
+
+    @Test
+    @DisplayName("quote returns the fee, currency, distance and the breakdown, in the shape the frontend expects")
+    void quoteReturnsFeeAndBreakdown() throws Exception {
+        when(pricingService.quote("COLOMBO", "KANDY", ParcelSize.MEDIUM, new BigDecimal("1.8"))).thenReturn(sampleQuote());
+
+        mvc.perform(quoteRequest("/api/v1/orders/quote", TestTokens.customer(42), quoteBody()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estimatedFee").value(1723.40))
+                .andExpect(jsonPath("$.currency").value("LKR"))
+                .andExpect(jsonPath("$.estimatedDistanceKm").value(94.34))
+                .andExpect(jsonPath("$.breakdown.baseFee").value(500.00))
+                .andExpect(jsonPath("$.breakdown.weightFee").value(80.00))
+                .andExpect(jsonPath("$.breakdown.distanceFee").value(943.40))
+                .andExpect(jsonPath("$.breakdown.zoneSurcharge").value(200.00))
+                .andExpect(jsonPath("$.breakdown.totalFee").value(1723.40));
+    }
+
+    @Test
+    @DisplayName("quote works on the gateway-stripped path and ignores extra fields such as street addresses")
+    void quoteGatewayPathIgnoresExtraFields() throws Exception {
+        when(pricingService.quote(any(), any(), any(), any())).thenReturn(sampleQuote());
+        Map<String, Object> body = quoteBody();
+        body.put("pickupAddress", "45 Galle Road, Colombo 03");
+        body.put("dropoffAddress", "12/4 Peradeniya Road, Kandy");
+
+        mvc.perform(quoteRequest("/orders/quote", TestTokens.customer(42), body)).andExpect(status().isOk());
+    }
+
+    @ParameterizedTest(name = "quote with {0} = {1} is rejected")
+    @MethodSource("invalidQuoteValues")
+    @DisplayName("quote rejects missing or unsupported towns and invalid weights with field errors")
+    void quoteValidation(String field, Object value) throws Exception {
+        Map<String, Object> body = quoteBody();
+        body.put(field, value);
+
+        mvc.perform(quoteRequest("/api/v1/orders/quote", TestTokens.customer(42), body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors." + field).exists());
+
+        verifyNoInteractions(pricingService);
+    }
+
+    static Stream<Arguments> invalidQuoteValues() {
+        return Stream.of(
+                Arguments.of("pickupCity", null),
+                Arguments.of("pickupCity", ""),
+                Arguments.of("pickupCity", "ATLANTIS"),
+                Arguments.of("dropoffCity", null),
+                Arguments.of("dropoffCity", "ATLANTIS"),
+                Arguments.of("parcelSize", null),
+                Arguments.of("weightKg", 0),
+                Arguments.of("weightKg", new BigDecimal("100.01")),
+                Arguments.of("weightKg", new BigDecimal("1.234")));
+    }
+
+    @Test
+    @DisplayName("a weight too heavy for the parcel size is a 422 with the reason")
+    void quoteBusinessRule() throws Exception {
+        when(pricingService.quote(any(), any(), any(), any()))
+                .thenThrow(new BusinessRuleException("A SMALL parcel can weigh at most 2 kg. Choose a larger size or reduce the weight."));
+
+        mvc.perform(quoteRequest("/api/v1/orders/quote", TestTokens.customer(42), quoteBody()))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("SMALL")));
+    }
+
+    @Test
+    @DisplayName("quote needs a token (401) and the CUSTOMER role (403)")
+    void quoteRequiresCustomerRole() throws Exception {
+        mvc.perform(quoteRequest("/api/v1/orders/quote", null, quoteBody())).andExpect(status().isUnauthorized());
+
+        String courier = TestTokens.token(TestTokens.SECRET, "42", "COURIER", Instant.now().plusSeconds(3600));
+        mvc.perform(quoteRequest("/api/v1/orders/quote", courier, quoteBody())).andExpect(status().isForbidden());
+        verifyNoInteractions(pricingService);
+    }
+
+    // ------------------------------------------------------------------ cities
+
+    @Test
+    @DisplayName("lists the supported towns sorted by name, with code, name and district but no coordinates")
+    void listsCities() throws Exception {
+        mvc.perform(get("/api/v1/orders/cities").header("Authorization", "Bearer " + TestTokens.customer(42)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(org.hamcrest.Matchers.greaterThanOrEqualTo(25)))
+                .andExpect(jsonPath("$[0].code").value("AMPARA"))
+                .andExpect(jsonPath("$[0].name").value("Ampara"))
+                .andExpect(jsonPath("$[0].district").value("Ampara"))
+                .andExpect(jsonPath("$[0].latitude").doesNotExist())
+                .andExpect(jsonPath("$[0].longitude").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("the town list also needs a token")
+    void citiesRequireToken() throws Exception {
+        mvc.perform(get("/api/v1/orders/cities")).andExpect(status().isUnauthorized());
+    }
+
+    // ------------------------------------------------------------------ create: pricing-related errors
+
+    @Test
+    @DisplayName("the towns and expected fee are passed to the service")
+    void citiesAndExpectedFeeAreForwarded() throws Exception {
+        when(orderService.createOrder(eq(42L), any(), isNull())).thenReturn(sampleResponse(20));
+        Map<String, Object> body = validBody();
+        body.put("expectedFee", 1723.40);
+
+        mvc.perform(createRequest(TestTokens.customer(42), body)).andExpect(status().isCreated());
+
+        ArgumentCaptor<CreateOrderRequest> captor = ArgumentCaptor.forClass(CreateOrderRequest.class);
+        verify(orderService).createOrder(eq(42L), captor.capture(), isNull());
+        assertThat(captor.getValue().pickupCity()).isEqualTo("COLOMBO");
+        assertThat(captor.getValue().dropoffCity()).isEqualTo("KANDY");
+        assertThat(captor.getValue().expectedFee()).isEqualByComparingTo("1723.40");
+    }
+
+    @Test
+    @DisplayName("an expected fee that no longer matches is a 409 so the client can show the new quote")
+    void priceChangedIs409() throws Exception {
+        when(orderService.createOrder(eq(42L), any(), isNull())).thenThrow(new PriceChangedException());
+
+        mvc.perform(createRequest(TestTokens.customer(42), validBody()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("fee has changed")));
+    }
+
+    @Test
+    @DisplayName("an order that cannot get a branch because the Organization service is down is a 503 with a retry message")
+    void createBranchServiceUnavailable() throws Exception {
+        when(orderService.createOrder(eq(42L), any(), isNull()))
+                .thenThrow(new com.swiftdrop.order.branch.BranchServiceUnavailableException("Please try again shortly."));
+
+        mvc.perform(createRequest(TestTokens.customer(42), validBody()))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.status").value(503))
+                .andExpect(jsonPath("$.message").value("Please try again shortly."));
+    }
+
+    @Test
+    @DisplayName("an order whose weight is too heavy for the size is a 422")
+    void createBusinessRule() throws Exception {
+        when(orderService.createOrder(eq(42L), any(), isNull()))
+                .thenThrow(new BusinessRuleException("A SMALL parcel can weigh at most 2 kg. Choose a larger size or reduce the weight."));
+
+        mvc.perform(createRequest(TestTokens.customer(42), validBody()))
+                .andExpect(status().isUnprocessableEntity());
     }
 }

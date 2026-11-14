@@ -7,6 +7,8 @@ import com.swiftdrop.order.dto.CreateOrderRequest;
 import com.swiftdrop.order.dto.OrderResponse;
 import com.swiftdrop.order.entity.enums.OrderStatus;
 import com.swiftdrop.order.entity.enums.ParcelSize;
+import com.swiftdrop.order.location.CityDirectory;
+import com.swiftdrop.order.pricing.PricingService;
 import com.swiftdrop.order.security.CustomerIdResolver;
 import com.swiftdrop.order.service.OrderService;
 import org.junit.jupiter.api.DisplayName;
@@ -44,7 +46,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * configuration or the X-Customer-Id header.
  */
 @WebMvcTest(OrderController.class)
-@Import({SecurityConfig.class, JacksonConfig.class, CustomerIdResolver.class})
+@Import({SecurityConfig.class, JacksonConfig.class, CustomerIdResolver.class, CityDirectory.class})
 @TestPropertySource(properties = {
         "swiftdrop.security.enabled=false",
         "swiftdrop.security.dev-customer-id=7"
@@ -54,6 +56,7 @@ class OrderControllerAuthDisabledTest {
     @Autowired private MockMvc mvc;
     @Autowired private ObjectMapper objectMapper;
     @MockBean private OrderService orderService;
+    @MockBean private PricingService pricingService;
 
     private String body() throws Exception {
         Map<String, Object> body = new LinkedHashMap<>();
@@ -65,6 +68,8 @@ class OrderControllerAuthDisabledTest {
         body.put("dropoffContactPhone", "0718849201");
         body.put("parcelSize", "MEDIUM");
         body.put("weightKg", 1.8);
+        body.put("pickupCity", "COLOMBO");
+        body.put("dropoffCity", "KANDY");
         return objectMapper.writeValueAsString(body);
     }
 
@@ -73,7 +78,8 @@ class OrderControllerAuthDisabledTest {
                 "45 Galle Road, Colombo 03", "Nuwan Pradeep", "+94 77 123 4567",
                 "12/4 Peradeniya Road, Kandy", "Ayesha Perera", "0718849201",
                 null, ParcelSize.MEDIUM, new BigDecimal("1.80"), null,
-                null, null, Instant.parse("2026-11-13T10:00:00Z"), Instant.parse("2026-11-13T10:00:00Z"));
+                null, null, Instant.parse("2026-11-13T10:00:00Z"), Instant.parse("2026-11-13T10:00:00Z"),
+                "COLOMBO", "KANDY", null);
     }
 
     @Test
@@ -125,6 +131,19 @@ class OrderControllerAuthDisabledTest {
     }
 
     @Test
+    @DisplayName("the quote and town list also work without a token while authentication is off")
+    void quoteAndCitiesWithoutToken() throws Exception {
+        mvc.perform(get("/api/v1/orders/cities")).andExpect(status().isOk());
+
+        when(pricingService.quote(any(), any(), any(), any())).thenReturn(null);
+        // a quote with an unsupported town is still validated (400) even without authentication
+        mvc.perform(post("/api/v1/orders/quote").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"pickupCity\":\"ATLANTIS\",\"dropoffCity\":\"KANDY\",\"parcelSize\":\"MEDIUM\",\"weightKg\":1}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.pickupCity").exists());
+    }
+
+    @Test
     @DisplayName("a malformed X-Customer-Id is rejected with 400")
     void malformedHeaderIsRejected() throws Exception {
         mvc.perform(post("/api/v1/orders").header("X-Customer-Id", "abc")
@@ -140,5 +159,31 @@ class OrderControllerAuthDisabledTest {
         mvc.perform(post("/api/v1/orders").contentType(MediaType.APPLICATION_JSON).content(invalid))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors.weightKg").exists());
+    }
+
+    @Test
+    @DisplayName("status can be changed without a token while auth is off; the change is recorded as a system change")
+    void statusChangeWithoutToken() throws Exception {
+        when(orderService.changeStatus(eq(5L), eq(OrderStatus.PICKED_UP), isNull(), isNull(), isNull()))
+                .thenReturn(new com.swiftdrop.order.dto.StatusChangeResponse(5L, "SD-261113-AAAA2222",
+                        OrderStatus.CREATED, OrderStatus.PICKED_UP, "Picked Up", Instant.parse("2026-11-13T09:00:00Z")));
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/v1/orders/5/status")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"PICKED_UP\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PICKED_UP"));
+    }
+
+    @Test
+    @DisplayName("timeline and receipt use the default dev customer, or the X-Customer-Id header")
+    void timelineAndReceiptUseDevCustomer() throws Exception {
+        when(orderService.getTimeline(7L, 5L)).thenReturn(new com.swiftdrop.order.dto.TimelineResponse(
+                5L, "SD-261113-AAAA2222", OrderStatus.CREATED, "Created", List.of()));
+        when(orderService.getReceipt(3L, 5L)).thenThrow(new com.swiftdrop.order.exception.ResourceNotFoundException("Order not found"));
+
+        mvc.perform(get("/api/v1/orders/5/timeline")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.currentStatus").value("CREATED"));
+        mvc.perform(get("/api/v1/orders/5/receipt").header("X-Customer-Id", "3")).andExpect(status().isNotFound());
+        verify(orderService).getReceipt(3L, 5L);
     }
 }

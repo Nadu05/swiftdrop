@@ -36,7 +36,7 @@ class OrderCreationIntegrationTest extends ApplicationIntegrationTest {
     @Autowired private DeliveryOrderRepository orders;
     @Autowired private OrderStatusHistoryRepository history;
 
-    private String body() throws Exception {
+    private Map<String, Object> baseBody() {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("pickupAddress", "45 Galle Road, Colombo 03");
         body.put("pickupContactName", "Nuwan Pradeep");
@@ -47,11 +47,28 @@ class OrderCreationIntegrationTest extends ApplicationIntegrationTest {
         body.put("parcelDescription", "Electronic accessories");
         body.put("parcelSize", "MEDIUM");
         body.put("weightKg", 1.5);
+        body.put("pickupCity", "COLOMBO");
+        body.put("dropoffCity", "KANDY");
         // none of these may be honoured:
         body.put("customerId", 999);
         body.put("deliveryFee", 1);
         body.put("status", "DELIVERED");
-        return objectMapper.writeValueAsString(body);
+        return body;
+    }
+
+    private String body() throws Exception {
+        return objectMapper.writeValueAsString(baseBody());
+    }
+
+    private MvcResult send(String path, long customerId, Map<String, Object> body) throws Exception {
+        return mvc.perform(post(path)
+                .header("Authorization", "Bearer " + TestTokens.customer(customerId))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body))).andReturn();
+    }
+
+    private JsonNode json(MvcResult result) throws Exception {
+        return objectMapper.readTree(result.getResponse().getContentAsString());
     }
 
     private MvcResult create(long customerId, String idempotencyKey) throws Exception {
@@ -76,18 +93,138 @@ class OrderCreationIntegrationTest extends ApplicationIntegrationTest {
 
         assertThat(json.get("trackingNumber").asText()).matches("^SD-\\d{6}-[A-HJ-NP-Z2-9]{8}$");
         assertThat(json.get("status").asText()).isEqualTo("CREATED");
-        assertThat(json.get("deliveryFee").decimalValue()).isEqualByComparingTo("725.00"); // 500 + 150 * 1.5
+        // Colombo -> Kandy, 1.5 kg: 500 base + 0.5 kg x 100 + 94.34 km x 10 + 200 zone surcharge
+        assertThat(json.get("deliveryFee").decimalValue()).isEqualByComparingTo("1693.40");
         assertThat(json.get("currency").asText()).isEqualTo("LKR");
+        assertThat(json.get("feeBreakdown").get("baseFee").decimalValue()).isEqualByComparingTo("500.00");
+        assertThat(json.get("feeBreakdown").get("weightFee").decimalValue()).isEqualByComparingTo("50.00");
+        assertThat(json.get("feeBreakdown").get("distanceFee").decimalValue()).isEqualByComparingTo("943.40");
+        assertThat(json.get("feeBreakdown").get("zoneSurcharge").decimalValue()).isEqualByComparingTo("200.00");
+        assertThat(json.get("distanceKm").decimalValue()).isEqualByComparingTo("94.34");
+        assertThat(json.get("pickupCity").asText()).isEqualTo("COLOMBO");
+        assertThat(json.get("dropoffCity").asText()).isEqualTo("KANDY");
 
         DeliveryOrder stored = orders.findById(id).orElseThrow();
         assertThat(stored.getCustomerId()).as("customer id comes from the token, not the body").isEqualTo(501L);
         assertThat(stored.getStatus()).isEqualTo(OrderStatus.CREATED);
-        assertThat(stored.getDeliveryFee()).as("client-supplied fee is ignored").isEqualByComparingTo("725.00");
+        assertThat(stored.getDeliveryFee()).as("client-supplied fee is ignored").isEqualByComparingTo("1693.40");
+        assertThat(stored.getPickupCity()).isEqualTo("COLOMBO");
+        assertThat(stored.getDropoffCity()).isEqualTo("KANDY");
+        assertThat(stored.getDistanceKm()).isEqualByComparingTo("94.34");
+        assertThat(stored.getBaseFee().add(stored.getWeightFee()).add(stored.getDistanceFee()).add(stored.getZoneSurcharge()))
+                .as("stored parts add up to the stored fee").isEqualByComparingTo(stored.getDeliveryFee());
 
         List<OrderStatusHistory> entries = history.findByOrderIdOrderByCreatedAtAsc(id);
         assertThat(entries).hasSize(1);
         assertThat(entries.get(0).getStatus()).isEqualTo(OrderStatus.CREATED);
         assertThat(entries.get(0).getChangedBy()).isEqualTo(501L);
+    }
+
+    @Test
+    @DisplayName("the fee in the quote is exactly the fee charged when the order is created")
+    void quoteMatchesChargedFee() throws Exception {
+        Map<String, Object> quoteBody = new LinkedHashMap<>();
+        quoteBody.put("pickupCity", "COLOMBO");
+        quoteBody.put("dropoffCity", "KANDY");
+        quoteBody.put("parcelSize", "MEDIUM");
+        quoteBody.put("weightKg", 1.5);
+
+        MvcResult quoteResult = send("/api/v1/orders/quote", 520, quoteBody);
+        assertThat(quoteResult.getResponse().getStatus()).isEqualTo(200);
+        JsonNode quote = json(quoteResult);
+        assertThat(quote.get("estimatedFee").decimalValue()).isEqualByComparingTo("1693.40");
+        assertThat(quote.get("estimatedDistanceKm").decimalValue()).isEqualByComparingTo("94.34");
+        assertThat(quote.get("breakdown").get("totalFee").decimalValue()).isEqualByComparingTo("1693.40");
+
+        Map<String, Object> orderBody = baseBody();
+        orderBody.put("expectedFee", quote.get("estimatedFee").decimalValue()); // the customer confirms what they saw
+        MvcResult created = send("/api/v1/orders", 520, orderBody);
+
+        assertThat(created.getResponse().getStatus()).isEqualTo(201);
+        assertThat(json(created).get("deliveryFee").decimalValue())
+                .isEqualByComparingTo(quote.get("estimatedFee").decimalValue());
+    }
+
+    @Test
+    @DisplayName("quoting does not create an order")
+    void quoteStoresNothing() throws Exception {
+        long before = orders.count();
+        Map<String, Object> quoteBody = new LinkedHashMap<>();
+        quoteBody.put("pickupCity", "GALLE");
+        quoteBody.put("dropoffCity", "JAFFNA");
+        quoteBody.put("parcelSize", "LARGE");
+        quoteBody.put("weightKg", 12.5);
+
+        assertThat(send("/api/v1/orders/quote", 521, quoteBody).getResponse().getStatus()).isEqualTo(200);
+
+        assertThat(orders.count()).isEqualTo(before);
+    }
+
+    @Test
+    @DisplayName("a stale expectedFee is refused with 409 and nothing is stored")
+    void staleExpectedFeeIsRefused() throws Exception {
+        Map<String, Object> orderBody = baseBody();
+        orderBody.put("expectedFee", 1500.00); // the real fee is 1693.40
+
+        MvcResult result = send("/api/v1/orders", 522, orderBody);
+
+        assertThat(result.getResponse().getStatus()).isEqualTo(409);
+        assertThat(orders.findAll().stream().filter(o -> o.getCustomerId() == 522L)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("deliveries within one district pay no zone surcharge; the same town pays no distance fee")
+    void zoneAndDistanceRules() throws Exception {
+        Map<String, Object> sameTown = baseBody();
+        sameTown.put("dropoffCity", "COLOMBO");
+        Map<String, Object> sameDistrict = baseBody();
+        sameDistrict.put("dropoffCity", "DEHIWALA"); // both in Colombo district, 8.38 km apart
+
+        JsonNode town = json(send("/api/v1/orders", 523, sameTown));
+        JsonNode district = json(send("/api/v1/orders", 523, sameDistrict));
+
+        assertThat(town.get("deliveryFee").decimalValue()).isEqualByComparingTo("550.00");       // 500 + 0.5 x 100
+        assertThat(town.get("feeBreakdown").get("distanceFee").decimalValue()).isEqualByComparingTo("0.00");
+        assertThat(district.get("deliveryFee").decimalValue()).isEqualByComparingTo("633.80");   // 550 + 8.38 x 10
+        assertThat(district.get("feeBreakdown").get("zoneSurcharge").decimalValue()).isEqualByComparingTo("0.00");
+    }
+
+    @Test
+    @DisplayName("a parcel too heavy for its size is refused (422) for both the quote and the order, creating nothing")
+    void weightMustSuitTheSize() throws Exception {
+        Map<String, Object> heavySmall = baseBody();
+        heavySmall.put("parcelSize", "SMALL");
+        heavySmall.put("weightKg", 2.01); // SMALL parcels may weigh at most 2 kg
+
+        MvcResult order = send("/api/v1/orders", 524, heavySmall);
+        MvcResult quote = send("/api/v1/orders/quote", 524, heavySmall);
+
+        assertThat(order.getResponse().getStatus()).isEqualTo(422);
+        assertThat(json(order).get("message").asText()).contains("SMALL");
+        assertThat(quote.getResponse().getStatus()).isEqualTo(422);
+        assertThat(orders.findAll().stream().filter(o -> o.getCustomerId() == 524L)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("an unsupported town is rejected with 400 and a field error")
+    void unsupportedTown() throws Exception {
+        Map<String, Object> body = baseBody();
+        body.put("dropoffCity", "ATLANTIS");
+
+        MvcResult result = send("/api/v1/orders", 525, body);
+
+        assertThat(result.getResponse().getStatus()).isEqualTo(400);
+        assertThat(json(result).get("fieldErrors").has("dropoffCity")).isTrue();
+    }
+
+    @Test
+    @DisplayName("the town list is served to authenticated customers")
+    void townList() throws Exception {
+        MvcResult result = mvc.perform(get("/api/v1/orders/cities")
+                .header("Authorization", "Bearer " + TestTokens.customer(526))).andReturn();
+
+        assertThat(result.getResponse().getStatus()).isEqualTo(200);
+        assertThat(json(result).size()).isGreaterThanOrEqualTo(25);
     }
 
     @Test

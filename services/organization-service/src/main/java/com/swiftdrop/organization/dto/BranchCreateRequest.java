@@ -10,6 +10,8 @@ public class BranchCreateRequest {
 
     @NotBlank(message = "Branch code is required")
     @Size(max = 50, message = "Branch code must be at most 50 characters")
+    @Pattern(regexp = MerchantValidationPatterns.BRANCH_CODE,
+            message = "Branch code may contain only letters, numbers, hyphens, and underscores")
     private String code;
 
     @NotBlank(message = "Branch name is required")
@@ -29,6 +31,8 @@ public class BranchCreateRequest {
 
     @NotBlank(message = "Phone is required")
     @Size(max = 50, message = "Phone must be at most 50 characters")
+    @Pattern(regexp = MerchantValidationPatterns.PHONE,
+            message = "Phone must be a valid phone number (e.g. +94 11 234 5678)")
     private String phone;
 
     @Email(message = "Email must be a valid email address")

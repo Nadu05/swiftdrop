@@ -227,5 +227,56 @@ class BranchServiceTest {
                 .isInstanceOf(DuplicateResourceException.class)
                 .hasMessageContaining("Branch with code 'BR-KAN-002' already exists");
     }
+
+    @Test
+    @DisplayName("Should normalize branch code to uppercase and trim fields on create")
+    void shouldNormalizeCodeAndTrimFieldsOnCreate() {
+        BranchCreateRequest request = new BranchCreateRequest(
+                "  br-col-001  ",
+                "  Colombo Central Branch  ",
+                "  123 Galle Road  ",
+                "   ",
+                "  Colombo  ",
+                "  +94 11 234 5678  ",
+                "   ",
+                6.9271,
+                79.8612
+        );
+
+        when(repository.existsByCode("BR-COL-001")).thenReturn(false);
+        when(repository.save(any(Branch.class))).thenAnswer(invocation -> {
+            Branch saved = invocation.getArgument(0);
+            saved.setId(1L);
+            return saved;
+        });
+
+        BranchResponse response = service.create(request);
+
+        assertThat(response.getCode()).isEqualTo("BR-COL-001");
+        assertThat(response.getName()).isEqualTo("Colombo Central Branch");
+        assertThat(response.getAddressLine1()).isEqualTo("123 Galle Road");
+        assertThat(response.getAddressLine2()).isNull();
+        assertThat(response.getCity()).isEqualTo("Colombo");
+        assertThat(response.getPhone()).isEqualTo("+94 11 234 5678");
+        assertThat(response.getEmail()).isNull();
+    }
+
+    @Test
+    @DisplayName("Should reject blank required fields or invalid phone on PATCH update")
+    void shouldRejectBlankFieldsOrInvalidPhoneOnUpdate() {
+        when(repository.findById(1L)).thenReturn(Optional.of(sampleBranch));
+
+        BranchUpdateRequest blankName = new BranchUpdateRequest();
+        blankName.setName("   ");
+        assertThatThrownBy(() -> service.update(1L, blankName))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Branch name must not be blank");
+
+        BranchUpdateRequest invalidPhone = new BranchUpdateRequest();
+        invalidPhone.setPhone("abc-invalid");
+        assertThatThrownBy(() -> service.update(1L, invalidPhone))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Phone must be a valid phone number");
+    }
 }
 

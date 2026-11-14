@@ -1,7 +1,10 @@
 package com.swiftdrop.organization.messaging;
 
+import com.swiftdrop.organization.config.CorrelationIdFilter;
+import com.swiftdrop.organization.config.RabbitMQConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,21 +34,32 @@ public class MerchantEventPublisher {
     private final String exchange;
 
     public MerchantEventPublisher(RabbitTemplate rabbitTemplate,
-                                  @Value("${swiftdrop.rabbitmq.exchange:swiftdrop.events}") String exchange) {
+                                  @Value("${swiftdrop.rabbitmq.exchange:" + RabbitMQConfig.EVENTS_EXCHANGE + "}") String exchange) {
         this.rabbitTemplate = rabbitTemplate;
         this.exchange = exchange;
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onMerchantLifecycleEvent(MerchantLifecycleEvent event) {
+        String previousCorrelationId = MDC.get(CorrelationIdFilter.MDC_KEY);
+        String correlationId = (event.correlationId() != null && !event.correlationId().isBlank())
+                ? event.correlationId()
+                : CorrelationIdFilter.currentOrGenerate();
+        MDC.put(CorrelationIdFilter.MDC_KEY, correlationId);
         try {
             rabbitTemplate.convertAndSend(exchange, event.routingKey(), event);
-            log.info("Published {} eventId={} merchantId={} to exchange={}",
-                    event.routingKey(), event.eventId(), event.merchantId(), exchange);
+            log.info("Published {} eventId={} correlationId={} merchantId={} to exchange={}",
+                    event.routingKey(), event.eventId(), correlationId, event.merchantId(), exchange);
         } catch (AmqpException ex) {
             // The DB change is already committed; do not fail the HTTP request. Event is lost (no outbox).
-            log.error("Failed to publish {} eventId={} merchantId={} to exchange={}: {}",
-                    event.routingKey(), event.eventId(), event.merchantId(), exchange, ex.getMessage(), ex);
+            log.error("Failed to publish {} eventId={} correlationId={} merchantId={} to exchange={}: {}",
+                    event.routingKey(), event.eventId(), correlationId, event.merchantId(), exchange, ex.getMessage(), ex);
+        } finally {
+            if (previousCorrelationId != null) {
+                MDC.put(CorrelationIdFilter.MDC_KEY, previousCorrelationId);
+            } else {
+                MDC.remove(CorrelationIdFilter.MDC_KEY);
+            }
         }
     }
 

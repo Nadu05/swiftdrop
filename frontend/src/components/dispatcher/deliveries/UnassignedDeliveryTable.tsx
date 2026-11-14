@@ -17,6 +17,7 @@ import type { UnassignedDelivery, DeliveryPriority } from './types';
 interface UnassignedDeliveryTableProps {
   deliveries: UnassignedDelivery[];
   isLoading?: boolean;
+  error?: string | null;
   onViewDetails: (delivery: UnassignedDelivery) => void;
   onAssignCourier: (delivery: UnassignedDelivery) => void;
 }
@@ -33,6 +34,7 @@ const priorityBadges: Record<
 export default function UnassignedDeliveryTable({
   deliveries,
   isLoading = false,
+  error = null,
   onViewDetails,
   onAssignCourier,
 }: UnassignedDeliveryTableProps) {
@@ -212,6 +214,15 @@ export default function UnassignedDeliveryTable({
                   <div className="flex items-center justify-center gap-2 py-4 text-slate-500">
                     <span className="dispatcher-spinner" aria-hidden="true" />
                     <span>Loading pending deliveries...</span>
+                  </div>
+                </td>
+              </tr>
+            ) : error ? (
+              <tr>
+                <td colSpan={7} className="dispatcher-table__empty text-rose-600 font-medium py-6">
+                  <div className="flex flex-col items-center gap-1">
+                    <AlertTriangle size={20} />
+                    <span>{error}</span>
                   </div>
                 </td>
               </tr>

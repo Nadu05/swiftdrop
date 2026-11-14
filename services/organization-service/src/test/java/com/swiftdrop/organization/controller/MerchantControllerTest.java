@@ -1,6 +1,7 @@
 package com.swiftdrop.organization.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.swiftdrop.organization.config.CorrelationIdFilter;
 import com.swiftdrop.organization.dto.MerchantRegistrationRequest;
 import com.swiftdrop.organization.dto.MerchantRejectionRequest;
 import com.swiftdrop.organization.dto.MerchantResponse;
@@ -14,9 +15,12 @@ import com.swiftdrop.organization.exception.ResourceNotFoundException;
 import com.swiftdrop.organization.service.MerchantService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -24,6 +28,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -31,7 +36,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(MerchantController.class)
-@Import(GlobalExceptionHandler.class)
+@Import({GlobalExceptionHandler.class, CorrelationIdFilter.class})
 class MerchantControllerTest {
 
     @Autowired
@@ -361,5 +366,53 @@ class MerchantControllerTest {
         mockMvc.perform(post("/api/v1/merchants/10/approve"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.status").value(409));
+    }
+
+    @Test
+    @ExtendWith(OutputCaptureExtension.class)
+    @DisplayName("Unhandled exception logs stack trace server-side and returns safe 500 response")
+    void unhandledException_LogsErrorAndReturnsSafe500(CapturedOutput output) throws Exception {
+        when(merchantService.findById(10L))
+                .thenThrow(new RuntimeException("Simulated database failure"));
+
+        mockMvc.perform(get("/api/v1/merchants/10")
+                        .header("X-Correlation-Id", "corr-test-500"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(header().string("X-Correlation-Id", "corr-test-500"))
+                .andExpect(jsonPath("$.status").value(500))
+                .andExpect(jsonPath("$.errorCode").value("INTERNAL_SERVER_ERROR"))
+                .andExpect(jsonPath("$.correlationId").value("corr-test-500"))
+                .andExpect(jsonPath("$.message").value("An unexpected error occurred"));
+
+        assertThat(output.getAll())
+                .contains("Unhandled exception occurred [correlationId=corr-test-500]")
+                .contains("Simulated database failure");
+    }
+
+    @Test
+    @DisplayName("Echoes incoming X-Correlation-Id header or generates UUID when omitted, and includes correlationId + errorCode in errors")
+    void correlationId_HeaderAndErrorPayloadSupport() throws Exception {
+        when(merchantService.findById(10L)).thenReturn(sampleResponse("APPROVED"));
+        when(merchantService.findById(404L)).thenThrow(new ResourceNotFoundException("Merchant", 404L));
+
+        // 1. Incoming X-Correlation-Id echoed on 200 OK
+        mockMvc.perform(get("/api/v1/merchants/10")
+                        .header("X-Correlation-Id", "gateway-corr-123"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Correlation-Id", "gateway-corr-123"));
+
+        // 2. Missing X-Correlation-Id generates a non-empty UUID header on 200 OK
+        mockMvc.perform(get("/api/v1/merchants/10"))
+                .andExpect(status().isOk())
+                .andExpect(header().exists("X-Correlation-Id"));
+
+        // 3. Error response includes matching correlationId and stable errorCode
+        mockMvc.perform(get("/api/v1/merchants/404")
+                        .header("X-Correlation-Id", "gateway-corr-404"))
+                .andExpect(status().isNotFound())
+                .andExpect(header().string("X-Correlation-Id", "gateway-corr-404"))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.errorCode").value("RESOURCE_NOT_FOUND"))
+                .andExpect(jsonPath("$.correlationId").value("gateway-corr-404"));
     }
 }
