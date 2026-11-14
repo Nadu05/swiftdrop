@@ -29,8 +29,15 @@ Order request fields: `pickupAddress`, `pickupContactName`, `pickupContactPhone`
 the customer saw: a different current fee returns `409` instead of charging something else). The customer id, fee,
 tracking number, branch and status are **decided by the server**; any such fields in the body are ignored.
 
+**Paths behind the gateway.** The gateway routes `/api/v1/orders/**` with `StripPrefix=3`, which removes `api`, `v1`
+**and `orders`**, so the browser's `POST /api/v1/orders` reaches this service as `POST /`, `GET /api/v1/orders/cities` as
+`GET /cities`, `GET /api/v1/orders/7/timeline` as `GET /7/timeline`, and so on. Every endpoint above is therefore served
+on three prefixes (`/api/v1/orders`, `/orders` and the bare `/`) with identical security rules; `GatewayStrippedPathsTest`
+checks the bare form with authentication on.
+
 Errors always have `timestamp`, `status`, `error` and `message` (or `fieldErrors` for validation, `400`).
-`401` no/invalid token, `403` wrong role, `404` not found or not yours, `409` conflict, `422` business rule.
+`401` no/invalid token, `403` wrong role, `404` not found or not yours, `409` conflict, `422` business rule,
+`503` the Organization service could not assign a branch (nothing was created; try again).
 
 ## Authentication switch (testing stage)
 
@@ -90,6 +97,32 @@ Invoke-RestMethod http://localhost:8083/api/v1/orders -Method Post -Headers @{ A
 The formula, rates (currently **placeholders**), size limits and worked examples are in
 [docs/pricing.md](docs/pricing.md). The town list (`src/main/resources/locations/cities.csv`) has hand-drafted
 coordinates that must be verified before production use.
+
+## Branch assignment
+
+When an order is created, this service asks the Organization service which branch handles the **pickup town**
+(`POST /api/v1/branches/resolve` with the town centre's latitude and longitude: the Organization service keeps the
+active service areas covering that point and returns the nearest branch by the Haversine distance) and stores the
+answer as `branch_id`. It is returned as `branchId`, sent in `order.delivery.created.v1`, and can be used to filter
+`GET /orders/ready-for-dispatch?branchId=`.
+
+| Organization service answers | Result |
+|---|---|
+| a branch | the order is created with that `branchId` |
+| `422` (no service area covers the pickup) | `422` "We do not collect parcels from this pickup area yet"; no order |
+| down, timeout, or an unexpected answer | `503` "Please try again shortly"; no order (an order without a branch could not be dispatched) |
+
+The call is made before the database transaction starts, so a slow Organization service never holds a database
+connection, and a repeated request with the same `Idempotency-Key` returns the original order without asking again.
+
+| Setting (environment variable) | Default | Meaning |
+|---|---|---|
+| `swiftdrop.organization.base-url` (`ORGANIZATION_SERVICE_URL`) | `http://localhost:8082` (`http://organization-service:8082` under the `docker` profile, which the compose files activate) | Where the Organization service is. |
+| `swiftdrop.organization.branch-resolution-enabled` (`ORDER_BRANCH_RESOLUTION_ENABLED`) | `true` | `false` skips the call and stores orders without a branch. For local work without the Organization service only. |
+| `swiftdrop.organization.connect-timeout-ms` / `read-timeout-ms` | `2000` / `5000` | Time allowed to connect / to wait for the answer. |
+
+The town centre is used because an order carries a town, not street coordinates; a pickup near the edge of a service
+area may therefore resolve differently than its exact address would.
 
 ## Events
 

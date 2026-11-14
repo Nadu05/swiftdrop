@@ -18,15 +18,16 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * The Order side of the dispatch contract: orders waiting for a courier. Dual-mapped like the other order
- * endpoints so it works directly and behind the gateway.
+ * The Order side of the dispatch contract: orders waiting for a courier. Mapped like the other order
+ * endpoints ({@code /api/v1/orders}, {@code /orders} and the bare {@code /} the gateway forwards after
+ * stripping three segments) so it works directly and behind the gateway.
  *
  * <p>The response contains recipient names, phones and addresses, so it needs a dispatch/staff role (see
  * {@code swiftdrop.security.dispatch-read-roles}); customers and anonymous callers are refused.
  */
 @RestController
 @Validated
-@RequestMapping({"/api/v1/orders", "/orders"})
+@RequestMapping({"/api/v1/orders", "/orders", "/"})
 @Tag(name = "Dispatch", description = "Orders ready for courier dispatch (staff and Dispatch service)")
 public class DispatchOrderController {
 

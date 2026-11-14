@@ -556,6 +556,18 @@ class OrderControllerTest {
     }
 
     @Test
+    @DisplayName("an order that cannot get a branch because the Organization service is down is a 503 with a retry message")
+    void createBranchServiceUnavailable() throws Exception {
+        when(orderService.createOrder(eq(42L), any(), isNull()))
+                .thenThrow(new com.swiftdrop.order.branch.BranchServiceUnavailableException("Please try again shortly."));
+
+        mvc.perform(createRequest(TestTokens.customer(42), validBody()))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.status").value(503))
+                .andExpect(jsonPath("$.message").value("Please try again shortly."));
+    }
+
+    @Test
     @DisplayName("an order whose weight is too heavy for the size is a 422")
     void createBusinessRule() throws Exception {
         when(orderService.createOrder(eq(42L), any(), isNull()))

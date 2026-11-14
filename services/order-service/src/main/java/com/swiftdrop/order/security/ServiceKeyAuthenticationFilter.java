@@ -38,6 +38,7 @@ public class ServiceKeyAuthenticationFilter extends OncePerRequestFilter {
     public static final String AUTHORITY = "SERVICE_KEY_DISPATCH";
 
     private static final RequestMatcher READY_FOR_DISPATCH = new OrRequestMatcher(
+            new AntPathRequestMatcher("/ready-for-dispatch", "GET"),
             new AntPathRequestMatcher("/orders/ready-for-dispatch", "GET"),
             new AntPathRequestMatcher("/api/v1/orders/ready-for-dispatch", "GET"));
 

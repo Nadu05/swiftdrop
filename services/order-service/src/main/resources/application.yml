@@ -58,6 +58,16 @@ swiftdrop:
     # (it has no user token). Empty = feature off. When set it must be at least 32 characters, and it must be the same
     # value in the Dispatch service. Only that one endpoint accepts it. Keep it in the environment, never in git.
     service-api-key: ${ORDER_SERVICE_API_KEY:}
+  organization:
+    # Which branch handles an order is decided by the Organization service (service areas + nearest branch).
+    # POST /orders asks it for the branch of the pickup town and stores the answer as branch_id. No covering
+    # service area = 422; Organization service down or slow = 503 (nothing is created either way).
+    # Set ORDER_BRANCH_RESOLUTION_ENABLED=false only for local work without the Organization service: orders are then
+    # stored without a branch.
+    branch-resolution-enabled: ${ORDER_BRANCH_RESOLUTION_ENABLED:true}
+    base-url: ${ORGANIZATION_SERVICE_URL:http://localhost:8082}
+    connect-timeout-ms: 2000
+    read-timeout-ms: 5000
   pricing:
     # Tariff (formula and worked examples in docs/pricing.md):
     #   fee = base-fee + max(0, weight - included-weight-kg) * extra-weight-fee-per-kg

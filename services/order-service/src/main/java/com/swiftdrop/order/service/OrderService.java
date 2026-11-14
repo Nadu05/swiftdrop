@@ -1,5 +1,7 @@
 package com.swiftdrop.order.service;
 
+import com.swiftdrop.order.branch.BranchResolver;
+import com.swiftdrop.order.branch.ResolvedBranch;
 import com.swiftdrop.order.dto.CreateOrderRequest;
 import com.swiftdrop.order.dto.OrderResponse;
 import com.swiftdrop.order.dto.ReceiptResponse;
@@ -11,6 +13,7 @@ import com.swiftdrop.order.entity.enums.OrderStatus;
 import com.swiftdrop.order.exception.BusinessRuleException;
 import com.swiftdrop.order.exception.PriceChangedException;
 import com.swiftdrop.order.exception.ResourceNotFoundException;
+import com.swiftdrop.order.location.CityDirectory;
 import com.swiftdrop.order.messaging.OrderEventRecorder;
 import com.swiftdrop.order.pricing.FeeBreakdown;
 import com.swiftdrop.order.pricing.PriceQuote;
@@ -48,6 +51,8 @@ public class OrderService {
     private final PricingService pricingService;
     private final TrackingNumberGenerator trackingNumbers;
     private final OrderEventRecorder eventRecorder;
+    private final CityDirectory cities;
+    private final BranchResolver branchResolver;
     private final TransactionTemplate transactionTemplate;
 
     public OrderService(DeliveryOrderRepository orders,
@@ -55,12 +60,16 @@ public class OrderService {
                         PricingService pricingService,
                         TrackingNumberGenerator trackingNumbers,
                         OrderEventRecorder eventRecorder,
+                        CityDirectory cities,
+                        BranchResolver branchResolver,
                         PlatformTransactionManager transactionManager) {
         this.orders = orders;
         this.history = history;
         this.pricingService = pricingService;
         this.trackingNumbers = trackingNumbers;
         this.eventRecorder = eventRecorder;
+        this.cities = cities;
+        this.branchResolver = branchResolver;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
@@ -70,6 +79,11 @@ public class OrderService {
      *
      * <p>If the request carries an {@code expectedFee} that differs from the fee calculated now, nothing is
      * created and {@link PriceChangedException} (HTTP 409) is thrown.
+     *
+     * <p>The handling branch is chosen by the Organization service from the pickup town (see
+     * {@link BranchResolver}) and stored as {@code branchId}. If no service area covers the pickup
+     * ({@link BusinessRuleException}, HTTP 422) or the Organization service cannot answer
+     * ({@code BranchServiceUnavailableException}, HTTP 503), nothing is created.
      *
      * <p>When an {@code idempotencyKey} is supplied, repeating the request returns the original order
      * instead of creating a second one, including when two identical requests race: the loser hits the
@@ -82,8 +96,14 @@ public class OrderService {
                 return OrderResponse.from(existing.get());
             }
         }
+        // The branch is asked for BEFORE the transaction: a slow Organization service must not hold a database
+        // connection. No branch (422/503) means no order. A repeated idempotent request returned above and
+        // never reaches this call.
+        Long branchId = branchResolver.resolve(cities.require(request.pickupCity()))
+                .map(ResolvedBranch::branchId)
+                .orElse(null);
         try {
-            return transactionTemplate.execute(status -> persistNewOrder(customerId, request, idempotencyKey));
+            return transactionTemplate.execute(status -> persistNewOrder(customerId, request, idempotencyKey, branchId));
         } catch (DataIntegrityViolationException ex) {
             if (idempotencyKey != null) {
                 Optional<DeliveryOrder> winner = orders.findByCustomerIdAndIdempotencyKey(customerId, idempotencyKey);
@@ -182,7 +202,8 @@ public class OrderService {
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
     }
 
-    private OrderResponse persistNewOrder(long customerId, CreateOrderRequest request, String idempotencyKey) {
+    private OrderResponse persistNewOrder(long customerId, CreateOrderRequest request, String idempotencyKey,
+                                          Long branchId) {
         // Same code path as POST /orders/quote: the fee charged is computed exactly like the fee shown.
         PriceQuote price = pricingService.quote(
                 request.pickupCity(), request.dropoffCity(), request.parcelSize(), request.weightKg());
@@ -212,6 +233,7 @@ public class OrderService {
         order.setZoneSurcharge(fee.zoneSurcharge());
         order.setCurrency(fee.currency());
         order.setStatus(OrderStatus.CREATED);
+        order.setBranchId(branchId);
         order.setIdempotencyKey(idempotencyKey);
 
         DeliveryOrder saved = orders.saveAndFlush(order);
