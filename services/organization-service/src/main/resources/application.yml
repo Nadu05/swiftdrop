@@ -7,9 +7,9 @@ spring:
   config:
     import: optional:classpath:application-local.yml
   datasource:
-    url: jdbc:postgresql://${NEON_HOST}:5432/swiftdrop_organization?sslmode=require
-    username: ${NEON_USER}
-    password: ${NEON_PASSWORD}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${NEON_HOST:localhost}:${NEON_PORT:5437}/${ORGANIZATION_DB_NAME:organization_db}}
+    username: ${SPRING_DATASOURCE_USERNAME:${NEON_USER:admin}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${NEON_PASSWORD:}}
     hikari:
       maximum-pool-size: 10
       minimum-idle: 2
@@ -57,3 +57,7 @@ logging:
   level:
     com.swiftdrop.organization: DEBUG
     org.springframework.web: INFO
+
+organization:
+  service-area:
+    default-radius-km: ${DEFAULT_SERVICE_AREA_RADIUS_KM:25.00}

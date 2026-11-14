@@ -27,7 +27,7 @@ import type { BranchResponse } from '@/types/organization.types';
  *
  * Fetches:
  * - `GET /api/v1/organization/branches/{id}` (Branch identity, address, coordinates, status)
- * - `GET /api/v1/organization/service-areas/branch/{branchId}` (Member 03 circular service-area radius zones)
+ * - `GET /api/v1/organization/branches/{branchId}/service-areas` (Member 03 circular service-area radius zones)
  * - `GET /api/v1/organization/branches/{id}/performance-summary` (Branch operational analytics contract)
  */
 export default function BranchDetailsPage() {

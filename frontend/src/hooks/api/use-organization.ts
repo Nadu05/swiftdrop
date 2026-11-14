@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createBranch,
+  createServiceArea,
   getBranchById,
   getBranchCouriers,
   getBranchDispatchers,
@@ -15,6 +16,7 @@ import {
   getServiceAreasByBranch,
   updateBranch,
   updateBranchStatus,
+  updateServiceArea,
 } from '@/api/services/organization.api';
 import type {
   BranchCreateRequest,
@@ -23,7 +25,10 @@ import type {
   BranchUpdateRequest,
   BranchUserType,
   CourierVehicleType,
+  ServiceAreaCreateRequest,
+  ServiceAreaResponse,
   ServiceAreaStatus,
+  ServiceAreaUpdateRequest,
 } from '@/types/organization.types';
 
 /**
@@ -138,9 +143,17 @@ export function useCreateBranch() {
     mutationFn: (payload: BranchCreateRequest) => createBranch(payload),
     onSuccess: async (newBranch: BranchResponse) => {
       queryClient.setQueryData(organizationKeys.branch(newBranch.id), newBranch);
-      await queryClient.invalidateQueries({
-        queryKey: [...organizationKeys.all, 'branches'],
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: [...organizationKeys.all, 'branches'],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: [...organizationKeys.all, 'service-areas'],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: organizationKeys.branchServiceAreas(newBranch.id),
+        }),
+      ]);
     },
   });
 }
@@ -152,9 +165,17 @@ export function useUpdateBranch() {
       updateBranch(id, payload),
     onSuccess: async (updatedBranch: BranchResponse) => {
       queryClient.setQueryData(organizationKeys.branch(updatedBranch.id), updatedBranch);
-      await queryClient.invalidateQueries({
-        queryKey: [...organizationKeys.all, 'branches'],
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: [...organizationKeys.all, 'branches'],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: [...organizationKeys.all, 'service-areas'],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: organizationKeys.branchServiceAreas(updatedBranch.id),
+        }),
+      ]);
     },
   });
 }
@@ -166,9 +187,52 @@ export function useUpdateBranchStatus() {
       updateBranchStatus(id, status),
     onSuccess: async (updatedBranch: BranchResponse) => {
       queryClient.setQueryData(organizationKeys.branch(updatedBranch.id), updatedBranch);
-      await queryClient.invalidateQueries({
-        queryKey: [...organizationKeys.all, 'branches'],
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: [...organizationKeys.all, 'branches'],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: [...organizationKeys.all, 'service-areas'],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: organizationKeys.branchServiceAreas(updatedBranch.id),
+        }),
+      ]);
+    },
+  });
+}
+
+export function useCreateServiceArea() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: ServiceAreaCreateRequest) => createServiceArea(payload),
+    onSuccess: async (createdArea: ServiceAreaResponse) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: [...organizationKeys.all, 'service-areas'],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: organizationKeys.branchServiceAreas(createdArea.branchId),
+        }),
+      ]);
+    },
+  });
+}
+
+export function useUpdateServiceArea() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: ServiceAreaUpdateRequest }) =>
+      updateServiceArea(id, payload),
+    onSuccess: async (updatedArea: ServiceAreaResponse) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: [...organizationKeys.all, 'service-areas'],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: organizationKeys.branchServiceAreas(updatedArea.branchId),
+        }),
+      ]);
     },
   });
 }

@@ -423,7 +423,7 @@ export default function BranchDetails({
               <p className="org-details-card__subtitle">
                 Visualizes the branch hub marker and circular delivery radius zones (
                 <code>maxRadiusKm</code> around <code>centerLatitude, centerLongitude</code>) from{' '}
-                <code>GET /api/v1/organization/service-areas/branch/{branch.id}</code>.
+                <code>GET /api/v1/organization/branches/{branch.id}/service-areas</code>.
               </p>
             </div>
           </div>
@@ -451,7 +451,7 @@ export default function BranchDetails({
                   <span className="org-spinner" aria-hidden="true" />
                   <p className="org-state-box__title">Loading service areas...</p>
                   <p className="org-state-box__desc">
-                    Querying <code>GET /api/v1/organization/service-areas/branch/{branch.id}</code>.
+                    Querying <code>GET /api/v1/organization/branches/{branch.id}/service-areas</code>.
                   </p>
                 </div>
               ) : serviceAreasError ? (
