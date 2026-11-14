@@ -1,0 +1,243 @@
+package com.swiftdrop.order.service;
+
+import com.swiftdrop.order.client.OrganizationServiceClient;
+import com.swiftdrop.order.config.PricingProperties;
+import com.swiftdrop.order.dto.*;
+import com.swiftdrop.order.entity.DeliveryOrder;
+import com.swiftdrop.order.entity.PricingQuote;
+import com.swiftdrop.order.repository.DeliveryOrderRepository;
+import com.swiftdrop.order.repository.PricingQuoteRepository;
+import com.swiftdrop.order.security.OrderUserPrincipal;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class OrderServiceTest {
+
+    @Mock
+    private DeliveryOrderRepository orderRepository;
+
+    @Mock
+    private PricingQuoteRepository quoteRepository;
+
+    @Mock
+    private OrganizationServiceClient organizationServiceClient;
+
+    @Mock
+    private TrackingNumberGenerator trackingNumberGenerator;
+
+    @Mock
+    private OrderEventPublisher eventPublisher;
+
+    private OrderService orderService;
+
+    @BeforeEach
+    void setUp() {
+        PricingProperties pricingProperties = new PricingProperties();
+        PricingEngineService pricingEngineService = new PricingEngineService(pricingProperties);
+        AddressCoordinateResolver coordinateResolver = new AddressCoordinateResolver();
+        OrderLifecycleService lifecycleService = new OrderLifecycleService();
+        PaymentVerificationPort paymentVerificationPort = new ProvisionalPaymentVerificationService();
+
+        orderService = new OrderService(
+                orderRepository,
+                quoteRepository,
+                organizationServiceClient,
+                pricingEngineService,
+                trackingNumberGenerator,
+                coordinateResolver,
+                lifecycleService,
+                paymentVerificationPort,
+                eventPublisher
+        );
+    }
+
+    private RouteBranchResolutionDto mockRouteResolution() {
+        BranchResolutionInfoDto origin = new BranchResolutionInfoDto(
+                1L, "CMB-CENTRAL", "Colombo Central Hub", 1.2, true
+        );
+        BranchResolutionInfoDto dest = new BranchResolutionInfoDto(
+                2L, "KDY-MAIN", "Kandy Regional Hub", 2.0, true
+        );
+        RouteBranchResolutionDto dto = new RouteBranchResolutionDto();
+        dto.setOriginBranch(origin);
+        dto.setDestinationBranch(dest);
+        dto.setInterBranchDistanceKm(94.8);
+        dto.setSameBranch(false);
+        return dto;
+    }
+
+    @Test
+    void generateQuote_ResolvesBothBranchesAndReturnsProvisionalBreakdown() {
+        when(organizationServiceClient.resolveRoute(anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+                .thenReturn(mockRouteResolution());
+        when(quoteRepository.save(any(PricingQuote.class))).thenAnswer(inv -> {
+            PricingQuote q = inv.getArgument(0);
+            q.setId(10L);
+            return q;
+        });
+
+        OrderQuoteRequest request = new OrderQuoteRequest();
+        request.setPickupAddress("120 Galle Road, Colombo 03");
+        request.setDropoffAddress("45 Peradeniya Road, Kandy");
+        request.setParcelSize("MEDIUM");
+        request.setWeightKg(new BigDecimal("3.0"));
+
+        OrderQuoteResponse response = orderService.generateQuote(request);
+
+        assertThat(response.getQuoteReference()).startsWith("QT-");
+        assertThat(response.isProvisionalPricing()).isTrue();
+        assertThat(response.getOriginBranch().getBranchCode()).isEqualTo("CMB-CENTRAL");
+        assertThat(response.getDestinationBranch().getBranchCode()).isEqualTo("KDY-MAIN");
+        assertThat(response.getEstimatedFee()).isGreaterThan(new BigDecimal("1000.00"));
+        assertThat(response.getBreakdown().getSizeSurcharge()).isEqualByComparingTo("250.00");
+    }
+
+    @Test
+    void createOrder_PrepaidWithoutVerifiedTransactionRef_RemainsPendingPaymentAndNeverFalselyMarkedPaid() {
+        when(organizationServiceClient.resolveRoute(anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+                .thenReturn(mockRouteResolution());
+        when(trackingNumberGenerator.generateUniqueTrackingNumber()).thenReturn("SD-91001");
+        when(orderRepository.save(any(DeliveryOrder.class))).thenAnswer(inv -> {
+            DeliveryOrder o = inv.getArgument(0);
+            o.setId(101L);
+            return o;
+        });
+
+        CreateOrderRequest request = new CreateOrderRequest();
+        request.setPickupContactName("Kasun Silva");
+        request.setPickupContactPhone("+94 77 111 2222");
+        request.setPickupAddress("120 Galle Road, Colombo 03");
+        request.setDropoffContactName("Nimal Perera");
+        request.setDropoffContactPhone("+94 77 333 4444");
+        request.setDropoffAddress("45 Peradeniya Road, Kandy");
+        request.setParcelDescription("Standard parcel");
+        request.setParcelSize("SMALL");
+        request.setWeightKg(new BigDecimal("1.0"));
+        request.setPaymentMethod("PREPAID");
+        request.setPickupMethod("COURIER_PICKUP");
+
+        OrderUserPrincipal customer = new OrderUserPrincipal(
+                "cust-1", "kasun@swiftdrop.lk", null, List.of("CUSTOMER")
+        );
+
+        DeliveryOrderResponse response = orderService.createOrder(request, customer);
+
+        assertThat(response.getTrackingNumber()).isEqualTo("SD-91001");
+        assertThat(response.getPaymentMethod()).isEqualTo("PREPAID");
+        assertThat(response.getPaymentStatus()).isEqualTo("PENDING_PAYMENT");
+        assertThat(response.getStatus()).isEqualTo("CREATED");
+        assertThat(response.getPaymentReferences()).hasSize(1);
+        assertThat(response.getPaymentReferences().get(0).isVerified()).isFalse();
+    }
+
+    @Test
+    void createOrder_MerchantCodWithBranchDropoff_SeparatesCodAmountFromDeliveryFeeAndAssociatesMerchantOrg() {
+        when(organizationServiceClient.resolveRoute(anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+                .thenReturn(mockRouteResolution());
+        when(trackingNumberGenerator.generateUniqueTrackingNumber()).thenReturn("SD-91002");
+        when(orderRepository.save(any(DeliveryOrder.class))).thenAnswer(inv -> {
+            DeliveryOrder o = inv.getArgument(0);
+            o.setId(102L);
+            return o;
+        });
+
+        CreateOrderRequest request = new CreateOrderRequest();
+        request.setPickupContactName("Apex Retail Store");
+        request.setPickupContactPhone("+94 11 234 5678");
+        request.setPickupAddress("50 Duplication Road, Colombo 04");
+        request.setDropoffContactName("Amali Fernando");
+        request.setDropoffContactPhone("+94 71 987 6543");
+        request.setDropoffAddress("18 Dalada Veediya, Kandy");
+        request.setParcelDescription("Retail order #9002");
+        request.setParcelSize("LARGE");
+        request.setWeightKg(new BigDecimal("4.0"));
+        request.setPaymentMethod("COD");
+        request.setCodAmount(new BigDecimal("18500.00"));
+        request.setPickupMethod("BRANCH_DROPOFF");
+
+        OrderUserPrincipal merchant = new OrderUserPrincipal(
+                "merch-user-1", "ops@apexretail.lk", "org-apex-77", List.of("MERCHANT")
+        );
+
+        DeliveryOrderResponse response = orderService.createOrder(request, merchant);
+
+        assertThat(response.getOrderSourceType()).isEqualTo("MERCHANT");
+        assertThat(response.getMerchantOrganizationId()).isEqualTo("org-apex-77");
+        assertThat(response.getPickupMethod()).isEqualTo("BRANCH_DROPOFF");
+        assertThat(response.getPaymentMethod()).isEqualTo("COD");
+        assertThat(response.getPaymentStatus()).isEqualTo("COD_PENDING_COLLECTION");
+        assertThat(response.getStatus()).isEqualTo("CONFIRMED");
+        assertThat(response.getCodAmount()).isEqualByComparingTo("18500.00");
+        assertThat(response.getDeliveryFee()).isNotEqualByComparingTo(response.getCodAmount());
+    }
+
+    @Test
+    void getOrderByIdOrTracking_EnforcesCustomerAndMerchantOwnershipBoundaries() {
+        when(organizationServiceClient.resolveRoute(anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+                .thenReturn(mockRouteResolution());
+        when(trackingNumberGenerator.generateUniqueTrackingNumber()).thenReturn("SD-91003");
+
+        final DeliveryOrder[] capturedOrder = new DeliveryOrder[1];
+        when(orderRepository.save(any(DeliveryOrder.class))).thenAnswer(inv -> {
+            DeliveryOrder o = inv.getArgument(0);
+            o.setId(103L);
+            capturedOrder[0] = o;
+            return o;
+        });
+
+        CreateOrderRequest request = new CreateOrderRequest();
+        request.setPickupContactName("Kasun Silva");
+        request.setPickupContactPhone("+94 77 111 2222");
+        request.setPickupAddress("120 Galle Road, Colombo 03");
+        request.setDropoffContactName("Nimal Perera");
+        request.setDropoffContactPhone("+94 77 333 4444");
+        request.setDropoffAddress("45 Peradeniya Road, Kandy");
+        request.setParcelDescription("Books");
+        request.setParcelSize("SMALL");
+        request.setWeightKg(new BigDecimal("1.0"));
+        request.setPaymentMethod("COD");
+        request.setCodAmount(new BigDecimal("2500.00"));
+
+        OrderUserPrincipal ownerCustomer = new OrderUserPrincipal(
+                "cust-owner", "owner@swiftdrop.lk", null, List.of("CUSTOMER")
+        );
+        orderService.createOrder(request, ownerCustomer);
+
+        when(orderRepository.findByTrackingNumberIgnoreCase("SD-91003"))
+                .thenReturn(Optional.of(capturedOrder[0]));
+
+        // Owner can access
+        DeliveryOrderResponse ownerView = orderService.getOrderByIdOrTracking("SD-91003", ownerCustomer);
+        assertThat(ownerView.getTrackingNumber()).isEqualTo("SD-91003");
+
+        // Another customer is denied
+        OrderUserPrincipal otherCustomer = new OrderUserPrincipal(
+                "cust-other", "other@swiftdrop.lk", null, List.of("CUSTOMER")
+        );
+        assertThatThrownBy(() -> orderService.getOrderByIdOrTracking("SD-91003", otherCustomer))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("You are not authorized to access another customer's order");
+
+        // Dispatcher can access operational orders
+        OrderUserPrincipal dispatcher = new OrderUserPrincipal(
+                "disp-1", "dispatcher@swiftdrop.lk", null, List.of("DISPATCHER")
+        );
+        DeliveryOrderResponse dispatcherView = orderService.getOrderByIdOrTracking("SD-91003", dispatcher);
+        assertThat(dispatcherView.getTrackingNumber()).isEqualTo("SD-91003");
+    }
+}

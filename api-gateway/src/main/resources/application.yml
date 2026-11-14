@@ -86,6 +86,12 @@ spring:
             - Path=/api/v1/orders/**
           filters:
             - StripPrefix=3
+        - id: order-tracking-public
+          uri: ${ORDER_SERVICE_URL:http://localhost:8083}
+          predicates:
+            - Path=/api/v1/tracking/**
+          filters:
+            - StripPrefix=2
         - id: order-service-health
           uri: ${ORDER_SERVICE_URL:http://localhost:8083}
           predicates:

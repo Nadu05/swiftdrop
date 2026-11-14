@@ -53,3 +53,26 @@ logging:
   level:
     com.swiftdrop.order: DEBUG
     org.springframework.web: INFO
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:swiftdrop-super-secret-jwt-key-must-be-at-least-32-bytes-long-2026}
+
+swiftdrop:
+  organization-service:
+    base-url: ${ORGANIZATION_SERVICE_URL:http://localhost:8082}
+  pricing:
+    # PROVISIONAL INITIAL RATES (Configurable per BD-06 / UD-10)
+    provisional: true
+    currency: ${PRICING_CURRENCY:LKR}
+    base-fee: ${PRICING_BASE_FEE:450.00}
+    per-km-rate: ${PRICING_PER_KM_RATE:65.00}
+    included-weight-kg: ${PRICING_INCLUDED_WEIGHT_KG:1.00}
+    per-kg-rate: ${PRICING_PER_KG_RATE:120.00}
+    quote-validity-minutes: ${PRICING_QUOTE_VALIDITY_MINUTES:30}
+    size-surcharges:
+      SMALL: ${PRICING_SURCHARGE_SMALL:0.00}
+      MEDIUM: ${PRICING_SURCHARGE_MEDIUM:250.00}
+      LARGE: ${PRICING_SURCHARGE_LARGE:650.00}
+      EXTRA_LARGE: ${PRICING_SURCHARGE_EXTRA_LARGE:1200.00}
+
