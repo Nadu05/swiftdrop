@@ -1,5 +1,6 @@
 import { apiClient } from '@/api/axios-client';
 import type { 
+  CityOption,
   OrderQuoteRequest, 
   OrderQuoteResponse,
   CreateOrderRequest,
@@ -17,11 +18,45 @@ import type {
  */
 
 /**
+ * Towns shown in the "Nearest Town / City" dropdowns when the Order Service cannot be reached.
+ * The codes match the Order Service town list (GET /api/v1/orders/cities).
+ */
+const FALLBACK_CITIES: CityOption[] = [
+  ['AMPARA', 'Ampara'], ['ANURADHAPURA', 'Anuradhapura'], ['BADULLA', 'Badulla'], ['BATTICALOA', 'Batticaloa'],
+  ['CHILAW', 'Chilaw'], ['COLOMBO', 'Colombo'], ['DAMBULLA', 'Dambulla'], ['DEHIWALA', 'Dehiwala-Mount Lavinia'],
+  ['GALLE', 'Galle'], ['GAMPAHA', 'Gampaha'], ['HAMBANTOTA', 'Hambantota'], ['JAFFNA', 'Jaffna'],
+  ['KALUTARA', 'Kalutara'], ['KANDY', 'Kandy'], ['KEGALLE', 'Kegalle'], ['KILINOCHCHI', 'Kilinochchi'],
+  ['KOTTE', 'Sri Jayawardenepura Kotte'], ['KURUNEGALA', 'Kurunegala'], ['MANNAR', 'Mannar'], ['MATALE', 'Matale'],
+  ['MATARA', 'Matara'], ['MONARAGALA', 'Monaragala'], ['MORATUWA', 'Moratuwa'], ['MULLAITIVU', 'Mullaitivu'],
+  ['NEGOMBO', 'Negombo'], ['NUWARA_ELIYA', 'Nuwara Eliya'], ['PANADURA', 'Panadura'], ['POLONNARUWA', 'Polonnaruwa'],
+  ['PUTTALAM', 'Puttalam'], ['RATNAPURA', 'Ratnapura'], ['TRINCOMALEE', 'Trincomalee'], ['VAVUNIYA', 'Vavuniya'],
+].map(([code, name]) => ({ code, name }));
+
+/**
+ * Fetch the supported pickup / delivery towns for the booking form.
+ *
+ * Endpoint: GET /api/v1/orders/cities
+ *
+ * @returns The towns (code, name, district). Falls back to a built-in list when the backend is unreachable.
+ */
+export async function getCities(): Promise<CityOption[]> {
+  try {
+    const response = await apiClient.get<CityOption[]>('/api/v1/orders/cities');
+    if (Array.isArray(response.data) && response.data.length > 0) {
+      return response.data;
+    }
+  } catch {
+    // Backend offline or not signed in: use the built-in list so the form stays usable
+  }
+  return FALLBACK_CITIES;
+}
+
+/**
  * Fetch an authoritative fee quote from the Order Service backend.
  * 
  * Endpoint: POST /api/v1/orders/quote (routed through API Gateway :8080 to Order Service :8083)
  *
- * @param quoteRequest The pickup address, destination, weight, and parcel size
+ * @param quoteRequest The pickup and delivery town codes, weight, and parcel size
  * @returns OrderQuoteResponse with estimatedFee, currency, and optional breakdown
  */
 export async function getOrderQuote(
@@ -142,43 +177,75 @@ const DEFAULT_CUSTOMER_ORDERS: DeliveryOrder[] = [
   },
 ];
 
+/** Backend field names (CreateOrderRequest) mapped to the labels customers see. */
+const ORDER_FIELD_LABELS: Record<string, string> = {
+  pickupAddress: 'Pickup address',
+  pickupContactName: 'Sender name',
+  pickupContactPhone: 'Sender mobile',
+  dropoffAddress: 'Delivery address',
+  dropoffContactName: 'Recipient name',
+  dropoffContactPhone: 'Recipient mobile',
+  parcelDescription: 'Cargo description',
+  parcelSize: 'Parcel size',
+  weightKg: 'Weight',
+  deliveryInstructions: 'Delivery instructions',
+  pickupCity: 'Pickup town',
+  dropoffCity: 'Delivery town',
+  expectedFee: 'Delivery fee',
+};
+
 /**
  * Confirm booking and create an official delivery order in the Order Service backend.
  * 
  * Endpoint: POST /api/v1/orders (routed through API Gateway :8080 to Order Service :8083)
  *
+ * The order is only reported as created when the Order Service confirms it. Every failure is thrown with a
+ * message the customer can act on (invalid field, fee changed, sign-in needed, service unreachable).
+ *
  * @param orderRequest Complete delivery details (pickup, dropoff, parcel)
+ * @param idempotencyKey Optional key; sending the same key again returns the original order instead of a duplicate
  * @returns CreateOrderResponse containing the authoritative tracking number, order ID, and status
  */
 export async function createOrder(
-  orderRequest: CreateOrderRequest
+  orderRequest: CreateOrderRequest,
+  idempotencyKey?: string
 ): Promise<CreateOrderResponse> {
   try {
     const response = await apiClient.post<CreateOrderResponse>(
       '/api/v1/orders',
-      orderRequest
+      orderRequest,
+      idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : undefined
     );
     if (response.data && response.data.trackingNumber) {
       return response.data;
     }
-  } catch {
-    // If backend Order Service is offline or unauthenticated, generate a valid order response
+    throw new Error('The Order Service did not return a tracking number. Please try again.');
+  } catch (error: any) {
+    const status: number | undefined = error?.response?.status;
+    const data = error?.response?.data;
+
+    if (!error?.response) {
+      if (!error?.isAxiosError) throw error;
+      throw new Error(
+        'Unable to reach the API Gateway or Order Service. Please check that the backend is running at http://localhost:8080.'
+      );
+    }
+    if (status === 400 && data?.fieldErrors && typeof data.fieldErrors === 'object') {
+      const [field, message] = Object.entries(data.fieldErrors)[0] as [string, string];
+      const label = ORDER_FIELD_LABELS[field];
+      throw new Error(label && !message.startsWith(label) ? `${label}: ${message}` : message);
+    }
+    if (status === 401) {
+      throw new Error('Your session has expired. Please sign in again to book a delivery.');
+    }
+    if (status === 403) {
+      throw new Error('Your account is not allowed to book deliveries.');
+    }
+    if (data?.message) {
+      throw new Error(data.message);
+    }
+    throw new Error('We could not create your delivery order. Please try again.');
   }
-
-  const generatedId = Math.floor(10500 + Math.random() * 500);
-  const fallbackResponse: CreateOrderResponse = {
-    id: generatedId,
-    trackingNumber: `SD-${generatedId}`,
-    status: 'Created',
-    pickupAddress: orderRequest.pickupAddress,
-    dropoffAddress: orderRequest.dropoffAddress,
-    deliveryFee: 1250,
-    currency: 'LKR',
-    createdAt: new Date().toISOString(),
-    message: 'Delivery order created successfully.',
-  };
-
-  return fallbackResponse;
 }
 
 /**
