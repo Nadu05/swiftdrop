@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import BranchForm from '@/components/organization/branches/BranchForm';
-import { createBranch } from '@/api/services/organization.api';
+import { useCreateBranch } from '@/hooks/api/use-organization';
 import {
   DEFAULT_BRANCH_FORM_VALUES,
   toBranchCreatePayload,
@@ -20,12 +20,13 @@ import type { BranchResponse } from '@/types/organization.types';
  */
 export default function CreateBranchPage() {
   const router = useRouter();
+  const createMutation = useCreateBranch();
 
   const handleCreateSubmit = async (
     values: BranchFormValues
   ): Promise<BranchResponse> => {
     const payload = toBranchCreatePayload(values);
-    return createBranch(payload);
+    return createMutation.mutateAsync(payload);
   };
 
   const handleCancel = () => {

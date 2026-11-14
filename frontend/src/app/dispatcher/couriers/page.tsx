@@ -59,7 +59,7 @@ export default function CourierManagementPage() {
       setLastUpdated(formatTimestamp());
     } catch (err: any) {
       console.error('Failed to load couriers fleet:', err);
-      setError('Unable to load couriers data. Please check your network connection.');
+      setError('Unable to reach Dispatch Service. Please check that the backend is running at http://localhost:8084.');
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
