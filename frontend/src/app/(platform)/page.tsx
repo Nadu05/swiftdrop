@@ -5,75 +5,24 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Box,
-  Search,
   Truck,
-  ShieldCheck,
-  Building2,
   Clock,
+  Building2,
+  Search,
+  ShieldCheck,
+  Store,
   MapPin,
   ArrowRight,
-  PackageCheck,
-  Store,
-  UserCheck,
   CheckCircle2,
   PhoneCall,
   Mail,
   Globe,
-  LogIn,
-  UserPlus,
   Menu,
   X,
-  Layers,
 } from 'lucide-react';
 import { useCurrentUser } from '@/hooks/api/use-auth';
 import { useAuthStore } from '@/store/auth.store';
 import { resolveDashboardRoute } from '@/lib/auth/role-resolver';
-
-const FEATURES = [
-  {
-    icon: Truck,
-    title: 'Hub-and-Spoke Express Dispatch',
-    description:
-      'Automated origin branch pickup assignment, linehaul manifest transfers, and last-mile courier dispatch across all regional hubs.',
-  },
-  {
-    icon: MapPin,
-    title: 'Real-Time Milestone Tracking',
-    description:
-      'Live shipment visibility from booking confirmation and hub sorting to out-for-delivery and verified proof-of-delivery.',
-  },
-  {
-    icon: ShieldCheck,
-    title: 'Verified Proof of Delivery (POD)',
-    description:
-      'Recipient OTP/PIN verification, signature capture, and automated Return-to-Sender (RTS) workflows for failed attempts.',
-  },
-  {
-    icon: Store,
-    title: 'Enterprise Merchant Integration',
-    description:
-      'Dedicated merchant portal with streamlined onboarding approval, bulk shipment management, and Cash-on-Delivery (COD) reconciliation.',
-  },
-  {
-    icon: Building2,
-    title: 'Multi-Branch Network Governance',
-    description:
-      'Branch managers and dispatchers coordinate incoming/outgoing inter-branch manifests and real-time courier fleet capacity.',
-  },
-  {
-    icon: Clock,
-    title: 'Instant Dynamic Rate Quotes',
-    description:
-      'Transparent pricing based on parcel weight, service tier (Same-Day, Express, Standard), and origin-destination zone distance.',
-  },
-];
-
-const HUB_LOCATIONS = [
-  { name: 'Colombo Central Hub', code: 'CMB-01', coverage: 'Western Province & Express Metro' },
-  { name: 'Kandy Regional Hub', code: 'KDY-01', coverage: 'Central & Hill Country Corridor' },
-  { name: 'Galle Southern Hub', code: 'GAL-01', coverage: 'Southern Coastal & Highway Network' },
-  { name: 'Negombo Logistics Hub', code: 'NEG-01', coverage: 'Airport & North-Western Corridor' },
-];
 
 export default function SwiftDropLandingPage() {
   const router = useRouter();
@@ -84,11 +33,10 @@ export default function SwiftDropLandingPage() {
 
   const activeUser = currentUser || storedUser;
 
-  const [trackingQuery, setTrackingQuery] = useState('');
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [trackingNumber, setTrackingNumber] = useState('');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Phase 2 requirement: If the user is already authenticated, automatically redirect
-  // to their role-specific dashboard.
+  // Auto-redirect authenticated users to their authoritative dashboard
   useEffect(() => {
     if (isInitialized && !isLoading && activeUser) {
       const targetDashboard = resolveDashboardRoute(activeUser, activeRole);
@@ -98,595 +46,602 @@ export default function SwiftDropLandingPage() {
 
   const handleTrackingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmed = trackingQuery.trim();
-    if (trimmed) {
-      router.push(`/tracking?trackingNumber=${encodeURIComponent(trimmed)}`);
+    const query = trackingNumber.trim();
+    if (query) {
+      router.push(`/tracking?trackingNumber=${encodeURIComponent(query)}`);
     } else {
       router.push('/tracking');
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#060d1a] text-slate-100 selection:bg-blue-600 selection:text-white">
-      {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-40 border-b border-blue-500/15 bg-[#071122]/90 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#07101e', color: '#f8fafc', fontFamily: "'Plus Jakarta Sans', -apple-system, sans-serif" }}>
+      {/* ─── Top Navigation Bar ────────────────────────────────────────────── */}
+      <header style={headerStyle}>
+        <div style={headerContainerStyle}>
           {/* Logo & Brand */}
-          <Link href="/" className="flex items-center gap-3 text-decoration-none">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-600/30">
-              <Box className="h-6 w-6 text-white" />
+          <Link href="/" style={logoLinkStyle}>
+            <div style={logoBoxStyle}>
+              <Box size={22} color="#ffffff" strokeWidth={2.4} />
             </div>
-            <div>
-              <span className="text-xl font-extrabold tracking-tight text-white">
-                Swift<span className="text-sky-400">Drop</span>
-              </span>
-              <span className="block text-[11px] font-medium text-slate-400">
-                Logistics &amp; Delivery Platform
-              </span>
-            </div>
+            <span style={logoTextStyle}>SwiftDrop</span>
           </Link>
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
-            <a href="#tracking" className="hover:text-sky-400 transition-colors">
-              Track Parcel
-            </a>
-            <a href="#services" className="hover:text-sky-400 transition-colors">
-              Services
-            </a>
-            <a href="#solutions" className="hover:text-sky-400 transition-colors">
-              Customers &amp; Merchants
-            </a>
-            <a href="#network" className="hover:text-sky-400 transition-colors">
-              Hub Network
-            </a>
+          <nav style={desktopNavStyle}>
+            <a href="#services" style={navLinkStyle}>Services</a>
+            <a href="#how-it-works" style={navLinkStyle}>How It Works</a>
+            <a href="#branches" style={navLinkStyle}>Branches</a>
+            <a href="#merchants" style={navLinkStyle}>Merchants</a>
+            <a href="#support" style={navLinkStyle}>Support</a>
           </nav>
 
-          {/* Auth Action Buttons */}
-          <div className="hidden md:flex items-center gap-3">
-            {activeUser ? (
-              <Link
-                href={resolveDashboardRoute(activeUser, activeRole)}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold shadow-lg shadow-blue-600/30 transition-all"
-              >
-                <span>Open My Dashboard</span>
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            ) : (
-              <>
-                <Link
-                  href="/login"
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-blue-400/25 bg-slate-900/60 hover:bg-slate-800 text-slate-100 text-sm font-semibold transition-colors"
-                >
-                  <LogIn className="h-4 w-4 text-sky-400" />
-                  <span>Sign In</span>
-                </Link>
-                <Link
-                  href="/register"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-sm font-semibold shadow-lg shadow-blue-600/30 transition-all"
-                >
-                  <UserPlus className="h-4 w-4" />
-                  <span>Create Account</span>
-                </Link>
-              </>
-            )}
+          {/* Action Buttons */}
+          <div style={authButtonsContainerStyle}>
+            <Link href="/register" style={registerBtnStyle}>
+              Register
+            </Link>
+            <Link href="/login" style={loginBtnStyle}>
+              Log In
+            </Link>
           </div>
 
-          {/* Mobile Hamburger Button */}
+          {/* Mobile Menu Toggle Button */}
           <button
             type="button"
-            onClick={() => setMobileNavOpen((v) => !v)}
-            className="md:hidden p-2.5 rounded-xl border border-white/10 text-slate-300 hover:text-white"
-            aria-label="Toggle Menu"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            style={mobileMenuToggleStyle}
+            aria-label="Toggle menu"
           >
-            {mobileNavOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
         </div>
 
-        {/* Mobile Menu Drawer */}
-        {mobileNavOpen && (
-          <div className="md:hidden border-t border-white/10 bg-[#081326] px-4 py-5 space-y-4">
-            <div className="flex flex-col space-y-2.5 text-sm font-medium text-slate-300">
-              <a
-                href="#tracking"
-                onClick={() => setMobileNavOpen(false)}
-                className="py-1.5 hover:text-sky-400"
-              >
-                Track Parcel
-              </a>
-              <a
-                href="#services"
-                onClick={() => setMobileNavOpen(false)}
-                className="py-1.5 hover:text-sky-400"
-              >
-                Services &amp; Features
-              </a>
-              <a
-                href="#solutions"
-                onClick={() => setMobileNavOpen(false)}
-                className="py-1.5 hover:text-sky-400"
-              >
-                Customers &amp; Merchants
-              </a>
-              <a
-                href="#network"
-                onClick={() => setMobileNavOpen(false)}
-                className="py-1.5 hover:text-sky-400"
-              >
-                Hub Network
-              </a>
-            </div>
-            <div className="pt-3 border-t border-white/10 flex flex-col gap-2.5">
-              <Link
-                href="/login"
-                className="w-full py-2.5 rounded-xl border border-blue-400/30 text-center text-sm font-semibold text-white"
-              >
-                Sign In
+        {/* Mobile Dropdown Menu */}
+        {mobileMenuOpen && (
+          <div style={mobileDropdownStyle}>
+            <a href="#services" onClick={() => setMobileMenuOpen(false)} style={mobileNavLinkStyle}>Services</a>
+            <a href="#how-it-works" onClick={() => setMobileMenuOpen(false)} style={mobileNavLinkStyle}>How It Works</a>
+            <a href="#branches" onClick={() => setMobileMenuOpen(false)} style={mobileNavLinkStyle}>Branches</a>
+            <a href="#merchants" onClick={() => setMobileMenuOpen(false)} style={mobileNavLinkStyle}>Merchants</a>
+            <a href="#support" onClick={() => setMobileMenuOpen(false)} style={mobileNavLinkStyle}>Support</a>
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
+              <Link href="/register" style={{ ...registerBtnStyle, flex: 1, textAlign: 'center' }}>
+                Register
               </Link>
-              <Link
-                href="/register"
-                className="w-full py-2.5 rounded-xl bg-blue-600 text-center text-sm font-semibold text-white"
-              >
-                Create Account
+              <Link href="/login" style={{ ...loginBtnStyle, flex: 1, textAlign: 'center' }}>
+                Log In
               </Link>
             </div>
           </div>
         )}
       </header>
 
-      {/* Hero Section + Parcel Tracking Entry Point */}
-      <section
-        id="tracking"
-        className="relative overflow-hidden py-16 sm:py-24 lg:py-28 border-b border-blue-500/15"
-        style={{
-          background:
-            'radial-gradient(circle at 20% 20%, rgba(29, 78, 216, 0.22), transparent 45%), radial-gradient(circle at 80% 30%, rgba(14, 165, 233, 0.14), transparent 45%), #060d1a',
-        }}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-            {/* Hero Copy */}
-            <div className="lg:col-span-7 space-y-6">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/10 border border-blue-400/25 text-sky-400 text-xs font-semibold">
-                <Layers className="h-3.5 w-3.5" />
-                <span>Island-Wide Hub-and-Spoke Delivery Network</span>
+      {/* ─── Hero Section with Doorstep Delivery Background ───────────────── */}
+      <section style={heroSectionStyle}>
+        <div style={heroOverlayStyle} />
+
+        <div style={heroContentContainerStyle}>
+          {/* Centered Headline */}
+          <h1 style={heroHeadlineStyle}>
+            Reliable Delivery<br />Across Sri Lanka
+          </h1>
+
+          {/* 3 Action Shortcut Cards */}
+          <div style={cardsRowStyle}>
+            {/* Card 1: Our Services */}
+            <a href="#services" style={cardDarkStyle}>
+              <div style={cardIconWrapperStyle}>
+                <Truck size={30} color="#ffffff" strokeWidth={2} />
               </div>
+              <span style={cardTextWhiteStyle}>Our<br />Services</span>
+            </a>
 
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-[1.1]">
-                Reliable Parcel Logistics Built for{' '}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-blue-500">
-                  Every Mile.
-                </span>
-              </h1>
-
-              <p className="text-base sm:text-lg text-slate-300 max-w-2xl leading-relaxed">
-                SwiftDrop connects customers, e-commerce merchants, field couriers, regional
-                dispatchers, and branch hubs on one unified logistics platform—from instant
-                parcel booking to verified proof of delivery.
-              </p>
-
-              {/* Live Parcel Tracking Bar */}
-              <div className="p-2 sm:p-2.5 rounded-2xl bg-[#0c1a30]/95 border border-blue-400/30 shadow-2xl max-w-2xl">
-                <form
-                  onSubmit={handleTrackingSubmit}
-                  className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5"
-                >
-                  <div className="relative flex-1">
-                    <Search className="h-5 w-5 text-sky-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      value={trackingQuery}
-                      onChange={(e) => setTrackingQuery(e.target.value)}
-                      placeholder="Enter tracking number (e.g. SD-2026-0001)"
-                      aria-label="Enter tracking number"
-                      className="w-full pl-11 pr-4 py-3.5 rounded-xl bg-slate-950/80 border border-white/10 text-white placeholder:text-slate-500 text-sm focus:outline-none focus:border-sky-400"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30 cursor-pointer shrink-0"
-                  >
-                    <span>Track Shipment</span>
-                    <ArrowRight className="h-4 w-4" />
-                  </button>
-                </form>
-                <div className="px-3 pt-2 pb-1 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
-                  <span>Real-time milestone updates without logging in</span>
-                  <Link
-                    href="/tracking"
-                    className="text-sky-400 hover:text-sky-300 font-semibold"
-                  >
-                    Open Full Tracking Portal &rarr;
-                  </Link>
-                </div>
+            {/* Card 2: Schedule Pickup */}
+            <Link href="/book" style={cardBlueStyle}>
+              <div style={cardIconWrapperStyle}>
+                <Clock size={30} color="#ffffff" strokeWidth={2} />
               </div>
-
-              {/* Quick CTA Actions */}
-              <div className="pt-2 flex flex-wrap items-center gap-4">
-                <Link
-                  href="/login"
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white text-slate-950 hover:bg-slate-100 font-bold text-sm transition-colors"
-                >
-                  <span>Sign In to Workspace</span>
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-                <Link
-                  href="/register"
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl border border-blue-400/30 bg-blue-500/10 hover:bg-blue-500/20 text-sky-300 font-semibold text-sm transition-colors"
-                >
-                  <span>Create Customer Account</span>
-                </Link>
-              </div>
-            </div>
-
-            {/* Hero Right Operational Card */}
-            <div className="lg:col-span-5">
-              <div className="rounded-2xl bg-[#0b172a] border border-blue-500/25 p-6 sm:p-7 shadow-2xl space-y-6">
-                <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                  <div>
-                    <span className="text-xs font-bold uppercase tracking-wider text-sky-400">
-                      Unified Entry Point
-                    </span>
-                    <h2 className="text-lg font-bold text-white mt-0.5">
-                      Role-Based Operational Portals
-                    </h2>
-                  </div>
-                  <PackageCheck className="h-7 w-7 text-sky-400" />
-                </div>
-
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  Sign in once through our centralized authentication gateway. SwiftDrop
-                  automatically identifies your verified account role and routes you directly
-                  to your operational workspace:
-                </p>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <div className="p-3.5 rounded-xl bg-slate-900/90 border border-white/10">
-                    <div className="font-bold text-sky-400">Customer Portal</div>
-                    <p className="text-slate-400 mt-1">
-                      Book deliveries, calculate rates, and track active parcels.
-                    </p>
-                  </div>
-                  <div className="p-3.5 rounded-xl bg-slate-900/90 border border-white/10">
-                    <div className="font-bold text-indigo-400">Merchant Portal</div>
-                    <p className="text-slate-400 mt-1">
-                      Manage business orders, COD shipments, and merchant onboarding.
-                    </p>
-                  </div>
-                  <div className="p-3.5 rounded-xl bg-slate-900/90 border border-white/10">
-                    <div className="font-bold text-emerald-400">Courier App</div>
-                    <p className="text-slate-400 mt-1">
-                      Execute assigned pickups, hub drop-offs, and POD verification.
-                    </p>
-                  </div>
-                  <div className="p-3.5 rounded-xl bg-slate-900/90 border border-white/10">
-                    <div className="font-bold text-amber-400">Dispatch &amp; Branch</div>
-                    <p className="text-slate-400 mt-1">
-                      Assign couriers, manage inter-branch manifests, and monitor hubs.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t border-white/10 flex items-center justify-between text-xs">
-                  <span className="text-slate-400">
-                    Protected by JWT + HttpOnly Session Security
-                  </span>
-                  <Link
-                    href="/login"
-                    className="font-bold text-sky-400 hover:text-sky-300 inline-flex items-center gap-1"
-                  >
-                    Access Portal <ArrowRight className="h-3.5 w-3.5" />
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features & Service Overview Section */}
-      <section id="services" className="py-20 bg-[#081223] border-b border-blue-500/15">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-14">
-            <span className="text-xs font-bold uppercase tracking-widest text-sky-400">
-              Platform Capabilities
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-white mt-2">
-              End-to-End Delivery Management
-            </h2>
-            <p className="text-sm sm:text-base text-slate-400 mt-3">
-              Engineered on a resilient microservices architecture to handle high-volume retail,
-              merchant, and inter-branch parcel operations.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {FEATURES.map((feat) => {
-              const Icon = feat.icon;
-              return (
-                <div
-                  key={feat.title}
-                  className="p-6 rounded-2xl bg-[#0c1930] border border-blue-500/15 hover:border-sky-400/40 transition-all flex flex-col gap-3"
-                >
-                  <div className="w-11 h-11 rounded-xl bg-blue-600/15 border border-blue-400/25 flex items-center justify-center text-sky-400">
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <h3 className="text-lg font-bold text-white">{feat.title}</h3>
-                  <p className="text-sm text-slate-400 leading-relaxed">{feat.description}</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* Customer & Merchant Solutions Section */}
-      <section id="solutions" className="py-20 bg-[#060d1a] border-b border-blue-500/15">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* For Individual Customers */}
-            <div className="rounded-2xl bg-gradient-to-br from-[#0c1a33] to-[#091326] border border-blue-500/20 p-8 flex flex-col justify-between gap-6">
-              <div className="space-y-4">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/15 text-sky-400 text-xs font-bold">
-                  <UserCheck className="h-3.5 w-3.5" />
-                  <span>For Personal &amp; Retail Senders</span>
-                </div>
-                <h3 className="text-2xl font-extrabold text-white">
-                  Doorstep Pickup &amp; Live Parcel Tracking
-                </h3>
-                <p className="text-sm text-slate-300 leading-relaxed">
-                  Schedule a parcel pickup from your home or office in minutes. Get instant
-                  weight-based quotes, real-time notifications at every hub checkpoint, and
-                  secure PIN-verified delivery.
-                </p>
-                <ul className="space-y-2.5 text-sm text-slate-300 pt-2">
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span>Instant online rate calculator &amp; booking wizard</span>
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span>Live milestone timeline &amp; delivery history</span>
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span>Google OAuth &amp; email/password single sign-on</span>
-                  </li>
-                </ul>
-              </div>
-
-              <div className="pt-2 flex flex-wrap gap-3">
-                <Link
-                  href="/register"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold"
-                >
-                  <span>Register as Customer</span>
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-                <Link
-                  href="/login"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/15 hover:bg-white/5 text-slate-200 text-sm font-semibold"
-                >
-                  <span>Customer Sign In</span>
-                </Link>
-              </div>
-            </div>
-
-            {/* For E-Commerce & Business Merchants */}
-            <div className="rounded-2xl bg-gradient-to-br from-[#101c38] to-[#0a1428] border border-indigo-500/25 p-8 flex flex-col justify-between gap-6">
-              <div className="space-y-4">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/15 text-indigo-300 text-xs font-bold">
-                  <Store className="h-3.5 w-3.5" />
-                  <span>For E-Commerce &amp; Enterprise Merchants</span>
-                </div>
-                <h3 className="text-2xl font-extrabold text-white">
-                  Scale Your Fulfillment with SwiftDrop Business
-                </h3>
-                <p className="text-sm text-slate-300 leading-relaxed">
-                  Built for online stores and commercial shippers. Manage all outbound orders,
-                  monitor pending and completed deliveries, and track Cash-on-Delivery (COD)
-                  collections from your dedicated Merchant Dashboard.
-                </p>
-                <ul className="space-y-2.5 text-sm text-slate-300 pt-2">
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="h-4 w-4 text-sky-400 shrink-0" />
-                    <span>Dedicated Merchant Dashboard (`/merchant/dashboard`)</span>
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="h-4 w-4 text-sky-400 shrink-0" />
-                    <span>Verified merchant onboarding &amp; branch assignment</span>
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="h-4 w-4 text-sky-400 shrink-0" />
-                    <span>Automated return-to-sender (RTS) protection</span>
-                  </li>
-                </ul>
-              </div>
-
-              <div className="pt-2 flex flex-wrap gap-3">
-                <Link
-                  href="/login"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold"
-                >
-                  <span>Merchant Portal Login</span>
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-                <Link
-                  href="/register"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/15 hover:bg-white/5 text-slate-200 text-sm font-semibold"
-                >
-                  <span>Apply for Merchant Account</span>
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Regional Hub Coverage Network */}
-      <section id="network" className="py-16 bg-[#081223] border-b border-blue-500/15">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
-            <div>
-              <span className="text-xs font-bold uppercase tracking-widest text-sky-400">
-                Regional Operations
-              </span>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-white mt-1">
-                Connected Branch &amp; Sorting Hubs
-              </h2>
-            </div>
-            <Link
-              href="/tracking"
-              className="text-sm font-semibold text-sky-400 hover:text-sky-300 inline-flex items-center gap-1.5"
-            >
-              <span>Check live parcel status</span>
-              <ArrowRight className="h-4 w-4" />
+              <span style={cardTextWhiteStyle}>Schedule<br />Pickup</span>
             </Link>
+
+            {/* Card 3: Branch Network */}
+            <a href="#branches" style={cardWhiteStyle}>
+              <div style={cardIconWrapperStyle}>
+                <Building2 size={30} color="#1d68ed" strokeWidth={2} />
+              </div>
+              <span style={cardTextDarkStyle}>Branch<br />Network</span>
+            </a>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {HUB_LOCATIONS.map((hub) => (
-              <div
-                key={hub.code}
-                className="p-5 rounded-xl bg-[#0c1930] border border-white/10 flex flex-col justify-between gap-3"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="px-2.5 py-0.5 rounded bg-blue-500/15 text-sky-400 font-mono text-xs font-bold">
-                    {hub.code}
-                  </span>
-                  <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 font-semibold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                    ACTIVE
-                  </span>
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-white">{hub.name}</h3>
-                  <p className="text-xs text-slate-400 mt-1">{hub.coverage}</p>
-                </div>
-              </div>
-            ))}
+          {/* Quick Tracking Search Bar */}
+          <form onSubmit={handleTrackingSubmit} style={trackingFormStyle}>
+            <input
+              type="text"
+              value={trackingNumber}
+              onChange={(e) => setTrackingNumber(e.target.value)}
+              placeholder="Enter Tracking ID (e.g., SD-884920)"
+              style={trackingInputStyle}
+            />
+            <button type="submit" style={trackingSubmitBtnStyle}>
+              TRACK PARCEL
+            </button>
+          </form>
+        </div>
+      </section>
+
+      {/* ─── Services Overview Section ────────────────────────────────────── */}
+      <section id="services" style={sectionContainerStyle}>
+        <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+          <span style={sectionBadgeStyle}>OUR SERVICES</span>
+          <h2 style={sectionTitleStyle}>Comprehensive Logistics Across the Island</h2>
+          <p style={sectionSubtitleStyle}>From express same-day city delivery to nationwide freight and enterprise merchant distribution.</p>
+        </div>
+
+        <div style={servicesGridStyle}>
+          <div style={serviceCardStyle}>
+            <div style={serviceIconCircleStyle('#2563eb')}>
+              <Truck size={24} color="#ffffff" />
+            </div>
+            <h3 style={serviceCardTitleStyle}>Express &amp; Same-Day</h3>
+            <p style={serviceCardDescStyle}>Fast, high-priority intra-city delivery with real-time GPS tracking and live recipient ETA alerts.</p>
+          </div>
+
+          <div style={serviceCardStyle}>
+            <div style={serviceIconCircleStyle('#0284c7')}>
+              <Building2 size={24} color="#ffffff" />
+            </div>
+            <h3 style={serviceCardTitleStyle}>Inter-Branch Linehaul</h3>
+            <p style={serviceCardDescStyle}>Scheduled nightly manifest transport connecting all 25 districts through centralized sorting hubs.</p>
+          </div>
+
+          <div style={serviceCardStyle}>
+            <div style={serviceIconCircleStyle('#10b981')}>
+              <ShieldCheck size={24} color="#ffffff" />
+            </div>
+            <h3 style={serviceCardTitleStyle}>Verified POD Delivery</h3>
+            <p style={serviceCardDescStyle}>Digital proof-of-delivery with secure recipient PIN verification and immediate electronic receipts.</p>
+          </div>
+
+          <div style={serviceCardStyle}>
+            <div style={serviceIconCircleStyle('#8b5cf6')}>
+              <Store size={24} color="#ffffff" />
+            </div>
+            <h3 style={serviceCardTitleStyle}>Merchant COD Remittance</h3>
+            <p style={serviceCardDescStyle}>Automated Cash-on-Delivery collection, fast bank account remittance, and real-time ledger auditing.</p>
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="mt-auto bg-[#040914] border-t border-white/10 py-12 text-xs text-slate-400">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 pb-10 border-b border-white/10">
-            <div className="space-y-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
-                  <Box className="h-4 w-4 text-white" />
-                </div>
-                <span className="text-base font-extrabold text-white">
-                  Swift<span className="text-sky-400">Drop</span>
-                </span>
+      {/* ─── Branches & Coverage Section ─────────────────────────────────── */}
+      <section id="branches" style={{ ...sectionContainerStyle, backgroundColor: '#091426' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+          <span style={sectionBadgeStyle}>BRANCH COVERAGE</span>
+          <h2 style={sectionTitleStyle}>Nationwide Sorting Hubs &amp; Drop-off Centers</h2>
+          <p style={sectionSubtitleStyle}>Strategically located branches ensuring seamless delivery from Point Pedro to Dondra Head.</p>
+        </div>
+
+        <div style={branchesGridStyle}>
+          {[
+            { name: 'Colombo Central Hub', address: '124 D.R. Wijewardena Mawatha, Colombo 10', code: 'CMB-01' },
+            { name: 'Kandy Regional Hub', address: '45 William Gopallawa Mawatha, Kandy', code: 'KDY-01' },
+            { name: 'Galle Southern Hub', address: '88 Matara Road, Galle', code: 'GAL-01' },
+            { name: 'Negombo Logistics Hub', address: '12 Colombo Road, Negombo', code: 'NEG-01' },
+          ].map((branch) => (
+            <div key={branch.code} style={branchCardStyle}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ fontWeight: 700, fontSize: '1.05rem', color: '#ffffff' }}>{branch.name}</div>
+                <span style={branchCodeBadgeStyle}>{branch.code}</span>
               </div>
-              <p className="text-slate-400 leading-relaxed">
-                Next-generation national parcel delivery and hub-and-spoke logistics management
-                platform.
-              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.75rem', color: '#94a3b8', fontSize: '0.825rem' }}>
+                <MapPin size={15} color="#38bdf8" />
+                <span>{branch.address}</span>
+              </div>
             </div>
+          ))}
+        </div>
+      </section>
 
-            <div>
-              <h4 className="font-bold text-white uppercase tracking-wider mb-3">
-                Quick Navigation
-              </h4>
-              <ul className="space-y-2">
-                <li>
-                  <Link href="/tracking" className="hover:text-sky-400">
-                    Track a Parcel
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/login" className="hover:text-sky-400">
-                    Unified Portal Sign In
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/register" className="hover:text-sky-400">
-                    Customer Registration
-                  </Link>
-                </li>
-              </ul>
+      {/* ─── Footer ───────────────────────────────────────────────────────── */}
+      <footer id="support" style={footerStyle}>
+        <div style={footerContainerStyle}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+            <div style={logoBoxStyle}>
+              <Box size={20} color="#ffffff" />
             </div>
-
-            <div>
-              <h4 className="font-bold text-white uppercase tracking-wider mb-3">
-                Role Workspaces
-              </h4>
-              <ul className="space-y-2">
-                <li>
-                  <Link href="/customer/dashboard" className="hover:text-sky-400">
-                    Customer Dashboard
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/merchant/dashboard" className="hover:text-sky-400">
-                    Merchant Dashboard
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/courier/dashboard" className="hover:text-sky-400">
-                    Courier Field App
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/dispatcher/dashboard" className="hover:text-sky-400">
-                    Dispatcher Command Center
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/branch/dashboard" className="hover:text-sky-400">
-                    Branch Admin Portal
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/admin/dashboard" className="hover:text-sky-400">
-                    System Admin Portal
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-bold text-white uppercase tracking-wider mb-3">
-                Head Office &amp; Support
-              </h4>
-              <ul className="space-y-2">
-                <li className="flex items-center gap-2">
-                  <MapPin className="h-3.5 w-3.5 text-sky-400 shrink-0" />
-                  <span>No. 120, Union Place, Colombo 02, Sri Lanka</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <PhoneCall className="h-3.5 w-3.5 text-sky-400 shrink-0" />
-                  <span>+94 11 234 5678 (24/7 Operations Desk)</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Mail className="h-3.5 w-3.5 text-sky-400 shrink-0" />
-                  <span>support@swiftdrop.lk</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Globe className="h-3.5 w-3.5 text-sky-400 shrink-0" />
-                  <span>swiftdrop.lk</span>
-                </li>
-              </ul>
-            </div>
+            <span style={{ fontSize: '1.15rem', fontWeight: 800, color: '#ffffff' }}>SwiftDrop</span>
           </div>
-
-          <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p>&copy; {new Date().getFullYear()} SwiftDrop Logistics (Pvt) Ltd. All rights reserved.</p>
-            <div className="flex items-center gap-4">
-              <Link href="/tracking" className="hover:text-white">
-                Public Tracking
-              </Link>
-              <Link href="/login" className="hover:text-white">
-                Sign In
-              </Link>
-            </div>
+          <p style={{ color: '#64748b', fontSize: '0.8rem', margin: 0 }}>
+            &copy; {new Date().getFullYear()} SwiftDrop Logistics (Pvt) Ltd. All rights reserved.
+          </p>
+          <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.8rem', color: '#94a3b8' }}>
+            <Link href="/tracking" style={footerLinkStyle}>Track Parcel</Link>
+            <Link href="/login" style={footerLinkStyle}>Staff Portal</Link>
+            <Link href="/register" style={footerLinkStyle}>Merchant Onboarding</Link>
           </div>
         </div>
       </footer>
     </div>
   );
 }
+
+// ─── Inline Style Standards for Landing Page (Image 1 Exact Replication) ───────
+
+const headerStyle: React.CSSProperties = {
+  backgroundColor: '#07101e',
+  borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+  position: 'sticky',
+  top: 0,
+  zIndex: 50,
+  padding: '0.75rem 1.5rem',
+};
+
+const headerContainerStyle: React.CSSProperties = {
+  maxWidth: '1280px',
+  margin: '0 auto',
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+};
+
+const logoLinkStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '0.65rem',
+  textDecoration: 'none',
+};
+
+const logoBoxStyle: React.CSSProperties = {
+  width: '36px',
+  height: '36px',
+  borderRadius: '8px',
+  backgroundColor: '#1d68ed',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+};
+
+const logoTextStyle: React.CSSProperties = {
+  fontSize: '1.35rem',
+  fontWeight: 800,
+  color: '#ffffff',
+  letterSpacing: '-0.02em',
+};
+
+const desktopNavStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '2rem',
+};
+
+const navLinkStyle: React.CSSProperties = {
+  color: '#e2e8f0',
+  textDecoration: 'none',
+  fontSize: '0.875rem',
+  fontWeight: 500,
+  transition: 'color 0.15s ease',
+};
+
+const authButtonsContainerStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '0.85rem',
+};
+
+const registerBtnStyle: React.CSSProperties = {
+  padding: '0.5rem 1.25rem',
+  fontSize: '0.875rem',
+  fontWeight: 600,
+  color: '#ffffff',
+  backgroundColor: 'transparent',
+  border: '1.5px solid rgba(255, 255, 255, 0.75)',
+  borderRadius: '8px',
+  textDecoration: 'none',
+  transition: 'all 0.15s ease',
+};
+
+const loginBtnStyle: React.CSSProperties = {
+  padding: '0.5rem 1.25rem',
+  fontSize: '0.875rem',
+  fontWeight: 600,
+  color: '#ffffff',
+  backgroundColor: '#1d68ed',
+  border: 'none',
+  borderRadius: '8px',
+  textDecoration: 'none',
+  boxShadow: '0 2px 8px rgba(29, 104, 237, 0.4)',
+  transition: 'all 0.15s ease',
+};
+
+const mobileMenuToggleStyle: React.CSSProperties = {
+  display: 'none',
+  background: 'none',
+  border: 'none',
+  color: '#ffffff',
+  cursor: 'pointer',
+};
+
+const mobileDropdownStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '1rem',
+  padding: '1rem 0',
+  borderTop: '1px solid rgba(255,255,255,0.08)',
+};
+
+const mobileNavLinkStyle: React.CSSProperties = {
+  color: '#cbd5e1',
+  textDecoration: 'none',
+  fontSize: '0.95rem',
+  fontWeight: 500,
+};
+
+const heroSectionStyle: React.CSSProperties = {
+  position: 'relative',
+  minHeight: '85vh',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  backgroundImage: "url('/landing-hero.jpg')",
+  backgroundSize: 'cover',
+  backgroundPosition: 'center center',
+  backgroundRepeat: 'no-repeat',
+  padding: '4rem 1.5rem',
+  overflow: 'hidden',
+};
+
+const heroOverlayStyle: React.CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  background: 'radial-gradient(circle at center, rgba(7, 16, 30, 0.45) 0%, rgba(7, 16, 30, 0.75) 100%)',
+};
+
+const heroContentContainerStyle: React.CSSProperties = {
+  position: 'relative',
+  zIndex: 10,
+  maxWidth: '720px',
+  width: '100%',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  textAlign: 'center',
+};
+
+const heroHeadlineStyle: React.CSSProperties = {
+  fontSize: 'clamp(2.4rem, 5vw, 3.8rem)',
+  fontWeight: 800,
+  color: '#ffffff',
+  lineHeight: 1.15,
+  letterSpacing: '-0.025em',
+  margin: '0 0 2rem 0',
+  textShadow: '0 4px 16px rgba(0, 0, 0, 0.6)',
+};
+
+const cardsRowStyle: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'center',
+  gap: '1.25rem',
+  flexWrap: 'wrap',
+  marginBottom: '2rem',
+  width: '100%',
+};
+
+const cardDarkStyle: React.CSSProperties = {
+  width: '135px',
+  height: '125px',
+  backgroundColor: 'rgba(15, 28, 52, 0.95)',
+  border: '1px solid rgba(255, 255, 255, 0.15)',
+  borderRadius: '16px',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  textDecoration: 'none',
+  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.35)',
+  transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+};
+
+const cardBlueStyle: React.CSSProperties = {
+  width: '135px',
+  height: '125px',
+  backgroundColor: '#1d68ed',
+  borderRadius: '16px',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  textDecoration: 'none',
+  boxShadow: '0 8px 24px rgba(29, 104, 237, 0.45)',
+  transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+};
+
+const cardWhiteStyle: React.CSSProperties = {
+  width: '135px',
+  height: '125px',
+  backgroundColor: '#ffffff',
+  borderRadius: '16px',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  textDecoration: 'none',
+  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.25)',
+  transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+};
+
+const cardIconWrapperStyle: React.CSSProperties = {
+  marginBottom: '0.65rem',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+};
+
+const cardTextWhiteStyle: React.CSSProperties = {
+  fontSize: '0.85rem',
+  fontWeight: 700,
+  color: '#ffffff',
+  textAlign: 'center',
+  lineHeight: 1.25,
+};
+
+const cardTextDarkStyle: React.CSSProperties = {
+  fontSize: '0.85rem',
+  fontWeight: 700,
+  color: '#0f172a',
+  textAlign: 'center',
+  lineHeight: 1.25,
+};
+
+const trackingFormStyle: React.CSSProperties = {
+  maxWidth: '560px',
+  width: '100%',
+  backgroundColor: '#ffffff',
+  borderRadius: '12px',
+  boxShadow: '0 12px 36px rgba(0, 0, 0, 0.35)',
+  display: 'flex',
+  padding: '5px 6px 5px 16px',
+  boxSizing: 'border-box',
+  alignItems: 'center',
+};
+
+const trackingInputStyle: React.CSSProperties = {
+  flex: 1,
+  border: 'none',
+  outline: 'none',
+  fontSize: '0.9rem',
+  color: '#0f172a',
+  padding: '0.5rem 0',
+  backgroundColor: 'transparent',
+};
+
+const trackingSubmitBtnStyle: React.CSSProperties = {
+  backgroundColor: '#1d68ed',
+  color: '#ffffff',
+  fontWeight: 700,
+  fontSize: '0.8rem',
+  letterSpacing: '0.04em',
+  textTransform: 'uppercase',
+  border: 'none',
+  borderRadius: '8px',
+  padding: '0.75rem 1.4rem',
+  cursor: 'pointer',
+  transition: 'background-color 0.15s ease',
+};
+
+const sectionContainerStyle: React.CSSProperties = {
+  maxWidth: '1280px',
+  margin: '0 auto',
+  padding: '5rem 1.5rem',
+  width: '100%',
+  boxSizing: 'border-box',
+};
+
+const sectionBadgeStyle: React.CSSProperties = {
+  display: 'inline-block',
+  fontSize: '0.75rem',
+  fontWeight: 700,
+  letterSpacing: '0.08em',
+  color: '#38bdf8',
+  backgroundColor: 'rgba(56, 189, 248, 0.1)',
+  border: '1px solid rgba(56, 189, 248, 0.2)',
+  padding: '0.25rem 0.75rem',
+  borderRadius: '9999px',
+  marginBottom: '0.75rem',
+};
+
+const sectionTitleStyle: React.CSSProperties = {
+  fontSize: '2.2rem',
+  fontWeight: 800,
+  color: '#ffffff',
+  margin: '0 0 0.75rem 0',
+  letterSpacing: '-0.02em',
+};
+
+const sectionSubtitleStyle: React.CSSProperties = {
+  fontSize: '1rem',
+  color: '#94a3b8',
+  maxWidth: '640px',
+  margin: '0 auto',
+  lineHeight: 1.5,
+};
+
+const servicesGridStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+  gap: '1.5rem',
+};
+
+const serviceCardStyle: React.CSSProperties = {
+  backgroundColor: '#0c1a30',
+  border: '1px solid rgba(255, 255, 255, 0.08)',
+  borderRadius: '16px',
+  padding: '2rem 1.5rem',
+};
+
+const serviceIconCircleStyle = (color: string): React.CSSProperties => ({
+  width: '46px',
+  height: '46px',
+  borderRadius: '12px',
+  backgroundColor: color,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginBottom: '1.25rem',
+});
+
+const serviceCardTitleStyle: React.CSSProperties = {
+  fontSize: '1.15rem',
+  fontWeight: 700,
+  color: '#ffffff',
+  margin: '0 0 0.5rem 0',
+};
+
+const serviceCardDescStyle: React.CSSProperties = {
+  fontSize: '0.85rem',
+  color: '#94a3b8',
+  lineHeight: 1.5,
+  margin: 0,
+};
+
+const branchesGridStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+  gap: '1.25rem',
+};
+
+const branchCardStyle: React.CSSProperties = {
+  backgroundColor: '#07101e',
+  border: '1px solid rgba(255, 255, 255, 0.08)',
+  borderRadius: '12px',
+  padding: '1.5rem',
+};
+
+const branchCodeBadgeStyle: React.CSSProperties = {
+  fontSize: '0.7rem',
+  fontWeight: 700,
+  color: '#38bdf8',
+  backgroundColor: 'rgba(56, 189, 248, 0.1)',
+  padding: '0.2rem 0.5rem',
+  borderRadius: '6px',
+};
+
+const footerStyle: React.CSSProperties = {
+  backgroundColor: '#050c18',
+  borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+  padding: '2rem 1.5rem',
+};
+
+const footerContainerStyle: React.CSSProperties = {
+  maxWidth: '1280px',
+  margin: '0 auto',
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  gap: '1rem',
+};
+
+const footerLinkStyle: React.CSSProperties = {
+  color: '#94a3b8',
+  textDecoration: 'none',
+};

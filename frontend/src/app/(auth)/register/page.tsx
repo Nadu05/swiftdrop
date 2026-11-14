@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -9,17 +9,17 @@ import { registerSchema, type RegisterFormValues } from '@/schema/auth.schema';
 import { useRegister, getApiErrorMessage } from '@/hooks/api/use-auth';
 import { useAuthStore } from '@/store/auth.store';
 import { resolvePostAuthRedirect } from '@/lib/auth/role-resolver';
-import { Eye, EyeOff, UserPlus, Box, Check, X } from 'lucide-react';
+import { Box, ShieldCheck, ArrowLeft, Eye, EyeOff, UserPlus, AlertCircle } from 'lucide-react';
 import GoogleSignInButton from '@/components/auth/GoogleSignInButton';
 
-export default function RegisterPage() {
+function RegisterCard() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const activeRole = useAuthStore((s) => s.activeRole);
   const isInitialized = useAuthStore((s) => s.isInitialized);
 
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
   const registerMutation = useRegister();
@@ -33,18 +33,10 @@ export default function RegisterPage() {
   const {
     register,
     handleSubmit,
-    watch,
     formState: { errors, isSubmitting },
-  } = useForm<RegisterFormValues>({ resolver: zodResolver(registerSchema) });
-
-  const password = watch('password', '');
-
-  const passwordRules = [
-    { label: 'At least 8 characters', valid: password.length >= 8 },
-    { label: 'One uppercase letter', valid: /[A-Z]/.test(password) },
-    { label: 'One digit', valid: /[0-9]/.test(password) },
-    { label: 'One special character', valid: /[^a-zA-Z0-9]/.test(password) },
-  ];
+  } = useForm<RegisterFormValues>({
+    resolver: zodResolver(registerSchema),
+  });
 
   const onSubmit = async (values: RegisterFormValues) => {
     setApiError(null);
@@ -58,301 +50,486 @@ export default function RegisterPage() {
   const isPending = isSubmitting || registerMutation.isPending;
 
   return (
-    <div
-      style={{
-        width: '100%',
-        maxWidth: '480px',
-        background: 'rgba(17, 24, 39, 0.85)',
-        backdropFilter: 'blur(16px)',
-        border: '1px solid rgba(59, 130, 246, 0.2)',
-        borderRadius: '16px',
-        padding: '2.5rem',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-      }}
-    >
-      {/* Logo */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem' }}>
-        <div
-          style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '10px',
-            background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Box size={22} color="#fff" />
+    <div style={cardStyle}>
+      {/* Top Header Row */}
+      <div style={topRowStyle}>
+        <Link href="/" style={backBtnStyle}>
+          <ArrowLeft size={14} />
+          <span>Back to Home</span>
+        </Link>
+      </div>
+
+      {/* Brand & Logo */}
+      <div style={brandRowStyle}>
+        <div style={logoIconBoxStyle}>
+          <Box size={22} color="#ffffff" strokeWidth={2.4} />
         </div>
         <div>
-          <h1 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff' }}>
-            Swift<span style={{ color: '#60a5fa' }}>Drop</span>
-          </h1>
-          <p style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Delivery Platform</p>
+          <div style={brandNameStyle}>
+            Swift<span style={{ color: '#2563eb' }}>Drop</span>
+          </div>
+          <div style={brandSubStyle}>
+            National Logistics &amp; Delivery Platform
+          </div>
         </div>
       </div>
 
-      <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#fff', marginBottom: '0.5rem' }}>
-        Create your account
-      </h2>
-      <p style={{ color: '#94a3b8', marginBottom: '1.75rem', fontSize: '0.875rem' }}>
-        Join SwiftDrop and start tracking deliveries
-      </p>
+      {/* Heading */}
+      <div style={{ marginBottom: '1.25rem' }}>
+        <h1 style={titleStyle}>Create an Account</h1>
+        <p style={subtitleStyle}>
+          Join SwiftDrop to book, track, and manage your shipments.
+        </p>
+      </div>
 
-      {/* API Error Banner */}
+      {/* Error Alert */}
       {apiError && (
-        <div
-          role="alert"
-          style={{
-            background: 'rgba(239,68,68,0.12)',
-            border: '1px solid rgba(239,68,68,0.4)',
-            borderRadius: '8px',
-            padding: '0.75rem 1rem',
-            marginBottom: '1.25rem',
-            fontSize: '0.875rem',
-            color: '#f87171',
-          }}
-        >
-          {apiError}
+        <div style={errorBannerStyle}>
+          <AlertCircle size={15} color="#dc2626" />
+          <span>{apiError}</span>
         </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
+      {/* Registration Form */}
+      <form onSubmit={handleSubmit(onSubmit)} noValidate style={formStyle}>
         {/* Full Name */}
         <div>
-          <label htmlFor="fullName" style={labelStyle}>Full name</label>
+          <label htmlFor="fullName" style={labelStyle}>
+            Full name
+          </label>
           <input
             id="fullName"
             type="text"
             autoComplete="name"
             {...register('fullName')}
-            style={inputStyle(!!errors.fullName)}
             placeholder="Jane Doe"
+            style={inputStyle(!!errors.fullName)}
           />
-          {errors.fullName && <p style={errorStyle}>{errors.fullName.message}</p>}
+          {errors.fullName && (
+            <p style={errorTextStyle}>{errors.fullName.message}</p>
+          )}
         </div>
 
-        {/* Email */}
+        {/* Email Address */}
         <div>
-          <label htmlFor="email" style={labelStyle}>Email address</label>
+          <label htmlFor="email" style={labelStyle}>
+            Email address
+          </label>
           <input
             id="email"
             type="email"
             autoComplete="email"
             {...register('email')}
-            style={inputStyle(!!errors.email)}
             placeholder="you@example.com"
+            style={inputStyle(!!errors.email)}
           />
-          {errors.email && <p style={errorStyle}>{errors.email.message}</p>}
+          {errors.email && (
+            <p style={errorTextStyle}>{errors.email.message}</p>
+          )}
         </div>
 
-        {/* Phone */}
+        {/* Phone Number */}
         <div>
-          <label htmlFor="phone" style={labelStyle}>Phone number</label>
+          <label htmlFor="phone" style={labelStyle}>
+            Phone number
+          </label>
           <input
             id="phone"
             type="tel"
             autoComplete="tel"
             {...register('phone')}
+            placeholder="+94 77 123 4567"
             style={inputStyle(!!errors.phone)}
-            placeholder="+1 555 000 0000"
           />
-          {errors.phone && <p style={errorStyle}>{errors.phone.message}</p>}
+          {errors.phone && (
+            <p style={errorTextStyle}>{errors.phone.message}</p>
+          )}
         </div>
 
         {/* Password */}
         <div>
-          <label htmlFor="password" style={labelStyle}>Password</label>
+          <label htmlFor="password" style={labelStyle}>
+            Password
+          </label>
           <div style={{ position: 'relative' }}>
             <input
               id="password"
               type={showPassword ? 'text' : 'password'}
               autoComplete="new-password"
               {...register('password')}
-              style={{ ...inputStyle(!!errors.password), paddingRight: '3rem' }}
               placeholder="••••••••"
+              style={{
+                ...inputStyle(!!errors.password),
+                paddingRight: '2.5rem',
+              }}
             />
             <button
               type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              style={toggleBtnStyle}
+              onClick={() => setShowPassword(!showPassword)}
+              style={eyeBtnStyle}
               aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
-              {showPassword ? <EyeOff size={18} color="#64748b" /> : <Eye size={18} color="#64748b" />}
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
-
-          {/* Password strength checklist */}
-          {password.length > 0 && (
-            <ul style={{ marginTop: '0.5rem', padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-              {passwordRules.map((rule) => (
-                <li key={rule.label} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: rule.valid ? '#34d399' : '#94a3b8' }}>
-                  {rule.valid
-                    ? <Check size={13} color="#34d399" />
-                    : <X size={13} color="#64748b" />
-                  }
-                  {rule.label}
-                </li>
-              ))}
-            </ul>
+          {errors.password && (
+            <p style={errorTextStyle}>{errors.password.message}</p>
           )}
-
-          {errors.password && <p style={errorStyle}>{errors.password.message}</p>}
         </div>
 
         {/* Confirm Password */}
         <div>
-          <label htmlFor="confirmPassword" style={labelStyle}>Confirm password</label>
+          <label htmlFor="confirmPassword" style={labelStyle}>
+            Confirm password
+          </label>
           <div style={{ position: 'relative' }}>
             <input
               id="confirmPassword"
-              type={showConfirm ? 'text' : 'password'}
+              type={showConfirmPassword ? 'text' : 'password'}
               autoComplete="new-password"
               {...register('confirmPassword')}
-              style={{ ...inputStyle(!!errors.confirmPassword), paddingRight: '3rem' }}
               placeholder="••••••••"
+              style={{
+                ...inputStyle(!!errors.confirmPassword),
+                paddingRight: '2.5rem',
+              }}
             />
             <button
               type="button"
-              onClick={() => setShowConfirm((v) => !v)}
-              style={toggleBtnStyle}
-              aria-label={showConfirm ? 'Hide password' : 'Show password'}
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              style={eyeBtnStyle}
+              aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
             >
-              {showConfirm ? <EyeOff size={18} color="#64748b" /> : <Eye size={18} color="#64748b" />}
+              {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
-          {errors.confirmPassword && <p style={errorStyle}>{errors.confirmPassword.message}</p>}
+          {errors.confirmPassword && (
+            <p style={errorTextStyle}>{errors.confirmPassword.message}</p>
+          )}
         </div>
 
-        {/* Submit */}
-        <button type="submit" disabled={isPending} style={primaryBtnStyle(isPending)}>
-          {isPending ? (
-            <span>Creating account…</span>
-          ) : (
-            <>
-              <UserPlus size={18} />
-              <span>Create account</span>
-            </>
-          )}
+        {/* Create Account Primary Button */}
+        <button
+          type="submit"
+          disabled={isPending}
+          style={submitBtnStyle(isPending)}
+        >
+          <UserPlus size={16} />
+          <span>{isPending ? 'Creating account...' : 'Create Account'}</span>
         </button>
       </form>
 
       {/* Divider */}
-      <div style={dividerStyle}>
-        <span style={dividerLineStyle} />
-        <span style={{ color: '#475569', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>or sign up with</span>
-        <span style={dividerLineStyle} />
+      <div style={dividerContainerStyle}>
+        <div style={dividerLineStyle} />
+        <span style={dividerTextStyle}>or continue with</span>
+        <div style={dividerLineStyle} />
       </div>
 
-      {/* Google Sign-In */}
-      <GoogleSignInButton mode="signup" onError={setApiError} />
+      {/* Google OAuth Button */}
+      <div style={{ width: '100%' }}>
+        <GoogleSignInButton mode="signup" onError={setApiError} />
+      </div>
 
-      <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem', color: '#94a3b8' }}>
-        Already have an account?{' '}
-        <Link href="/login" style={{ color: '#60a5fa', fontWeight: 600, textDecoration: 'none' }}>
-          Sign in
-        </Link>
-      </p>
+      {/* Footer Navigation */}
+      <div style={footerContainerStyle}>
+        <p style={footerTextStyle}>
+          Already have an account?{' '}
+          <Link href="/login" style={footerLinkStyle}>
+            Sign in
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }
 
-// ─── Style helpers ────────────────────────────────────────────────────────────
+export default function RegisterPage() {
+  return (
+    <main style={mainContainerStyle}>
+      <h1 style={srOnlyStyle}>
+        Create Account — SwiftDrop National Logistics &amp; Delivery Platform
+      </h1>
+
+      {/* Left Visual Hero Section */}
+      <section style={leftHeroSectionStyle} aria-label="Nationwide Delivery Network">
+        <div style={heroOverlayStyle} />
+      </section>
+
+      {/* Right Form Card Section */}
+      <section style={rightAuthSectionStyle} aria-label="Account Registration Portal">
+        <Suspense fallback={<div style={{ color: '#64748b' }}>Loading portal...</div>}>
+          <RegisterCard />
+        </Suspense>
+      </section>
+    </main>
+  );
+}
+
+// ─── Inline Styles Matching Split-Screen Design System ─────────────────────────
+
+const mainContainerStyle: React.CSSProperties = {
+  minHeight: '100vh',
+  width: '100vw',
+  display: 'flex',
+  flexWrap: 'wrap',
+  margin: 0,
+  padding: 0,
+  backgroundColor: '#f0f3f8',
+  overflowX: 'hidden',
+  fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+};
+
+const leftHeroSectionStyle: React.CSSProperties = {
+  flex: '1 1 52%',
+  minWidth: '320px',
+  minHeight: '100vh',
+  position: 'relative',
+  backgroundImage: "url('/hero-left.jpg')",
+  backgroundSize: 'cover',
+  backgroundPosition: 'center left',
+  backgroundRepeat: 'no-repeat',
+  backgroundColor: '#07101f',
+};
+
+const heroOverlayStyle: React.CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  background: 'linear-gradient(to right, rgba(7, 16, 31, 0.15) 0%, rgba(7, 16, 31, 0) 100%)',
+  pointerEvents: 'none',
+};
+
+const rightAuthSectionStyle: React.CSSProperties = {
+  flex: '1 1 48%',
+  minWidth: '320px',
+  minHeight: '100vh',
+  backgroundColor: '#f0f3f8',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '2.5rem 1.5rem',
+  boxSizing: 'border-box',
+};
+
+const cardStyle: React.CSSProperties = {
+  width: '100%',
+  maxWidth: '460px',
+  backgroundColor: '#ffffff',
+  borderRadius: '20px',
+  boxShadow: '0 20px 45px -8px rgba(15, 23, 42, 0.08), 0 4px 14px rgba(15, 23, 42, 0.04)',
+  border: '1px solid rgba(226, 232, 240, 0.95)',
+  padding: '2.25rem 2.5rem',
+  boxSizing: 'border-box',
+  display: 'flex',
+  flexDirection: 'column',
+};
+
+const topRowStyle: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: '1.25rem',
+};
+
+const backBtnStyle: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '0.4rem',
+  fontSize: '0.8rem',
+  fontWeight: 500,
+  color: '#475569',
+  textDecoration: 'none',
+};
+
+const unifiedBadgeStyle: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '0.35rem',
+  fontSize: '0.72rem',
+  fontWeight: 600,
+  color: '#0284c7',
+  backgroundColor: '#e0f2fe',
+  padding: '0.2rem 0.65rem',
+  borderRadius: '9999px',
+  border: '1px solid #bae6fd',
+};
+
+const brandRowStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '0.75rem',
+  marginBottom: '1.35rem',
+};
+
+const logoIconBoxStyle: React.CSSProperties = {
+  width: '40px',
+  height: '40px',
+  borderRadius: '10px',
+  background: 'linear-gradient(135deg, #1d68ed 0%, #2563eb 100%)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  boxShadow: '0 4px 12px rgba(37, 99, 235, 0.35)',
+  flexShrink: 0,
+};
+
+const brandNameStyle: React.CSSProperties = {
+  fontSize: '1.25rem',
+  fontWeight: 800,
+  color: '#0f172a',
+  lineHeight: 1.15,
+  letterSpacing: '-0.02em',
+};
+
+const brandSubStyle: React.CSSProperties = {
+  fontSize: '0.72rem',
+  fontWeight: 500,
+  color: '#64748b',
+  letterSpacing: '-0.01em',
+  marginTop: '2px',
+};
+
+const titleStyle: React.CSSProperties = {
+  fontSize: '1.45rem',
+  fontWeight: 700,
+  color: '#0f172a',
+  margin: 0,
+  letterSpacing: '-0.02em',
+};
+
+const subtitleStyle: React.CSSProperties = {
+  fontSize: '0.85rem',
+  color: '#64748b',
+  marginTop: '0.35rem',
+  marginBottom: 0,
+  lineHeight: 1.45,
+};
+
+const formStyle: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '0.9rem',
+};
 
 const labelStyle: React.CSSProperties = {
   display: 'block',
   fontSize: '0.8rem',
   fontWeight: 600,
-  color: '#cbd5e1',
-  marginBottom: '0.4rem',
+  color: '#334155',
+  marginBottom: '0.3rem',
 };
 
 const inputStyle = (hasError: boolean): React.CSSProperties => ({
   width: '100%',
-  padding: '0.65rem 0.85rem',
-  background: 'rgba(15, 23, 42, 0.7)',
-  border: `1px solid ${hasError ? 'rgba(239,68,68,0.6)' : 'rgba(59,130,246,0.2)'}`,
-  borderRadius: '8px',
-  color: '#f8fafc',
+  padding: '0.6rem 0.85rem',
   fontSize: '0.875rem',
+  color: '#0f172a',
+  backgroundColor: '#ffffff',
+  border: hasError ? '1px solid #ef4444' : '1px solid #cbd5e1',
+  borderRadius: '8px',
   outline: 'none',
   boxSizing: 'border-box',
+  transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
 });
 
-const errorStyle: React.CSSProperties = {
-  marginTop: '0.3rem',
-  fontSize: '0.75rem',
-  color: '#f87171',
-};
-
-const toggleBtnStyle: React.CSSProperties = {
+const eyeBtnStyle: React.CSSProperties = {
   position: 'absolute',
   right: '0.75rem',
   top: '50%',
   transform: 'translateY(-50%)',
   background: 'none',
   border: 'none',
+  color: '#94a3b8',
   cursor: 'pointer',
-  padding: 0,
+  padding: '2px',
   display: 'flex',
   alignItems: 'center',
 };
 
-const primaryBtnStyle = (disabled: boolean): React.CSSProperties => ({
+const submitBtnStyle = (disabled: boolean): React.CSSProperties => ({
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
   gap: '0.5rem',
   width: '100%',
-  padding: '0.75rem',
-  background: disabled ? 'rgba(59,130,246,0.4)' : 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)',
+  height: '44px',
+  backgroundColor: disabled ? '#93c5fd' : '#2563eb',
+  color: '#ffffff',
+  fontSize: '0.875rem',
+  fontWeight: 600,
   border: 'none',
   borderRadius: '8px',
-  color: '#fff',
-  fontSize: '0.9rem',
-  fontWeight: 600,
   cursor: disabled ? 'not-allowed' : 'pointer',
-  transition: 'all 0.2s ease',
+  boxShadow: '0 4px 14px rgba(37, 99, 235, 0.35)',
+  transition: 'background-color 0.15s ease, transform 0.1s ease',
+  boxSizing: 'border-box',
+  marginTop: '0.5rem',
 });
 
-const dividerStyle: React.CSSProperties = {
+const dividerContainerStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: '0.75rem',
-  margin: '1.5rem 0',
+  margin: '1.15rem 0',
 };
 
 const dividerLineStyle: React.CSSProperties = {
   flex: 1,
   height: '1px',
-  background: 'rgba(59,130,246,0.15)',
+  backgroundColor: '#e2e8f0',
 };
 
-const googleBtnStyle: React.CSSProperties = {
+const dividerTextStyle: React.CSSProperties = {
+  padding: '0 0.75rem',
+  fontSize: '0.75rem',
+  color: '#94a3b8',
+  whiteSpace: 'nowrap',
+};
+
+const footerContainerStyle: React.CSSProperties = {
+  marginTop: '1.25rem',
+  textAlign: 'center',
+};
+
+const footerTextStyle: React.CSSProperties = {
+  fontSize: '0.825rem',
+  color: '#64748b',
+  margin: 0,
+};
+
+const footerLinkStyle: React.CSSProperties = {
+  color: '#2563eb',
+  fontWeight: 600,
+  textDecoration: 'none',
+};
+
+const errorTextStyle: React.CSSProperties = {
+  fontSize: '0.75rem',
+  color: '#dc2626',
+  marginTop: '0.2rem',
+  margin: 0,
+};
+
+const errorBannerStyle: React.CSSProperties = {
+  backgroundColor: '#fef2f2',
+  border: '1px solid #fecaca',
+  borderRadius: '8px',
+  padding: '0.65rem 0.85rem',
+  marginBottom: '1rem',
+  fontSize: '0.8rem',
+  color: '#b91c1c',
   display: 'flex',
   alignItems: 'center',
-  justifyContent: 'center',
-  gap: '0.65rem',
-  width: '100%',
-  padding: '0.7rem',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(59,130,246,0.2)',
-  borderRadius: '8px',
-  color: '#e2e8f0',
-  fontSize: '0.875rem',
-  fontWeight: 600,
-  cursor: 'pointer',
+  gap: '0.5rem',
 };
 
-function GoogleIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-      <path d="M17.64 9.205c0-.638-.057-1.252-.163-1.841H9v3.481h4.844c-.21 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
-      <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
-      <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
-      <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
-    </svg>
-  );
-}
-
+const srOnlyStyle: React.CSSProperties = {
+  position: 'absolute',
+  width: '1px',
+  height: '1px',
+  padding: 0,
+  margin: '-1px',
+  overflow: 'hidden',
+  clip: 'rect(0, 0, 0, 0)',
+  whiteSpace: 'nowrap',
+  borderWidth: 0,
+};
