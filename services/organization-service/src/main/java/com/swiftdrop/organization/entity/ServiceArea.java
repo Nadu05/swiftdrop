@@ -4,6 +4,7 @@ import com.swiftdrop.organization.entity.enums.ServiceAreaStatus;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 /**
  * JPA entity representing a geographic service area assigned to a branch.
@@ -45,13 +46,14 @@ public class ServiceArea {
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        createdAt = now;
+        updatedAt = now;
     }
 
     @PreUpdate
     protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now(ZoneOffset.UTC);
     }
 
     public ServiceArea() {}

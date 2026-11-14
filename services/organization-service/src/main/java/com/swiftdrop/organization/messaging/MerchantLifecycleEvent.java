@@ -1,5 +1,7 @@
 package com.swiftdrop.organization.messaging;
 
+import com.swiftdrop.organization.config.CorrelationIdFilter;
+
 /**
  * Versioned merchant lifecycle event payload (JSON) published to RabbitMQ.
  *
@@ -11,6 +13,7 @@ package com.swiftdrop.organization.messaging;
  * @param eventVersion   payload schema version (currently 1)
  * @param occurredAt     ISO-8601 UTC timestamp of the committed status change
  * @param producer       always {@code organization-service}
+ * @param correlationId  request correlation ID propagated across HTTP and RabbitMQ boundaries
  * @param merchantId     Organization Service merchant profile ID
  * @param identityUserId external Identity Service user reference (unverified; may be null)
  * @param businessName   merchant business name
@@ -24,6 +27,7 @@ public record MerchantLifecycleEvent(
         int eventVersion,
         String occurredAt,
         String producer,
+        String correlationId,
         Long merchantId,
         String identityUserId,
         String businessName,
@@ -32,6 +36,35 @@ public record MerchantLifecycleEvent(
         String reason
 ) {
     public static final String PRODUCER = "organization-service";
+
+    public MerchantLifecycleEvent(
+            String eventId,
+            String eventType,
+            int eventVersion,
+            String occurredAt,
+            String producer,
+            Long merchantId,
+            String identityUserId,
+            String businessName,
+            String status,
+            String previousStatus,
+            String reason
+    ) {
+        this(
+                eventId,
+                eventType,
+                eventVersion,
+                occurredAt,
+                producer,
+                CorrelationIdFilter.currentOrGenerate(),
+                merchantId,
+                identityUserId,
+                businessName,
+                status,
+                previousStatus,
+                reason
+        );
+    }
 
     /** Routing key derived from {@link #eventType} and {@link #eventVersion}. */
     public String routingKey() {
