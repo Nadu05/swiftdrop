@@ -1,7 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, CheckCircle2, Navigation, Star, Wallet } from 'lucide-react';
+import {
+  ArrowRight,
+  CheckCircle2,
+  Navigation,
+  Package,
+  Clock,
+  Star,
+  Wallet,
+} from 'lucide-react';
 import AssignedJobCard from '@/components/courier/AssignedJobCard';
 import AvailabilityToggle from '@/components/courier/AvailabilityToggle';
 import {
@@ -18,20 +26,39 @@ import { isActiveJob, isToday, useCourierData } from '@/hooks/api/use-courier';
 
 /**
  * Member 08: Courier Dashboard
- * Route: /courier
+ * Routes: /courier/dashboard & /courier
  *
- * The courier's home: availability (what the dispatcher sees), today's numbers,
- * the job in progress, new jobs from the branch, and today's finished jobs.
+ * Displays:
+ * - Assigned deliveries
+ * - Pending pickups
+ * - Deliveries in progress
+ * - Completed deliveries
+ * - Delivery task list
  */
 export default function CourierDashboardPage() {
   const { profile, setProfile, jobs, replaceJob, loading, error, reload } = useCourierData();
 
-  if (loading && !profile) return <LoadingState text="Loading your dashboard…" />;
-  if (error || !profile) return <ErrorState message={error ?? 'Could not load your dashboard.'} onRetry={reload} />;
+  if (loading && !profile) return <LoadingState text="Loading your courier dashboard…" />;
+  if (error || !profile)
+    return (
+      <ErrorState
+        message={error ?? 'Could not load your courier dashboard from Dispatch Service.'}
+        onRetry={reload}
+      />
+    );
 
   const activeJobs = jobs.filter(isActiveJob);
   const newJobs = jobs.filter((j) => j.status === 'ASSIGNED');
-  const finishedToday = jobs.filter((j) => (j.status === 'DELIVERED' || j.status === 'FAILED') && isToday(j.completedAt));
+  const assignedDeliveriesCount = newJobs.length + activeJobs.length;
+  const pendingPickupsCount = jobs.filter(
+    (j) =>
+      (j.taskType === 'PICKUP' || j.status === 'ASSIGNED') &&
+      (j.status === 'ASSIGNED' || isActiveJob(j))
+  ).length;
+  const completedDeliveries = jobs.filter((j) => j.status === 'DELIVERED');
+  const finishedToday = jobs.filter(
+    (j) => (j.status === 'DELIVERED' || j.status === 'FAILED') && isToday(j.completedAt)
+  );
   const deliveredToday = finishedToday.filter((j) => j.status === 'DELIVERED');
   const earningsToday = deliveredToday.reduce((sum, j) => sum + j.payoutLkr, 0);
   const online = profile.status !== 'OFFLINE';
@@ -44,47 +71,96 @@ export default function CourierDashboardPage() {
         action={<AvailabilityToggle profile={profile} onChange={setProfile} />}
       />
 
+      {/* Primary Operational Metrics required by Phase 5.3 */}
       <div className="grid-cols-4">
         <StatCard
-          label="Delivered today"
-          value={deliveredToday.length}
-          hint={`${finishedToday.length - deliveredToday.length} failed attempts`}
+          label="Assigned Deliveries"
+          value={assignedDeliveriesCount}
+          hint={`${newJobs.length} awaiting acceptance`}
+          icon={<Package size={18} color="#38bdf8" />}
+        />
+        <StatCard
+          label="Pending Pickups"
+          value={pendingPickupsCount}
+          hint="Origin & hub pickup tasks"
+          icon={<Clock size={18} color="#f59e0b" />}
+        />
+        <StatCard
+          label="Deliveries in Progress"
+          value={`${activeJobs.length} / ${profile.maxCapacity}`}
+          hint="Currently en route"
+          icon={<Navigation size={18} color="#6366f1" />}
+        />
+        <StatCard
+          label="Completed Deliveries"
+          value={completedDeliveries.length}
+          hint={`${deliveredToday.length} delivered today · ${formatLkr(earningsToday)}`}
           icon={<CheckCircle2 size={18} color="#10b981" />}
         />
-        <StatCard label="Earnings today" value={formatLkr(earningsToday)} hint="From delivered jobs" icon={<Wallet size={18} color="#3b82f6" />} />
+      </div>
+
+      {/* Secondary Performance Bar */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <StatCard
-          label="Active jobs"
-          value={`${activeJobs.length} / ${profile.maxCapacity}`}
-          hint={`${newJobs.length} waiting for you to accept`}
-          icon={<Navigation size={18} color="#f59e0b" />}
+          label="Today's Payout Earnings"
+          value={formatLkr(earningsToday)}
+          hint={`From ${deliveredToday.length} delivered job(s) today`}
+          icon={<Wallet size={18} color="#3b82f6" />}
         />
-        <StatCard label="Rating" value={`${profile.rating.toFixed(1)} ★`} hint="Customer average" icon={<Star size={18} color="#8b5cf6" />} />
+        <StatCard
+          label="Courier Service Rating"
+          value={`${profile.rating.toFixed(1)} ★`}
+          hint={`Branch: ${profile.branchName}`}
+          icon={<Star size={18} color="#8b5cf6" />}
+        />
       </div>
 
       {activeJobs.length > 0 && (
         <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <SectionTitle title="In progress" subtitle="Jobs you have accepted" />
+          <SectionTitle title="Deliveries In Progress" subtitle="Jobs you have accepted and are executing" />
           {activeJobs.map((job) => (
-            <AssignedJobCard key={job.assignmentId} job={job} canAccept={online} onUpdated={replaceJob} />
+            <AssignedJobCard
+              key={job.assignmentId}
+              job={job}
+              canAccept={online}
+              onUpdated={replaceJob}
+            />
           ))}
         </section>
       )}
 
       <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         <SectionTitle
-          title="New assignments"
+          title="Delivery Task List (New Assignments)"
           subtitle="Jobs your branch dispatcher assigned to you"
           link={{ href: '/courier/deliveries', label: 'All deliveries' }}
         />
         {newJobs.length === 0 ? (
-          <EmptyState text={online ? 'No new jobs right now. Your branch will assign one soon.' : 'You are offline. Go online to receive jobs.'} />
+          <EmptyState
+            text={
+              online
+                ? 'No new jobs right now. Your branch will assign one soon.'
+                : 'You are offline. Go online to receive jobs.'
+            }
+          />
         ) : (
-          newJobs.map((job) => <AssignedJobCard key={job.assignmentId} job={job} canAccept={online} onUpdated={replaceJob} />)
+          newJobs.map((job) => (
+            <AssignedJobCard
+              key={job.assignmentId}
+              job={job}
+              canAccept={online}
+              onUpdated={replaceJob}
+            />
+          ))
         )}
       </section>
 
       <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <SectionTitle title="Finished today" subtitle="Delivered and failed jobs" link={{ href: '/courier/history', label: 'Job history' }} />
+        <SectionTitle
+          title="Completed & Finished Today"
+          subtitle="Delivered and failed jobs"
+          link={{ href: '/courier/history', label: 'Job history' }}
+        />
         {finishedToday.length === 0 ? (
           <EmptyState text="No finished jobs yet today." />
         ) : (
@@ -107,7 +183,14 @@ export default function CourierDashboardPage() {
                   {job.recipient.city} · {formatTime(job.completedAt)}
                 </span>
                 <JobStatusBadge status={job.status} />
-                <span style={{ color: '#e2e8f0', fontSize: '0.85rem', minWidth: '90px', textAlign: 'right' }}>
+                <span
+                  style={{
+                    color: '#e2e8f0',
+                    fontSize: '0.85rem',
+                    minWidth: '90px',
+                    textAlign: 'right',
+                  }}
+                >
                   {job.status === 'DELIVERED' ? formatLkr(job.payoutLkr) : 'No payout'}
                 </span>
               </div>
@@ -119,15 +202,40 @@ export default function CourierDashboardPage() {
   );
 }
 
-function SectionTitle({ title, subtitle, link }: { title: string; subtitle: string; link?: { href: string; label: string } }) {
+function SectionTitle({
+  title,
+  subtitle,
+  link,
+}: {
+  title: string;
+  subtitle: string;
+  link?: { href: string; label: string };
+}) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '1rem' }}>
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-end',
+        gap: '1rem',
+      }}
+    >
       <div>
         <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#ffffff' }}>{title}</h2>
         <p style={{ fontSize: '0.85rem', color: '#94a3b8' }}>{subtitle}</p>
       </div>
       {link && (
-        <Link href={link.href} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#60a5fa', fontSize: '0.85rem', textDecoration: 'none' }}>
+        <Link
+          href={link.href}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.3rem',
+            color: '#60a5fa',
+            fontSize: '0.85rem',
+            textDecoration: 'none',
+          }}
+        >
           {link.label} <ArrowRight size={14} />
         </Link>
       )}

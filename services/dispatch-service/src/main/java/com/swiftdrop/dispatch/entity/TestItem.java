@@ -14,7 +14,7 @@ public class TestItem {
     @Column(nullable = false, length = 255)
     private String name;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(length = 1000)
     private String description;
 
     @Column(nullable = false, length = 50)
@@ -23,7 +23,7 @@ public class TestItem {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
     public TestItem() {

@@ -11,6 +11,8 @@ export interface AdminUser {
   accountStatus: string;
   emailVerified: boolean;
   authProvider: string;
+  branchId?: number | null;
+  organizationId?: string | null;
   createdAt: string;
   updatedAt: string;
   passwordChangedAt: string | null;
@@ -24,6 +26,8 @@ export interface AdminCreateUserPayload {
   roles?: string[];
   accountStatus?: string;
   emailVerified?: boolean;
+  branchId?: number | null;
+  organizationId?: string | null;
 }
 
 export interface AdminUpdateUserPayload {
@@ -32,6 +36,8 @@ export interface AdminUpdateUserPayload {
   roles?: string[];
   accountStatus?: string;
   emailVerified?: boolean;
+  branchId?: number | null;
+  organizationId?: string | null;
 }
 
 export interface UpdateStatusPayload {

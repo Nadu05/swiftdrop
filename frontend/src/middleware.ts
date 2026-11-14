@@ -1,45 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Routes that require authentication
+/**
+ * Routes that require an authenticated session cookie.
+ * Note: `/` (Landing Page) and `/tracking` (Public Parcel Tracking) are intentionally PUBLIC.
+ */
 const protectedRoutes = [
-  '/',
+  '/customer',
+  '/merchant',
+  '/courier',
+  '/dispatcher',
+  '/branch',
+  '/admin',
+  '/organization',
+  '/book',
+  '/bookings',
+  '/customers',
   '/health',
   '/api-tester',
   '/profile',
-  '/settings/account',
-  '/settings/security',
-  '/admin',
-  '/dispatcher',
-  '/courier',
+  '/settings',
 ];
-
-// Routes that should redirect to dashboard if already authenticated
-const authRoutes = ['/login', '/register', '/forgot-password', '/reset-password'];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Check for the access or refresh token cookie (presence check only —
-  // the backend is authoritative for actual token validation)
+  // Check for the access token, refresh token, or session hint cookie set by Identity Service.
+  // Note: `sd_refresh_token` is scoped to path `/api/v1/auth`, while `sd_access_token` (15m)
+  // and `sd_auth_hint` (7d) are scoped to path `/`. Checking `sd_auth_hint` allows the client
+  // to transparently refresh an expired access token via `/api/v1/auth/refresh` without a premature redirect.
   const accessToken = request.cookies.get('sd_access_token');
   const refreshToken = request.cookies.get('sd_refresh_token');
-  const hasAuth = !!accessToken || !!refreshToken;
+  const authHint = request.cookies.get('sd_auth_hint');
+  const hasAuth = !!accessToken || !!refreshToken || !!authHint;
 
-  // Protected routes: redirect to /login if no auth cookies
   const isProtected = protectedRoutes.some(
-    (route) => pathname === route || (route !== '/' && pathname.startsWith(route + '/'))
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
   );
 
   if (isProtected && !hasAuth) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('callbackUrl', pathname);
     return NextResponse.redirect(loginUrl);
-  }
-
-  // Auth routes: redirect to / if already authenticated
-  const isAuthRoute = authRoutes.some((route) => pathname === route);
-  if (isAuthRoute && hasAuth) {
-    return NextResponse.redirect(new URL('/', request.url));
   }
 
   return NextResponse.next();
@@ -58,4 +59,3 @@ export const config = {
     '/((?!api|_next/static|_next/image|favicon\\.ico|.*\\..*).*)',
   ],
 };
-

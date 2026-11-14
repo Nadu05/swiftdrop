@@ -8,12 +8,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { registerSchema, type RegisterFormValues } from '@/schema/auth.schema';
 import { useRegister, getApiErrorMessage } from '@/hooks/api/use-auth';
 import { useAuthStore } from '@/store/auth.store';
+import { resolvePostAuthRedirect } from '@/lib/auth/role-resolver';
 import { Eye, EyeOff, UserPlus, Box, Check, X } from 'lucide-react';
 import GoogleSignInButton from '@/components/auth/GoogleSignInButton';
 
 export default function RegisterPage() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const activeRole = useAuthStore((s) => s.activeRole);
   const isInitialized = useAuthStore((s) => s.isInitialized);
 
   const [showPassword, setShowPassword] = useState(false);
@@ -24,9 +26,9 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (isInitialized && user) {
-      router.replace('/');
+      router.replace(resolvePostAuthRedirect(user, null, activeRole));
     }
-  }, [isInitialized, user, router]);
+  }, [isInitialized, user, activeRole, router]);
 
   const {
     register,

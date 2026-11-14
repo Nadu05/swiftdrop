@@ -13,7 +13,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD}
       POSTGRES_DB: postgres
     ports:
-      - "${POSTGRES_HOST_PORT:-5437}:5432"
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
     volumes:
       - swiftdrop_postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -35,6 +35,27 @@ services:
       postgres:
         condition: service_healthy
 
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: swiftdrop-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-swiftdrop}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-password123}
+    ports:
+      - "${RABBITMQ_AMQP_PORT:-5672}:5672"
+      - "${RABBITMQ_MGMT_PORT:-15672}:15672"
+    volumes:
+      - swiftdrop_rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
 volumes:
   swiftdrop_postgres_data:
     name: swiftdrop_postgres_data
+  swiftdrop_rabbitmq_data:
+    name: swiftdrop-rabbitmq-data

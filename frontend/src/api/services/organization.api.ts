@@ -478,6 +478,26 @@ export async function fetchMerchantApprovalSummaryMetrics(): Promise<MerchantApp
 }
 
 /**
+ * Fetch merchant applications submitted by the currently authenticated user.
+ *
+ * Confirmed Backend Endpoint:
+ * GET /api/v1/organization/merchants/applications/my
+ */
+export async function fetchMyMerchantApplications(): Promise<MerchantApplicationResponse[]> {
+  try {
+    const response = await apiClient.get<MerchantApplicationResponse[]>(
+      `${MERCHANT_APPLICATIONS_BASE_PATH}/my`
+    );
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error: any) {
+    throw buildOrganizationApiError(
+      error,
+      'Unable to load your merchant onboarding applications.'
+    );
+  }
+}
+
+/**
  * Fetch a single merchant application by its application code or numeric ID.
  *
  * Confirmed Backend Endpoint:
@@ -594,3 +614,10 @@ export function calculateOrganizationDashboardMetrics(
     inactiveServiceAreas,
   };
 }
+
+export const organizationApi = {
+  getBranches,
+  createBranch,
+  updateBranch,
+  getBranchById,
+};

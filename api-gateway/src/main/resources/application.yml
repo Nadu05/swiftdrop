@@ -4,6 +4,11 @@ server:
 spring:
   application:
     name: api-gateway
+  config:
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:../infrastructure/dev/.env[.properties]
+      - optional:file:infrastructure/dev/.env[.properties]
   cloud:
     gateway:
       globalcors:

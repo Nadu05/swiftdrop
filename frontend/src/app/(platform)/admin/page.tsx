@@ -1,314 +1,430 @@
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
+import {
+  Users,
+  Building2,
+  Store,
+  Package,
+  ShieldCheck,
+  Activity,
+  Terminal,
+  Layers,
+  CheckCircle2,
+  AlertTriangle,
+  RefreshCw,
+  ArrowUpRight,
+  UserCheck,
+  UserX,
+} from 'lucide-react';
 import AdminGuard from '@/components/auth/AdminGuard';
 import { useAdminStats } from '@/hooks/api/use-admin';
 import {
-  Users,
-  UserCheck,
-  UserX,
-  ShieldAlert,
-  ShieldCheck,
-  ArrowRight,
-  UserPlus,
-  Layers,
-  Activity,
-  AlertTriangle,
-  Loader2,
-} from 'lucide-react';
+  getBranches,
+  fetchMerchantApprovalSummaryMetrics,
+} from '@/api/services/organization.api';
+import { getCustomerOrders } from '@/api/services/orders.api';
+import type { BranchResponse, MerchantApprovalSummaryResponse } from '@/types/organization.types';
+import type { OrderResponse } from '@/types/order.types';
 
-function AdminOverview() {
-  const { data: stats, isLoading, error } = useAdminStats();
+function SystemAdminDashboardContent() {
+  // 1. Total Users & Role Breakdown from Identity Service
+  const {
+    data: userStats,
+    isLoading: usersLoading,
+    isError: usersError,
+    refetch: refetchUsers,
+  } = useAdminStats();
 
-  if (isLoading) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-        <Loader2 size={32} color="#3b82f6" className="animate-spin" />
-      </div>
-    );
-  }
+  // 2. Total Branches from Organization Service
+  const {
+    data: branches = [],
+    isLoading: branchesLoading,
+    isError: branchesError,
+    refetch: refetchBranches,
+  } = useQuery<BranchResponse[]>({
+    queryKey: ['admin-dashboard', 'branches'],
+    queryFn: () => getBranches(),
+    retry: false,
+  });
 
-  if (error || !stats) {
-    return (
-      <div style={{ padding: '1.5rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '12px' }}>
-        <p style={{ color: '#f87171' }}>Failed to load administration metrics.</p>
-      </div>
-    );
-  }
+  // 3. Total Merchants & Approval Queue from Organization Service
+  const {
+    data: merchantSummary,
+    isLoading: merchantsLoading,
+    isError: merchantsError,
+    refetch: refetchMerchants,
+  } = useQuery<MerchantApprovalSummaryResponse>({
+    queryKey: ['admin-dashboard', 'merchant-summary'],
+    queryFn: () => fetchMerchantApprovalSummaryMetrics(),
+    retry: false,
+  });
 
-  const roleColors: Record<string, { bg: string; text: string; border: string }> = {
-    ADMIN: { bg: 'rgba(239, 68, 68, 0.15)', text: '#f87171', border: 'rgba(239, 68, 68, 0.3)' },
-    DISPATCHER: { bg: 'rgba(168, 85, 247, 0.15)', text: '#c084fc', border: 'rgba(168, 85, 247, 0.3)' },
-    COURIER: { bg: 'rgba(59, 130, 246, 0.15)', text: '#60a5fa', border: 'rgba(59, 130, 246, 0.3)' },
-    MERCHANT: { bg: 'rgba(245, 158, 11, 0.15)', text: '#fbbf24', border: 'rgba(245, 158, 11, 0.3)' },
-    CUSTOMER: { bg: 'rgba(16, 185, 129, 0.15)', text: '#34d399', border: 'rgba(16, 185, 129, 0.3)' },
+  // 4. Total Deliveries from Order Service
+  const {
+    data: orders = [],
+    isLoading: ordersLoading,
+    isError: ordersError,
+    refetch: refetchOrders,
+  } = useQuery<OrderResponse[]>({
+    queryKey: ['admin-dashboard', 'orders'],
+    queryFn: () => getCustomerOrders(),
+    retry: false,
+  });
+
+  const handleRefreshAll = () => {
+    refetchUsers();
+    refetchBranches();
+    refetchMerchants();
+    refetchOrders();
   };
 
+  const activeBranchesCount = branches.filter((b) => b.status === 'ACTIVE').length;
+  const deliveredOrdersCount = orders.filter((o) => o.status === 'DELIVERED').length;
+
   return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      {/* Page Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            <ShieldCheck size={24} color="#60a5fa" />
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#f8fafc', letterSpacing: '-0.02em' }}>
-              Administration & RBAC
-            </h1>
+    <div className="max-w-7xl mx-auto space-y-6">
+      {/* Header Banner */}
+      <div className="rounded-2xl bg-gradient-to-r from-[#131c38] via-[#0e172e] to-[#091022] border border-blue-500/25 p-6 sm:p-7 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
+        <div className="space-y-1.5">
+          <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-sky-400">
+            <ShieldCheck className="h-4 w-4" />
+            <span>Head Office &amp; System Governance</span>
           </div>
-          <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.25rem' }}>
-            Central identity governance, role-based access control, and account lifecycle management
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
+            System Administration Dashboard
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-300">
+            Centralized platform telemetry across Identity, Organization, Order, Dispatch, and Notification microservices.
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <Link
-            href="/admin/users"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.65rem 1.25rem',
-              background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)',
-              borderRadius: '8px',
-              color: '#fff',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              textDecoration: 'none',
-            }}
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={handleRefreshAll}
+            className="sd-btn sd-btn--secondary-dark"
           >
-            <Users size={16} />
-            <span>Manage Users</span>
-          </Link>
+            <RefreshCw className="h-3.5 w-3.5" />
+            <span>Refresh All Services</span>
+          </button>
           <Link
-            href="/admin/roles"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.65rem 1.25rem',
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(59, 130, 246, 0.2)',
-              borderRadius: '8px',
-              color: '#cbd5e1',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              textDecoration: 'none',
-            }}
+            href="/health"
+            className="sd-btn sd-btn--primary"
           >
-            <Layers size={16} />
-            <span>Platform Roles</span>
+            <Activity className="h-4 w-4" />
+            <span>Service Health Matrix</span>
           </Link>
         </div>
       </div>
 
-      {/* Primary KPI Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
+      {/* Primary KPI Cards required by Phase 5.6 (Distinguishing Unavailable from 0) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Users */}
-        <div style={kpiCardStyle}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={kpiLabelStyle}>TOTAL IDENTITIES</span>
-            <div style={iconBadgeStyle('#3b82f6', 'rgba(59, 130, 246, 0.15)')}>
-              <Users size={18} color="#60a5fa" />
-            </div>
+        <div className="sd-stat-card sd-stat-card--dark">
+          <div className="sd-stat-card__header">
+            <span>Total Users</span>
+            <Users className="h-4 w-4 text-sky-400" />
           </div>
-          <div style={kpiValueStyle}>{stats.totalUsers}</div>
-          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Platform wide registered accounts</span>
+          <div className="sd-stat-card__value">
+            {usersLoading
+              ? '…'
+              : usersError || !userStats
+              ? 'Unavailable'
+              : userStats.totalUsers}
+          </div>
+          <div className="sd-stat-card__subtext">
+            {usersError || !userStats
+              ? 'Identity Service unreachable'
+              : `${userStats.activeUsers} active · ${userStats.suspendedUsers} suspended`}
+          </div>
         </div>
 
-        {/* Active Users */}
-        <div style={kpiCardStyle}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={kpiLabelStyle}>ACTIVE</span>
-            <div style={iconBadgeStyle('#10b981', 'rgba(16, 185, 129, 0.15)')}>
-              <UserCheck size={18} color="#34d399" />
-            </div>
+        {/* Total Branches */}
+        <div className="sd-stat-card sd-stat-card--dark">
+          <div className="sd-stat-card__header">
+            <span>Total Branches</span>
+            <Building2 className="h-4 w-4 text-cyan-400" />
           </div>
-          <div style={kpiValueStyle}>{stats.activeUsers}</div>
-          <span style={{ fontSize: '0.75rem', color: '#10b981' }}>Authorized to sign in</span>
+          <div className="sd-stat-card__value text-cyan-400">
+            {branchesLoading
+              ? '…'
+              : branchesError
+              ? 'Unavailable'
+              : branches.length}
+          </div>
+          <div className="sd-stat-card__subtext">
+            {branchesError
+              ? 'Organization Service unreachable'
+              : `${activeBranchesCount} active sorting hubs`}
+          </div>
         </div>
 
-        {/* Suspended Users */}
-        <div style={kpiCardStyle}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={kpiLabelStyle}>SUSPENDED</span>
-            <div style={iconBadgeStyle('#f87171', 'rgba(239, 68, 68, 0.15)')}>
-              <UserX size={18} color="#f87171" />
-            </div>
+        {/* Total Merchants */}
+        <div className="sd-stat-card sd-stat-card--dark">
+          <div className="sd-stat-card__header">
+            <span>Total Merchants</span>
+            <Store className="h-4 w-4 text-indigo-400" />
           </div>
-          <div style={kpiValueStyle}>{stats.suspendedUsers}</div>
-          <span style={{ fontSize: '0.75rem', color: '#f87171' }}>Access denied / revoked</span>
+          <div className="sd-stat-card__value text-indigo-400">
+            {merchantsLoading
+              ? '…'
+              : merchantsError || !merchantSummary
+              ? 'Unavailable'
+              : merchantSummary.approvedThisMonth}
+          </div>
+          <div className="sd-stat-card__subtext">
+            {merchantsError || !merchantSummary
+              ? 'Organization Service unreachable'
+              : `${merchantSummary.pendingReview} pending · ${merchantSummary.totalSubmissions} total`}
+          </div>
         </div>
 
-        {/* Deactivated Users */}
-        <div style={kpiCardStyle}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={kpiLabelStyle}>DEACTIVATED</span>
-            <div style={iconBadgeStyle('#64748b', 'rgba(100, 116, 139, 0.15)')}>
-              <ShieldAlert size={18} color="#94a3b8" />
-            </div>
+        {/* Total Deliveries */}
+        <div className="sd-stat-card sd-stat-card--dark">
+          <div className="sd-stat-card__header">
+            <span>Total Deliveries</span>
+            <Package className="h-4 w-4 text-emerald-400" />
           </div>
-          <div style={kpiValueStyle}>{stats.deactivatedUsers}</div>
-          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Self-requested deactivation</span>
-        </div>
-
-        {/* Pending Verification */}
-        <div style={kpiCardStyle}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={kpiLabelStyle}>PENDING VERIFY</span>
-            <div style={iconBadgeStyle('#f59e0b', 'rgba(245, 158, 11, 0.15)')}>
-              <AlertTriangle size={18} color="#fbbf24" />
-            </div>
+          <div className="sd-stat-card__value text-emerald-400">
+            {ordersLoading ? '…' : ordersError ? 'Unavailable' : orders.length}
           </div>
-          <div style={kpiValueStyle}>{stats.pendingVerificationUsers}</div>
-          <span style={{ fontSize: '0.75rem', color: '#f59e0b' }}>Awaiting verification</span>
+          <div className="sd-stat-card__subtext">
+            {ordersError
+              ? 'Order Service unreachable'
+              : `${deliveredOrdersCount} completed deliveries`}
+          </div>
         </div>
       </div>
 
-      {/* Role Distribution Section */}
-      <div
-        style={{
-          background: 'rgba(17, 24, 39, 0.85)',
-          backdropFilter: 'blur(16px)',
-          border: '1px solid rgba(59, 130, 246, 0.2)',
-          borderRadius: '16px',
-          padding: '1.75rem',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-          <div>
-            <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#f8fafc' }}>
-              Canonical Role Distribution
-            </h2>
-            <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.2rem' }}>
-              Users assigned to each of the 5 canonical SwiftDrop roles
-            </p>
+      {/* System Operational Overview Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left: Role Breakdown & Account Governance */}
+        <div className="lg:col-span-6 rounded-2xl bg-[#0c1829] border border-white/10 p-6 space-y-5">
+          <div className="flex items-center justify-between border-b border-white/10 pb-4">
+            <div>
+              <h2 className="text-base font-bold text-white">
+                Identity &amp; Role Distribution
+              </h2>
+              <p className="text-xs text-slate-400">
+                Live user accounts by canonical role from Identity Service
+              </p>
+            </div>
+            <Link
+              href="/admin/users"
+              className="text-xs font-semibold text-sky-400 hover:text-sky-300 inline-flex items-center gap-1"
+            >
+              <span>Manage Users</span>
+              <ArrowUpRight className="h-3.5 w-3.5" />
+            </Link>
           </div>
-          <Link
-            href="/admin/roles"
-            style={{
-              fontSize: '0.85rem',
-              color: '#60a5fa',
-              textDecoration: 'none',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.35rem',
-            }}
-          >
-            <span>View All Roles</span>
-            <ArrowRight size={14} />
-          </Link>
-        </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
-          {Object.entries(stats.usersByRole || {}).map(([role, count]) => {
-            const style = roleColors[role] || {
-              bg: 'rgba(59, 130, 246, 0.15)',
-              text: '#60a5fa',
-              border: 'rgba(59, 130, 246, 0.3)',
-            };
-            return (
-              <div
-                key={role}
-                style={{
-                  padding: '1.25rem',
-                  background: 'rgba(15, 23, 42, 0.6)',
-                  borderRadius: '12px',
-                  border: `1px solid ${style.border}`,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.5rem',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span
-                    style={{
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      padding: '0.2rem 0.5rem',
-                      borderRadius: '6px',
-                      background: style.bg,
-                      color: style.text,
-                    }}
-                  >
-                    {role}
-                  </span>
+          {usersError ? (
+            <div className="p-6 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs text-amber-300 flex items-center gap-2.5">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              <span>Identity Service `/api/v1/admin/stats` is currently unreachable.</span>
+            </div>
+          ) : usersLoading || !userStats ? (
+            <div className="text-xs text-slate-400 py-6">Loading role distribution…</div>
+          ) : (
+            <>
+              <div className="grid grid-cols-3 gap-3 text-xs">
+                <div className="p-3.5 rounded-xl bg-slate-950/70 border border-white/5">
+                  <div className="flex items-center gap-1.5 text-emerald-400 font-semibold">
+                    <UserCheck className="h-3.5 w-3.5" />
+                    <span>Active</span>
+                  </div>
+                  <div className="text-xl font-extrabold text-white mt-1">
+                    {userStats.activeUsers}
+                  </div>
                 </div>
-                <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#f8fafc' }}>{count}</div>
-                <span style={{ fontSize: '0.72rem', color: '#64748b' }}>Assigned users</span>
+                <div className="p-3.5 rounded-xl bg-slate-950/70 border border-white/5">
+                  <div className="flex items-center gap-1.5 text-amber-400 font-semibold">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    <span>Suspended</span>
+                  </div>
+                  <div className="text-xl font-extrabold text-white mt-1">
+                    {userStats.suspendedUsers}
+                  </div>
+                </div>
+                <div className="p-3.5 rounded-xl bg-slate-950/70 border border-white/5">
+                  <div className="flex items-center gap-1.5 text-rose-400 font-semibold">
+                    <UserX className="h-3.5 w-3.5" />
+                    <span>Deactivated</span>
+                  </div>
+                  <div className="text-xl font-extrabold text-white mt-1">
+                    {userStats.deactivatedUsers}
+                  </div>
+                </div>
               </div>
-            );
-          })}
-        </div>
-      </div>
 
-      {/* Governance & Architecture Notice */}
-      <div
-        style={{
-          padding: '1.25rem 1.5rem',
-          background: 'rgba(30, 41, 59, 0.4)',
-          border: '1px solid rgba(59, 130, 246, 0.15)',
-          borderRadius: '12px',
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: '1rem',
-        }}
-      >
-        <Activity size={20} color="#3b82f6" style={{ flexShrink: 0, marginTop: '0.2rem' }} />
-        <div style={{ fontSize: '0.85rem', color: '#94a3b8', lineHeight: 1.5 }}>
-          <strong style={{ color: '#cbd5e1' }}>Microservice Boundary Enforcement:</strong> Identity Service strictly
-          governs global identity credentials, account states, and canonical role assignments. Merchant organization
-          profiles, approval workflows, and branch memberships are managed by{' '}
-          <strong style={{ color: '#60a5fa' }}>Organization Service</strong>.
+              <div className="space-y-3 pt-2">
+                {Object.entries(userStats.usersByRole || {}).map(([role, count]) => {
+                  const pct =
+                    userStats.totalUsers > 0
+                      ? Math.round((Number(count) / userStats.totalUsers) * 100)
+                      : 0;
+                  return (
+                    <div key={role} className="space-y-1 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono font-semibold text-slate-200">
+                          {role}
+                        </span>
+                        <span className="text-slate-400">
+                          <strong className="text-white">{count}</strong> ({pct}%)
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-blue-500 to-sky-400"
+                          style={{ width: `${Math.max(4, pct)}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Right: System Operational Modules & Branch/Merchant Governance */}
+        <div className="lg:col-span-6 space-y-6">
+          {/* Administrative Quick Modules */}
+          <div className="rounded-2xl bg-[#0c1829] border border-white/10 p-6 space-y-4">
+            <div>
+              <h2 className="text-base font-bold text-white">
+                System Operational Governance
+              </h2>
+              <p className="text-xs text-slate-400">
+                Direct administration consoles for users, roles, branches, merchants, and diagnostics
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <Link
+                href="/admin/users"
+                className="p-4 rounded-xl bg-slate-950/70 border border-white/10 hover:border-sky-400/40 transition-all flex items-center justify-between"
+              >
+                <div>
+                  <div className="font-bold text-white">User Directory</div>
+                  <div className="text-slate-400 mt-0.5">Manage statuses &amp; roles</div>
+                </div>
+                <Users className="h-4 w-4 text-sky-400 shrink-0" />
+              </Link>
+
+              <Link
+                href="/admin/roles"
+                className="p-4 rounded-xl bg-slate-950/70 border border-white/10 hover:border-sky-400/40 transition-all flex items-center justify-between"
+              >
+                <div>
+                  <div className="font-bold text-white">Platform Roles</div>
+                  <div className="text-slate-400 mt-0.5">Canonical RBAC matrix</div>
+                </div>
+                <Layers className="h-4 w-4 text-indigo-400 shrink-0" />
+              </Link>
+
+              <Link
+                href="/organization/branches"
+                className="p-4 rounded-xl bg-slate-950/70 border border-white/10 hover:border-cyan-400/40 transition-all flex items-center justify-between"
+              >
+                <div>
+                  <div className="font-bold text-white">Branch Network</div>
+                  <div className="text-slate-400 mt-0.5">Sorting hubs &amp; coverage</div>
+                </div>
+                <Building2 className="h-4 w-4 text-cyan-400 shrink-0" />
+              </Link>
+
+              <Link
+                href="/organization/merchants"
+                className="p-4 rounded-xl bg-slate-950/70 border border-white/10 hover:border-emerald-400/40 transition-all flex items-center justify-between"
+              >
+                <div>
+                  <div className="font-bold text-white">Merchant Approvals</div>
+                  <div className="text-slate-400 mt-0.5">Onboarding review queue</div>
+                </div>
+                <Store className="h-4 w-4 text-emerald-400 shrink-0" />
+              </Link>
+
+              <Link
+                href="/health"
+                className="p-4 rounded-xl bg-slate-950/70 border border-white/10 hover:border-amber-400/40 transition-all flex items-center justify-between"
+              >
+                <div>
+                  <div className="font-bold text-white">Microservice Health</div>
+                  <div className="text-slate-400 mt-0.5">Gateway &amp; service probes</div>
+                </div>
+                <Activity className="h-4 w-4 text-amber-400 shrink-0" />
+              </Link>
+
+              <Link
+                href="/api-tester"
+                className="p-4 rounded-xl bg-slate-950/70 border border-white/10 hover:border-purple-400/40 transition-all flex items-center justify-between"
+              >
+                <div>
+                  <div className="font-bold text-white">API Diagnostics</div>
+                  <div className="text-slate-400 mt-0.5">Test gateway endpoints</div>
+                </div>
+                <Terminal className="h-4 w-4 text-purple-400 shrink-0" />
+              </Link>
+            </div>
+          </div>
+
+          {/* Active Branch Directory Snapshot */}
+          <div className="rounded-2xl bg-[#0c1829] border border-white/10 p-6 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-white">Regional Branch Hubs</h3>
+              <Link
+                href="/organization/branches"
+                className="text-xs font-semibold text-cyan-400 hover:text-cyan-300"
+              >
+                View All &rarr;
+              </Link>
+            </div>
+
+            {branchesError ? (
+              <div className="text-xs text-amber-300">
+                Branch directory unavailable (Organization Service offline).
+              </div>
+            ) : branchesLoading ? (
+              <div className="text-xs text-slate-400">Loading branches…</div>
+            ) : branches.length === 0 ? (
+              <div className="text-xs text-slate-400">No branches configured.</div>
+            ) : (
+              <div className="divide-y divide-white/5 text-xs">
+                {branches.slice(0, 4).map((b) => (
+                  <div
+                    key={b.id}
+                    className="py-2.5 flex items-center justify-between gap-2"
+                  >
+                    <div>
+                      <span className="font-mono font-bold text-cyan-400 mr-2">
+                        {b.code}
+                      </span>
+                      <span className="font-semibold text-white">{b.name}</span>
+                      <span className="text-slate-400 ml-2">({b.city})</span>
+                    </div>
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400">
+                      <CheckCircle2 className="h-3 w-3" />
+                      {b.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-export default function AdminPage() {
+export default function AdminOverviewPage() {
   return (
     <AdminGuard>
-      <AdminOverview />
+      <SystemAdminDashboardContent />
     </AdminGuard>
   );
 }
-
-// ─── Style helpers ────────────────────────────────────────────────────────────
-
-const kpiCardStyle: React.CSSProperties = {
-  background: 'rgba(17, 24, 39, 0.85)',
-  backdropFilter: 'blur(16px)',
-  border: '1px solid rgba(59, 130, 246, 0.2)',
-  borderRadius: '14px',
-  padding: '1.25rem',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '0.4rem',
-};
-
-const kpiLabelStyle: React.CSSProperties = {
-  fontSize: '0.68rem',
-  fontWeight: 700,
-  color: '#64748b',
-  letterSpacing: '0.05em',
-};
-
-const kpiValueStyle: React.CSSProperties = {
-  fontSize: '1.85rem',
-  fontWeight: 800,
-  color: '#f8fafc',
-  letterSpacing: '-0.02em',
-  marginTop: '0.2rem',
-};
-
-const iconBadgeStyle = (color: string, bg: string): React.CSSProperties => ({
-  width: '32px',
-  height: '32px',
-  borderRadius: '8px',
-  background: bg,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-});
-

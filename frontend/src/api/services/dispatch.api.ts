@@ -337,6 +337,130 @@ export interface FailureSubmissionRequest {
   notes: string;
 }
 
+export interface ReadyForTransferParcelDto {
+  pickupTaskId?: number;
+  taskCode?: string;
+  orderId: string | number;
+  trackingNumber: string;
+  parcelReference?: string;
+  originBranchId: number;
+  originBranchCode?: string;
+  originBranchName?: string;
+  destinationBranchId: number;
+  destinationBranchCode?: string;
+  destinationBranchName?: string;
+  parcelCategory?: string;
+  weightKg?: number;
+  priority?: string;
+  readySince?: string;
+}
+
+export interface TransferParcelItemDto {
+  id?: number;
+  orderId: string | number;
+  trackingNumber: string;
+  parcelReference?: string;
+  weightKg?: number;
+  parcelCategory?: string;
+  status: 'MANIFESTED' | 'DISPATCHED' | 'RECEIVED' | 'MISSING' | 'DAMAGED' | string;
+  discrepancyNotes?: string;
+  addedAt?: string;
+  dispatchedAt?: string;
+  receivedAt?: string;
+}
+
+export interface TransferManifestDto {
+  id: number;
+  manifestCode: string;
+  originBranchId: number;
+  originBranchCode?: string;
+  originBranchName?: string;
+  destinationBranchId: number;
+  destinationBranchCode?: string;
+  destinationBranchName?: string;
+  status:
+    | 'DRAFT'
+    | 'ASSIGNED'
+    | 'IN_TRANSIT'
+    | 'RECEIVED'
+    | 'RECEIVED_WITH_DISCREPANCY'
+    | 'COMPLETED'
+    | 'CANCELLED'
+    | string;
+  assignedCourierId?: string;
+  assignedCourierCode?: string;
+  assignedCourierName?: string;
+  vehicleType?: string;
+  vehiclePlate?: string;
+  expectedParcelCount: number;
+  receivedParcelCount: number;
+  missingParcelCount: number;
+  damagedParcelCount: number;
+  originHandoverById?: string;
+  originHandoverByName?: string;
+  originHandoverAt?: string;
+  departureAt?: string;
+  arrivalAt?: string;
+  destinationReceivedById?: string;
+  destinationReceivedByName?: string;
+  destinationReceivedAt?: string;
+  completedAt?: string;
+  notes?: string;
+  discrepancyNotes?: string;
+  createdById?: string;
+  createdByName?: string;
+  createdAt?: string;
+  parcels: TransferParcelItemDto[];
+}
+
+export interface CreateTransferManifestRequest {
+  originBranchId?: number;
+  originBranchCode?: string;
+  originBranchName?: string;
+  destinationBranchId: number;
+  destinationBranchCode?: string;
+  destinationBranchName?: string;
+  parcelKeys?: string[];
+  orderIds?: string[];
+  trackingNumbers?: string[];
+  notes?: string;
+}
+
+export interface AssignTransferCourierRequest {
+  courierId: string;
+  notes?: string;
+  reason?: string;
+}
+
+export interface DepartManifestRequest {
+  handoverNotes?: string;
+  sealNumber?: string;
+  employeeId?: string;
+  employeeName?: string;
+}
+
+export interface ParcelConditionItem {
+  parcelKey: string;
+  discrepancyNotes?: string;
+  evidenceReference?: string;
+}
+
+export interface ParcelVerificationItem {
+  parcelKey: string;
+  status: 'RECEIVED' | 'MISSING' | 'DAMAGED';
+  discrepancyNotes?: string;
+  evidenceReference?: string;
+}
+
+export interface ReceiveManifestRequest {
+  receivedOrderIds?: string[];
+  missingOrderIds?: string[];
+  damagedParcels?: ParcelConditionItem[];
+  parcelVerifications?: ParcelVerificationItem[];
+  discrepancyNotes?: string;
+  notes?: string;
+}
+
 function handleDispatchError(error: unknown, fallback: string): never {
   const message = getApiErrorMessage(error);
   throw new Error(message && message !== 'An unexpected error occurred' ? message : fallback);
@@ -398,8 +522,9 @@ export const dispatchApi = {
   },
 
   // ── Couriers & Availability ─────────────────────────────────────────────────
-  async getCouriers(branchId?: number): Promise<CourierProfileDto[]> {
+  async getCouriers(param?: number | { branchId?: number }): Promise<CourierProfileDto[]> {
     try {
+      const branchId = typeof param === 'number' ? param : param?.branchId;
       const { data } = await axiosClient.get<CourierProfileDto[]>('/api/v1/dispatch/couriers', {
         params: branchId ? { branchId } : undefined,
       });
@@ -608,6 +733,164 @@ export const dispatchApi = {
       return data;
     } catch (error) {
       handleDispatchError(error, 'Failed to record delivery failure');
+    }
+  },
+
+  // ── Inter-Branch Transfer Manifest Endpoints ───────────────────────────────
+  async listReadyForTransferParcels(params?: {
+    originBranchId?: number;
+    destinationBranchId?: number;
+  }): Promise<ReadyForTransferParcelDto[]> {
+    try {
+      const { data } = await axiosClient.get<ReadyForTransferParcelDto[]>(
+        '/api/v1/dispatch/transfers/ready-parcels',
+        { params }
+      );
+      return Array.isArray(data) ? data : [];
+    } catch (error) {
+      handleDispatchError(error, 'Failed to load parcels ready for transfer');
+    }
+  },
+
+  async createTransferManifest(payload: CreateTransferManifestRequest): Promise<TransferManifestDto> {
+    try {
+      const { data } = await axiosClient.post<TransferManifestDto>(
+        '/api/v1/dispatch/transfers/manifests',
+        payload
+      );
+      return data;
+    } catch (error) {
+      handleDispatchError(error, 'Failed to create transfer manifest');
+    }
+  },
+
+  async listTransferManifests(params?: {
+    branchId?: number;
+    status?: string;
+  }): Promise<TransferManifestDto[]> {
+    try {
+      const { data } = await axiosClient.get<TransferManifestDto[]>(
+        '/api/v1/dispatch/transfers/manifests',
+        { params }
+      );
+      return Array.isArray(data) ? data : [];
+    } catch (error) {
+      handleDispatchError(error, 'Failed to load transfer manifests');
+    }
+  },
+
+  async getTransferManifest(manifestIdOrCode: string | number): Promise<TransferManifestDto> {
+    try {
+      const { data } = await axiosClient.get<TransferManifestDto>(
+        `/api/v1/dispatch/transfers/manifests/${encodeURIComponent(String(manifestIdOrCode))}`
+      );
+      return data;
+    } catch (error) {
+      handleDispatchError(error, 'Failed to load transfer manifest details');
+    }
+  },
+
+  async addTransferManifestParcels(
+    manifestIdOrCode: string | number,
+    payload: { parcelKeys?: string[]; orderIds?: string[]; trackingNumbers?: string[] }
+  ): Promise<TransferManifestDto> {
+    try {
+      const { data } = await axiosClient.post<TransferManifestDto>(
+        `/api/v1/dispatch/transfers/manifests/${encodeURIComponent(String(manifestIdOrCode))}/parcels`,
+        payload
+      );
+      return data;
+    } catch (error) {
+      handleDispatchError(error, 'Failed to add parcels to transfer manifest');
+    }
+  },
+
+  async removeTransferManifestParcel(
+    manifestIdOrCode: string | number,
+    parcelKey: string
+  ): Promise<TransferManifestDto> {
+    try {
+      const { data } = await axiosClient.delete<TransferManifestDto>(
+        `/api/v1/dispatch/transfers/manifests/${encodeURIComponent(String(manifestIdOrCode))}/parcels/${encodeURIComponent(parcelKey)}`
+      );
+      return data;
+    } catch (error) {
+      handleDispatchError(error, 'Failed to remove parcel from transfer manifest');
+    }
+  },
+
+  async assignTransferCourier(
+    manifestIdOrCode: string | number,
+    payload: AssignTransferCourierRequest
+  ): Promise<TransferManifestDto> {
+    try {
+      const { data } = await axiosClient.post<TransferManifestDto>(
+        `/api/v1/dispatch/transfers/manifests/${encodeURIComponent(String(manifestIdOrCode))}/assign-courier`,
+        payload
+      );
+      return data;
+    } catch (error) {
+      handleDispatchError(error, 'Failed to assign transfer courier');
+    }
+  },
+
+  async departTransferManifest(
+    manifestIdOrCode: string | number,
+    payload?: DepartManifestRequest
+  ): Promise<TransferManifestDto> {
+    try {
+      const { data } = await axiosClient.post<TransferManifestDto>(
+        `/api/v1/dispatch/transfers/manifests/${encodeURIComponent(String(manifestIdOrCode))}/depart`,
+        payload || {}
+      );
+      return data;
+    } catch (error) {
+      handleDispatchError(error, 'Failed to depart transfer manifest');
+    }
+  },
+
+  async receiveTransferManifest(
+    manifestIdOrCode: string | number,
+    payload?: ReceiveManifestRequest
+  ): Promise<TransferManifestDto> {
+    try {
+      const { data } = await axiosClient.post<TransferManifestDto>(
+        `/api/v1/dispatch/transfers/manifests/${encodeURIComponent(String(manifestIdOrCode))}/receive`,
+        payload || {}
+      );
+      return data;
+    } catch (error) {
+      handleDispatchError(error, 'Failed to receive and verify transfer manifest');
+    }
+  },
+
+  async completeTransferManifest(
+    manifestIdOrCode: string | number,
+    payload?: { notes?: string }
+  ): Promise<TransferManifestDto> {
+    try {
+      const { data } = await axiosClient.post<TransferManifestDto>(
+        `/api/v1/dispatch/transfers/manifests/${encodeURIComponent(String(manifestIdOrCode))}/complete`,
+        payload || {}
+      );
+      return data;
+    } catch (error) {
+      handleDispatchError(error, 'Failed to complete transfer manifest');
+    }
+  },
+
+  async cancelTransferManifest(
+    manifestIdOrCode: string | number,
+    payload?: { reason?: string }
+  ): Promise<TransferManifestDto> {
+    try {
+      const { data } = await axiosClient.post<TransferManifestDto>(
+        `/api/v1/dispatch/transfers/manifests/${encodeURIComponent(String(manifestIdOrCode))}/cancel`,
+        payload || {}
+      );
+      return data;
+    } catch (error) {
+      handleDispatchError(error, 'Failed to cancel transfer manifest');
     }
   },
 };

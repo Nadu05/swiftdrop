@@ -2,7 +2,17 @@
  * Authentication and User Profile Type Definitions for SwiftDrop
  */
 
-export type UserRole = 'CUSTOMER' | 'MERCHANT' | 'COURIER' | 'DISPATCHER' | 'ADMIN';
+export type UserRole =
+  | 'CUSTOMER'
+  | 'MERCHANT'
+  | 'COURIER'
+  | 'DISPATCHER'
+  | 'BRANCH_STAFF'
+  | 'BRANCH_MANAGER'
+  | 'BRANCH_ADMIN'
+  | 'HEAD_OFFICE_ADMIN'
+  | 'SYSTEM_ADMIN'
+  | 'ADMIN';
 
 export interface AuthResponse {
   userId: string;
@@ -11,6 +21,8 @@ export interface AuthResponse {
   phone: string | null;
   roles: string[];
   accountStatus: string;
+  branchId?: number | null;
+  organizationId?: string | null;
   emailVerified?: boolean;
   emailVerifiedAt?: string | null;
   createdAt: string;
@@ -47,8 +59,11 @@ export interface AuthUser {
   phone: string | null;
   roles: string[];
   accountStatus: string;
+  branchId?: number | null;
+  organizationId?: string | null;
   emailVerified?: boolean;
   emailVerifiedAt?: string | null;
+  createdAt?: string;
 }
 
 /**

@@ -11,6 +11,7 @@ import {
   type BranchFormValues,
 } from '@/schema/branch.schema';
 import type { BranchResponse } from '@/types/organization.types';
+import { AdminGuard } from '@/components/auth/RoleGuard';
 
 /**
  * Create Branch Page (/organization/branches/create)
@@ -40,38 +41,40 @@ export default function CreateBranchPage() {
   };
 
   return (
-    <div className="org-page">
-      {/* In-page Breadcrumb & Back Navigation */}
-      <div className="org-subpage-topbar">
-        <Link href="/organization/branches" className="org-back-link">
-          <ArrowLeft size={15} aria-hidden="true" />
-          <span>Back to Branch Directory</span>
-        </Link>
-      </div>
-
-      {/* Page Heading */}
-      <header className="org-page-header">
-        <div className="org-page-header__titles">
-          <p className="org-page-header__eyebrow">
-            Admin / Branch Directory / Create New Branch
-          </p>
-          <h1 className="org-page-header__title">Create New Branch</h1>
-          <p className="org-page-header__subtitle">
-            Register a new regional branch hub in the SwiftDrop Organization Service. New
-            branches are created with an Active operational status by default.
-          </p>
+    <AdminGuard>
+      <div className="org-page">
+        {/* In-page Breadcrumb & Back Navigation */}
+        <div className="org-subpage-topbar">
+          <Link href="/organization/branches" className="org-back-link">
+            <ArrowLeft size={15} aria-hidden="true" />
+            <span>Back to Branch Directory</span>
+          </Link>
         </div>
-      </header>
 
-      {/* Branch Creation Form */}
-      <BranchForm
-        mode="create"
-        initialValues={DEFAULT_BRANCH_FORM_VALUES}
-        onSubmit={handleCreateSubmit}
-        onCancel={handleCancel}
-        onSuccessNavigate={handleSuccessNavigate}
-      />
-    </div>
+        {/* Page Heading */}
+        <header className="org-page-header">
+          <div className="org-page-header__titles">
+            <p className="org-page-header__eyebrow">
+              Admin / Branch Directory / Create New Branch
+            </p>
+            <h1 className="org-page-header__title">Create New Branch</h1>
+            <p className="org-page-header__subtitle">
+              Register a new regional branch hub in the SwiftDrop Organization Service. New
+              branches are created with an Active operational status by default.
+            </p>
+          </div>
+        </header>
+
+        {/* Branch Creation Form */}
+        <BranchForm
+          mode="create"
+          initialValues={DEFAULT_BRANCH_FORM_VALUES}
+          onSubmit={handleCreateSubmit}
+          onCancel={handleCancel}
+          onSuccessNavigate={handleSuccessNavigate}
+        />
+      </div>
+    </AdminGuard>
   );
 }
 

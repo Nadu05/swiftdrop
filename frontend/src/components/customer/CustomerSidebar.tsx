@@ -11,13 +11,14 @@ import {
   User,
   Menu,
   X,
-  Sparkles,
-  ShieldCheck,
   ChevronRight,
-  CheckCircle2,
+  LogOut,
+  LogIn,
+  Home,
 } from 'lucide-react';
-import { getCurrentUserProfile } from '@/api/services/auth.api';
-import type { UserProfile } from '@/types/auth.types';
+import { useAuthStore } from '@/store/auth.store';
+import { useCurrentUser, useLogout } from '@/hooks/api/use-auth';
+import { getDashboardRouteForRole, resolvePrimaryRole } from '@/lib/auth/role-resolver';
 
 const customerNavItems = [
   { name: 'Dashboard', href: '/customer/dashboard', icon: LayoutDashboard },
@@ -28,17 +29,16 @@ const customerNavItems = [
 ];
 
 export default function CustomerSidebar() {
-  const pathname = usePathname();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const pathname = usePathname() || '';
+  useCurrentUser();
+  const user = useAuthStore((s) => s.user);
+  const activeRole = useAuthStore((s) => s.activeRole);
+  const logoutMutation = useLogout();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  useEffect(() => {
-    getCurrentUserProfile()
-      .then((p) => setProfile(p))
-      .catch(() => null);
-  }, [pathname]);
+  const primaryRole = resolvePrimaryRole(user, activeRole);
+  const dashboardHref = user ? getDashboardRouteForRole(primaryRole) : '/';
 
-  // Close mobile drawer on route transition
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
@@ -62,22 +62,21 @@ export default function CustomerSidebar() {
     return false;
   };
 
-  // User initials for avatar
-  const initials = profile?.name
-    ? profile.name
+  const initials = user?.fullName
+    ? user.fullName
         .split(' ')
         .map((n) => n[0])
         .slice(0, 2)
         .join('')
         .toUpperCase()
-    : 'CU';
+    : 'SD';
 
   const NavContent = (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '100vh', justifyContent: 'space-between' }}>
       <div>
         {/* Brand Header */}
         <div style={{ padding: '0 0.5rem 1.25rem 0.5rem' }}>
-          <Link href="/customer/dashboard" style={{ textDecoration: 'none' }}>
+          <Link href={dashboardHref} style={{ textDecoration: 'none' }}>
             <h1
               style={{
                 fontSize: '1.4rem',
@@ -91,7 +90,7 @@ export default function CustomerSidebar() {
                 gap: '0.5rem',
               }}
             >
-              SwiftDrop
+              Swift<span style={{ color: '#38bdf8' }}>Drop</span>
             </h1>
           </Link>
           <div
@@ -107,66 +106,111 @@ export default function CustomerSidebar() {
               gap: '0.35rem',
             }}
           >
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#38bdf8', display: 'inline-block' }}></span>
-            CUSTOMER PORTAL
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#38bdf8', display: 'inline-block' }} />
+            {user ? `${primaryRole} PORTAL` : 'PUBLIC TRACKING'}
           </div>
         </div>
 
         {/* Navigation Links */}
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', marginTop: '0.75rem' }}>
-          {customerNavItems.map((item) => {
-            const Icon = item.icon;
-            const active = isItemActive(item.href);
-            const isBookingAction = item.href === '/book';
+          {user ? (
+            customerNavItems.map((item) => {
+              const Icon = item.icon;
+              const active = isItemActive(item.href);
+              const isBookingAction = item.href === '/book';
+              const targetHref =
+                item.href === '/customer/dashboard' ? dashboardHref : item.href;
 
-            return (
+              return (
+                <Link
+                  key={item.name}
+                  href={targetHref}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0.7rem 0.95rem',
+                    borderRadius: '9px',
+                    fontSize: '0.875rem',
+                    fontWeight: active ? 600 : 500,
+                    color: active ? '#ffffff' : '#8da2be',
+                    background: active
+                      ? '#1d3c6e'
+                      : isBookingAction
+                      ? 'rgba(56, 189, 248, 0.05)'
+                      : 'transparent',
+                    textDecoration: 'none',
+                    transition: 'background 0.15s ease, color 0.15s ease',
+                    border:
+                      isBookingAction && !active
+                        ? '1px dashed rgba(56, 189, 248, 0.25)'
+                        : '1px solid transparent',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                    <Icon
+                      size={17}
+                      color={active ? '#38bdf8' : isBookingAction ? '#38bdf8' : '#6b7f9e'}
+                      style={{ flexShrink: 0 }}
+                    />
+                    <span>{item.name}</span>
+                  </div>
+                  {isBookingAction && !active && (
+                    <span
+                      style={{
+                        fontSize: '0.65rem',
+                        background: 'rgba(56, 189, 248, 0.15)',
+                        color: '#38bdf8',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        fontWeight: 600,
+                      }}
+                    >
+                      New
+                    </span>
+                  )}
+                </Link>
+              );
+            })
+          ) : (
+            <>
               <Link
-                key={item.name}
-                href={item.href}
+                href="/"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'space-between',
+                  gap: '0.85rem',
                   padding: '0.7rem 0.95rem',
                   borderRadius: '9px',
                   fontSize: '0.875rem',
-                  fontWeight: active ? 600 : 500,
-                  color: active ? '#ffffff' : '#8da2be',
-                  background: active
-                    ? '#1d3c6e'
-                    : isBookingAction
-                    ? 'rgba(56, 189, 248, 0.05)'
-                    : 'transparent',
+                  fontWeight: 500,
+                  color: '#8da2be',
                   textDecoration: 'none',
-                  transition: 'background 0.15s ease, color 0.15s ease',
-                  border: isBookingAction && !active ? '1px dashed rgba(56, 189, 248, 0.25)' : '1px solid transparent',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-                  <Icon
-                    size={17}
-                    color={active ? '#38bdf8' : isBookingAction ? '#38bdf8' : '#6b7f9e'}
-                    style={{ flexShrink: 0 }}
-                  />
-                  <span>{item.name}</span>
-                </div>
-                {isBookingAction && !active && (
-                  <span
-                    style={{
-                      fontSize: '0.65rem',
-                      background: 'rgba(56, 189, 248, 0.15)',
-                      color: '#38bdf8',
-                      padding: '2px 6px',
-                      borderRadius: '4px',
-                      fontWeight: 600,
-                    }}
-                  >
-                    New
-                  </span>
-                )}
+                <Home size={17} color="#6b7f9e" />
+                <span>Landing Page</span>
               </Link>
-            );
-          })}
+              <Link
+                href="/tracking"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.85rem',
+                  padding: '0.7rem 0.95rem',
+                  borderRadius: '9px',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  color: '#ffffff',
+                  background: '#1d3c6e',
+                  textDecoration: 'none',
+                }}
+              >
+                <Compass size={17} color="#38bdf8" />
+                <span>Track Parcel</span>
+              </Link>
+            </>
+          )}
         </nav>
       </div>
 
@@ -178,98 +222,111 @@ export default function CustomerSidebar() {
           borderTop: '1px solid rgba(255, 255, 255, 0.06)',
           display: 'flex',
           flexDirection: 'column',
-          gap: '0.85rem',
+          gap: '0.65rem',
         }}
       >
-        {/* Customer Profile Card */}
-        <Link
-          href="/customer/profile"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem',
-            padding: '0.65rem',
-            borderRadius: '10px',
-            background: 'rgba(255, 255, 255, 0.03)',
-            border: '1px solid rgba(255, 255, 255, 0.06)',
-            textDecoration: 'none',
-            transition: 'background 0.15s ease',
-          }}
-        >
-          <div
-            style={{
-              width: '34px',
-              height: '34px',
-              borderRadius: '8px',
-              background: 'linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%)',
-              color: '#ffffff',
-              fontWeight: 700,
-              fontSize: '0.8rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            {initials}
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div
+        {user ? (
+          <>
+            <Link
+              href="/customer/profile"
               style={{
-                fontSize: '0.82rem',
-                fontWeight: 600,
-                color: '#ffffff',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '0.65rem',
+                borderRadius: '10px',
+                background: 'rgba(255, 255, 255, 0.03)',
+                border: '1px solid rgba(255, 255, 255, 0.06)',
+                textDecoration: 'none',
               }}
             >
-              {profile?.name || 'Customer'}
-            </div>
-            <div style={{ fontSize: '0.68rem', color: '#64748b' }}>Role: CUSTOMER</div>
-          </div>
-          <ChevronRight size={14} color="#64748b" />
-        </Link>
+              <div
+                style={{
+                  width: '34px',
+                  height: '34px',
+                  borderRadius: '8px',
+                  background: 'linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%)',
+                  color: '#ffffff',
+                  fontWeight: 700,
+                  fontSize: '0.8rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                {initials}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
+                    color: '#ffffff',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {user.fullName}
+                </div>
+                <div style={{ fontSize: '0.68rem', color: '#64748b' }}>
+                  Role: {primaryRole}
+                </div>
+              </div>
+              <ChevronRight size={14} color="#64748b" />
+            </Link>
 
-        {/* Direct Access Mode Indicator */}
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <div
+            <button
+              type="button"
+              onClick={() => logoutMutation.mutate()}
+              disabled={logoutMutation.isPending}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.45rem',
+                padding: '0.5rem 0.65rem',
+                borderRadius: '8px',
+                background: 'rgba(239, 68, 68, 0.12)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                color: '#f87171',
+                fontSize: '0.76rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              <LogOut size={14} />
+              <span>{logoutMutation.isPending ? 'Signing out…' : 'Sign Out'}</span>
+            </button>
+          </>
+        ) : (
+          <Link
+            href="/login"
             style={{
-              flex: 1,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '0.45rem',
-              fontSize: '0.74rem',
-              color: '#38bdf8',
-              background: 'rgba(56, 189, 248, 0.08)',
-              border: '1px solid rgba(56, 189, 248, 0.2)',
-              padding: '0.5rem 0.65rem',
+              padding: '0.6rem',
               borderRadius: '8px',
+              background: 'linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%)',
+              color: '#ffffff',
+              fontSize: '0.8rem',
               fontWeight: 600,
-              userSelect: 'none',
+              textDecoration: 'none',
             }}
           >
-            <span
-              style={{
-                width: '6px',
-                height: '6px',
-                borderRadius: '50%',
-                background: '#22c55e',
-                boxShadow: '0 0 6px rgba(34, 197, 94, 0.6)',
-                display: 'inline-block',
-              }}
-            />
-            Direct Access Active
-          </div>
-        </div>
+            <LogIn size={15} />
+            <span>Sign In</span>
+          </Link>
+        )}
       </div>
     </div>
   );
 
   return (
     <>
-      {/* Mobile Top Navigation Bar (Screen width < 768px) */}
       <div className="customer-mobile-topbar">
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <button
@@ -290,31 +347,13 @@ export default function CustomerSidebar() {
           </button>
           <div>
             <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#ffffff' }}>SwiftDrop</div>
-            <div style={{ fontSize: '0.62rem', color: '#38bdf8', fontWeight: 700, textTransform: 'uppercase' }}>Customer Portal</div>
+            <div style={{ fontSize: '0.62rem', color: '#38bdf8', fontWeight: 700, textTransform: 'uppercase' }}>
+              Customer Portal
+            </div>
           </div>
         </div>
-
-        <Link
-          href="/customer/profile"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-            background: 'rgba(56, 189, 248, 0.1)',
-            padding: '0.35rem 0.65rem',
-            borderRadius: '999px',
-            textDecoration: 'none',
-            fontSize: '0.75rem',
-            color: '#38bdf8',
-            fontWeight: 600,
-          }}
-        >
-          <User size={13} />
-          <span>{profile?.name ? profile.name.split(' ')[0] : 'Customer'}</span>
-        </Link>
       </div>
 
-      {/* Mobile Drawer Overlay */}
       {mobileOpen && (
         <div
           onClick={() => setMobileOpen(false)}
@@ -322,7 +361,6 @@ export default function CustomerSidebar() {
         />
       )}
 
-      {/* Sidebar: Desktop fixed / Mobile off-canvas drawer */}
       <aside
         className={`customer-sidebar-root ${mobileOpen ? 'open' : ''}`}
         style={{
@@ -336,7 +374,6 @@ export default function CustomerSidebar() {
         {NavContent}
       </aside>
 
-      {/* Responsive Styles */}
       <style jsx global>{`
         .customer-mobile-topbar {
           display: none;
@@ -382,4 +419,3 @@ export default function CustomerSidebar() {
     </>
   );
 }
-

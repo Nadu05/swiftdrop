@@ -6,6 +6,7 @@ import { memo, useEffect, useMemo, useRef } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import {
+  ArrowLeftRight,
   Bike,
   Box,
   ChartColumn,
@@ -49,6 +50,7 @@ export const DISPATCHER_NAV_SECTIONS: readonly NavSection[] = [
       { label: 'Unassigned Deliveries', href: '/dispatcher/deliveries', icon: PackageSearch },
       { label: 'Assignments', href: '/dispatcher/assignments', icon: ClipboardList },
       { label: 'Active Deliveries', href: '/dispatcher/active-deliveries', icon: Truck },
+      { label: 'Inter-Branch Transfers', href: '/dispatcher/transfers', icon: ArrowLeftRight },
       { label: 'Delivery History', href: '/dispatcher/delivery-history', icon: History },
     ],
   },

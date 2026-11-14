@@ -1,0 +1,78 @@
+# =============================================================================
+# SwiftDrop Identity Service — Local Developer Configuration
+# Ready-to-use configuration with hardcoded local PostgreSQL & RabbitMQ
+# No environment variables required.
+# =============================================================================
+
+server:
+  port: 8081
+
+spring:
+  application:
+    name: identity-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/swiftdrop_identity
+    username: postgres
+    password: postgrespassword
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+      idle-timeout: 30000
+      connection-timeout: 20000
+      max-lifetime: 1800000
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    validate-on-migrate: false
+    locations: classpath:db/migration
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: swiftdrop
+    password: password123
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.swiftdrop: INFO
+    org.springframework.web: INFO
+    org.springframework.security: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+app:
+  jwt:
+    secret: Y2hhbmdlLW1lLWluLXByb2R1Y3Rpb24tYW5kLXVzZS1hLXN0cm9uZy1zZWNyZXQtaGVyZS0xMjM0NTY3ODk=
+    access-token-expiry-ms: 900000 # 15 minutes
+    refresh-token-expiry-ms: 604800000 # 7 days
+  google:
+    client-id: ""
+  cookie:
+    secure: false
+    same-site: Lax
+  cors:
+    allowed-origins: http://localhost:3000

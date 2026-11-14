@@ -17,42 +17,60 @@ import {
   KeyRound,
   Users,
   Target,
+  Building2,
+  X,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useCurrentUser, useLogout } from '@/hooks/api/use-auth';
+import {
+  getDashboardRouteForRole,
+  normalizeRoleName,
+  resolvePrimaryRole,
+} from '@/lib/auth/role-resolver';
 
-const navItems = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Customers', href: '/customers', icon: Target },
+interface SidebarProps {
+  mobileOpen?: boolean;
+  onCloseMobile?: () => void;
+}
+
+const adminNavItems = [
+  { name: 'Admin Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
+  { name: 'User Management', href: '/admin/users', icon: Users },
+  { name: 'Roles & Permissions', href: '/admin/roles', icon: Layers },
+  { name: 'Branch Network', href: '/organization/branches', icon: Building2 },
+  { name: 'Merchant Approvals', href: '/organization/merchants', icon: Server },
+  { name: 'Customer Directory', href: '/customers', icon: Target },
   { name: 'Service Health', href: '/health', icon: Activity },
-  { name: 'API Tester', href: '/api-tester', icon: Terminal },
+  { name: 'API Diagnostics', href: '/api-tester', icon: Terminal },
 ];
 
 const accountNavItems = [
-  { name: 'Profile', href: '/profile', icon: UserIcon },
+  { name: 'My Profile', href: '/profile', icon: UserIcon },
   { name: 'Account Settings', href: '/settings/account', icon: Settings },
-  { name: 'Security', href: '/settings/security', icon: KeyRound },
+  { name: 'Security & Password', href: '/settings/security', icon: KeyRound },
 ];
 
-const adminNavItems = [
-  { name: 'Admin Overview', href: '/admin', icon: ShieldCheck },
-  { name: 'User Management', href: '/admin/users', icon: Users },
-  { name: 'Platform Roles', href: '/admin/roles', icon: Layers },
-  { name: 'Merchant Approvals', href: '/organization/merchants', icon: Server },
-];
-
-export default function Sidebar() {
-  const pathname = usePathname();
-  useCurrentUser(); // Rehydrate user session on mount
+export default function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
+  const pathname = usePathname() || '';
+  useCurrentUser();
   const user = useAuthStore((s) => s.user);
+  const activeRole = useAuthStore((s) => s.activeRole);
   const logoutMutation = useLogout();
 
-  return (
+  const userRoles = (user?.roles || []).map(normalizeRoleName);
+  const isAdmin =
+    userRoles.includes('ADMIN') ||
+    userRoles.includes('HEAD_OFFICE_ADMIN') ||
+    userRoles.includes('SYSTEM_ADMIN');
+  const primaryRole = resolvePrimaryRole(user, activeRole);
+  const roleDashboardHref = getDashboardRouteForRole(primaryRole);
+
+  const sidebarContent = (
     <aside
       style={{
-        width: '260px',
-        minWidth: '260px',
-        background: 'rgba(11, 17, 33, 0.95)',
+        width: '264px',
+        minWidth: '264px',
+        background: 'rgba(11, 17, 33, 0.98)',
         borderRight: '1px solid rgba(59, 130, 246, 0.15)',
         display: 'flex',
         flexDirection: 'column',
@@ -62,66 +80,123 @@ export default function Sidebar() {
       }}
     >
       {/* Brand Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0 0.5rem' }}>
-        <div
-          style={{
-            width: '36px',
-            height: '36px',
-            borderRadius: '10px',
-            background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 0 16px rgba(59, 130, 246, 0.4)',
-          }}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 0.5rem' }}>
+        <Link
+          href={roleDashboardHref}
+          onClick={onCloseMobile}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textDecoration: 'none' }}
         >
-          <Box size={20} color="#ffffff" />
-        </div>
-        <div>
-          <h1 style={{ fontSize: '1.15rem', fontWeight: 800, letterSpacing: '-0.02em', color: '#ffffff' }}>
-            Swift<span style={{ color: '#60a5fa' }}>Drop</span>
-          </h1>
-          <p style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 500 }}>Microservices Platform</p>
-        </div>
+          <div
+            style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '10px',
+              background: 'linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 0 16px rgba(59, 130, 246, 0.4)',
+            }}
+          >
+            <Box size={20} color="#ffffff" />
+          </div>
+          <div>
+            <h1 style={{ fontSize: '1.15rem', fontWeight: 800, letterSpacing: '-0.02em', color: '#ffffff', margin: 0 }}>
+              Swift<span style={{ color: '#38bdf8' }}>Drop</span>
+            </h1>
+            <p style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 500, margin: 0 }}>
+              {isAdmin ? 'System Administration' : 'Account Center'}
+            </p>
+          </div>
+        </Link>
+
+        {onCloseMobile && (
+          <button
+            type="button"
+            onClick={onCloseMobile}
+            className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-white"
+            aria-label="Close sidebar"
+          >
+            <X size={18} />
+          </button>
+        )}
       </div>
 
       {/* Navigation */}
       <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-        <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '0 0.5rem 0.4rem' }}>
-          Navigation
-        </div>
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
-          return (
+        {!isAdmin && user && (
+          <>
+            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '0 0.5rem 0.4rem' }}>
+              Workspace
+            </div>
             <Link
-              key={item.href}
-              href={item.href}
+              href={roleDashboardHref}
+              onClick={onCloseMobile}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.75rem',
                 padding: '0.65rem 0.85rem',
                 borderRadius: '8px',
-                fontSize: '0.875rem',
-                fontWeight: isActive ? 600 : 500,
-                color: isActive ? '#ffffff' : '#94a3b8',
-                background: isActive ? 'linear-gradient(90deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.05) 100%)' : 'transparent',
-                borderLeft: isActive ? '3px solid #3b82f6' : '3px solid transparent',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                color: '#ffffff',
+                background: 'linear-gradient(90deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.05) 100%)',
+                borderLeft: '3px solid #3b82f6',
                 textDecoration: 'none',
-                transition: 'all 0.2s ease',
               }}
             >
-              <Icon size={18} color={isActive ? '#60a5fa' : '#64748b'} />
-              <span>{item.name}</span>
+              <LayoutDashboard size={18} color="#60a5fa" />
+              <span>Return to My Dashboard</span>
             </Link>
-          );
-        })}
+          </>
+        )}
+
+        {isAdmin && (
+          <>
+            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '0 0.5rem 0.4rem' }}>
+              System Administration
+            </div>
+            {adminNavItems.map((item) => {
+              const Icon = item.icon;
+              const isActive =
+                pathname === item.href ||
+                (item.href === '/admin/dashboard' && pathname === '/admin') ||
+                (item.href !== '/admin/dashboard' && pathname.startsWith(item.href));
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={onCloseMobile}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    padding: '0.65rem 0.85rem',
+                    borderRadius: '8px',
+                    fontSize: '0.85rem',
+                    fontWeight: isActive ? 600 : 500,
+                    color: isActive ? '#ffffff' : '#94a3b8',
+                    background: isActive
+                      ? 'linear-gradient(90deg, rgba(59, 130, 246, 0.22) 0%, rgba(59, 130, 246, 0.05) 100%)'
+                      : 'transparent',
+                    borderLeft: isActive ? '3px solid #38bdf8' : '3px solid transparent',
+                    textDecoration: 'none',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <Icon size={18} color={isActive ? '#38bdf8' : '#64748b'} />
+                  <span>{item.name}</span>
+                </Link>
+              );
+            })}
+          </>
+        )}
 
         {user && (
           <>
             <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '0.8rem 0.5rem 0.4rem' }}>
-              Account & Security
+              Account &amp; Security
             </div>
             {accountNavItems.map((item) => {
               const Icon = item.icon;
@@ -130,57 +205,25 @@ export default function Sidebar() {
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={onCloseMobile}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.75rem',
                     padding: '0.65rem 0.85rem',
                     borderRadius: '8px',
-                    fontSize: '0.875rem',
+                    fontSize: '0.85rem',
                     fontWeight: isActive ? 600 : 500,
                     color: isActive ? '#ffffff' : '#94a3b8',
-                    background: isActive ? 'linear-gradient(90deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.05) 100%)' : 'transparent',
+                    background: isActive
+                      ? 'linear-gradient(90deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.05) 100%)'
+                      : 'transparent',
                     borderLeft: isActive ? '3px solid #3b82f6' : '3px solid transparent',
                     textDecoration: 'none',
                     transition: 'all 0.2s ease',
                   }}
                 >
                   <Icon size={18} color={isActive ? '#60a5fa' : '#64748b'} />
-                  <span>{item.name}</span>
-                </Link>
-              );
-            })}
-          </>
-        )}
-
-        {user?.roles?.includes('ADMIN') && (
-          <>
-            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#f87171', textTransform: 'uppercase', letterSpacing: '0.08em', padding: '0.8rem 0.5rem 0.4rem' }}>
-              Administration
-            </div>
-            {adminNavItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href));
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    padding: '0.65rem 0.85rem',
-                    borderRadius: '8px',
-                    fontSize: '0.875rem',
-                    fontWeight: isActive ? 600 : 500,
-                    color: isActive ? '#ffffff' : '#94a3b8',
-                    background: isActive ? 'linear-gradient(90deg, rgba(239, 68, 68, 0.2) 0%, rgba(239, 68, 68, 0.05) 100%)' : 'transparent',
-                    borderLeft: isActive ? '3px solid #f87171' : '3px solid transparent',
-                    textDecoration: 'none',
-                    transition: 'all 0.2s ease',
-                  }}
-                >
-                  <Icon size={18} color={isActive ? '#f87171' : '#64748b'} />
                   <span>{item.name}</span>
                 </Link>
               );
@@ -205,6 +248,7 @@ export default function Sidebar() {
           >
             <Link
               href="/profile"
+              onClick={onCloseMobile}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -212,7 +256,6 @@ export default function Sidebar() {
                 textDecoration: 'none',
                 padding: '0.2rem',
                 borderRadius: '6px',
-                transition: 'background 0.2s',
               }}
             >
               <div
@@ -241,7 +284,7 @@ export default function Sidebar() {
             </Link>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
-              {user.roles?.map((role) => (
+              {userRoles.map((role) => (
                 <span
                   key={role}
                   style={{
@@ -279,7 +322,6 @@ export default function Sidebar() {
                 fontSize: '0.75rem',
                 fontWeight: 600,
                 cursor: 'pointer',
-                transition: 'all 0.2s ease',
               }}
             >
               <LogOut size={13} />
@@ -307,38 +349,24 @@ export default function Sidebar() {
               <LogIn size={15} />
               <span>Sign In</span>
             </Link>
-            <Link
-              href="/register"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '0.5rem',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(59, 130, 246, 0.2)',
-                borderRadius: '8px',
-                color: '#94a3b8',
-                fontSize: '0.78rem',
-                fontWeight: 500,
-                textDecoration: 'none',
-              }}
-            >
-              Create Account
-            </Link>
           </div>
         )}
-
-        {/* Infrastructure / Branch Footer */}
-        <div style={{ padding: '0.75rem', background: 'rgba(15, 23, 42, 0.6)', borderRadius: '10px', border: '1px solid rgba(59, 130, 246, 0.1)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
-            <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600 }}>Architecture</span>
-            <span style={{ fontSize: '0.65rem', color: '#10b981', fontWeight: 700 }}>5 + 1 SERVICES</span>
-          </div>
-          <div style={{ fontSize: '0.68rem', color: '#64748b' }}>
-            Branch: Colombo Central
-          </div>
-        </div>
       </div>
     </aside>
+  );
+
+  return (
+    <>
+      <div className="hidden lg:block">{sidebarContent}</div>
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden flex">
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs"
+            onClick={onCloseMobile}
+          />
+          <div className="relative z-10">{sidebarContent}</div>
+        </div>
+      )}
+    </>
   );
 }

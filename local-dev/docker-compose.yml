@@ -1,0 +1,84 @@
+version: '3.8'
+
+name: swiftdrop-local-infra
+
+# =============================================================================
+# SwiftDrop Local Developer Infrastructure
+# Services: PostgreSQL 17 + pgAdmin 4 + RabbitMQ 3 Management
+# Zero-Config Setup: Run 'docker compose -f local-dev/docker-compose.yml up -d'
+# =============================================================================
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: swiftdrop-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - swiftdrop_postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    networks:
+      - swiftdrop-network
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: swiftdrop-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@swiftdrop.lk
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - swiftdrop_pgadmin_data:/var/lib/pgadmin
+      - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - swiftdrop-network
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: swiftdrop-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: swiftdrop
+      RABBITMQ_DEFAULT_PASS: password123
+    ports:
+      - "5672:5672"     # AMQP protocol
+      - "15672:15672"   # RabbitMQ Web Management Console
+    volumes:
+      - swiftdrop_rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    networks:
+      - swiftdrop-network
+
+networks:
+  swiftdrop-network:
+    name: swiftdrop-local-network
+    driver: bridge
+
+volumes:
+  swiftdrop_postgres_data:
+    name: swiftdrop-postgres-data
+  swiftdrop_pgadmin_data:
+    name: swiftdrop-pgadmin-data
+  swiftdrop_rabbitmq_data:
+    name: swiftdrop-rabbitmq-data

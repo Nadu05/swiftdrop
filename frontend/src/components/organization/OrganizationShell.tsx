@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import OrganizationHeader from './OrganizationHeader';
+import { BranchGuard } from '@/components/auth/RoleGuard';
+import { DashboardTopBar } from '@/components/dashboard/DashboardTopBar';
 import OrganizationSidebar from './OrganizationSidebar';
 
 const SIDEBAR_ID = 'org-sidebar';
@@ -11,7 +12,7 @@ const SCROLL_LOCK_CLASS = 'org-scroll-lock';
 
 /**
  * Independent client shell for Member 04's Organization Admin UI.
- * Manages responsive sidebar drawer state without coupling to DispatcherShell.
+ * Protected by BranchGuard (ADMIN, HEAD_OFFICE_ADMIN, BRANCH_MANAGER, BRANCH_STAFF).
  */
 export default function OrganizationShell({
   children,
@@ -55,30 +56,30 @@ export default function OrganizationShell({
   }, []);
 
   return (
-    <div className="org-shell">
-      <a href={`#${MAIN_ID}`} className="org-skip-link">
-        Skip to main content
-      </a>
+    <BranchGuard>
+      <div className="org-shell">
+        <a href={`#${MAIN_ID}`} className="org-skip-link">
+          Skip to main content
+        </a>
 
-      <OrganizationSidebar
-        id={SIDEBAR_ID}
-        isOpen={isSidebarOpen}
-        onClose={dismissSidebar}
-        onNavigate={closeSidebar}
-      />
-
-      <div className="org-shell__body">
-        <OrganizationHeader
-          sidebarId={SIDEBAR_ID}
-          isSidebarOpen={isSidebarOpen}
-          onToggleSidebar={toggleSidebar}
-          menuButtonRef={menuButtonRef}
+        <OrganizationSidebar
+          id={SIDEBAR_ID}
+          isOpen={isSidebarOpen}
+          onClose={dismissSidebar}
+          onNavigate={closeSidebar}
         />
-        <main id={MAIN_ID} className="org-shell__main" tabIndex={-1}>
-          {children}
-        </main>
+
+        <div className="org-shell__body">
+          <DashboardTopBar
+            portalLabel="Organization Governance"
+            theme="light"
+            onMobileMenuToggle={toggleSidebar}
+          />
+          <main id={MAIN_ID} className="org-shell__main" tabIndex={-1}>
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </BranchGuard>
   );
 }
-

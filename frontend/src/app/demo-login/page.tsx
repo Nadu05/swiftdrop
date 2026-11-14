@@ -1,182 +1,169 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Shield,
   User,
   Truck,
-  Building,
-  Key,
+  Building2,
+  Store,
   Mail,
   Lock,
   ArrowRight,
-  CheckCircle2,
   AlertCircle,
   Loader2,
   Sparkles,
+  ArrowLeft,
 } from 'lucide-react';
-import { loginUser } from '@/api/services/auth.api';
-import type { UserRole } from '@/types/auth.types';
+import { useLogin, getApiErrorMessage } from '@/hooks/api/use-auth';
 
-export default function LoginPage() {
-  const router = useRouter();
+const SEEDED_ACCOUNTS = [
+  {
+    key: 'CUSTOMER',
+    title: 'Customer',
+    email: 'customer@swiftdrop.lk',
+    description: 'Book parcels, track active deliveries, and manage your customer account',
+    icon: User,
+    color: '#38bdf8',
+    badge: '/customer/dashboard',
+  },
+  {
+    key: 'MERCHANT',
+    title: 'Merchant',
+    email: 'merchant@swiftdrop.lk',
+    description: 'Manage merchant orders, fulfillment status, and business onboarding',
+    icon: Store,
+    color: '#818cf8',
+    badge: '/merchant/dashboard',
+  },
+  {
+    key: 'COURIER',
+    title: 'Courier',
+    email: 'courier@swiftdrop.lk',
+    description: 'Accept pickups, confirm parcel collection, and complete field deliveries',
+    icon: Truck,
+    color: '#10b981',
+    badge: '/courier/dashboard',
+  },
+  {
+    key: 'DISPATCHER',
+    title: 'Dispatcher',
+    email: 'dispatcher@swiftdrop.lk',
+    description: 'Manage hub pickup tasks, delivery jobs, and courier assignments',
+    icon: Truck,
+    color: '#f59e0b',
+    badge: '/dispatcher/dashboard',
+  },
+  {
+    key: 'BRANCH_ADMIN',
+    title: 'Branch Manager',
+    email: 'manager.cmb@swiftdrop.lk',
+    description: 'Monitor Colombo Central Hub incoming/outgoing manifests and branch couriers',
+    icon: Building2,
+    color: '#ec4899',
+    badge: '/branch/dashboard',
+  },
+  {
+    key: 'SYSTEM_ADMIN',
+    title: 'System Admin',
+    email: 'admin@swiftdrop.lk',
+    description: 'System-wide user management, branch governance, merchant approvals & health',
+    icon: Shield,
+    color: '#a855f7',
+    badge: '/admin/dashboard',
+  },
+] as const;
 
-  const [selectedRole, setSelectedRole] = useState<UserRole>('CUSTOMER');
-  const [email, setEmail] = useState('customer@swiftdrop.lk');
-  const [password, setPassword] = useState('password123');
-  const [isLoading, setIsLoading] = useState(false);
+export default function DemoLoginPage() {
+  const loginMutation = useLogin();
+
+  const [selectedKey, setSelectedKey] = useState<string>('CUSTOMER');
+  const [email, setEmail] = useState<string>('customer@swiftdrop.lk');
+  const [password, setPassword] = useState<string>('password123');
   const [error, setError] = useState<string | null>(null);
 
-  const rolePresets = {
-    CUSTOMER: {
-      role: 'CUSTOMER' as UserRole,
-      title: 'Customer',
-      email: 'customer@swiftdrop.lk',
-      description: 'Book parcels, track active deliveries, and manage your account',
-      targetRoute: '/customer/dashboard',
-      icon: User,
-      color: '#38bdf8',
-      badge: 'Customer Portal',
-    },
-    DISPATCHER: {
-      role: 'DISPATCHER' as UserRole,
-      title: 'Dispatcher',
-      email: 'dispatcher@swiftdrop.lk',
-      description: 'Manage incoming requests, couriers, and dispatch operations',
-      targetRoute: '/dispatcher/dashboard',
-      icon: Truck,
-      color: '#f59e0b',
-      badge: 'Dispatch Operations',
-    },
-    COURIER: {
-      role: 'COURIER' as UserRole,
-      title: 'Courier',
-      email: 'courier@swiftdrop.lk',
-      description: 'Accept pickups, confirm parcel collection, and complete deliveries',
-      targetRoute: '/courier',
-      icon: Truck,
-      color: '#10b981',
-      badge: 'Courier App',
-    },
-    ADMIN: {
-      role: 'ADMIN' as UserRole,
-      title: 'Administrator',
-      email: 'admin@swiftdrop.lk',
-      description: 'Microservices architecture monitoring, health & API diagnostics',
-      targetRoute: '/',
-      icon: Shield,
-      color: '#a855f7',
-      badge: 'Platform Tooling',
-    },
-  };
+  const currentPreset =
+    SEEDED_ACCOUNTS.find((a) => a.key === selectedKey) || SEEDED_ACCOUNTS[0];
 
-  const handleRoleSelect = (roleKey: UserRole) => {
-    setSelectedRole(roleKey);
-    setEmail(rolePresets[roleKey as keyof typeof rolePresets].email);
+  const handleSelectAccount = (account: (typeof SEEDED_ACCOUNTS)[number]) => {
+    setSelectedKey(account.key);
+    setEmail(account.email);
     setPassword('password123');
     setError(null);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setError(null);
-
     try {
-      const { user } = await loginUser({
-        email,
-        password,
-        role: selectedRole,
-      });
-
-      // Role-based destination routing
-      if (user.role === 'CUSTOMER') {
-        router.push('/customer/dashboard');
-      } else if (user.role === 'DISPATCHER') {
-        router.push('/dispatcher/dashboard');
-      } else if (user.role === 'COURIER') {
-        router.push('/courier');
-      } else if (user.role === 'ADMIN') {
-        router.push('/admin');
-      } else {
-        router.push('/');
-      }
-    } catch (err: any) {
-      setError(err.message || 'Authentication failed. Please try again.');
-    } finally {
-      setIsLoading(false);
+      // Authenticate strictly through the Identity Service; role redirection is
+      // resolved automatically from the backend JWT/AuthResponse in useLogin().
+      await loginMutation.mutateAsync({ email, password });
+    } catch (err) {
+      setError(getApiErrorMessage(err));
     }
   };
 
-  const currentPreset = rolePresets[selectedRole as keyof typeof rolePresets];
-
   return (
-    <div className="login-page-container">
-      <div className="login-card-wrapper">
-        {/* Brand Header */}
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem' }}>
-            <div
-              style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '10px',
-                background: 'linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 16px rgba(37, 99, 235, 0.4)',
-              }}
-            >
-              <Sparkles size={20} color="#ffffff" />
+    <div className="min-h-screen w-full flex items-center justify-center bg-[#070d18] p-6">
+      <div className="w-full max-w-lg bg-[#0c1829] border border-white/10 rounded-2xl p-8 shadow-2xl">
+        <div className="mb-5 flex items-center justify-between">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back to Home
+          </Link>
+          <Link
+            href="/login"
+            className="text-xs font-semibold text-sky-400 hover:text-sky-300"
+          >
+            Standard Login
+          </Link>
+        </div>
+
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center gap-2.5 mb-2">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-700 to-blue-500 flex items-center justify-center shadow-lg shadow-blue-600/30">
+              <Sparkles size={18} color="#ffffff" />
             </div>
-            <h1 style={{ fontSize: '1.85rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em', margin: 0 }}>
-              Swift<span style={{ color: '#38bdf8' }}>Drop</span>
+            <h1 className="text-2xl font-extrabold text-white tracking-tight">
+              Swift<span className="text-sky-400">Drop</span>
             </h1>
           </div>
-          <p style={{ color: '#94a3b8', fontSize: '0.9rem', margin: '0 auto', maxWidth: '380px' }}>
-            Role-Based Delivery & Logistics Management Platform
+          <p className="text-xs text-slate-400">
+            Quick-Fill Seeded Accounts (Authenticated via Identity Service)
           </p>
         </div>
 
-        {/* Role Selector Tabs */}
-        <div style={{ marginBottom: '1.75rem' }}>
-          <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.65rem' }}>
-            Select Login Role:
+        <div className="mb-5">
+          <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2.5">
+            Select Seeded Account Credential Preset:
           </label>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
-            {(Object.keys(rolePresets) as (keyof typeof rolePresets)[]).map((key) => {
-              const preset = rolePresets[key];
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {SEEDED_ACCOUNTS.map((preset) => {
               const Icon = preset.icon;
-              const isSelected = selectedRole === preset.role;
-
+              const isSelected = selectedKey === preset.key;
               return (
                 <button
-                  key={key}
+                  key={preset.key}
                   type="button"
-                  onClick={() => handleRoleSelect(preset.role)}
+                  onClick={() => handleSelectAccount(preset)}
                   style={{
-                    padding: '0.75rem 0.5rem',
-                    borderRadius: '10px',
-                    border: isSelected ? `2px solid ${preset.color}` : '1px solid rgba(255, 255, 255, 0.08)',
-                    background: isSelected ? 'rgba(30, 58, 138, 0.35)' : 'rgba(15, 23, 42, 0.6)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                    transition: 'all 0.15s ease',
+                    borderColor: isSelected ? preset.color : 'rgba(255,255,255,0.08)',
+                    background: isSelected
+                      ? 'rgba(30, 58, 138, 0.35)'
+                      : 'rgba(15, 23, 42, 0.6)',
                   }}
+                  className="p-2.5 rounded-xl border flex flex-col items-center gap-1.5 transition-all cursor-pointer"
                 >
-                  <Icon size={18} color={isSelected ? preset.color : '#64748b'} />
+                  <Icon size={17} color={isSelected ? preset.color : '#64748b'} />
                   <span
-                    style={{
-                      fontSize: '0.75rem',
-                      fontWeight: isSelected ? 700 : 500,
-                      color: isSelected ? '#ffffff' : '#94a3b8',
-                    }}
+                    className={`text-xs ${
+                      isSelected ? 'font-bold text-white' : 'font-medium text-slate-400'
+                    }`}
                   >
                     {preset.title}
                   </span>
@@ -186,183 +173,87 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Role Description Card */}
-        <div
-          style={{
-            padding: '0.85rem 1rem',
-            borderRadius: '10px',
-            background: 'rgba(255, 255, 255, 0.03)',
-            border: '1px solid rgba(255, 255, 255, 0.06)',
-            marginBottom: '1.5rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '0.75rem',
-          }}
-        >
+        <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/10 mb-5 flex items-center justify-between gap-3">
           <div>
-            <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#ffffff' }}>
-              {currentPreset.title} Experience
+            <div className="text-xs font-semibold text-white">
+              {currentPreset.title} Account
             </div>
-            <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>
+            <div className="text-[11px] text-slate-400 mt-0.5">
               {currentPreset.description}
             </div>
           </div>
-          <span
-            style={{
-              fontSize: '0.68rem',
-              fontWeight: 700,
-              padding: '0.25rem 0.5rem',
-              borderRadius: '999px',
-              background: 'rgba(56, 189, 248, 0.12)',
-              color: currentPreset.color,
-              whiteSpace: 'nowrap',
-            }}
-          >
+          <span className="text-[11px] font-mono font-semibold px-2.5 py-1 rounded-full bg-sky-500/10 text-sky-400 whitespace-nowrap">
             {currentPreset.badge}
           </span>
         </div>
 
-        {/* Login Form */}
-        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.15rem' }}>
+        <form onSubmit={handleLogin} className="flex flex-col gap-4">
           {error && (
-            <div
-              style={{
-                padding: '0.75rem 1rem',
-                borderRadius: '8px',
-                background: 'rgba(239, 68, 68, 0.12)',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                color: '#f87171',
-                fontSize: '0.82rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-              }}
-            >
-              <AlertCircle size={16} style={{ flexShrink: 0 }} />
+            <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
+              <AlertCircle size={15} className="shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
           <div>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '0.4rem' }}>
+            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
               Email address
             </label>
-            <div style={{ position: 'relative' }}>
-              <Mail size={16} color="#64748b" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+            <div className="relative">
+              <Mail
+                size={15}
+                color="#64748b"
+                className="absolute left-3 top-1/2 -translate-y-1/2"
+              />
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                style={{
-                  width: '100%',
-                  padding: '0.7rem 0.85rem 0.7rem 2.4rem',
-                  borderRadius: '9px',
-                  background: 'rgba(15, 23, 42, 0.8)',
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
-                  color: '#ffffff',
-                  fontSize: '0.9rem',
-                  outline: 'none',
-                }}
+                className="w-full py-2.5 pl-9 pr-3 rounded-lg bg-slate-900/80 border border-white/15 text-white text-sm outline-none focus:border-blue-500"
               />
             </div>
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '0.4rem' }}>
+            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
               Password
             </label>
-            <div style={{ position: 'relative' }}>
-              <Lock size={16} color="#64748b" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+            <div className="relative">
+              <Lock
+                size={15}
+                color="#64748b"
+                className="absolute left-3 top-1/2 -translate-y-1/2"
+              />
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                style={{
-                  width: '100%',
-                  padding: '0.7rem 0.85rem 0.7rem 2.4rem',
-                  borderRadius: '9px',
-                  background: 'rgba(15, 23, 42, 0.8)',
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
-                  color: '#ffffff',
-                  fontSize: '0.9rem',
-                  outline: 'none',
-                }}
+                className="w-full py-2.5 pl-9 pr-3 rounded-lg bg-slate-900/80 border border-white/15 text-white text-sm outline-none focus:border-blue-500"
               />
             </div>
           </div>
 
           <button
             type="submit"
-            disabled={isLoading}
-            style={{
-              padding: '0.85rem 1.25rem',
-              borderRadius: '9px',
-              background: 'linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%)',
-              color: '#ffffff',
-              border: 'none',
-              fontWeight: 700,
-              fontSize: '0.95rem',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.5rem',
-              boxShadow: '0 4px 16px rgba(37, 99, 235, 0.35)',
-              marginTop: '0.5rem',
-              transition: 'opacity 0.15s ease',
-            }}
+            disabled={loginMutation.isPending}
+            className="py-3 px-4 rounded-lg bg-gradient-to-r from-blue-700 to-blue-600 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30 hover:from-blue-600 hover:to-blue-500 disabled:opacity-50 cursor-pointer"
           >
-            {isLoading ? (
+            {loginMutation.isPending ? (
               <>
-                <Loader2 size={18} className="animate-spin" />
-                <span>Signing in...</span>
+                <Loader2 size={17} className="animate-spin" />
+                <span>Authenticating with Identity Service...</span>
               </>
             ) : (
               <>
                 <span>Sign in as {currentPreset.title}</span>
-                <ArrowRight size={16} />
+                <ArrowRight size={15} />
               </>
             )}
           </button>
         </form>
-
-        {/* Footer Note */}
-        <div style={{ marginTop: '1.75rem', textAlign: 'center', fontSize: '0.78rem', color: '#64748b' }}>
-          <span>SwiftDrop Microservices Ecosystem &bull; Member 06 Customer Experience</span>
-        </div>
       </div>
-
-      <style jsx global>{`
-        .login-page-container {
-          min-height: 100vh;
-          width: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: #070d18;
-          padding: 1.5rem;
-        }
-
-        .login-card-wrapper {
-          width: 100%;
-          max-width: 440px;
-          background: #0c1829;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          border-radius: 16px;
-          padding: 2.25rem 2rem;
-          box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
-        }
-
-        @media (max-width: 480px) {
-          .login-card-wrapper {
-            padding: 1.5rem 1.25rem;
-          }
-        }
-      `}</style>
     </div>
   );
 }
-

@@ -8,29 +8,35 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema, type LoginFormValues } from '@/schema/auth.schema';
 import { useLogin, getApiErrorMessage } from '@/hooks/api/use-auth';
 import { useAuthStore } from '@/store/auth.store';
-import { Eye, EyeOff, LogIn, Box } from 'lucide-react';
+import { resolvePostAuthRedirect } from '@/lib/auth/role-resolver';
+import { Eye, EyeOff, LogIn, Box, ArrowLeft, ShieldCheck } from 'lucide-react';
 import GoogleSignInButton from '@/components/auth/GoogleSignInButton';
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const user = useAuthStore((s) => s.user);
+  const activeRole = useAuthStore((s) => s.activeRole);
   const isInitialized = useAuthStore((s) => s.isInitialized);
 
   const [showPassword, setShowPassword] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
   const resetSuccess = searchParams.get('reset') === 'success';
-  const deactivatedNotice = searchParams.get('deactivated') === 'true';
+  const deactivatedNotice =
+    searchParams.get('deactivated') === 'true' ||
+    searchParams.get('error') === 'account_deactivated';
+  const suspendedNotice = searchParams.get('error') === 'account_suspended';
 
   const loginMutation = useLogin();
 
   useEffect(() => {
     if (isInitialized && user) {
-      const callbackUrl = searchParams.get('callbackUrl') || '/';
-      router.replace(callbackUrl);
+      const callbackUrl = searchParams.get('callbackUrl');
+      const target = resolvePostAuthRedirect(user, callbackUrl, activeRole);
+      router.replace(target);
     }
-  }, [isInitialized, user, router, searchParams]);
+  }, [isInitialized, user, activeRole, router, searchParams]);
 
   const {
     register,
@@ -53,43 +59,82 @@ function LoginForm() {
     <div
       style={{
         width: '100%',
-        maxWidth: '440px',
-        background: 'rgba(17, 24, 39, 0.85)',
+        maxWidth: '450px',
+        background: 'rgba(13, 23, 42, 0.92)',
         backdropFilter: 'blur(16px)',
-        border: '1px solid rgba(59, 130, 246, 0.2)',
-        borderRadius: '16px',
+        border: '1px solid rgba(59, 130, 246, 0.22)',
+        borderRadius: '18px',
         padding: '2.5rem',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+        boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
       }}
     >
+      {/* Back to Landing Page */}
+      <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Link
+          href="/"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+            fontSize: '0.78rem',
+            fontWeight: 600,
+            color: '#94a3b8',
+            textDecoration: 'none',
+          }}
+        >
+          <ArrowLeft size={14} />
+          <span>Back to Home</span>
+        </Link>
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.35rem',
+            fontSize: '0.7rem',
+            fontWeight: 600,
+            color: '#38bdf8',
+            background: 'rgba(56, 189, 248, 0.1)',
+            border: '1px solid rgba(56, 189, 248, 0.2)',
+            padding: '0.2rem 0.6rem',
+            borderRadius: '999px',
+          }}
+        >
+          <ShieldCheck size={12} />
+          Unified Portal
+        </span>
+      </div>
+
       {/* Logo */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.75rem' }}>
         <div
           style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '10px',
-            background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)',
+            width: '42px',
+            height: '42px',
+            borderRadius: '11px',
+            background: 'linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            boxShadow: '0 4px 14px rgba(37, 99, 235, 0.4)',
           }}
         >
           <Box size={22} color="#fff" />
         </div>
         <div>
-          <h1 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff' }}>
-            Swift<span style={{ color: '#60a5fa' }}>Drop</span>
+          <h1 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#fff', margin: 0 }}>
+            Swift<span style={{ color: '#38bdf8' }}>Drop</span>
           </h1>
-          <p style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Delivery Platform</p>
+          <p style={{ fontSize: '0.72rem', color: '#94a3b8', margin: 0 }}>
+            National Logistics &amp; Delivery Platform
+          </p>
         </div>
       </div>
 
-      <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#fff', marginBottom: '0.5rem' }}>
-        Welcome back
+      <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#fff', marginBottom: '0.4rem' }}>
+        Sign in to SwiftDrop
       </h2>
-      <p style={{ color: '#94a3b8', marginBottom: '1.75rem', fontSize: '0.875rem' }}>
-        Sign in to your account to continue
+      <p style={{ color: '#94a3b8', marginBottom: '1.75rem', fontSize: '0.85rem', lineHeight: 1.5 }}>
+        Enter your credentials to automatically access your Customer, Merchant, Courier, Dispatcher, Branch, or Admin workspace.
       </p>
 
       {/* Reset success notification */}
@@ -102,7 +147,7 @@ function LoginForm() {
             borderRadius: '8px',
             padding: '0.75rem 1rem',
             marginBottom: '1.25rem',
-            fontSize: '0.875rem',
+            fontSize: '0.85rem',
             color: '#34d399',
           }}
         >
@@ -110,17 +155,35 @@ function LoginForm() {
         </div>
       )}
 
+      {/* Suspended notification */}
+      {suspendedNotice && (
+        <div
+          role="alert"
+          style={{
+            background: 'rgba(245,158,11,0.12)',
+            border: '1px solid rgba(245,158,11,0.4)',
+            borderRadius: '8px',
+            padding: '0.75rem 1rem',
+            marginBottom: '1.25rem',
+            fontSize: '0.85rem',
+            color: '#fbbf24',
+          }}
+        >
+          Your account is currently suspended. Please contact SwiftDrop administration for assistance.
+        </div>
+      )}
+
       {/* Deactivated notification */}
       {deactivatedNotice && (
         <div
-          role="status"
+          role="alert"
           style={{
             background: 'rgba(239,68,68,0.12)',
             border: '1px solid rgba(239,68,68,0.4)',
             borderRadius: '8px',
             padding: '0.75rem 1rem',
             marginBottom: '1.25rem',
-            fontSize: '0.875rem',
+            fontSize: '0.85rem',
             color: '#f87171',
           }}
         >
@@ -138,7 +201,7 @@ function LoginForm() {
             borderRadius: '8px',
             padding: '0.75rem 1rem',
             marginBottom: '1.25rem',
-            fontSize: '0.875rem',
+            fontSize: '0.85rem',
             color: '#f87171',
           }}
         >
@@ -146,10 +209,16 @@ function LoginForm() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        noValidate
+        style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}
+      >
         {/* Email */}
         <div>
-          <label htmlFor="email" style={labelStyle}>Email address</label>
+          <label htmlFor="email" style={labelStyle}>
+            Email address
+          </label>
           <input
             id="email"
             type="email"
@@ -163,11 +232,25 @@ function LoginForm() {
 
         {/* Password */}
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
-            <label htmlFor="password" style={{ ...labelStyle, marginBottom: 0 }}>Password</label>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '0.4rem',
+            }}
+          >
+            <label htmlFor="password" style={{ ...labelStyle, marginBottom: 0 }}>
+              Password
+            </label>
             <Link
               href="/forgot-password"
-              style={{ fontSize: '0.75rem', color: '#60a5fa', textDecoration: 'none', fontWeight: 500 }}
+              style={{
+                fontSize: '0.75rem',
+                color: '#60a5fa',
+                textDecoration: 'none',
+                fontWeight: 500,
+              }}
             >
               Forgot password?
             </Link>
@@ -187,7 +270,11 @@ function LoginForm() {
               style={toggleBtnStyle}
               aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
-              {showPassword ? <EyeOff size={18} color="#64748b" /> : <Eye size={18} color="#64748b" />}
+              {showPassword ? (
+                <EyeOff size={18} color="#64748b" />
+              ) : (
+                <Eye size={18} color="#64748b" />
+              )}
             </button>
           </div>
           {errors.password && <p style={errorStyle}>{errors.password.message}</p>}
@@ -196,7 +283,7 @@ function LoginForm() {
         {/* Submit */}
         <button type="submit" disabled={isPending} style={primaryBtnStyle(isPending)}>
           {isPending ? (
-            <span>Signing in…</span>
+            <span>Authenticating…</span>
           ) : (
             <>
               <LogIn size={18} />
@@ -209,19 +296,47 @@ function LoginForm() {
       {/* Divider */}
       <div style={dividerStyle}>
         <span style={dividerLineStyle} />
-        <span style={{ color: '#475569', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>or continue with</span>
+        <span style={{ color: '#64748b', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
+          or continue with
+        </span>
         <span style={dividerLineStyle} />
       </div>
 
       {/* Google Sign-In */}
       <GoogleSignInButton mode="signin" onError={setApiError} />
 
-      <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem', color: '#94a3b8' }}>
-        Don&apos;t have an account?{' '}
-        <Link href="/register" style={{ color: '#60a5fa', fontWeight: 600, textDecoration: 'none' }}>
-          Create one
-        </Link>
-      </p>
+      <div
+        style={{
+          marginTop: '1.5rem',
+          paddingTop: '1.25rem',
+          borderTop: '1px solid rgba(255,255,255,0.08)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.5rem',
+          textAlign: 'center',
+          fontSize: '0.85rem',
+          color: '#94a3b8',
+        }}
+      >
+        <div>
+          Don&apos;t have an account?{' '}
+          <Link
+            href="/register"
+            style={{ color: '#38bdf8', fontWeight: 600, textDecoration: 'none' }}
+          >
+            Create one
+          </Link>
+        </div>
+        <div style={{ fontSize: '0.76rem' }}>
+          Want to track a shipment without signing in?{' '}
+          <Link
+            href="/tracking"
+            style={{ color: '#93c5fd', fontWeight: 600, textDecoration: 'none' }}
+          >
+            Track Parcel
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }
@@ -246,10 +361,10 @@ const labelStyle: React.CSSProperties = {
 
 const inputStyle = (hasError: boolean): React.CSSProperties => ({
   width: '100%',
-  padding: '0.65rem 0.85rem',
-  background: 'rgba(15, 23, 42, 0.7)',
-  border: `1px solid ${hasError ? 'rgba(239,68,68,0.6)' : 'rgba(59,130,246,0.2)'}`,
-  borderRadius: '8px',
+  padding: '0.7rem 0.85rem',
+  background: 'rgba(15, 23, 42, 0.75)',
+  border: `1px solid ${hasError ? 'rgba(239,68,68,0.6)' : 'rgba(59,130,246,0.22)'}`,
+  borderRadius: '9px',
   color: '#f8fafc',
   fontSize: '0.875rem',
   outline: 'none',
@@ -281,15 +396,18 @@ const primaryBtnStyle = (disabled: boolean): React.CSSProperties => ({
   justifyContent: 'center',
   gap: '0.5rem',
   width: '100%',
-  padding: '0.75rem',
-  background: disabled ? 'rgba(59,130,246,0.4)' : 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)',
+  padding: '0.8rem',
+  background: disabled
+    ? 'rgba(59,130,246,0.4)'
+    : 'linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%)',
   border: 'none',
-  borderRadius: '8px',
+  borderRadius: '9px',
   color: '#fff',
   fontSize: '0.9rem',
   fontWeight: 600,
   cursor: disabled ? 'not-allowed' : 'pointer',
   transition: 'all 0.2s ease',
+  boxShadow: disabled ? 'none' : '0 4px 16px rgba(37, 99, 235, 0.35)',
 });
 
 const dividerStyle: React.CSSProperties = {
@@ -304,31 +422,3 @@ const dividerLineStyle: React.CSSProperties = {
   height: '1px',
   background: 'rgba(59,130,246,0.15)',
 };
-
-const googleBtnStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: '0.65rem',
-  width: '100%',
-  padding: '0.7rem',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(59,130,246,0.2)',
-  borderRadius: '8px',
-  color: '#e2e8f0',
-  fontSize: '0.875rem',
-  fontWeight: 600,
-  cursor: 'pointer',
-};
-
-function GoogleIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-      <path d="M17.64 9.205c0-.638-.057-1.252-.163-1.841H9v3.481h4.844c-.21 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
-      <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
-      <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
-      <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
-    </svg>
-  );
-}
-

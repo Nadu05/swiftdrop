@@ -1,18 +1,18 @@
+'use client';
+
 import React from 'react';
 import CustomerSidebar from '@/components/customer/CustomerSidebar';
+import { DashboardTopBar } from '@/components/dashboard/DashboardTopBar';
 
 /**
  * CustomerShell layout wrapper
- * 
- * Provides the dedicated Customer Role experience across all customer pages:
+ *
+ * Provides the dedicated Customer Role experience across customer pages:
  * - Customer Dashboard (/customer/dashboard)
  * - Booking Form (/book, /book/confirmation)
  * - Customer Bookings & History (/bookings, /bookings/[id], /bookings/[id]/receipt)
  * - Live Tracking (/tracking)
  * - Customer Profile (/customer/profile)
- *
- * Keeps the dedicated Customer Navigation persistently accessible on both
- * desktop and mobile screens.
  */
 export default function CustomerShell({
   children,
@@ -22,9 +22,12 @@ export default function CustomerShell({
   return (
     <div className="customer-app-shell">
       <CustomerSidebar />
-      <main className="main-content customer-main-content">
-        {children}
-      </main>
+      <div className="flex-1 flex flex-col min-w-0">
+        <DashboardTopBar portalLabel="Customer Portal" theme="dark" />
+        <main className="main-content customer-main-content flex-1">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

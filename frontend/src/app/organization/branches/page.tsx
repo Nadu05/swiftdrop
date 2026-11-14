@@ -22,6 +22,7 @@ import type {
   BranchResponse,
   BranchStatusFilter,
 } from '@/types/organization.types';
+import { useAuthStore } from '@/store/auth.store';
 
 const DIRECTORY_TABS = [
   { id: 'branch-directory', label: 'Branch directory', active: true },
@@ -31,6 +32,17 @@ const DIRECTORY_TABS = [
 ] as const;
 
 export default function OrganizationBranchesPage() {
+  const user = useAuthStore((s) => s.user);
+  const canAddBranch = Boolean(
+    user?.roles?.some(
+      (r) =>
+        r === 'ADMIN' ||
+        r === 'HEAD_OFFICE_ADMIN' ||
+        r === 'ROLE_ADMIN' ||
+        r === 'ROLE_HEAD_OFFICE_ADMIN'
+    )
+  );
+
   const [branches, setBranches] = useState<BranchResponse[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
@@ -228,13 +240,15 @@ export default function OrganizationBranchesPage() {
             <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
           </button>
 
-          <Link
-            href="/organization/branches/create"
-            className="org-btn org-btn--primary org-btn--add-branch"
-          >
-            <Plus size={16} strokeWidth={2.4} aria-hidden="true" />
-            <span>Add branch</span>
-          </Link>
+          {canAddBranch && (
+            <Link
+              href="/organization/branches/create"
+              className="org-btn org-btn--primary org-btn--add-branch"
+            >
+              <Plus size={16} strokeWidth={2.4} aria-hidden="true" />
+              <span>Add branch</span>
+            </Link>
+          )}
         </div>
       </header>
 

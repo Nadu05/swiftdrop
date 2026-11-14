@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DispatcherGuard } from '@/components/auth/RoleGuard';
 import { useLogout } from '@/hooks/api/use-auth';
-import DispatcherHeader from './DispatcherHeader';
+import { DashboardTopBar } from '@/components/dashboard/DashboardTopBar';
 import DispatcherSidebar from './DispatcherSidebar';
 
 const SIDEBAR_ID = 'dispatcher-sidebar';
@@ -13,7 +13,7 @@ const SCROLL_LOCK_CLASS = 'dispatcher-scroll-lock';
 
 /**
  * Client-side frame for the dispatcher area: owns the drawer open/close state
- * shared by the header (hamburger) and the sidebar.
+ * shared by the top navigation bar and the sidebar.
  */
 export default function DispatcherShell({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -22,10 +22,8 @@ export default function DispatcherShell({ children }: { children: React.ReactNod
 
   const toggleSidebar = useCallback(() => setIsSidebarOpen((open) => !open), []);
 
-  // Used after link clicks: close without moving focus (the page is changing).
   const closeSidebar = useCallback(() => setIsSidebarOpen(false), []);
 
-  // Used for explicit dismissal: close and return focus to the menu button.
   const dismissSidebar = useCallback(() => {
     setIsSidebarOpen(false);
     menuButtonRef.current?.focus();
@@ -36,7 +34,6 @@ export default function DispatcherShell({ children }: { children: React.ReactNod
     triggerLogout();
   }, [triggerLogout]);
 
-  // Escape closes the drawer; page scrolling is locked while it is open.
   useEffect(() => {
     if (!isSidebarOpen) return;
 
@@ -52,8 +49,6 @@ export default function DispatcherShell({ children }: { children: React.ReactNod
     };
   }, [isSidebarOpen, dismissSidebar]);
 
-  // The drawer only exists below the desktop breakpoint; reset it when the
-  // viewport grows so the overlay / scroll lock don't linger.
   useEffect(() => {
     const mediaQuery = window.matchMedia(DESKTOP_QUERY);
     const handleChange = (event: MediaQueryListEvent) => {
@@ -79,11 +74,10 @@ export default function DispatcherShell({ children }: { children: React.ReactNod
         />
 
         <div className="dispatcher-shell__body">
-          <DispatcherHeader
-            sidebarId={SIDEBAR_ID}
-            isSidebarOpen={isSidebarOpen}
-            onToggleSidebar={toggleSidebar}
-            menuButtonRef={menuButtonRef}
+          <DashboardTopBar
+            portalLabel="Dispatcher Command Center"
+            theme="light"
+            onMobileMenuToggle={toggleSidebar}
           />
           <main id={MAIN_ID} className="dispatcher-shell__main" tabIndex={-1}>
             {children}
@@ -93,4 +87,3 @@ export default function DispatcherShell({ children }: { children: React.ReactNod
     </DispatcherGuard>
   );
 }
-

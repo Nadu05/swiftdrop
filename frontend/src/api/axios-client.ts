@@ -1,12 +1,15 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:8080';
+const BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  process.env.NEXT_PUBLIC_API_GATEWAY_URL ||
+  'http://localhost:8080';
 
 /**
  * Shared Axios instance for all API Gateway requests.
  * - withCredentials: true — ensures HttpOnly auth cookies (sd_access_token, sd_refresh_token) are sent on every request
- * - Attaches Bearer token fallback if present in browser storage
- * - Automatically intercepts 401s and refreshes access token
+ * - Does NOT read or store JWT tokens in localStorage/sessionStorage
+ * - Automatically intercepts 401s and refreshes access token via HttpOnly cookie
  */
 export const axiosClient = axios.create({
   baseURL: BASE_URL,
@@ -18,19 +21,15 @@ export const axiosClient = axios.create({
   timeout: 15000,
 });
 
-// Request Interceptor: optionally attaches Bearer token if present
-axiosClient.interceptors.request.use(
-  (config) => {
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('swiftdrop_auth_token') || sessionStorage.getItem('swiftdrop_auth_token');
-      if (token && config.headers && !config.headers.Authorization) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+// Clean up any legacy insecure mock tokens from browser storage on client initialization
+if (typeof window !== 'undefined') {
+  try {
+    localStorage.removeItem('swiftdrop_auth_token');
+    sessionStorage.removeItem('swiftdrop_auth_token');
+  } catch {
+    // Ignore storage access errors in restricted environments
+  }
+}
 
 // --- Refresh token coordination ---
 let isRefreshing = false;
@@ -50,13 +49,21 @@ const processQueue = (error: unknown | null) => {
   failedQueue = [];
 };
 
+const PUBLIC_PATHS = ['/', '/login', '/register', '/tracking', '/demo-login'];
+
+function isPublicPathname(pathname: string): boolean {
+  return PUBLIC_PATHS.some(
+    (pub) => pathname === pub || (pub !== '/' && pathname.startsWith(`${pub}/`))
+  );
+}
+
 // Response interceptor: handle token refresh on 401 & surface meaningful error messages
 axiosClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-    // Only intercept 401s, skip if it's the refresh endpoint itself or already retried
+    // Only intercept 401s, skip if it's the refresh/login/register/public endpoint or already retried
     if (
       error.response?.status === 401 &&
       originalRequest &&
@@ -64,6 +71,7 @@ axiosClient.interceptors.response.use(
       !originalRequest.url?.includes('/auth/refresh') &&
       !originalRequest.url?.includes('/auth/login') &&
       !originalRequest.url?.includes('/auth/register') &&
+      !originalRequest.url?.includes('/auth/google') &&
       !originalRequest.url?.includes('/tracking/') &&
       !originalRequest.url?.includes('/orders/quote')
     ) {
@@ -92,7 +100,8 @@ axiosClient.interceptors.response.use(
         processQueue(refreshError);
         if (typeof window !== 'undefined') {
           const currentPath = window.location.pathname;
-          if (currentPath !== '/login' && currentPath !== '/register') {
+          // Only redirect to /login if the user is on a protected route and this wasn't a silent /auth/me check on a public page
+          if (!isPublicPathname(currentPath) && !originalRequest.url?.includes('/auth/me')) {
             window.location.href = `/login?callbackUrl=${encodeURIComponent(currentPath)}`;
           }
         }
@@ -106,7 +115,9 @@ axiosClient.interceptors.response.use(
       return Promise.reject(error);
     }
     if (error.request) {
-      return Promise.reject(new Error('Unable to reach the server. Please check your connection.'));
+      return Promise.reject(
+        new Error('Unable to reach the server. Please check your connection.')
+      );
     }
     return Promise.reject(error);
   }

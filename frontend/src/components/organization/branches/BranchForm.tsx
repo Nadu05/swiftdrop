@@ -81,11 +81,11 @@ export default function BranchForm({
     try {
       const response = await onSubmit(values);
       setSavedBranch(response);
-      // Brief pause so user sees the confirmed API success banner before navigating,
-      // while also providing an immediate "Return to Branch Directory" button.
-      setTimeout(() => {
-        onSuccessNavigate(response);
-      }, 900);
+      if (mode === 'edit') {
+        setTimeout(() => {
+          onSuccessNavigate(response);
+        }, 900);
+      }
     } catch (err: unknown) {
       if (err instanceof OrganizationApiError) {
         setSubmitError(err.message);
@@ -142,19 +142,39 @@ export default function BranchForm({
               <p className="org-form-alert__desc">
                 Branch <strong>{savedBranch.name}</strong> (
                 <code className="org-inline-code">{savedBranch.code}</code>) has been saved in
-                the Organization Service. Redirecting to the Branch Directory...
+                the Organization Service.
               </p>
+
+              {mode === 'create' && (
+                <div style={{ marginTop: '0.6rem', padding: '0.5rem', background: 'rgba(56, 189, 248, 0.1)', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.25)' }}>
+                  <p style={{ fontSize: '0.78rem', color: '#bae6fd', margin: 0, lineHeight: 1.4 }}>
+                    <strong>Administrative Action Recommended:</strong> Provision a Branch Administrator for this hub under the <code style={{ color: '#fff' }}>BRANCH_MANAGER</code> role to manage branch operations and dispatchers.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
-          <button
-            type="button"
-            className="org-btn org-btn--secondary"
-            onClick={() => onSuccessNavigate(savedBranch)}
-          >
-            <ArrowLeft size={14} aria-hidden="true" />
-            <span>Return Now</span>
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            {mode === 'create' && (
+              <a
+                href={`/admin/users`}
+                className="org-btn org-btn--primary"
+                style={{ fontSize: '0.8rem', padding: '0.45rem 0.85rem' }}
+              >
+                <span>Provision Administrator</span>
+              </a>
+            )}
+
+            <button
+              type="button"
+              className="org-btn org-btn--secondary"
+              onClick={() => onSuccessNavigate(savedBranch)}
+            >
+              <ArrowLeft size={14} aria-hidden="true" />
+              <span>Return to Directory</span>
+            </button>
+          </div>
         </div>
       )}
 

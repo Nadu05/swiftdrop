@@ -211,6 +211,7 @@ export interface DeliveryOrder {
 }
 
 export type CreateOrderResponse = DeliveryOrder;
+export type OrderResponse = DeliveryOrder;
 
 /**
  * Milestone event in a parcel's public delivery lifecycle

@@ -3,10 +3,10 @@
 --     BRANCH_STAFF) and add branch_id / organization_id scope columns to users
 -- =============================================================================
 
-INSERT INTO roles (role_name, description) VALUES
-    ('HEAD_OFFICE_ADMIN', 'Head office administrator with global multi-branch oversight'),
-    ('BRANCH_MANAGER',    'Branch manager responsible for branch operations, staff, and exceptions'),
-    ('BRANCH_STAFF',      'Branch operational staff handling parcel intake, scanning, and handovers')
+INSERT INTO roles (role_name) VALUES
+    ('HEAD_OFFICE_ADMIN'),
+    ('BRANCH_MANAGER'),
+    ('BRANCH_STAFF')
 ON CONFLICT (role_name) DO NOTHING;
 
 ALTER TABLE users

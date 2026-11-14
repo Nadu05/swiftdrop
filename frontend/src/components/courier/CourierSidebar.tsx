@@ -7,7 +7,7 @@ import { useLogout } from '@/hooks/api/use-auth';
 import { useAuthStore } from '@/store/auth.store';
 
 const navItems = [
-  { name: 'Dashboard', href: '/courier', icon: LayoutDashboard },
+  { name: 'Dashboard', href: '/courier/dashboard', icon: LayoutDashboard },
   { name: 'Active Delivery', href: '/courier/active', icon: Navigation },
   { name: 'My Deliveries', href: '/courier/deliveries', icon: Package },
   { name: 'Job History', href: '/courier/history', icon: History },
@@ -75,7 +75,10 @@ export default function CourierSidebar() {
         </div>
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = item.href === '/courier' ? pathname === item.href : pathname?.startsWith(item.href);
+          const isActive =
+            item.href === '/courier/dashboard'
+              ? pathname === '/courier' || pathname === '/courier/dashboard'
+              : pathname?.startsWith(item.href);
           return (
             <Link
               key={item.href}

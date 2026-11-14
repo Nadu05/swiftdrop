@@ -20,6 +20,8 @@ export const adminCreateUserSchema = z.object({
   roles: z.array(z.string()).min(1, 'Select at least one role'),
   accountStatus: z.enum(['ACTIVE', 'SUSPENDED', 'DEACTIVATED', 'PENDING_VERIFICATION']),
   emailVerified: z.boolean(),
+  branchId: z.number().nullable().optional(),
+  organizationId: z.string().nullable().optional(),
 });
 
 export type AdminCreateUserFormValues = z.infer<typeof adminCreateUserSchema>;
@@ -38,12 +40,23 @@ export const adminUpdateUserSchema = z.object({
   roles: z.array(z.string()).min(1, 'Select at least one role').optional(),
   accountStatus: z.enum(['ACTIVE', 'SUSPENDED', 'DEACTIVATED', 'PENDING_VERIFICATION']).optional(),
   emailVerified: z.boolean().optional(),
+  branchId: z.number().nullable().optional(),
+  organizationId: z.string().nullable().optional(),
 });
 
 export type AdminUpdateUserFormValues = z.infer<typeof adminUpdateUserSchema>;
 
 export const assignRoleSchema = z.object({
-  roleName: z.enum(['CUSTOMER', 'MERCHANT', 'COURIER', 'DISPATCHER', 'ADMIN']),
+  roleName: z.enum([
+    'CUSTOMER',
+    'MERCHANT',
+    'COURIER',
+    'DISPATCHER',
+    'BRANCH_STAFF',
+    'BRANCH_MANAGER',
+    'HEAD_OFFICE_ADMIN',
+    'ADMIN',
+  ]),
 });
 
 export type AssignRoleFormValues = z.infer<typeof assignRoleSchema>;

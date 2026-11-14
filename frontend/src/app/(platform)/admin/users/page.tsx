@@ -33,7 +33,16 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 
-const CANONICAL_ROLES = ['CUSTOMER', 'MERCHANT', 'COURIER', 'DISPATCHER', 'ADMIN'] as const;
+const CANONICAL_ROLES = [
+  'CUSTOMER',
+  'MERCHANT',
+  'COURIER',
+  'DISPATCHER',
+  'BRANCH_STAFF',
+  'BRANCH_MANAGER',
+  'HEAD_OFFICE_ADMIN',
+  'ADMIN',
+] as const;
 const STATUS_OPTIONS = ['ACTIVE', 'SUSPENDED', 'DEACTIVATED', 'PENDING_VERIFICATION'] as const;
 
 function UserManagementView() {
@@ -101,6 +110,8 @@ function UserManagementView() {
         roles: values.roles,
         accountStatus: values.accountStatus,
         emailVerified: values.emailVerified,
+        branchId: values.branchId ? Number(values.branchId) : undefined,
+        organizationId: values.organizationId || undefined,
       });
       setNotification({ type: 'success', text: `User ${values.email} created successfully.` });
       resetCreate();
@@ -634,6 +645,17 @@ function UserManagementView() {
                   <option value="PENDING_VERIFICATION">PENDING_VERIFICATION</option>
                   <option value="SUSPENDED">SUSPENDED</option>
                 </select>
+              </div>
+
+              {/* Branch ID (Optional / Branch Staff) */}
+              <div>
+                <label style={labelStyle}>Assigned Branch ID (Optional for Hub Staff)</label>
+                <input
+                  type="number"
+                  {...registerCreate('branchId', { valueAsNumber: true })}
+                  placeholder="e.g. 1"
+                  style={inputStyle(false)}
+                />
               </div>
 
               {/* Verified Checkbox */}

@@ -11,13 +11,33 @@ import {
   getApiErrorMessage,
 } from '@/api/services/auth.api';
 import { useAuthStore } from '@/store/auth.store';
-import type { LoginPayload, RegisterPayload, GoogleAuthPayload, AuthUser } from '@/types/auth.types';
+import type {
+  LoginPayload,
+  RegisterPayload,
+  GoogleAuthPayload,
+  AuthUser,
+} from '@/types/auth.types';
+import {
+  isAccountActive,
+  resolvePostAuthRedirect,
+  toAuthUser,
+} from '@/lib/auth/role-resolver';
 
-const AUTH_QUERY_KEY = ['auth', 'me'] as const;
+export const AUTH_QUERY_KEY = ['auth', 'me'] as const;
+
+function getSafeCallbackUrlFromLocation(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('callbackUrl');
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Query hook — fetches the current user on mount.
- * Used to rehydrate client auth state from the server session (cookie).
+ * Used to rehydrate client auth state from the server session (HttpOnly cookie).
  */
 export function useCurrentUser() {
   const setUser = useAuthStore((s) => s.setUser);
@@ -28,14 +48,11 @@ export function useCurrentUser() {
     queryFn: async () => {
       try {
         const response = await getCurrentUser();
-        const user: AuthUser = {
-          userId: response.userId,
-          fullName: response.fullName,
-          email: response.email,
-          phone: response.phone,
-          roles: response.roles,
-          accountStatus: response.accountStatus,
-        };
+        const user: AuthUser = toAuthUser(response);
+        if (!isAccountActive(user.accountStatus)) {
+          setUser(null);
+          throw new Error(`Account is ${user.accountStatus.toLowerCase()}.`);
+        }
         setUser(user);
         return user;
       } catch (error) {
@@ -52,6 +69,8 @@ export function useCurrentUser() {
 
 /**
  * Mutation hook for email/password login.
+ * Automatically resolves the user's authoritative role from the Identity Service
+ * and redirects to their role-specific dashboard (or a permitted callbackUrl).
  */
 export function useLogin() {
   const queryClient = useQueryClient();
@@ -61,17 +80,17 @@ export function useLogin() {
   return useMutation({
     mutationFn: (payload: LoginPayload) => login(payload),
     onSuccess: (data) => {
-      const user: AuthUser = {
-        userId: data.userId,
-        fullName: data.fullName,
-        email: data.email,
-        phone: data.phone,
-        roles: data.roles,
-        accountStatus: data.accountStatus,
-      };
+      const user: AuthUser = toAuthUser(data);
+      if (!isAccountActive(user.accountStatus)) {
+        setUser(null);
+        router.replace(`/login?error=account_${user.accountStatus.toLowerCase()}`);
+        return;
+      }
       setUser(user);
       queryClient.setQueryData(AUTH_QUERY_KEY, user);
-      router.push('/');
+      const callbackUrl = getSafeCallbackUrlFromLocation();
+      const targetRoute = resolvePostAuthRedirect(user, callbackUrl);
+      router.replace(targetRoute);
     },
   });
 }
@@ -87,17 +106,12 @@ export function useRegister() {
   return useMutation({
     mutationFn: (payload: RegisterPayload) => register(payload),
     onSuccess: (data) => {
-      const user: AuthUser = {
-        userId: data.userId,
-        fullName: data.fullName,
-        email: data.email,
-        phone: data.phone,
-        roles: data.roles,
-        accountStatus: data.accountStatus,
-      };
+      const user: AuthUser = toAuthUser(data);
       setUser(user);
       queryClient.setQueryData(AUTH_QUERY_KEY, user);
-      router.push('/');
+      const callbackUrl = getSafeCallbackUrlFromLocation();
+      const targetRoute = resolvePostAuthRedirect(user, callbackUrl);
+      router.replace(targetRoute);
     },
   });
 }
@@ -113,23 +127,25 @@ export function useGoogleAuth() {
   return useMutation({
     mutationFn: (payload: GoogleAuthPayload) => googleAuth(payload),
     onSuccess: (data) => {
-      const user: AuthUser = {
-        userId: data.userId,
-        fullName: data.fullName,
-        email: data.email,
-        phone: data.phone,
-        roles: data.roles,
-        accountStatus: data.accountStatus,
-      };
+      const user: AuthUser = toAuthUser(data);
+      if (!isAccountActive(user.accountStatus)) {
+        setUser(null);
+        router.replace(`/login?error=account_${user.accountStatus.toLowerCase()}`);
+        return;
+      }
       setUser(user);
       queryClient.setQueryData(AUTH_QUERY_KEY, user);
-      router.push('/');
+      const callbackUrl = getSafeCallbackUrlFromLocation();
+      const targetRoute = resolvePostAuthRedirect(user, callbackUrl);
+      router.replace(targetRoute);
     },
   });
 }
 
 /**
  * Mutation hook for logout.
+ * Clears HttpOnly cookies on the backend, resets client Zustand store and React Query cache,
+ * removes any legacy localStorage items, and navigates to /login.
  */
 export function useLogout() {
   const queryClient = useQueryClient();
@@ -139,14 +155,24 @@ export function useLogout() {
   return useMutation({
     mutationFn: logout,
     onSettled: () => {
-      // Always clear client state even if the request fails
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem('swiftdrop_user');
+          localStorage.removeItem('swiftdrop_auth_token');
+          localStorage.removeItem('swiftdrop_role');
+          sessionStorage.removeItem('swiftdrop_user');
+          sessionStorage.removeItem('swiftdrop_auth_token');
+        } catch {
+          // Ignore storage errors
+        }
+      }
       clearAuth();
       queryClient.removeQueries({ queryKey: AUTH_QUERY_KEY });
-      router.push('/login');
+      queryClient.clear();
+      router.replace('/login');
     },
   });
 }
 
 /** Re-export getApiErrorMessage for use in components. */
 export { getApiErrorMessage };
-
