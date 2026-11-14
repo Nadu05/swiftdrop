@@ -54,3 +54,17 @@ logging:
   level:
     com.swiftdrop.dispatch: DEBUG
     org.springframework.web: INFO
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:swiftdrop-super-secret-jwt-key-must-be-at-least-32-bytes-long-2026}
+
+swiftdrop:
+  order-service:
+    base-url: ${ORDER_SERVICE_URL:http://localhost:8083}
+  organization-service:
+    base-url: ${ORGANIZATION_SERVICE_URL:http://localhost:8082}
+  pod-storage:
+    base-dir: ${POD_STORAGE_DIR:./data/pod-evidence}
+    max-delivery-attempts: 3
+

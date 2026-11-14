@@ -2,6 +2,7 @@ package com.swiftdrop.dispatch.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -24,6 +25,47 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(body, HttpStatus.NOT_FOUND);
     }
 
+    @ExceptionHandler(DispatchValidationException.class)
+    public ResponseEntity<Map<String, Object>> handleDispatchValidation(DispatchValidationException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now().toString());
+        body.put("status", HttpStatus.UNPROCESSABLE_ENTITY.value());
+        body.put("error", "Unprocessable Entity");
+        body.put("errorCode", ex.getErrorCode());
+        body.put("message", ex.getMessage());
+        return new ResponseEntity<>(body, HttpStatus.UNPROCESSABLE_ENTITY);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now().toString());
+        body.put("status", HttpStatus.BAD_REQUEST.value());
+        body.put("error", "Bad Request");
+        body.put("message", ex.getMessage());
+        return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now().toString());
+        body.put("status", HttpStatus.FORBIDDEN.value());
+        body.put("error", "Forbidden");
+        body.put("message", ex.getMessage());
+        return new ResponseEntity<>(body, HttpStatus.FORBIDDEN);
+    }
+
+    @ExceptionHandler(ExternalServiceUnavailableException.class)
+    public ResponseEntity<Map<String, Object>> handleExternalUnavailable(ExternalServiceUnavailableException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now().toString());
+        body.put("status", HttpStatus.SERVICE_UNAVAILABLE.value());
+        body.put("error", "Service Unavailable");
+        body.put("message", ex.getMessage());
+        return new ResponseEntity<>(body, HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
         Map<String, Object> body = new HashMap<>();
@@ -34,6 +76,7 @@ public class GlobalExceptionHandler {
         body.put("timestamp", LocalDateTime.now().toString());
         body.put("status", HttpStatus.BAD_REQUEST.value());
         body.put("error", "Validation Failed");
+        body.put("message", errors.values().stream().findFirst().orElse("Request validation failed"));
         body.put("validationErrors", errors);
         return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
     }

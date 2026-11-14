@@ -21,6 +21,9 @@ public class RabbitMQConfig {
     @Value("${swiftdrop.rabbitmq.routing-key:dispatch.#}")
     private String routingKey;
 
+    @Value("${swiftdrop.rabbitmq.order-routing-key:order.#}")
+    private String orderRoutingKey;
+
     @Bean
     public TopicExchange exchange() {
         return new TopicExchange(exchange, true, false);
@@ -34,6 +37,11 @@ public class RabbitMQConfig {
     @Bean
     public Binding binding(Queue queue, TopicExchange exchange) {
         return BindingBuilder.bind(queue).to(exchange).with(routingKey);
+    }
+
+    @Bean
+    public Binding orderEventsBinding(Queue queue, TopicExchange exchange) {
+        return BindingBuilder.bind(queue).to(exchange).with(orderRoutingKey);
     }
 
     @Bean
