@@ -9,6 +9,8 @@ const protectedRoutes = [
   '/settings/account',
   '/settings/security',
   '/admin',
+  '/dispatcher',
+  '/courier',
 ];
 
 // Routes that should redirect to dashboard if already authenticated

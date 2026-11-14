@@ -19,9 +19,14 @@ public interface PickupTaskRepository extends JpaRepository<PickupTask, Long> {
 
     List<PickupTask> findByOriginBranchIdAndStatusOrderByCreatedAtDesc(Long originBranchId, PickupTaskStatus status);
 
+    List<PickupTask> findByOriginBranchIdAndSameBranchFalseOrderByCreatedAtDesc(Long originBranchId);
+
+    List<PickupTask> findBySameBranchFalseOrderByCreatedAtDesc();
+
     List<PickupTask> findAllByOrderByCreatedAtDesc();
 
     boolean existsByOrderId(String orderId);
 
     boolean existsByTrackingNumberIgnoreCase(String trackingNumber);
 }
+

@@ -300,3 +300,4 @@ public class CourierProfileDto {
         this.assignedOrders = assignedOrders;
     }
 }
+

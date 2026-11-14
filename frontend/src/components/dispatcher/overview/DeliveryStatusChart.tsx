@@ -7,7 +7,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { deliveryStatusMock, type DeliveryStatusData } from './mockData';
+import type { DeliveryStatusData } from './types';
 
 interface DeliveryStatusChartProps {
   data?: DeliveryStatusData[];
@@ -36,7 +36,7 @@ function CustomTooltip({ active, payload }: CustomTooltipProps) {
 }
 
 export default function DeliveryStatusChart({
-  data = deliveryStatusMock,
+  data = [],
 }: DeliveryStatusChartProps) {
   const totalDeliveries = data.reduce((sum, item) => sum + item.value, 0);
 

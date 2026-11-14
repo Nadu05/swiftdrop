@@ -22,7 +22,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping({"/api/v1/admin", "/admin"})
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('ADMIN', 'HEAD_OFFICE_ADMIN')")
 @Tag(name = "Administration", description = "User administration and role-based access control")
 @SecurityRequirement(name = "cookieAuth")
 public class AdminController {

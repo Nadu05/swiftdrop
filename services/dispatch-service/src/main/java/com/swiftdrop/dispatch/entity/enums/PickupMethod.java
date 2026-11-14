@@ -18,3 +18,4 @@ public enum PickupMethod {
         throw new IllegalArgumentException("Unsupported pickup method: " + raw);
     }
 }
+

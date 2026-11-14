@@ -20,6 +20,10 @@ public class AdminUpdateUserRequest {
 
     private Boolean emailVerified;
 
+    private Long branchId;
+
+    private String organizationId;
+
     public AdminUpdateUserRequest() {}
 
     public AdminUpdateUserRequest(String fullName, String phone, List<String> roles,
@@ -45,5 +49,11 @@ public class AdminUpdateUserRequest {
 
     public Boolean getEmailVerified() { return emailVerified; }
     public void setEmailVerified(Boolean emailVerified) { this.emailVerified = emailVerified; }
+
+    public Long getBranchId() { return branchId; }
+    public void setBranchId(Long branchId) { this.branchId = branchId; }
+
+    public String getOrganizationId() { return organizationId; }
+    public void setOrganizationId(String organizationId) { this.organizationId = organizationId; }
 }
 

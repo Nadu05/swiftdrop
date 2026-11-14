@@ -58,6 +58,7 @@ class MerchantApplicationControllerTest {
     }
 
     @Test
+    @WithMockUser(username = "aruni@ceylonorganic.lk", roles = {"CUSTOMER"})
     @DisplayName("POST /merchants/applications should return 201 Created when valid application is submitted")
     void shouldSubmitApplicationAndReturn201() throws Exception {
         MerchantApplicationCreateRequest request = new MerchantApplicationCreateRequest();
@@ -83,6 +84,7 @@ class MerchantApplicationControllerTest {
     }
 
     @Test
+    @WithMockUser(username = "admin@swiftdrop.lk", roles = {"HEAD_OFFICE_ADMIN"})
     @DisplayName("GET /merchants/applications should return 200 OK with application list")
     void shouldListApplications() throws Exception {
         when(merchantApplicationService.findAll(any(), any(), any(), any()))
@@ -162,6 +164,17 @@ class MerchantApplicationControllerTest {
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.fieldErrors.rejectionReason").exists());
+    }
+
+    @Test
+    @WithMockUser(username = "other@swiftdrop.lk", roles = {"CUSTOMER"})
+    @DisplayName("GET /merchants/applications/{id} should return 403 when non-owner customer requests another merchant application")
+    void shouldDenyViewingOtherUsersMerchantApplication() throws Exception {
+        when(merchantApplicationService.findByIdOrCode("APP-2026-0812"))
+                .thenReturn(sampleResponse("PENDING"));
+
+        mockMvc.perform(get("/merchants/applications/APP-2026-0812"))
+                .andExpect(status().isForbidden());
     }
 }
 

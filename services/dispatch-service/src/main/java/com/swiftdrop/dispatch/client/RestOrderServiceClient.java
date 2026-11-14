@@ -1,5 +1,6 @@
 package com.swiftdrop.dispatch.client;
 
+import com.swiftdrop.dispatch.config.CorrelationIdHolder;
 import com.swiftdrop.dispatch.exception.ExternalServiceUnavailableException;
 import com.swiftdrop.dispatch.exception.ResourceNotFoundException;
 import com.swiftdrop.dispatch.security.DispatchJwtService;
@@ -42,6 +43,7 @@ public class RestOrderServiceClient implements OrderServiceClient {
             OrderSummaryDto dto = restClient.get()
                     .uri("/api/v1/orders/{id}", orderIdOrTracking)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                    .header(CorrelationIdHolder.HEADER_NAME, CorrelationIdHolder.currentOrNew())
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
                     .body(OrderSummaryDto.class);
@@ -74,6 +76,7 @@ public class RestOrderServiceClient implements OrderServiceClient {
             restClient.patch()
                     .uri("/api/v1/orders/{id}/status", orderIdOrTracking)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                    .header(CorrelationIdHolder.HEADER_NAME, CorrelationIdHolder.currentOrNew())
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(payload)
                     .retrieve()
@@ -97,6 +100,7 @@ public class RestOrderServiceClient implements OrderServiceClient {
             restClient.post()
                     .uri("/api/v1/orders/{id}/branch-dropoff", orderIdOrTracking)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                    .header(CorrelationIdHolder.HEADER_NAME, CorrelationIdHolder.currentOrNew())
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(Map.of("notes", notes != null ? notes : "Confirmed branch drop-off receipt"))
                     .retrieve()
@@ -108,3 +112,4 @@ public class RestOrderServiceClient implements OrderServiceClient {
         }
     }
 }
+

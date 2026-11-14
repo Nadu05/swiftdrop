@@ -32,6 +32,14 @@ public class CourierAssignment {
     @JoinColumn(name = "delivery_job_id")
     private DeliveryJob deliveryJob;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "transfer_manifest_id")
+    private TransferManifest transferManifest;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "return_task_id")
+    private ReturnTask returnTask;
+
     @Column(name = "order_id", nullable = false, length = 64)
     private String orderId;
 
@@ -293,4 +301,21 @@ public class CourierAssignment {
     public void setHistory(List<AssignmentHistoryRecord> history) {
         this.history = history;
     }
+
+    public TransferManifest getTransferManifest() {
+        return transferManifest;
+    }
+
+    public void setTransferManifest(TransferManifest transferManifest) {
+        this.transferManifest = transferManifest;
+    }
+
+    public ReturnTask getReturnTask() {
+        return returnTask;
+    }
+
+    public void setReturnTask(ReturnTask returnTask) {
+        this.returnTask = returnTask;
+    }
 }
+

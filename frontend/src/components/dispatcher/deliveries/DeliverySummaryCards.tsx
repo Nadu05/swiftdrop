@@ -1,4 +1,4 @@
-import { PackageOpen, Bike, AlertOctagon, CheckCheck } from 'lucide-react';
+import { PackageOpen, Bike, AlertOctagon, CheckCheck, Warehouse } from 'lucide-react';
 import type { DeliverySummaryMetrics } from './types';
 
 interface DeliverySummaryCardsProps {
@@ -9,27 +9,40 @@ export default function DeliverySummaryCards({ metrics }: DeliverySummaryCardsPr
   const cards = [
     {
       id: 'total-unassigned',
-      title: 'Total Unassigned',
+      title: 'Unassigned Deliveries',
       value: metrics.totalUnassigned,
-      description: 'Orders awaiting courier dispatch',
+      description: 'Last-mile orders awaiting courier',
       icon: PackageOpen,
       iconColor: '#2563eb',
       iconBg: '#eff6ff',
     },
+    ...(typeof metrics.pendingPickups === 'number'
+      ? [
+          {
+            id: 'pending-pickups',
+            title: 'Pending Pickups',
+            value: metrics.pendingPickups,
+            description: 'Courier pickups awaiting dispatch',
+            icon: Warehouse,
+            iconColor: '#d97706',
+            iconBg: '#fffbeb',
+          },
+        ]
+      : []),
     {
       id: 'available-couriers',
-      title: 'Available Couriers',
+      title: 'Eligible Couriers',
       value: metrics.availableCouriers,
-      description: 'Active fleet ready for pickup',
+      description: 'Active fleet with free capacity',
       icon: Bike,
       iconColor: '#16a34a',
       iconBg: '#f0fdf4',
     },
     {
       id: 'high-priority',
-      title: 'High Priority Deliveries',
+      title: 'High Priority Queue',
       value: metrics.highPriorityDeliveries,
-      description: 'Urgent & high priority queue',
+      description: 'Urgent & high priority deliveries',
       icon: AlertOctagon,
       iconColor: '#dc2626',
       iconBg: '#fef2f2',
@@ -38,7 +51,7 @@ export default function DeliverySummaryCards({ metrics }: DeliverySummaryCardsPr
       id: 'assigned-today',
       title: 'Assigned Today',
       value: metrics.assignedToday,
-      description: 'Successfully dispatched parcels',
+      description: 'Dispatched tasks created today',
       icon: CheckCheck,
       iconColor: '#0284c7',
       iconBg: '#f0f9ff',

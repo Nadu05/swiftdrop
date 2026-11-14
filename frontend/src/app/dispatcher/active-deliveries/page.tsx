@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { RefreshCw, Clock } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { RefreshCw, Clock, AlertCircle } from 'lucide-react';
 import ActiveDeliverySummary from '@/components/dispatcher/activeDeliveries/ActiveDeliverySummary';
 import ActiveDeliveryFilters from '@/components/dispatcher/activeDeliveries/ActiveDeliveryFilters';
 import ActiveDeliveryTable from '@/components/dispatcher/activeDeliveries/ActiveDeliveryTable';
@@ -13,16 +14,28 @@ import type {
 } from '@/components/dispatcher/activeDeliveries/types';
 
 export default function ActiveDeliveriesPage() {
-  const [deliveries, setDeliveries] = useState<ActiveDeliveryRecord[]>([]);
-  const [metrics, setMetrics] = useState<ActiveDeliverySummaryMetrics>({
+  const activeQuery = useQuery({
+    queryKey: ['dispatch', 'active-deliveries'],
+    queryFn: getActiveDeliveries,
+    refetchInterval: 15_000,
+  });
+
+  const deliveries: ActiveDeliveryRecord[] = activeQuery.data?.deliveries ?? [];
+  const metrics: ActiveDeliverySummaryMetrics = activeQuery.data?.metrics ?? {
     totalActive: 0,
     assigned: 0,
     accepted: 0,
     inTransit: 0,
-  });
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<string>('');
+  };
+  const isLoading = activeQuery.isLoading;
+  const isRefreshing = activeQuery.isFetching;
+  const lastUpdated = activeQuery.dataUpdatedAt
+    ? new Intl.DateTimeFormat('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      }).format(new Date(activeQuery.dataUpdatedAt))
+    : '';
 
   // Filters State
   const [searchTerm, setSearchTerm] = useState('');
@@ -36,35 +49,8 @@ export default function ActiveDeliveriesPage() {
   // Details Modal State
   const [selectedDelivery, setSelectedDelivery] = useState<ActiveDeliveryRecord | null>(null);
 
-  const formatTimestamp = () => {
-    return new Intl.DateTimeFormat('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    }).format(new Date());
-  };
-
-  const loadData = useCallback(async () => {
-    try {
-      const result = await getActiveDeliveries();
-      setDeliveries(result.deliveries);
-      setMetrics(result.metrics);
-      setLastUpdated(formatTimestamp());
-    } catch (err) {
-      console.error('Failed to load active deliveries:', err);
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
   const handleRefresh = () => {
-    setIsRefreshing(true);
-    loadData();
+    activeQuery.refetch();
   };
 
   // Filter & Sort Pipeline
@@ -94,10 +80,13 @@ export default function ActiveDeliveriesPage() {
       result = result.filter((d) => d.priority === priorityFilter);
     }
 
-    // 4. Filter by Date
+    // 4. Filter by Date (live calendar dates)
     if (dateFilter !== 'ALL') {
-      const today = new Date('2026-11-10').toDateString();
-      const yesterday = new Date('2026-11-09').toDateString();
+      const now = new Date();
+      const today = now.toDateString();
+      const yesterdayDate = new Date(now);
+      yesterdayDate.setDate(now.getDate() - 1);
+      const yesterday = yesterdayDate.toDateString();
 
       result = result.filter((d) => {
         const itemDate = new Date(d.assignedDate).toDateString();
@@ -161,6 +150,24 @@ export default function ActiveDeliveriesPage() {
           </button>
         </div>
       </header>
+
+      {/* Error Alert */}
+      {activeQuery.isError && (
+        <div className="dispatcher-error-banner" role="alert">
+          <AlertCircle size={18} aria-hidden="true" />
+          <div className="dispatcher-error-banner__body">
+            <strong>Failed to load active deliveries</strong>
+            <p>
+              {activeQuery.error instanceof Error
+                ? activeQuery.error.message
+                : 'Could not reach Dispatch Service.'}
+            </p>
+          </div>
+          <button type="button" className="dispatcher-action-btn-secondary" onClick={handleRefresh}>
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* 2. Key Metrics Summary Cards */}
       <ActiveDeliverySummary metrics={metrics} />

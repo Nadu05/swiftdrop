@@ -198,13 +198,29 @@ public class OrderService {
             order.setCustomerUserId(principal.userId());
             order.setCustomerEmail(principal.email());
             if (orderSourceType == OrderSourceType.MERCHANT) {
-                String orgId = (request.getMerchantOrganizationId() != null && !request.getMerchantOrganizationId().isBlank())
-                        ? request.getMerchantOrganizationId().trim()
-                        : (principal.organizationId() != null ? principal.organizationId() : principal.userId());
-                order.setMerchantOrganizationId(orgId);
+                String principalOrg = principal.organizationId() != null && !principal.organizationId().isBlank()
+                        ? principal.organizationId().trim()
+                        : principal.userId();
+                if (request.getMerchantOrganizationId() != null && !request.getMerchantOrganizationId().isBlank()) {
+                    String requestedOrg = request.getMerchantOrganizationId().trim();
+                    if (!principal.isGlobalAdmin()
+                            && !requestedOrg.equalsIgnoreCase(principalOrg)
+                            && !requestedOrg.equalsIgnoreCase(principal.userId())) {
+                        throw new AccessDeniedException(
+                                "Merchant cannot create orders on behalf of another organization"
+                        );
+                    }
+                    order.setMerchantOrganizationId(requestedOrg);
+                } else {
+                    order.setMerchantOrganizationId(principalOrg);
+                }
+            } else if (request.getMerchantOrganizationId() != null && !request.getMerchantOrganizationId().isBlank()) {
+                throw new AccessDeniedException(
+                        "Only authenticated MERCHANT or ADMIN users may specify a merchantOrganizationId"
+                );
             }
         } else if (request.getMerchantOrganizationId() != null && !request.getMerchantOrganizationId().isBlank()) {
-            order.setMerchantOrganizationId(request.getMerchantOrganizationId().trim());
+            throw new AccessDeniedException("Authentication is required to create merchant orders");
         }
 
         order.setPickupMethod(pickupMethod);
@@ -360,6 +376,9 @@ public class OrderService {
 
         DeliveryOrder saved = orderRepository.save(order);
         eventPublisher.publishOrderCreated(saved);
+        if (saved.getStatus() == OrderLifecycleStatus.CONFIRMED) {
+            eventPublisher.publishOrderConfirmed(saved);
+        }
 
         DeliveryOrderResponse response = toOrderResponse(saved);
         response.setMessage("Delivery order created successfully.");
@@ -373,13 +392,27 @@ public class OrderService {
         }
 
         List<DeliveryOrder> orders;
-        if (principal.hasRole("ADMIN") || principal.hasRole("DISPATCHER")) {
+        if (principal.isGlobalAdmin()) {
             if (statusFilter != null && !statusFilter.isBlank() && !"ALL".equalsIgnoreCase(statusFilter)) {
                 OrderLifecycleStatus targetStatus = OrderLifecycleStatus.fromValue(statusFilter);
                 orders = orderRepository.findByStatusOrderByCreatedAtDesc(targetStatus);
             } else {
                 orders = orderRepository.findAllByOrderByCreatedAtDesc();
             }
+        } else if (principal.isBranchScopedStaff()) {
+            if (principal.branchId() == null) {
+                throw new AccessDeniedException("Branch-scoped staff must have an assigned branchId claim");
+            }
+            List<DeliveryOrder> branchOrders = orderRepository
+                    .findByOriginBranchIdOrDestinationBranchIdOrderByCreatedAtDesc(principal.branchId(), principal.branchId());
+            if (statusFilter != null && !statusFilter.isBlank() && !"ALL".equalsIgnoreCase(statusFilter)) {
+                OrderLifecycleStatus targetStatus = OrderLifecycleStatus.fromValue(statusFilter);
+                orders = branchOrders.stream().filter(o -> o.getStatus() == targetStatus).toList();
+            } else {
+                orders = branchOrders;
+            }
+        } else if (principal.hasRole("COURIER")) {
+            orders = orderRepository.findByAssignedCourierIdOrderByCreatedAtDesc(principal.userId());
         } else if (principal.hasRole("MERCHANT")) {
             String orgId = principal.organizationId() != null ? principal.organizationId() : principal.userId();
             orders = orderRepository.findByMerchantOrganizationIdOrderByCreatedAtDesc(orgId);
@@ -436,13 +469,61 @@ public class OrderService {
                         ev.getStatus().name(),
                         ev.getStatus().getDisplayLabel(),
                         ev.getRecordedAt() != null ? ev.getRecordedAt().toString() : null,
-                        ev.getLocation(),
-                        ev.getDescription()
+                        sanitizePublicLocation(ev, order),
+                        sanitizePublicDescription(ev, order)
                 ))
                 .toList();
         resp.setEvents(safeEvents);
 
         return resp;
+    }
+
+    private String sanitizePublicLocation(TrackingEvent ev, DeliveryOrder order) {
+        String loc = ev.getLocation();
+        if (loc == null || loc.isBlank()) {
+            return order.getOriginBranchName();
+        }
+        String pickupAddr = order.getPickupDetails() != null ? order.getPickupDetails().getAddress() : null;
+        String dropoffAddr = order.getDropoffDetails() != null ? order.getDropoffDetails().getAddress() : null;
+        if (pickupAddr != null && !pickupAddr.isBlank() && loc.equalsIgnoreCase(pickupAddr.trim())) {
+            return order.getPickupDetails().getCity() != null
+                    ? order.getPickupDetails().getCity()
+                    : order.getOriginBranchName();
+        }
+        if (dropoffAddr != null && !dropoffAddr.isBlank() && loc.equalsIgnoreCase(dropoffAddr.trim())) {
+            return order.getDropoffDetails().getCity() != null
+                    ? order.getDropoffDetails().getCity()
+                    : order.getDestinationBranchName();
+        }
+        return loc;
+    }
+
+    private String sanitizePublicDescription(TrackingEvent ev, DeliveryOrder order) {
+        String desc = ev.getDescription();
+        if (desc == null || desc.isBlank()) {
+            return ev.getStatus().getDisplayLabel();
+        }
+        String sanitized = desc;
+        if (order.getPickupDetails() != null) {
+            if (order.getPickupDetails().getAddress() != null && !order.getPickupDetails().getAddress().isBlank()) {
+                sanitized = sanitized.replace(order.getPickupDetails().getAddress(),
+                        order.getPickupDetails().getCity() != null ? order.getPickupDetails().getCity() : "origin area");
+            }
+            if (order.getPickupDetails().getContactName() != null && !order.getPickupDetails().getContactName().isBlank()) {
+                sanitized = sanitized.replace(order.getPickupDetails().getContactName(), "sender");
+            }
+        }
+        if (order.getDropoffDetails() != null) {
+            if (order.getDropoffDetails().getAddress() != null && !order.getDropoffDetails().getAddress().isBlank()) {
+                sanitized = sanitized.replace(order.getDropoffDetails().getAddress(),
+                        order.getDropoffDetails().getCity() != null ? order.getDropoffDetails().getCity() : "destination area");
+            }
+            if (order.getDropoffDetails().getContactName() != null && !order.getDropoffDetails().getContactName().isBlank()) {
+                sanitized = sanitized.replace(order.getDropoffDetails().getContactName(), "recipient");
+            }
+        }
+        sanitized = sanitized.replaceAll("(?i)\\(Recipient:\\s*[^)]+\\)", "(Verified POD)");
+        return sanitized;
     }
 
     public DeliveryOrderResponse updateOrderStatus(
@@ -451,15 +532,31 @@ public class OrderService {
             OrderUserPrincipal principal) {
 
         if (principal == null
-                || (!principal.hasRole("ADMIN")
-                && !principal.hasRole("DISPATCHER")
+                || (!principal.isGlobalAdmin()
+                && !principal.isBranchScopedStaff()
                 && !principal.hasRole("COURIER"))) {
             throw new AccessDeniedException(
-                    "Only ADMIN, DISPATCHER, or COURIER roles may transition operational parcel statuses"
+                    "Only ADMIN, BRANCH_MANAGER, BRANCH_STAFF, DISPATCHER, or assigned COURIER roles may transition operational parcel statuses"
             );
         }
 
         DeliveryOrder order = resolveOrder(idOrTracking);
+        if (principal.isGlobalAdmin()) {
+            // Global admin or internal S2S allowed
+        } else if (principal.isBranchScopedStaff()) {
+            if (!principal.canAccessOrderBranch(order.getOriginBranchId(), order.getDestinationBranchId())) {
+                throw new AccessDeniedException(
+                        "Staff member is not authorized to update orders outside their assigned branch"
+                );
+            }
+        } else if (principal.hasRole("COURIER")) {
+            if (order.getAssignedCourierId() == null || !order.getAssignedCourierId().equals(principal.userId())) {
+                throw new AccessDeniedException(
+                        "Courier may only update operational status for orders assigned to them"
+                );
+            }
+        }
+
         String previousStatus = order.getStatus().name();
         OrderLifecycleStatus targetStatus = OrderLifecycleStatus.fromValue(request.getStatus());
 
@@ -476,8 +573,18 @@ public class OrderService {
             String notes,
             OrderUserPrincipal principal) {
 
+        if (principal == null || (!principal.isGlobalAdmin() && !principal.isBranchScopedStaff())) {
+            throw new AccessDeniedException(
+                    "Only authorized branch staff, dispatchers, or administrators may record branch drop-off intake"
+            );
+        }
+
         DeliveryOrder order = resolveOrder(idOrTracking);
-        enforceOrderReadAccess(order, principal);
+        if (principal.isBranchScopedStaff() && !principal.canManageOriginBranch(order.getOriginBranchId())) {
+            throw new AccessDeniedException(
+                    "Branch staff can only record parcel drop-off intake at their assigned origin branch"
+            );
+        }
 
         if (order.getPickupMethod() != PickupMethod.BRANCH_DROPOFF) {
             order.setPickupMethod(PickupMethod.BRANCH_DROPOFF);
@@ -491,8 +598,8 @@ public class OrderService {
                 ? notes.trim()
                 : "Parcel dropped off directly at origin branch (" + order.getOriginBranchName() + ")");
 
-        String actorId = principal != null ? principal.userId() : "branch-staff";
-        String actorRole = (principal != null && !principal.roles().isEmpty()) ? principal.roles().get(0) : "CUSTOMER";
+        String actorId = principal.userId();
+        String actorRole = !principal.roles().isEmpty() ? principal.roles().get(0) : "BRANCH_STAFF";
 
         lifecycleService.validateAndTransition(
                 order,
@@ -557,6 +664,7 @@ public class OrderService {
                     actorRole
             );
             DeliveryOrder saved = orderRepository.save(order);
+            eventPublisher.publishOrderConfirmed(saved);
             eventPublisher.publishOrderStatusChanged(saved, previousStatus);
             return toOrderResponse(saved);
         }
@@ -569,6 +677,13 @@ public class OrderService {
             String idOrTracking,
             OrderCancelRequest request,
             OrderUserPrincipal principal) {
+
+        if (principal == null) {
+            throw new AccessDeniedException("Authentication is required to cancel an order");
+        }
+        if (principal.hasRole("COURIER") && !principal.isGlobalAdmin() && !principal.isBranchScopedStaff()) {
+            throw new AccessDeniedException("Couriers are not permitted to cancel delivery orders");
+        }
 
         DeliveryOrder order = resolveOrder(idOrTracking);
         enforceOrderReadAccess(order, principal);
@@ -607,8 +722,16 @@ public class OrderService {
         if (principal == null) {
             throw new AccessDeniedException("Authentication is required to access order details");
         }
-        if (principal.hasRole("ADMIN") || principal.hasRole("DISPATCHER")) {
+        if (principal.isGlobalAdmin()) {
             return;
+        }
+        if (principal.isBranchScopedStaff()) {
+            if (principal.canAccessOrderBranch(order.getOriginBranchId(), order.getDestinationBranchId())) {
+                return;
+            }
+            throw new AccessDeniedException(
+                    "Staff member is not authorized to access orders outside their assigned branch"
+            );
         }
         if (principal.hasRole("COURIER")) {
             if (order.getAssignedCourierId() != null && order.getAssignedCourierId().equals(principal.userId())) {
@@ -716,13 +839,21 @@ public class OrderService {
             return OrderSourceType.MERCHANT;
         }
         if (request.getOrderSourceType() != null && !request.getOrderSourceType().isBlank()) {
+            OrderSourceType requested;
             try {
-                return OrderSourceType.valueOf(request.getOrderSourceType().trim().toUpperCase(Locale.ROOT));
+                requested = OrderSourceType.valueOf(request.getOrderSourceType().trim().toUpperCase(Locale.ROOT));
             } catch (IllegalArgumentException ex) {
                 throw new IllegalArgumentException(
                         "Invalid orderSourceType: '" + request.getOrderSourceType() + "'. Allowed values: CUSTOMER, MERCHANT"
                 );
             }
+            if (requested == OrderSourceType.MERCHANT
+                    && (principal == null || (!principal.hasRole("MERCHANT") && !principal.isGlobalAdmin()))) {
+                throw new AccessDeniedException(
+                        "Only authenticated MERCHANT or ADMIN users may create merchant orders"
+                );
+            }
+            return requested;
         }
         return OrderSourceType.CUSTOMER;
     }

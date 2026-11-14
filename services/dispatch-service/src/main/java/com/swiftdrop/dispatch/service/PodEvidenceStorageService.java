@@ -101,6 +101,17 @@ public class PodEvidenceStorageService {
         );
     }
 
+    /** Validates and stores an optional evidence reference (data URI, storage URI, or external URL). */
+    public String storeEvidenceReference(String trackingNumber, String kind, String rawReference) {
+        if (rawReference == null || rawReference.isBlank()) {
+            return null;
+        }
+        String effectiveTracking = (trackingNumber != null && !trackingNumber.isBlank())
+                ? trackingNumber.trim()
+                : "EXC-GEN";
+        return normalizeOrPersistReference(effectiveTracking, kind != null ? kind : "evidence", rawReference.trim());
+    }
+
     private String normalizeOrPersistReference(String trackingNumber, String kind, String value) {
         if (value.startsWith("data:image/")) {
             return persistDataUriToSecureFile(trackingNumber, kind, value);
@@ -181,3 +192,4 @@ public class PodEvidenceStorageService {
         }
     }
 }
+

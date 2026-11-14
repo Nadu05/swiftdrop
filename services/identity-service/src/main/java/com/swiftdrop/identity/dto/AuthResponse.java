@@ -18,6 +18,8 @@ public class AuthResponse {
     private String accountStatus;
     private boolean emailVerified;
     private LocalDateTime createdAt;
+    private Long branchId;
+    private String organizationId;
 
     // --- Constructor ---
 
@@ -65,5 +67,11 @@ public class AuthResponse {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public Long getBranchId() { return branchId; }
+    public void setBranchId(Long branchId) { this.branchId = branchId; }
+
+    public String getOrganizationId() { return organizationId; }
+    public void setOrganizationId(String organizationId) { this.organizationId = organizationId; }
 }
 

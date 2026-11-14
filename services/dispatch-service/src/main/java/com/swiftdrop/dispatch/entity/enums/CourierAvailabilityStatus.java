@@ -19,3 +19,4 @@ public enum CourierAvailabilityStatus {
         throw new IllegalArgumentException("Unsupported courier availability status: " + raw);
     }
 }
+

@@ -261,3 +261,4 @@ INSERT INTO couriers (
     ('CR-104', 'courier-104', 'Saman Kumara', '+94 75 444 1122', 'saman.k@swiftdrop.lk', 'BICYCLE', 'ECO-CYCLE-04', 1, 'CMB-CENTRAL', 'Colombo Central Hub', 'Zone A - Colombo Central', 'AVAILABLE', 6, 2, 420, 4.70, '09:00 AM'),
     ('CR-105', 'courier-105', 'Mahesh Alwis', '+94 78 666 9900', 'mahesh.a@swiftdrop.lk', 'VAN', 'WP CAH-9988', 2, 'KDY-MAIN', 'Kandy Regional Hub', 'Zone K - Kandy City', 'AVAILABLE', 10, 3, 750, 4.80, '07:45 AM'),
     ('CR-106', 'courier-106', 'Pravin Weerakkody', '+94 70 111 2233', 'pravin.w@swiftdrop.lk', 'MOTORCYCLE', 'WP BDD-5566', 3, 'GAL-MAIN', 'Galle Southern Hub', 'Zone G - Galle Fort & South', 'OFFLINE', 8, 0, 310, 4.70, 'Off Shift');
+

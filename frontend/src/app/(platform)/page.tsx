@@ -148,6 +148,13 @@ export default function DashboardPage() {
             Branch Dispatcher
           </Link>
           <Link
+            href="/courier"
+            className="badge badge-info"
+            style={{ textDecoration: 'none', padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+          >
+            Courier Portal
+          </Link>
+          <Link
             href="/book"
             className="badge badge-success"
             style={{ textDecoration: 'none', padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}

@@ -9,3 +9,4 @@ public interface AssignmentHistoryRepository extends JpaRepository<AssignmentHis
 
     List<AssignmentHistoryRecord> findByAssignmentIdOrderByRecordedAtAsc(Long assignmentId);
 }
+

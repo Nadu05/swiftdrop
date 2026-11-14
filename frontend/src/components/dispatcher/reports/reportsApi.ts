@@ -1,314 +1,395 @@
+import {
+  dispatchApi,
+  type DeliveryJobDto,
+  type PickupTaskDto,
+} from '@/api/services/dispatch.api';
 import { getBranches } from '@/api/services/organization.api';
 import type { BranchResponse } from '@/types/organization.types';
 import type {
+  BranchPerformanceRecord,
+  DeliveryStatusItem,
+  DeliveryTrendPoint,
   ReportFilterState,
   ReportsDataBundle,
-  ReportSummaryMetrics,
-  DeliveryStatusItem,
-  BranchPerformanceRecord,
-  DeliveryTrendPoint,
 } from './types';
 
-/**
- * Fallback branches used when organization-service is offline or empty.
- * Matches standard Sri Lanka hubs used across SwiftDrop.
- */
-export const FALLBACK_BRANCHES: { id: number; code: string; name: string; city: string }[] = [
-  { id: 1, code: 'CMB-01', name: 'Colombo Central Hub', city: 'Colombo' },
-  { id: 2, code: 'KND-01', name: 'Kandy Regional Hub', city: 'Kandy' },
-  { id: 3, code: 'GAL-01', name: 'Galle Southern Hub', city: 'Galle' },
-  { id: 4, code: 'KRN-01', name: 'Kurunegala Hub', city: 'Kurunegala' },
-  { id: 5, code: 'NEG-01', name: 'Negombo Coastal Hub', city: 'Negombo' },
-  { id: 6, code: 'JAF-01', name: 'Jaffna Northern Hub', city: 'Jaffna' },
-];
-
-/**
- * Fetch available branches for filter dropdowns.
- * Integrates with Member 04's Organization Service (`getBranches()`),
- * falling back gracefully to standard hubs if unreachable.
- */
-export async function getAvailableBranches(): Promise<{ id: string; name: string; code: string }[]> {
-  try {
-    const backendBranches = await getBranches('ACTIVE');
-    if (backendBranches && backendBranches.length > 0) {
-      return backendBranches.map((b: BranchResponse) => ({
-        id: String(b.id),
-        name: b.name,
-        code: b.code,
-      }));
-    }
-  } catch (err) {
-    // Backend service not reachable or offline in local dev; use fallback
-    console.warn('Organization service unavailable, using fallback branch options for reports:', err);
-  }
-
-  return FALLBACK_BRANCHES.map((b) => ({
+export async function getAvailableBranches(): Promise<
+  { id: string; name: string; code: string }[]
+> {
+  const branches = await getBranches();
+  return branches.map((b) => ({
     id: String(b.id),
     name: b.name,
     code: b.code,
   }));
 }
 
-/**
- * Multiplier factors based on selected filters to simulate realistic variations
- */
-function getFilterMultiplier(filters: ReportFilterState): number {
-  let multiplier = 1.0;
+function getDateWindow(filters: ReportFilterState): { start: Date; end: Date } {
+  const now = new Date();
+  const end = new Date(now);
+  end.setHours(23, 59, 59, 999);
 
-  // Date range multiplier
-  if (filters.dateRange === 'today') {
-    multiplier *= 0.14; // roughly 1/7th of a week
-  } else if (filters.dateRange === 'last7days') {
-    multiplier *= 1.0;
-  } else if (filters.dateRange === 'last30days') {
-    multiplier *= 4.2;
-  } else if (filters.dateRange === 'custom') {
-    if (filters.startDate && filters.endDate) {
-      const start = new Date(filters.startDate).getTime();
-      const end = new Date(filters.endDate).getTime();
-      const days = Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)));
-      multiplier *= Math.max(0.1, days / 7);
-    } else {
-      multiplier *= 1.0;
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+
+  switch (filters.dateRange) {
+    case 'today':
+      return { start, end };
+    case 'last7days':
+      start.setDate(start.getDate() - 6);
+      return { start, end };
+    case 'last30days':
+      start.setDate(start.getDate() - 29);
+      return { start, end };
+    case 'custom': {
+      const customStart = filters.startDate ? new Date(`${filters.startDate}T00:00:00`) : start;
+      const customEnd = filters.endDate ? new Date(`${filters.endDate}T23:59:59.999`) : end;
+      return {
+        start: Number.isNaN(customStart.getTime()) ? start : customStart,
+        end: Number.isNaN(customEnd.getTime()) ? end : customEnd,
+      };
     }
+    default:
+      start.setDate(start.getDate() - 6);
+      return { start, end };
   }
-
-  // Branch filter multiplier (if viewing a single branch, slice the volume)
-  if (filters.branchId !== 'ALL') {
-    multiplier *= 0.35;
-  }
-
-  // Service type multiplier
-  if (filters.serviceType === 'EXPRESS') {
-    multiplier *= 0.38;
-  } else if (filters.serviceType === 'SAME_DAY') {
-    multiplier *= 0.22;
-  } else if (filters.serviceType === 'STANDARD') {
-    multiplier *= 0.60;
-  }
-
-  return multiplier;
 }
 
-/**
- * Generate report data bundle responding to selected filter criteria.
- * Designed as a clean service abstraction ready to be replaced with
- * Spring Boot analytics endpoints when backend contracts are delivered.
- */
-export async function fetchReportsData(filters: ReportFilterState): Promise<ReportsDataBundle> {
-  // Simulate network latency (250ms)
-  await new Promise((res) => setTimeout(res, 250));
+function isInWindow(iso: string | undefined, start: Date, end: Date): boolean {
+  if (!iso) return true;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return true;
+  return d.getTime() >= start.getTime() && d.getTime() <= end.getTime();
+}
 
-  const branches = await getAvailableBranches();
-  const mult = getFilterMultiplier(filters);
+function isFailedJob(status: string): boolean {
+  return (
+    status === 'FAILED' ||
+    status === 'PENDING_DISPATCHER_DECISION' ||
+    status === 'RETURN_TO_SENDER' ||
+    status === 'RETURNED_TO_SENDER'
+  );
+}
 
-  // Baseline 7-day all-network total is ~1,850 deliveries
-  const baseDeliveries = 1850;
-  const totalDeliveries = Math.max(25, Math.round(baseDeliveries * mult));
+function matchesServiceType(job: DeliveryJobDto, serviceType: string): boolean {
+  if (!serviceType || serviceType === 'ALL') return true;
+  const priority = String(job.priority || 'NORMAL').toUpperCase();
+  if (serviceType === 'EXPRESS') {
+    return priority === 'URGENT' || priority === 'EXPRESS' || priority === 'HIGH';
+  }
+  if (serviceType === 'STANDARD') {
+    return priority === 'NORMAL';
+  }
+  return true;
+}
 
-  // Determine realistic status breakdown
-  const deliveredCount = Math.round(totalDeliveries * 0.884);
-  const inTransitCount = Math.round(totalDeliveries * 0.058);
-  const awaitingCourierCount = Math.round(totalDeliveries * 0.026);
-  const cancelledCount = Math.round(totalDeliveries * 0.012);
-  const failedCount = Math.max(1, totalDeliveries - (deliveredCount + inTransitCount + awaitingCourierCount + cancelledCount));
+function matchesBranchFilter(job: DeliveryJobDto, branchId: string): boolean {
+  if (!branchId || branchId === 'ALL') return true;
+  return String(job.branchId ?? '') === branchId || String(job.branchCode ?? '') === branchId;
+}
+
+function buildDailyTrends(jobs: DeliveryJobDto[]): DeliveryTrendPoint[] {
+  const points: DeliveryTrendPoint[] = [];
+  const today = new Date();
+  for (let offset = 6; offset >= 0; offset--) {
+    const day = new Date(today);
+    day.setDate(today.getDate() - offset);
+    const dayStr = day.toDateString();
+    const dayJobs = jobs.filter((j) => {
+      const raw = j.completedAt || j.deliveredAt || j.createdAt;
+      if (!raw) return false;
+      const d = new Date(raw);
+      return !Number.isNaN(d.getTime()) && d.toDateString() === dayStr;
+    });
+    const delivered = dayJobs.filter((j) => j.status === 'DELIVERED').length;
+    const failed = dayJobs.filter((j) => isFailedJob(String(j.status))).length;
+    points.push({
+      period: new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(day),
+      dateLabel: new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(day),
+      delivered,
+      failed,
+      total: dayJobs.length,
+    });
+  }
+  return points;
+}
+
+function buildWeeklyTrends(jobs: DeliveryJobDto[]): DeliveryTrendPoint[] {
+  const points: DeliveryTrendPoint[] = [];
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+
+  for (let weekIdx = 3; weekIdx >= 0; weekIdx--) {
+    const end = new Date(today);
+    end.setDate(today.getDate() - weekIdx * 7);
+    const start = new Date(end);
+    start.setDate(end.getDate() - 6);
+    start.setHours(0, 0, 0, 0);
+
+    const weekJobs = jobs.filter((j) =>
+      isInWindow(j.completedAt || j.deliveredAt || j.createdAt, start, end)
+    );
+    const delivered = weekJobs.filter((j) => j.status === 'DELIVERED').length;
+    const failed = weekJobs.filter((j) => isFailedJob(String(j.status))).length;
+    points.push({
+      period: `W${4 - weekIdx}`,
+      dateLabel: `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+      delivered,
+      failed,
+      total: weekJobs.length,
+    });
+  }
+  return points;
+}
+
+function buildMonthlyTrends(jobs: DeliveryJobDto[]): DeliveryTrendPoint[] {
+  const points: DeliveryTrendPoint[] = [];
+  const today = new Date();
+
+  for (let mOffset = 5; mOffset >= 0; mOffset--) {
+    const ref = new Date(today.getFullYear(), today.getMonth() - mOffset, 1);
+    const year = ref.getFullYear();
+    const month = ref.getMonth();
+    const monthJobs = jobs.filter((j) => {
+      const raw = j.completedAt || j.deliveredAt || j.createdAt;
+      if (!raw) return false;
+      const d = new Date(raw);
+      return !Number.isNaN(d.getTime()) && d.getFullYear() === year && d.getMonth() === month;
+    });
+    const delivered = monthJobs.filter((j) => j.status === 'DELIVERED').length;
+    const failed = monthJobs.filter((j) => isFailedJob(String(j.status))).length;
+    points.push({
+      period: new Intl.DateTimeFormat('en-US', { month: 'short' }).format(ref),
+      dateLabel: new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(ref),
+      delivered,
+      failed,
+      total: monthJobs.length,
+    });
+  }
+  return points;
+}
+
+export async function fetchReportsData(
+  filters: ReportFilterState
+): Promise<ReportsDataBundle> {
+  const [jobs, pickupTasks, couriers, exceptions, branches] = await Promise.all([
+    dispatchApi.getDeliveryJobs(),
+    dispatchApi.getPickupTasks(),
+    dispatchApi.getCouriers(),
+    dispatchApi.getExceptions(),
+    getBranches().catch(() => [] as BranchResponse[]),
+  ]);
+
+  const { start, end } = getDateWindow(filters);
+
+  const filteredJobs = jobs.filter((j) => {
+    const ts = j.createdAt || j.deliveredAt || j.completedAt;
+    return (
+      isInWindow(ts, start, end) &&
+      matchesBranchFilter(j, filters.branchId) &&
+      matchesServiceType(j, filters.serviceType)
+    );
+  });
+
+  const totalDeliveries = filteredJobs.length;
+  const deliveredCount = filteredJobs.filter((j) => j.status === 'DELIVERED').length;
+  const inTransitCount = filteredJobs.filter((j) =>
+    ['ASSIGNED', 'ACCEPTED', 'IN_TRANSIT'].includes(String(j.status))
+  ).length;
+  const awaitingCount = filteredJobs.filter((j) => j.status === 'UNASSIGNED').length;
+  const cancelledCount = filteredJobs.filter((j) => j.status === 'CANCELLED').length;
+  const failedCount = filteredJobs.filter((j) => isFailedJob(String(j.status))).length;
+
+  const terminalCount = deliveredCount + failedCount;
+  const completionRate =
+    terminalCount > 0 ? Number(((deliveredCount / terminalCount) * 100).toFixed(1)) : 0;
+  const onTimeRate =
+    totalDeliveries > 0
+      ? Number(
+          (
+            ((deliveredCount + inTransitCount) /
+              Math.max(totalDeliveries - cancelledCount, 1)) *
+            100
+          ).toFixed(1)
+        )
+      : 0;
+
+  const merchantNames = new Set<string>();
+  filteredJobs.forEach((j) => {
+    if (j.merchantName) merchantNames.add(j.merchantName);
+  });
+  pickupTasks.forEach((t: PickupTaskDto) => {
+    if (t.merchantName) merchantNames.add(t.merchantName);
+  });
+
+  const safePct = (count: number) =>
+    totalDeliveries > 0 ? Number(((count / totalDeliveries) * 100).toFixed(1)) : 0;
 
   const statusBreakdown: DeliveryStatusItem[] = [
     {
       status: 'Delivered',
       count: deliveredCount,
-      percentage: Number(((deliveredCount / totalDeliveries) * 100).toFixed(1)),
-      color: '#14b8a6', // Teal
+      percentage: safePct(deliveredCount),
+      color: '#16a34a',
     },
     {
       status: 'In Transit',
       count: inTransitCount,
-      percentage: Number(((inTransitCount / totalDeliveries) * 100).toFixed(1)),
-      color: '#2563eb', // Blue
+      percentage: safePct(inTransitCount),
+      color: '#2563eb',
     },
     {
       status: 'Awaiting Courier',
-      count: awaitingCourierCount,
-      percentage: Number(((awaitingCourierCount / totalDeliveries) * 100).toFixed(1)),
-      color: '#f59e0b', // Amber
-    },
-    {
-      status: 'Cancelled',
-      count: cancelledCount,
-      percentage: Number(((cancelledCount / totalDeliveries) * 100).toFixed(1)),
-      color: '#94a3b8', // Gray/Slate
+      count: awaitingCount,
+      percentage: safePct(awaitingCount),
+      color: '#f59e0b',
     },
     {
       status: 'Failed',
       count: failedCount,
-      percentage: Number(((failedCount / totalDeliveries) * 100).toFixed(1)),
-      color: '#ef4444', // Red
+      percentage: safePct(failedCount),
+      color: '#dc2626',
+    },
+    {
+      status: 'Cancelled',
+      count: cancelledCount,
+      percentage: safePct(cancelledCount),
+      color: '#64748b',
     },
   ];
 
-  // Summary Metrics
-  const onTimeRate = Number((94.6 + (mult > 1 ? 0.8 : -0.4)).toFixed(1));
-  const activeMerchants = Math.max(12, Math.round(148 * Math.min(1.2, Math.max(0.4, mult * 0.8))));
-  const courierCompletionRate = Number((98.2 - (filters.serviceType === 'SAME_DAY' ? 1.1 : 0)).toFixed(1));
-
-  const metrics: ReportSummaryMetrics = {
-    totalDeliveries,
-    totalDeliveriesTrend: {
-      value: mult >= 1 ? '+12.4%' : '-3.1%',
-      isPositive: mult >= 1,
-      label: 'vs previous period',
-    },
-    onTimeRate,
-    onTimeRateTrend: {
-      value: '+1.8%',
-      isPositive: true,
-      label: 'vs previous period',
-    },
-    activeMerchants,
-    activeMerchantsTrend: {
-      value: '+6 new',
-      isPositive: true,
-      label: 'registered merchants',
-    },
-    courierCompletionRate,
-    courierCompletionRateTrend: {
-      value: '+0.5%',
-      isPositive: true,
-      label: 'fleet reliability',
-    },
-  };
-
-  // Branch Performance
-  const relevantBranches = filters.branchId === 'ALL'
-    ? branches
-    : branches.filter((b) => b.id === filters.branchId);
-
-  const branchDistribution = [0.38, 0.24, 0.16, 0.11, 0.06, 0.05];
-
-  const branchPerformance: BranchPerformanceRecord[] = relevantBranches.map((branch, idx) => {
-    const share = relevantBranches.length === 1 ? 1.0 : (branchDistribution[idx] ?? 0.08);
-    const bTotal = Math.max(10, Math.round(totalDeliveries * share));
-    const bFail = Math.max(0, Math.round(bTotal * (0.015 + (idx * 0.005))));
-    const bSuccess = bTotal - bFail;
-    const bOnTime = Number((97.5 - idx * 1.2).toFixed(1));
-    const bSuccessRate = Number(((bSuccess / bTotal) * 100).toFixed(1));
-
-    return {
-      id: branch.id,
-      branchName: branch.name,
-      branchCode: branch.code,
-      city: branch.name.includes(' ') ? branch.name.split(' ')[0] : 'Sri Lanka',
-      totalDeliveries: bTotal,
-      successfulDeliveries: bSuccess,
-      onTimeRate: bOnTime,
-      failedDeliveries: bFail,
-      successRate: bSuccessRate,
-    };
+  const branchPerfMap = new Map<string, BranchPerformanceRecord & { idNum?: number }>();
+  branches.forEach((b) => {
+    branchPerfMap.set(String(b.id), {
+      id: String(b.id),
+      idNum: b.id,
+      branchName: b.name,
+      branchCode: b.code,
+      city: b.city || '—',
+      totalDeliveries: 0,
+      successfulDeliveries: 0,
+      failedDeliveries: 0,
+      onTimeRate: 0,
+      successRate: 0,
+    });
   });
 
-  // Trends: Daily (last 7 days), Weekly (last 4 weeks), Monthly (last 6 months)
-  const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const dailyTrends: DeliveryTrendPoint[] = daysOfWeek.map((day, i) => {
-    const dayMult = [0.85, 0.95, 1.2, 1.15, 1.35, 1.05, 0.7][i];
-    const dTotal = Math.round((totalDeliveries / 7) * dayMult);
-    const dDelivered = Math.round(dTotal * 0.94);
-    const dFailed = Math.max(1, dTotal - dDelivered);
-    return {
-      period: day,
-      dateLabel: `Day ${i + 1}`,
-      delivered: dDelivered,
-      failed: dFailed,
-      total: dTotal,
+  filteredJobs.forEach((job) => {
+    const key = String(job.branchId ?? job.branchCode ?? 'UNASSIGNED');
+    const existing = branchPerfMap.get(key) ?? {
+      id: key,
+      branchName: job.branchName || (key === 'UNASSIGNED' ? 'Unassigned Branch' : `Branch ${key}`),
+      branchCode: job.branchCode || key,
+      city: job.dropoffCity || '—',
+      totalDeliveries: 0,
+      successfulDeliveries: 0,
+      failedDeliveries: 0,
+      onTimeRate: 0,
+      successRate: 0,
     };
+    existing.totalDeliveries += 1;
+    if (job.status === 'DELIVERED') existing.successfulDeliveries += 1;
+    if (isFailedJob(String(job.status))) existing.failedDeliveries += 1;
+    branchPerfMap.set(key, existing);
   });
 
-  const weeklyTrends: DeliveryTrendPoint[] = [1, 2, 3, 4].map((wk) => {
-    const wTotal = Math.round(totalDeliveries * (0.22 + wk * 0.02));
-    const wDelivered = Math.round(wTotal * 0.95);
-    const wFailed = Math.max(2, wTotal - wDelivered);
-    return {
-      period: `Week ${wk}`,
-      dateLabel: `Week ${wk} of month`,
-      delivered: wDelivered,
-      failed: wFailed,
-      total: wTotal,
-    };
-  });
+  const branchPerformance: BranchPerformanceRecord[] = Array.from(branchPerfMap.values())
+    .filter((b) => filters.branchId === 'ALL' || String(b.id) === filters.branchId || b.branchCode === filters.branchId)
+    .map((b) => {
+      const done = b.successfulDeliveries + b.failedDeliveries;
+      const rate = done > 0 ? Number(((b.successfulDeliveries / done) * 100).toFixed(1)) : 0;
+      return {
+        ...b,
+        successRate: rate,
+        onTimeRate: rate,
+      };
+    })
+    .sort((a, b) => b.totalDeliveries - a.totalDeliveries);
 
-  const monthlyTrends: DeliveryTrendPoint[] = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'].map((month, i) => {
-    const mTotal = Math.round(totalDeliveries * (0.8 + i * 0.08));
-    const mDelivered = Math.round(mTotal * 0.96);
-    const mFailed = Math.max(3, mTotal - mDelivered);
-    return {
-      period: month,
-      dateLabel: `${month} 2026`,
-      delivered: mDelivered,
-      failed: mFailed,
-      total: mTotal,
-    };
-  });
+  const activeCouriersCount = couriers.filter((c) => c.status !== 'OFFLINE').length;
+  const pendingExceptionsCount = exceptions.filter((e) => e.status === 'PENDING_DECISION').length;
 
   return {
-    metrics,
+    metrics: {
+      totalDeliveries,
+      totalDeliveriesTrend: {
+        value: `${pickupTasks.length} pickups`,
+        isPositive: true,
+        label: `${awaitingCount} awaiting courier · ${inTransitCount} active`,
+      },
+      onTimeRate,
+      onTimeRateTrend: {
+        value: `${deliveredCount} done`,
+        isPositive: onTimeRate >= 70 || totalDeliveries === 0,
+        label: 'Live delivery fulfillment progress',
+      },
+      activeMerchants: merchantNames.size,
+      activeMerchantsTrend: {
+        value: `${activeCouriersCount} couriers online`,
+        isPositive: activeCouriersCount > 0,
+        label: `${couriers.length} total registered couriers`,
+      },
+      courierCompletionRate: completionRate,
+      courierCompletionRateTrend: {
+        value: `${pendingExceptionsCount} exceptions`,
+        isPositive: pendingExceptionsCount === 0,
+        label: `${failedCount} failed · ${deliveredCount} completed`,
+      },
+    },
     statusBreakdown,
     branchPerformance,
     trends: {
-      daily: dailyTrends,
-      weekly: weeklyTrends,
-      monthly: monthlyTrends,
+      daily: buildDailyTrends(filteredJobs),
+      weekly: buildWeeklyTrends(filteredJobs),
+      monthly: buildMonthlyTrends(filteredJobs),
     },
     generatedAt: new Date().toISOString(),
   };
 }
 
-/**
- * Generate CSV text from current reports dataset
- */
 export function generateReportsCSV(
-  bundle: ReportsDataBundle,
+  data: ReportsDataBundle,
   filters: ReportFilterState,
   branchLabel: string
 ): string {
-  const lines: string[] = [];
+  const dateRangeLabel =
+    filters.dateRange === 'custom' && filters.startDate && filters.endDate
+      ? `${filters.startDate} to ${filters.endDate}`
+      : filters.dateRange;
 
-  // Header info
-  lines.push('SwiftDrop Logistics - Operations Performance Report');
-  lines.push(`Generated At,${new Date().toLocaleString()}`);
-  lines.push(`Date Range Preset,${filters.dateRange}`);
-  if (filters.startDate && filters.endDate) {
-    lines.push(`Custom Date Range,${filters.startDate} to ${filters.endDate}`);
-  }
-  lines.push(`Branch,${branchLabel}`);
-  lines.push(`Service Type,${filters.serviceType}`);
-  lines.push('');
+  const rows: string[][] = [
+    ['SwiftDrop Operational Analytics Report'],
+    ['Generated At', new Date(data.generatedAt).toLocaleString()],
+    ['Branch Filter', branchLabel],
+    ['Date Range', dateRangeLabel],
+    ['Service Type', filters.serviceType],
+    [],
+    ['KPI Metrics', 'Value', 'Details'],
+    ['Total Deliveries', String(data.metrics.totalDeliveries), data.metrics.totalDeliveriesTrend.label],
+    ['Fulfillment Rate (%)', `${data.metrics.onTimeRate}%`, data.metrics.onTimeRateTrend.label],
+    ['Active Senders / Merchants', String(data.metrics.activeMerchants), data.metrics.activeMerchantsTrend.label],
+    ['Completion Rate (%)', `${data.metrics.courierCompletionRate}%`, data.metrics.courierCompletionRateTrend.label],
+    [],
+    ['Status Breakdown', 'Count', 'Percentage'],
+    ...data.statusBreakdown.map((item) => [
+      item.status,
+      String(item.count),
+      `${item.percentage}%`,
+    ]),
+    [],
+    ['Branch Name', 'Branch Code', 'City', 'Total Deliveries', 'Successful', 'Failed', 'Success Rate (%)'],
+    ...data.branchPerformance.map((b) => [
+      b.branchName,
+      b.branchCode,
+      b.city,
+      String(b.totalDeliveries),
+      String(b.successfulDeliveries),
+      String(b.failedDeliveries),
+      `${b.successRate}%`,
+    ]),
+  ];
 
-  // Summary Metrics Section
-  lines.push('--- SUMMARY KEY PERFORMANCE INDICATORS ---');
-  lines.push('Metric,Value,Trend,Period Context');
-  lines.push(`Total Deliveries,${bundle.metrics.totalDeliveries},${bundle.metrics.totalDeliveriesTrend.value},${bundle.metrics.totalDeliveriesTrend.label}`);
-  lines.push(`On-Time Delivery Rate,${bundle.metrics.onTimeRate}%,${bundle.metrics.onTimeRateTrend.value},${bundle.metrics.onTimeRateTrend.label}`);
-  lines.push(`Active Merchants,${bundle.metrics.activeMerchants},${bundle.metrics.activeMerchantsTrend.value},${bundle.metrics.activeMerchantsTrend.label}`);
-  lines.push(`Courier Completion Rate,${bundle.metrics.courierCompletionRate}%,${bundle.metrics.courierCompletionRateTrend.value},${bundle.metrics.courierCompletionRateTrend.label}`);
-  lines.push('');
-
-  // Status Breakdown Section
-  lines.push('--- DELIVERY STATUS BREAKDOWN ---');
-  lines.push('Status,Count,Percentage of Total');
-  bundle.statusBreakdown.forEach((s) => {
-    lines.push(`${s.status},${s.count},${s.percentage}%`);
-  });
-  lines.push('');
-
-  // Branch Performance Section
-  lines.push('--- BRANCH PERFORMANCE BREAKDOWN ---');
-  lines.push('Branch Code,Branch Name,City,Total Deliveries,Successful,Failed,Success Rate,On-Time Rate');
-  bundle.branchPerformance.forEach((b) => {
-    lines.push(
-      `"${b.branchCode}","${b.branchName}","${b.city}",${b.totalDeliveries},${b.successfulDeliveries},${b.failedDeliveries},${b.successRate}%,${b.onTimeRate}%`
-    );
-  });
-  lines.push('');
-
-  return lines.join('\n');
+  return rows
+    .map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    .join('\n');
 }
-

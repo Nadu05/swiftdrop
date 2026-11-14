@@ -14,9 +14,13 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
 
+/**
+ * Stateless JWT authentication filter for Order Service.
+ * Only accepts cryptographically verified JWT tokens from the {@code sd_access_token} cookie
+ * or {@code Authorization: Bearer} header. Never trusts raw X-User-* headers.
+ */
 @Component
 public class OrderJwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -40,27 +44,10 @@ public class OrderJwtAuthenticationFilter extends OncePerRequestFilter {
                 if (token != null && jwtService.validateToken(token)) {
                     OrderUserPrincipal principal = jwtService.parsePrincipal(token);
                     setAuthentication(principal, request);
-                } else {
-                    String headerUserId = request.getHeader("X-User-Id");
-                    if (StringUtils.hasText(headerUserId)) {
-                        String headerEmail = request.getHeader("X-User-Email");
-                        String headerOrgId = request.getHeader("X-Organization-Id");
-                        String headerRoles = request.getHeader("X-User-Roles");
-                        List<String> roles = StringUtils.hasText(headerRoles)
-                                ? Arrays.stream(headerRoles.split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList()
-                                : List.of("CUSTOMER");
-                        OrderUserPrincipal principal = new OrderUserPrincipal(
-                                headerUserId.trim(),
-                                StringUtils.hasText(headerEmail) ? headerEmail.trim() : headerUserId.trim(),
-                                StringUtils.hasText(headerOrgId) ? headerOrgId.trim() : null,
-                                roles
-                        );
-                        setAuthentication(principal, request);
-                    }
                 }
             }
         } catch (Exception ignored) {
-            // Leave unauthenticated
+            // Leave SecurityContext unauthenticated; protected endpoints will return 401
         }
 
         filterChain.doFilter(request, response);
@@ -72,10 +59,10 @@ public class OrderJwtAuthenticationFilter extends OncePerRequestFilter {
                 .map(SimpleGrantedAuthority::new)
                 .toList();
 
-        UsernamePasswordAuthenticationToken authentication =
+        UsernamePasswordAuthenticationToken auth =
                 new UsernamePasswordAuthenticationToken(principal, null, authorities);
-        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-        SecurityContextHolder.getContext().setAuthentication(authentication);
+        auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+        SecurityContextHolder.getContext().setAuthentication(auth);
     }
 
     private String resolveToken(HttpServletRequest request) {
@@ -86,11 +73,10 @@ public class OrderJwtAuthenticationFilter extends OncePerRequestFilter {
                 }
             }
         }
-        String bearerToken = request.getHeader("Authorization");
-        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
-            return bearerToken.substring(7);
+        String bearer = request.getHeader("Authorization");
+        if (StringUtils.hasText(bearer) && bearer.startsWith("Bearer ")) {
+            return bearer.substring(7).trim();
         }
         return null;
     }
 }
-

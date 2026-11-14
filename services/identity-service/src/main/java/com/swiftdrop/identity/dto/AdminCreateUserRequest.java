@@ -34,6 +34,10 @@ public class AdminCreateUserRequest {
 
     private Boolean emailVerified;
 
+    private Long branchId;
+
+    private String organizationId;
+
     public AdminCreateUserRequest() {}
 
     public AdminCreateUserRequest(String fullName, String email, String password, String phone,
@@ -67,5 +71,11 @@ public class AdminCreateUserRequest {
 
     public Boolean getEmailVerified() { return emailVerified; }
     public void setEmailVerified(Boolean emailVerified) { this.emailVerified = emailVerified; }
+
+    public Long getBranchId() { return branchId; }
+    public void setBranchId(Long branchId) { this.branchId = branchId; }
+
+    public String getOrganizationId() { return organizationId; }
+    public void setOrganizationId(String organizationId) { this.organizationId = organizationId; }
 }
 

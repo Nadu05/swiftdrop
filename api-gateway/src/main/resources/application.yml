@@ -22,6 +22,8 @@ spring:
               - OPTIONS
             allowed-headers:
               - "*"
+            exposed-headers:
+              - "X-Correlation-Id"
             allow-credentials: true
             max-age: 3600
       default-filters:
@@ -135,7 +137,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,gateway
+        include: health,info
       cors:
         allowed-origins:
           - "http://localhost:3000"
@@ -148,9 +150,9 @@ management:
         allow-credentials: true
   endpoint:
     health:
-      show-details: always
+      show-details: when-authorized
     gateway:
-      enabled: true
+      enabled: false
 
 logging:
   level:

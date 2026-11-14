@@ -12,3 +12,4 @@ public enum PickupTaskStatus {
         return this == BRANCH_RECEIVED || this == CANCELLED;
     }
 }
+

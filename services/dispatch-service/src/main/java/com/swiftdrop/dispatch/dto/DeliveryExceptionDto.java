@@ -24,6 +24,18 @@ public class DeliveryExceptionDto {
     private String decidedByRole;
     private String decidedAt;
     private String createdAt;
+    private Long transferManifestId;
+    private String manifestCode;
+    private Long pickupTaskId;
+    private Long returnTaskId;
+    private String parcelReference;
+    private String description;
+    private String responsibleUserId;
+    private String responsibleUserName;
+    private String responsibleUserRole;
+    private String evidenceReference;
+    private String reportedAt;
+    private String resolutionNotes;
 
     public DeliveryExceptionDto() {
     }
@@ -211,4 +223,101 @@ public class DeliveryExceptionDto {
     public void setCreatedAt(String createdAt) {
         this.createdAt = createdAt;
     }
+
+    public Long getTransferManifestId() {
+        return transferManifestId;
+    }
+
+    public void setTransferManifestId(Long transferManifestId) {
+        this.transferManifestId = transferManifestId;
+    }
+
+    public String getManifestCode() {
+        return manifestCode;
+    }
+
+    public void setManifestCode(String manifestCode) {
+        this.manifestCode = manifestCode;
+    }
+
+    public Long getPickupTaskId() {
+        return pickupTaskId;
+    }
+
+    public void setPickupTaskId(Long pickupTaskId) {
+        this.pickupTaskId = pickupTaskId;
+    }
+
+    public Long getReturnTaskId() {
+        return returnTaskId;
+    }
+
+    public void setReturnTaskId(Long returnTaskId) {
+        this.returnTaskId = returnTaskId;
+    }
+
+    public String getParcelReference() {
+        return parcelReference;
+    }
+
+    public void setParcelReference(String parcelReference) {
+        this.parcelReference = parcelReference;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public String getResponsibleUserId() {
+        return responsibleUserId;
+    }
+
+    public void setResponsibleUserId(String responsibleUserId) {
+        this.responsibleUserId = responsibleUserId;
+    }
+
+    public String getResponsibleUserName() {
+        return responsibleUserName;
+    }
+
+    public void setResponsibleUserName(String responsibleUserName) {
+        this.responsibleUserName = responsibleUserName;
+    }
+
+    public String getResponsibleUserRole() {
+        return responsibleUserRole;
+    }
+
+    public void setResponsibleUserRole(String responsibleUserRole) {
+        this.responsibleUserRole = responsibleUserRole;
+    }
+
+    public String getEvidenceReference() {
+        return evidenceReference;
+    }
+
+    public void setEvidenceReference(String evidenceReference) {
+        this.evidenceReference = evidenceReference;
+    }
+
+    public String getReportedAt() {
+        return reportedAt;
+    }
+
+    public void setReportedAt(String reportedAt) {
+        this.reportedAt = reportedAt;
+    }
+
+    public String getResolutionNotes() {
+        return resolutionNotes;
+    }
+
+    public void setResolutionNotes(String resolutionNotes) {
+        this.resolutionNotes = resolutionNotes;
+    }
 }
+

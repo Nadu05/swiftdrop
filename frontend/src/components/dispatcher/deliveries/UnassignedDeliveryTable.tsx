@@ -65,10 +65,13 @@ export default function UnassignedDeliveryTable({
       result = result.filter((item) => item.priority === priorityFilter);
     }
 
-    // 3. Filter by Date (Relative matching based on mock date stamps)
+    // 3. Filter by Date (live local calendar days)
     if (dateFilter !== 'ALL') {
-      const today = new Date('2026-11-10').toDateString();
-      const yesterday = new Date('2026-11-09').toDateString();
+      const now = new Date();
+      const today = now.toDateString();
+      const yesterdayDate = new Date(now);
+      yesterdayDate.setDate(now.getDate() - 1);
+      const yesterday = yesterdayDate.toDateString();
 
       result = result.filter((item) => {
         const itemDate = new Date(item.orderDate).toDateString();

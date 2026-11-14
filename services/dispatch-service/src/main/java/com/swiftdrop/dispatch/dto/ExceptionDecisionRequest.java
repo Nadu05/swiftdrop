@@ -10,6 +10,8 @@ public class ExceptionDecisionRequest {
     @NotBlank(message = "Decision reason is required")
     private String decisionReason;
 
+    private String evidenceReference;
+
     public ExceptionDecisionRequest() {
     }
 
@@ -33,4 +35,13 @@ public class ExceptionDecisionRequest {
     public void setDecisionReason(String decisionReason) {
         this.decisionReason = decisionReason;
     }
+
+    public String getEvidenceReference() {
+        return evidenceReference;
+    }
+
+    public void setEvidenceReference(String evidenceReference) {
+        this.evidenceReference = evidenceReference;
+    }
 }
+

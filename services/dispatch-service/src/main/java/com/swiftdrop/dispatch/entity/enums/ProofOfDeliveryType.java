@@ -18,3 +18,4 @@ public enum ProofOfDeliveryType {
         throw new IllegalArgumentException("Unsupported proof of delivery type: " + raw);
     }
 }
+

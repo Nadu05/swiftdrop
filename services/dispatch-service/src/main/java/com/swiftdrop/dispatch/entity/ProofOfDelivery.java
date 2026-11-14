@@ -208,3 +208,4 @@ public class ProofOfDelivery {
         this.createdAt = createdAt;
     }
 }
+

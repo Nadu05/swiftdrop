@@ -76,9 +76,7 @@ public class SecurityConfig {
                                 "/v3/api-docs/**"
                         ).permitAll()
                         // --- Health ---
-                        .requestMatchers("/health", "/actuator/**").permitAll()
-                        // --- Legacy test endpoint (keep accessible for backward compat) ---
-                        .requestMatchers("/api/v1/test-items/**", "/test-items/**").permitAll()
+                        .requestMatchers("/health", "/actuator/health", "/actuator/info").permitAll()
                         // --- Everything else requires authentication ---
                         .anyRequest().authenticated()
                 )

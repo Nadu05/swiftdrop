@@ -23,3 +23,4 @@ public class CourierAvailabilityUpdateRequest {
         this.status = status;
     }
 }
+

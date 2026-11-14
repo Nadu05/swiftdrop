@@ -56,21 +56,25 @@ public class OrderLifecycleService {
         ALLOWED_TRANSITIONS.put(OrderLifecycleStatus.PICKED_UP, EnumSet.of(
                 OrderLifecycleStatus.AT_ORIGIN_BRANCH,
                 OrderLifecycleStatus.IN_TRANSIT,
-                OrderLifecycleStatus.OUT_FOR_DELIVERY
+                OrderLifecycleStatus.OUT_FOR_DELIVERY,
+                OrderLifecycleStatus.RETURN_TO_SENDER
         ));
 
         ALLOWED_TRANSITIONS.put(OrderLifecycleStatus.AT_ORIGIN_BRANCH, EnumSet.of(
                 OrderLifecycleStatus.IN_TRANSIT,
                 OrderLifecycleStatus.AT_DESTINATION_BRANCH,
-                OrderLifecycleStatus.OUT_FOR_DELIVERY
+                OrderLifecycleStatus.OUT_FOR_DELIVERY,
+                OrderLifecycleStatus.RETURN_TO_SENDER
         ));
 
         ALLOWED_TRANSITIONS.put(OrderLifecycleStatus.IN_TRANSIT, EnumSet.of(
-                OrderLifecycleStatus.AT_DESTINATION_BRANCH
+                OrderLifecycleStatus.AT_DESTINATION_BRANCH,
+                OrderLifecycleStatus.RETURN_TO_SENDER
         ));
 
         ALLOWED_TRANSITIONS.put(OrderLifecycleStatus.AT_DESTINATION_BRANCH, EnumSet.of(
-                OrderLifecycleStatus.OUT_FOR_DELIVERY
+                OrderLifecycleStatus.OUT_FOR_DELIVERY,
+                OrderLifecycleStatus.RETURN_TO_SENDER
         ));
 
         ALLOWED_TRANSITIONS.put(OrderLifecycleStatus.OUT_FOR_DELIVERY, EnumSet.of(
@@ -81,7 +85,8 @@ public class OrderLifecycleService {
 
         ALLOWED_TRANSITIONS.put(OrderLifecycleStatus.DELIVERY_FAILED, EnumSet.of(
                 OrderLifecycleStatus.OUT_FOR_DELIVERY,
-                OrderLifecycleStatus.PENDING_DISPATCHER_DECISION
+                OrderLifecycleStatus.PENDING_DISPATCHER_DECISION,
+                OrderLifecycleStatus.RETURN_TO_SENDER
         ));
 
         ALLOWED_TRANSITIONS.put(OrderLifecycleStatus.PENDING_DISPATCHER_DECISION, EnumSet.of(

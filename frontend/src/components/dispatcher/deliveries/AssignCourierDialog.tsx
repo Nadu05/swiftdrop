@@ -4,17 +4,12 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { AlertCircle, AlertTriangle, RefreshCw, UserCheck, X } from 'lucide-react';
 import {
   getCourierAvailability,
-  isMockMode,
   submitAssignment,
 } from './assignmentService';
 import AssignmentConfirmation from './AssignmentConfirmation';
 import CourierSelectionCard from './CourierSelectionCard';
 import { isCourierSelectable } from './courierUtils';
 import { toDispatchError, type DispatchApiError } from './dispatchErrors';
-import {
-  MOCK_ASSIGNMENT_SCENARIOS,
-  type MockAssignmentScenario,
-} from './mockDispatchStore';
 import type { CourierAvailability, UnassignedDelivery } from './types';
 
 export interface AssignCourierDialogProps {
@@ -38,7 +33,6 @@ export default function AssignCourierDialog({
   const [isLoadingCouriers, setIsLoadingCouriers] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<DispatchApiError | null>(null);
-  const [mockScenario, setMockScenario] = useState<MockAssignmentScenario>('success');
 
   const titleId = useId();
   const descriptionId = useId();
@@ -117,10 +111,14 @@ export default function AssignCourierDialog({
     setIsSubmitting(true);
     setError(null);
     try {
-      await submitAssignment(
-        { orderId: order.orderId, courierId: selectedCourier.id },
-        { mockScenario },
-      );
+      await submitAssignment({
+        orderId: order.orderId,
+        deliveryJobId: order.deliveryJobId,
+        pickupTaskId: order.pickupTaskId,
+        taskType: order.taskType ?? (order.pickupTaskId ? 'PICKUP' : 'DELIVERY'),
+        courierId: selectedCourier.id,
+        priority: order.priority,
+      });
       onSuccess({ order, courier: selectedCourier });
       onClose();
     } catch (err) {
@@ -215,27 +213,6 @@ export default function AssignCourierDialog({
               <span className="dispatcher-alert__title">Assignment failed</span>
               <span className="dispatcher-alert__message">{error.message}</span>
             </div>
-          </div>
-        )}
-
-        {/* Mock scenario picker: lets the user test error handling without backend changes */}
-        {isMockMode && (
-          <div className="dispatcher-scenario-picker">
-            <span className="dispatcher-scenario-picker__label">
-              Mock response simulation:
-            </span>
-            <select
-              value={mockScenario}
-              onChange={(e) => setMockScenario(e.target.value as MockAssignmentScenario)}
-              className="dispatcher-select"
-              aria-label="Simulate backend response for testing"
-            >
-              {MOCK_ASSIGNMENT_SCENARIOS.map((sc) => (
-                <option key={sc.value} value={sc.value}>
-                  {sc.label}
-                </option>
-              ))}
-            </select>
           </div>
         )}
 

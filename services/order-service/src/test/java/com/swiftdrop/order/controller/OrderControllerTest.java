@@ -157,6 +157,32 @@ class OrderControllerTest {
     }
 
     @Test
+    void createOrder_WithSpoofedXUserHeadersAndNoJwt_Returns401Unauthorized() throws Exception {
+        String payload = """
+                {
+                  "pickupContactName": "Kasun Silva",
+                  "pickupContactPhone": "+94 77 111 2222",
+                  "pickupAddress": "120 Galle Road, Colombo 03",
+                  "dropoffContactName": "Nimal Perera",
+                  "dropoffContactPhone": "+94 77 333 4444",
+                  "dropoffAddress": "45 Peradeniya Road, Kandy",
+                  "parcelDescription": "Documents",
+                  "parcelSize": "SMALL",
+                  "weightKg": 1.0
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/orders")
+                        .header("X-User-Id", "spoofed-admin")
+                        .header("X-User-Email", "hacker@swiftdrop.lk")
+                        .header("X-User-Roles", "ADMIN")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401));
+    }
+
+    @Test
     void createOrder_WithAuthenticatedCustomer_Returns201Created() throws Exception {
         OrderUserPrincipal customer = new OrderUserPrincipal(
                 "cust-1", "kasun@swiftdrop.lk", null, List.of("CUSTOMER")

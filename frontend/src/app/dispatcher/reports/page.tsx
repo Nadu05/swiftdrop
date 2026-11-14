@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { RefreshCw, Download, AlertCircle, Clock } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { AlertCircle, Clock, Download, RefreshCw } from 'lucide-react';
 import ReportFilters from '@/components/dispatcher/reports/ReportFilters';
 import ReportSummaryCards from '@/components/dispatcher/reports/ReportSummaryCards';
 import DeliveryStatusChart from '@/components/dispatcher/reports/DeliveryStatusChart';
@@ -12,10 +13,17 @@ import {
   fetchReportsData,
   getAvailableBranches,
 } from '@/components/dispatcher/reports/reportsApi';
-import type {
-  ReportFilterState,
-  ReportsDataBundle,
-} from '@/components/dispatcher/reports/types';
+import type { ReportFilterState } from '@/components/dispatcher/reports/types';
+import { getApiErrorMessage } from '@/api/services/auth.api';
+
+function formatTimestamp(ms: number): string {
+  if (!ms) return '';
+  return new Intl.DateTimeFormat('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).format(new Date(ms));
+}
 
 export default function ReportsAnalyticsPage() {
   const [filters, setFilters] = useState<ReportFilterState>({
@@ -23,67 +31,28 @@ export default function ReportsAnalyticsPage() {
     branchId: 'ALL',
     serviceType: 'ALL',
   });
-
-  const [branches, setBranches] = useState<{ id: string; name: string; code: string }[]>([]);
-  const [data, setData] = useState<ReportsDataBundle | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<string>('');
-  const [error, setError] = useState<string | null>(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
-  const formatTimestamp = () => {
-    return new Intl.DateTimeFormat('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    }).format(new Date());
-  };
+  const branchesQuery = useQuery({
+    queryKey: ['dispatch', 'reports', 'branches'],
+    queryFn: getAvailableBranches,
+    staleTime: 60_000,
+  });
 
-  // Initial load of branches
-  useEffect(() => {
-    let isMounted = true;
-    async function loadBranches() {
-      try {
-        const branchList = await getAvailableBranches();
-        if (isMounted) {
-          setBranches(branchList);
-        }
-      } catch (err) {
-        console.warn('Failed to load branches:', err);
-      }
-    }
-    loadBranches();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const reportsQuery = useQuery({
+    queryKey: ['dispatch', 'reports', filters],
+    queryFn: () => fetchReportsData(filters),
+    refetchInterval: 30_000,
+  });
 
-  // Fetch report data on filter changes or refresh
-  const loadReports = useCallback(async (isManualRefresh = false) => {
-    try {
-      if (isManualRefresh) {
-        setIsRefreshing(true);
-      } else {
-        setIsLoading(true);
-      }
-      setError(null);
-
-      const result = await fetchReportsData(filters);
-      setData(result);
-      setLastUpdated(formatTimestamp());
-    } catch (err: any) {
-      console.error('Failed to load reports:', err);
-      setError(err?.message || 'Failed to load reports and analytics data.');
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [filters]);
-
-  useEffect(() => {
-    loadReports(false);
-  }, [loadReports]);
+  const branches = branchesQuery.data ?? [];
+  const data = reportsQuery.data ?? null;
+  const isLoading = reportsQuery.isLoading;
+  const isRefreshing = reportsQuery.isFetching && !reportsQuery.isLoading;
+  const lastUpdated = formatTimestamp(reportsQuery.dataUpdatedAt);
+  const error = reportsQuery.error
+    ? getApiErrorMessage(reportsQuery.error) || 'Failed to load reports and analytics data.'
+    : null;
 
   const handleResetFilters = () => {
     setFilters({
@@ -121,8 +90,10 @@ export default function ReportsAnalyticsPage() {
           <button
             type="button"
             className="dispatcher-overview__refresh-btn"
-            onClick={() => loadReports(true)}
-            disabled={isLoading || isRefreshing}
+            onClick={() => {
+              void Promise.all([branchesQuery.refetch(), reportsQuery.refetch()]);
+            }}
+            disabled={reportsQuery.isFetching}
             aria-label="Refresh reports data"
           >
             <RefreshCw
@@ -157,7 +128,9 @@ export default function ReportsAnalyticsPage() {
             type="button"
             className="dispatcher-overview__refresh-btn"
             style={{ marginLeft: 'auto', padding: '0.25rem 0.6rem' }}
-            onClick={() => loadReports(true)}
+            onClick={() => {
+              void reportsQuery.refetch();
+            }}
           >
             Retry
           </button>
@@ -184,14 +157,12 @@ export default function ReportsAnalyticsPage() {
       {/* 4. Operations Split Grid: Status Breakdown + Branch Performance */}
       {data && (
         <div className="dispatcher-reports-split-grid">
-          {/* Status breakdown horizontal bars */}
           <DeliveryStatusChart
             data={data.statusBreakdown}
             totalDeliveries={data.metrics.totalDeliveries}
             isLoading={isLoading && !isRefreshing}
           />
 
-          {/* Branch Performance rankings and progress bars */}
           <BranchPerformance
             branches={data.branchPerformance}
             isLoading={isLoading && !isRefreshing}

@@ -32,7 +32,10 @@ public class Role {
             case CUSTOMER -> "Customer delivery operations";
             case MERCHANT -> "Merchant platform access";
             case COURIER -> "Courier delivery operations";
+            case BRANCH_STAFF -> "Branch parcel intake and counter operations";
             case DISPATCHER -> "Dispatch and logistics";
+            case BRANCH_MANAGER -> "Branch management and exception resolution";
+            case HEAD_OFFICE_ADMIN -> "Head office administration and network governance";
             case ADMIN -> "System administration";
         };
     }

@@ -21,8 +21,14 @@ public interface DeliveryOrderRepository extends JpaRepository<DeliveryOrder, Lo
 
     List<DeliveryOrder> findByMerchantOrganizationIdOrderByCreatedAtDesc(String merchantOrganizationId);
 
+    List<DeliveryOrder> findByAssignedCourierIdOrderByCreatedAtDesc(String assignedCourierId);
+
+    List<DeliveryOrder> findByOriginBranchIdOrDestinationBranchIdOrderByCreatedAtDesc(
+            Long originBranchId,
+            Long destinationBranchId
+    );
+
     List<DeliveryOrder> findByStatusOrderByCreatedAtDesc(OrderLifecycleStatus status);
 
     List<DeliveryOrder> findAllByOrderByCreatedAtDesc();
 }
-

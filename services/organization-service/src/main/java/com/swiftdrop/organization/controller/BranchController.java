@@ -6,6 +6,7 @@ import com.swiftdrop.organization.dto.BranchUpdateRequest;
 import com.swiftdrop.organization.dto.ServiceAreaResponse;
 import com.swiftdrop.organization.entity.enums.BranchStatus;
 import com.swiftdrop.organization.entity.enums.ServiceAreaStatus;
+import com.swiftdrop.organization.security.OrganizationUserPrincipal;
 import com.swiftdrop.organization.service.BranchService;
 import com.swiftdrop.organization.service.ServiceAreaService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,6 +14,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -74,7 +77,13 @@ public class BranchController {
     @PatchMapping("/{id}")
     @Operation(summary = "Partially update a branch (including activate/deactivate)")
     public ResponseEntity<BranchResponse> update(@PathVariable Long id,
-                                                  @Valid @RequestBody BranchUpdateRequest request) {
+                                                 @Valid @RequestBody BranchUpdateRequest request,
+                                                 Authentication authentication) {
+        if (authentication != null && authentication.getPrincipal() instanceof OrganizationUserPrincipal principal) {
+            if (!principal.isGlobalAdmin() && !principal.canManageBranch(id)) {
+                throw new AccessDeniedException("Branch manager can only update their assigned branch");
+            }
+        }
         return ResponseEntity.ok(branchService.update(id, request));
     }
 

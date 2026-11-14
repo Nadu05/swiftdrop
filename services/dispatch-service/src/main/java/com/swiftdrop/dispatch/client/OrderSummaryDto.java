@@ -308,3 +308,4 @@ public class OrderSummaryDto {
         this.failedAttemptCount = failedAttemptCount;
     }
 }
+

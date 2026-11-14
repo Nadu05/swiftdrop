@@ -16,3 +16,4 @@ public enum DeliveryJobStatus {
         return this == DELIVERED || this == RETURNED_TO_SENDER || this == CANCELLED;
     }
 }
+

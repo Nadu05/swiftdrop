@@ -94,5 +94,28 @@ class JwtServiceTest {
         assertThat(token2).isNotBlank();
         assertThat(token1).isNotEqualTo(token2);
     }
+
+    @Test
+    @DisplayName("Should generate and extract branchId and organizationId claims for canonical roles")
+    void shouldGenerateAndExtractBranchAndOrganizationClaims() {
+        UUID userId = UUID.randomUUID();
+        UserDetails details = new User(
+                "manager@swiftdrop.com",
+                "password",
+                List.of(
+                        new SimpleGrantedAuthority("ROLE_BRANCH_MANAGER"),
+                        new SimpleGrantedAuthority("ROLE_BRANCH_STAFF")
+                )
+        );
+
+        String token = jwtService.generateAccessToken(userId, details, 12L, "ORG-MERCH-77");
+
+        assertThat(jwtService.isValid(token)).isTrue();
+        assertThat(jwtService.extractUserId(token)).isEqualTo(userId.toString());
+        assertThat(jwtService.extractEmail(token)).isEqualTo("manager@swiftdrop.com");
+        assertThat(jwtService.extractRoles(token)).containsExactly("ROLE_BRANCH_MANAGER", "ROLE_BRANCH_STAFF");
+        assertThat(jwtService.extractBranchId(token)).isEqualTo(12L);
+        assertThat(jwtService.extractOrganizationId(token)).isEqualTo("ORG-MERCH-77");
+    }
 }
 

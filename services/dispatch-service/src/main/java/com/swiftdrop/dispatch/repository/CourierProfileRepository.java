@@ -26,3 +26,4 @@ public interface CourierProfileRepository extends JpaRepository<CourierProfileEn
 
     boolean existsByCourierCodeIgnoreCase(String courierCode);
 }
+

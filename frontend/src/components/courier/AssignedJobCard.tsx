@@ -2,67 +2,106 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, MapPin, Store } from 'lucide-react';
-import { acceptJob } from '@/api/services/courier.api';
+import { ArrowRight, CheckCircle2, Loader2, MapPin, Package, Phone, RotateCcw } from 'lucide-react';
+import { mapDeliveryJobDtoToCourierJob } from '@/api/services/courier.api';
+import { useAcceptCourierTaskMutation } from '@/hooks/api/use-courier';
 import type { CourierJob } from '@/types/courier.types';
-import { Field, JobStatusBadge, PriorityTag, formatLkr, formatTime } from './CourierUI';
+import {
+  JobStatusBadge,
+  PriorityTag,
+  TaskTypeBadge,
+  formatLkr,
+  formatTime,
+} from './CourierUI';
 
-/**
- * One job assigned by the branch. Shows Accept while ASSIGNED and a link to the
- * Active Delivery screen once accepted / in transit.
- */
-export default function AssignedJobCard({
-  job,
-  canAccept,
-  onUpdated,
-}: {
+interface AssignedJobCardProps {
   job: CourierJob;
   canAccept: boolean;
-  onUpdated: (job: CourierJob) => void;
-}) {
-  const [accepting, setAccepting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  onUpdated: (updated: CourierJob) => void;
+}
 
-  const accept = async () => {
-    setAccepting(true);
+export default function AssignedJobCard({ job, canAccept, onUpdated }: AssignedJobCardProps) {
+  const [error, setError] = useState<string | null>(null);
+  const acceptMutation = useAcceptCourierTaskMutation();
+
+  const isPickup = job.taskType === 'PICKUP';
+  const showAccept = job.status === 'ASSIGNED';
+  const attemptCount = job.attemptCount ?? 0;
+  const maxAttempts = job.maxAttempts ?? 3;
+
+  const handleAccept = async () => {
     setError(null);
     try {
-      onUpdated(await acceptJob(job.assignmentId));
+      const dto = await acceptMutation.mutateAsync(job.assignmentId);
+      onUpdated(mapDeliveryJobDtoToCourierJob(dto));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not accept this job.');
-    } finally {
-      setAccepting(false);
+      setError(err instanceof Error ? err.message : 'Failed to accept task');
     }
   };
 
   return (
-    <article className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+    <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <span style={{ fontSize: '1.05rem', fontWeight: 700, color: '#ffffff' }}>{job.trackingNumber}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+          <strong style={{ color: '#ffffff', fontSize: '1rem' }}>{job.trackingNumber}</strong>
+          <JobStatusBadge status={job.status} />
+          <TaskTypeBadge taskType={job.taskType} />
           <PriorityTag priority={job.priority} />
+          {!isPickup && attemptCount > 0 && (
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+                fontSize: '0.72rem',
+                fontWeight: 600,
+                padding: '0.15rem 0.45rem',
+                borderRadius: '999px',
+                background: 'rgba(245, 158, 11, 0.15)',
+                color: '#fcd34d',
+              }}
+            >
+              <RotateCcw size={11} /> Attempt {attemptCount}/{maxAttempts}
+            </span>
+          )}
         </div>
-        <JobStatusBadge status={job.status} />
+        <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#38bdf8' }}>
+          {formatLkr(job.payoutLkr)}
+        </span>
       </div>
 
-      <div className="grid-cols-2" style={{ gap: '1rem' }}>
-        <div style={{ display: 'flex', gap: '0.6rem' }}>
-          <Store size={18} color="#60a5fa" style={{ flexShrink: 0, marginTop: '0.15rem' }} />
-          <Field label="Pickup">
-            {job.merchantName}
-            <br />
-            <span style={{ color: '#94a3b8' }}>{job.pickupAddress}</span>
-          </Field>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gap: '0.75rem',
+          fontSize: '0.85rem',
+          color: '#cbd5e1',
+        }}
+      >
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
+          <Package size={15} color="#64748b" style={{ flexShrink: 0, marginTop: '2px' }} />
+          <div>
+            <div style={{ fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase' }}>
+              {isPickup ? 'Collect From Sender' : 'Pickup From Branch / Sender'}
+            </div>
+            <div style={{ color: '#f1f5f9', fontWeight: 600 }}>{job.merchantName}</div>
+            <div style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{job.pickupAddress}</div>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: '0.6rem' }}>
-          <MapPin size={18} color="#34d399" style={{ flexShrink: 0, marginTop: '0.15rem' }} />
-          <Field label="Drop-off">
-            {job.recipient.name}
-            <br />
-            <span style={{ color: '#94a3b8' }}>
-              {job.recipient.address}, {job.recipient.city}
-            </span>
-          </Field>
+
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
+          <MapPin size={15} color="#64748b" style={{ flexShrink: 0, marginTop: '2px' }} />
+          <div>
+            <div style={{ fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase' }}>
+              {isPickup ? 'Final Destination' : 'Deliver To Recipient'}
+            </div>
+            <div style={{ color: '#f1f5f9', fontWeight: 600 }}>
+              {job.recipient.name}
+              {job.recipient.city && job.recipient.city !== '—' ? ` · ${job.recipient.city}` : ''}
+            </div>
+            <div style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{job.recipient.address}</div>
+          </div>
         </div>
       </div>
 
@@ -73,38 +112,61 @@ export default function AssignedJobCard({
           alignItems: 'center',
           gap: '0.75rem',
           flexWrap: 'wrap',
-          paddingTop: '0.9rem',
-          borderTop: '1px solid rgba(59, 130, 246, 0.12)',
+          paddingTop: '0.6rem',
+          borderTop: '1px solid rgba(148, 163, 184, 0.12)',
+          fontSize: '0.78rem',
+          color: '#94a3b8',
         }}
       >
-        <span style={{ fontSize: '0.82rem', color: '#94a3b8' }}>
-          {job.parcel.category} · {job.parcel.weightKg} kg · {job.distanceKm} km ·{' '}
-          <span style={{ color: '#34d399', fontWeight: 600 }}>{formatLkr(job.payoutLkr)} payout</span> · assigned{' '}
-          {formatTime(job.assignedAt)}
-        </span>
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <span>
+            {job.parcel.category} · {job.parcel.weightKg} kg
+          </span>
+          <span>{job.distanceKm} km</span>
+          <span>Assigned {formatTime(job.assignedAt)}</span>
+          {job.paymentMethod === 'COD' && job.codAmount ? (
+            <span style={{ color: '#fbbf24', fontWeight: 600 }}>
+              COD Collect: {formatLkr(job.codAmount)}
+            </span>
+          ) : null}
+          {job.recipient.phone && job.recipient.phone !== '—' && (
+            <a
+              href={`tel:${job.recipient.phone}`}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: '#60a5fa', textDecoration: 'none' }}
+            >
+              <Phone size={12} /> {job.recipient.phone}
+            </a>
+          )}
+        </div>
 
-        {job.status === 'ASSIGNED' ? (
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={accept}
-            disabled={!canAccept || accepting}
-            title={canAccept ? undefined : 'Go online to accept jobs'}
-          >
-            {accepting ? 'Accepting…' : 'Accept job'}
-          </button>
-        ) : (
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          {showAccept && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={!canAccept || acceptMutation.isPending}
+              title={!canAccept ? 'Go online to accept tasks' : undefined}
+              onClick={handleAccept}
+            >
+              {acceptMutation.isPending ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <CheckCircle2 size={14} />
+              )}
+              {acceptMutation.isPending ? 'Accepting...' : isPickup ? 'Accept Pickup' : 'Accept Task'}
+            </button>
+          )}
           <Link href={`/courier/active?job=${job.assignmentId}`} className="btn btn-secondary">
-            Open delivery <ArrowRight size={16} />
+            Open active view <ArrowRight size={14} />
           </Link>
-        )}
+        </div>
       </div>
 
       {error && (
-        <p role="alert" style={{ fontSize: '0.85rem', color: '#fca5a5' }}>
+        <div role="alert" style={{ fontSize: '0.8rem', color: '#fca5a5' }}>
           {error}
-        </p>
+        </div>
       )}
-    </article>
+    </div>
   );
 }

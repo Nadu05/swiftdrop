@@ -9,3 +9,4 @@ public class ExternalServiceUnavailableException extends RuntimeException {
         super(message, cause);
     }
 }
+

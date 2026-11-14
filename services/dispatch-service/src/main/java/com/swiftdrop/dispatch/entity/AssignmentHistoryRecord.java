@@ -116,3 +116,4 @@ public class AssignmentHistoryRecord {
         this.recordedAt = recordedAt;
     }
 }
+

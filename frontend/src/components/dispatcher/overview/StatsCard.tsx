@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
-import type { StatTrend } from './mockData';
+import type { StatTrend } from './types';
 
 export interface StatsCardProps {
   title: string;

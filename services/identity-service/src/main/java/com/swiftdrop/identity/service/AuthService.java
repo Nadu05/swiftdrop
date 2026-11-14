@@ -291,7 +291,13 @@ public class AuthService {
         UserDetails details = buildUserDetails(user);
 
         // Access token
-        String accessToken = jwtService.generateAccessToken(user.getUserId(), details);
+        String accessToken;
+        if (user.getBranchId() != null || (user.getOrganizationId() != null && !user.getOrganizationId().isBlank())) {
+            accessToken = jwtService.generateAccessToken(
+                    user.getUserId(), details, user.getBranchId(), user.getOrganizationId());
+        } else {
+            accessToken = jwtService.generateAccessToken(user.getUserId(), details);
+        }
         addCookie(response, ACCESS_COOKIE_NAME, accessToken,
                 (int) (jwtService.getAccessTokenExpiryMs() / 1000));
 
@@ -358,7 +364,7 @@ public class AuthService {
                 .sorted()
                 .toList();
 
-        return new AuthResponse(
+        AuthResponse authResponse = new AuthResponse(
                 user.getUserId(),
                 user.getFullName(),
                 user.getEmail(),
@@ -368,6 +374,9 @@ public class AuthService {
                 user.isEmailVerified(),
                 user.getCreatedAt()
         );
+        authResponse.setBranchId(user.getBranchId());
+        authResponse.setOrganizationId(user.getOrganizationId());
+        return authResponse;
     }
 
     private GoogleIdToken.Payload verifyGoogleToken(String idTokenString) {

@@ -13,9 +13,31 @@ const STATUS_BADGE: Record<CourierJobStatus, { label: string; className: string 
   FAILED: { label: 'Failed', className: 'badge badge-danger' },
 };
 
-export function JobStatusBadge({ status }: { status: CourierJobStatus }) {
-  const { label, className } = STATUS_BADGE[status];
-  return <span className={className}>{label}</span>;
+export function JobStatusBadge({ status }: { status: CourierJobStatus | string }) {
+  const entry = STATUS_BADGE[status as CourierJobStatus] ?? {
+    label: String(status).replace(/_/g, ' '),
+    className: 'badge badge-warning',
+  };
+  return <span className={entry.className}>{entry.label}</span>;
+}
+
+export function TaskTypeBadge({ taskType }: { taskType?: 'PICKUP' | 'DELIVERY' }) {
+  const isPickup = taskType === 'PICKUP';
+  return (
+    <span
+      style={{
+        fontSize: '0.68rem',
+        fontWeight: 700,
+        letterSpacing: '0.04em',
+        padding: '0.15rem 0.45rem',
+        borderRadius: '999px',
+        background: isPickup ? 'rgba(245, 158, 11, 0.16)' : 'rgba(56, 189, 248, 0.14)',
+        color: isPickup ? '#fbbf24' : '#38bdf8',
+      }}
+    >
+      {isPickup ? 'PICKUP TASK' : 'DELIVERY JOB'}
+    </span>
+  );
 }
 
 const PRIORITY_COLOR: Record<CourierJobPriority, string> = {
@@ -24,9 +46,10 @@ const PRIORITY_COLOR: Record<CourierJobPriority, string> = {
   NORMAL: '#94a3b8',
 };
 
-export function PriorityTag({ priority }: { priority: CourierJobPriority }) {
+export function PriorityTag({ priority }: { priority: CourierJobPriority | string }) {
+  const color = PRIORITY_COLOR[priority as CourierJobPriority] ?? '#94a3b8';
   return (
-    <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.05em', color: PRIORITY_COLOR[priority] }}>
+    <span style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.05em', color }}>
       {priority}
     </span>
   );

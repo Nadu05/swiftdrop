@@ -3,11 +3,25 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Search, ArrowRight, UserCheck, AlertTriangle } from 'lucide-react';
-import {
-  recentDeliveriesMock,
-  type DeliveryStatus,
-  type RecentDelivery,
-} from './mockData';
+
+export type DeliveryStatus =
+  | 'PENDING_PICKUP'
+  | 'IN_TRANSIT'
+  | 'OUT_FOR_DELIVERY'
+  | 'DELIVERED'
+  | 'DELAYED';
+
+export interface RecentDelivery {
+  id: string;
+  trackingNumber: string;
+  customerName: string;
+  destination: string;
+  courierName: string | null;
+  courierAvatar?: string;
+  status: DeliveryStatus;
+  estimatedDelivery: string;
+  priority: 'NORMAL' | 'HIGH' | 'URGENT';
+}
 
 const statusConfig: Record<
   DeliveryStatus,
@@ -45,8 +59,11 @@ const statusConfig: Record<
   },
 };
 
-export default function RecentDeliveriesTable() {
-  const [deliveries] = useState<RecentDelivery[]>(recentDeliveriesMock);
+export default function RecentDeliveriesTable({
+  deliveries = [],
+}: {
+  deliveries?: RecentDelivery[];
+}) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 

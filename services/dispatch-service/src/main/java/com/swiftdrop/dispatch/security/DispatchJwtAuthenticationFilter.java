@@ -17,10 +17,16 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.List;
 
+/**
+ * Stateless JWT authentication filter for Dispatch Service.
+ * Extracts and validates JWT tokens from either {@code Authorization: Bearer}
+ * or the {@code sd_access_token} HttpOnly cookie. Never trusts client X-Branch-Id headers.
+ */
 @Component
 public class DispatchJwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(DispatchJwtAuthenticationFilter.class);
+    private static final String ACCESS_TOKEN_COOKIE = "sd_access_token";
 
     private final DispatchJwtService jwtService;
 
@@ -35,22 +41,23 @@ public class DispatchJwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain) throws ServletException, IOException {
 
         String token = resolveToken(request);
-        Long branchOverride = resolveBranchHeader(request);
-
         if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
-                DispatchUserPrincipal principal = jwtService.extractPrincipal(token, branchOverride);
+                DispatchUserPrincipal principal = jwtService.extractPrincipal(token);
                 List<SimpleGrantedAuthority> authorities = principal.roles().stream()
-                        .map(r -> r.startsWith("ROLE_") ? r : "ROLE_" + r.toUpperCase())
+                        .map(r -> r.startsWith("ROLE_") ? r.toUpperCase() : "ROLE_" + r.toUpperCase())
                         .map(SimpleGrantedAuthority::new)
                         .toList();
 
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(principal, null, authorities);
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                        principal,
+                        null,
+                        authorities
+                );
+                auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(auth);
             } catch (Exception ex) {
-                log.debug("Invalid or expired JWT token on request {}: {}", request.getRequestURI(), ex.getMessage());
+                log.debug("Invalid JWT token on request {}: {}", request.getRequestURI(), ex.getMessage());
             }
         }
 
@@ -60,27 +67,20 @@ public class DispatchJwtAuthenticationFilter extends OncePerRequestFilter {
     private String resolveToken(HttpServletRequest request) {
         String authHeader = request.getHeader("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            return authHeader.substring(7).trim();
-        }
-        if (request.getCookies() != null) {
-            for (Cookie cookie : request.getCookies()) {
-                if ("access_token".equals(cookie.getName()) || "jwt".equals(cookie.getName())) {
-                    String val = cookie.getValue();
-                    if (val != null && !val.isBlank()) {
-                        return val.trim();
-                    }
-                }
+            String bearer = authHeader.substring(7).trim();
+            if (!bearer.isEmpty()) {
+                return bearer;
             }
         }
-        return null;
-    }
 
-    private Long resolveBranchHeader(HttpServletRequest request) {
-        String branchHeader = request.getHeader("X-Branch-Id");
-        if (branchHeader != null && !branchHeader.isBlank()) {
-            try {
-                return Long.parseLong(branchHeader.trim());
-            } catch (NumberFormatException ignored) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if (ACCESS_TOKEN_COOKIE.equals(cookie.getName())
+                        && cookie.getValue() != null
+                        && !cookie.getValue().isBlank()) {
+                    return cookie.getValue().trim();
+                }
             }
         }
         return null;

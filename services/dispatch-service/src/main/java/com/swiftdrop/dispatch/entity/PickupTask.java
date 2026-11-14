@@ -501,3 +501,4 @@ public class PickupTask {
         this.updatedAt = updatedAt;
     }
 }
+

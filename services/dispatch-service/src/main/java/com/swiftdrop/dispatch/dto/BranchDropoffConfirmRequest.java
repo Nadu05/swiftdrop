@@ -86,3 +86,4 @@ public class BranchDropoffConfirmRequest {
         this.notes = notes;
     }
 }
+

@@ -38,17 +38,17 @@ public class SecurityConfig {
                         .accessDeniedHandler((req, res, ex) -> {
                             res.setStatus(HttpServletResponse.SC_FORBIDDEN);
                             res.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                            res.getWriter().write("{\"status\":403,\"error\":\"Forbidden\",\"message\":\"" + ex.getMessage() + "\"}");
+                            res.getWriter().write("{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Insufficient permissions to access this Dispatch Service resource\"}");
                         })
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/health",
-                                "/actuator/**",
+                                "/actuator/health",
+                                "/actuator/info",
                                 "/api-docs/**",
                                 "/swagger-ui/**",
-                                "/swagger-ui.html",
-                                "/test-items/**"
+                                "/swagger-ui.html"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

@@ -2,7 +2,7 @@
  * Authentication and User Profile Type Definitions for SwiftDrop
  */
 
-export type UserRole = 'CUSTOMER' | 'MERCHANT' | 'COURIER' | 'DISPATCHER' | 'STAFF' | 'ADMIN';
+export type UserRole = 'CUSTOMER' | 'MERCHANT' | 'COURIER' | 'DISPATCHER' | 'ADMIN';
 
 export interface AuthResponse {
   userId: string;

@@ -40,15 +40,25 @@ export default function LoginPage() {
       color: '#38bdf8',
       badge: 'Customer Portal',
     },
-    STAFF: {
-      role: 'STAFF' as UserRole,
-      title: 'Branch Operator',
+    DISPATCHER: {
+      role: 'DISPATCHER' as UserRole,
+      title: 'Dispatcher',
       email: 'dispatcher@swiftdrop.lk',
       description: 'Manage incoming requests, couriers, and dispatch operations',
       targetRoute: '/dispatcher/dashboard',
       icon: Truck,
       color: '#f59e0b',
-      badge: 'Branch Operations',
+      badge: 'Dispatch Operations',
+    },
+    COURIER: {
+      role: 'COURIER' as UserRole,
+      title: 'Courier',
+      email: 'courier@swiftdrop.lk',
+      description: 'Accept pickups, confirm parcel collection, and complete deliveries',
+      targetRoute: '/courier',
+      icon: Truck,
+      color: '#10b981',
+      badge: 'Courier App',
     },
     ADMIN: {
       role: 'ADMIN' as UserRole,
@@ -84,8 +94,12 @@ export default function LoginPage() {
       // Role-based destination routing
       if (user.role === 'CUSTOMER') {
         router.push('/customer/dashboard');
-      } else if (user.role === 'STAFF') {
+      } else if (user.role === 'DISPATCHER') {
         router.push('/dispatcher/dashboard');
+      } else if (user.role === 'COURIER') {
+        router.push('/courier');
+      } else if (user.role === 'ADMIN') {
+        router.push('/admin');
       } else {
         router.push('/');
       }
@@ -132,7 +146,7 @@ export default function LoginPage() {
           <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.65rem' }}>
             Select Login Role:
           </label>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
             {(Object.keys(rolePresets) as (keyof typeof rolePresets)[]).map((key) => {
               const preset = rolePresets[key];
               const Icon = preset.icon;

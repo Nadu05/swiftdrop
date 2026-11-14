@@ -106,3 +106,4 @@ class RestOrderServiceClientTest {
         mockServer.verify();
     }
 }
+

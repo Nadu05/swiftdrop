@@ -24,9 +24,11 @@ public class JwtService {
 
     private static final Logger log = LoggerFactory.getLogger(JwtService.class);
 
-    private static final String ISSUER = "swiftdrop-identity-service";
-    private static final String CLAIM_ROLES  = "roles";
+    public static final String ISSUER = "swiftdrop-identity-service";
+    private static final String CLAIM_ROLES = "roles";
     private static final String CLAIM_USER_ID = "userId";
+    private static final String CLAIM_BRANCH_ID = "branchId";
+    private static final String CLAIM_ORGANIZATION_ID = "organizationId";
 
     @Value("${app.jwt.secret}")
     private String jwtSecret;
@@ -49,20 +51,34 @@ public class JwtService {
      * @return signed JWT string
      */
     public String generateAccessToken(UUID userId, UserDetails details) {
+        return generateAccessToken(userId, details, null, null);
+    }
+
+    /**
+     * Generates a signed access JWT for the given user including optional branch and organization scope claims.
+     */
+    public String generateAccessToken(UUID userId, UserDetails details, Long branchId, String organizationId) {
         List<String> roles = details.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .toList();
 
-        return Jwts.builder()
+        JwtBuilder builder = Jwts.builder()
                 .issuer(ISSUER)
                 .subject(userId.toString())
                 .claim(CLAIM_USER_ID, userId.toString())
                 .claim("email", details.getUsername())
                 .claim(CLAIM_ROLES, roles)
                 .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + accessTokenExpiryMs))
-                .signWith(signingKey())
-                .compact();
+                .expiration(new Date(System.currentTimeMillis() + accessTokenExpiryMs));
+
+        if (branchId != null) {
+            builder.claim(CLAIM_BRANCH_ID, branchId);
+        }
+        if (organizationId != null && !organizationId.isBlank()) {
+            builder.claim(CLAIM_ORGANIZATION_ID, organizationId.trim());
+        }
+
+        return builder.signWith(signingKey()).compact();
     }
 
     /**
@@ -109,6 +125,25 @@ public class JwtService {
         return parseClaims(token).get(CLAIM_ROLES, List.class);
     }
 
+    public Long extractBranchId(String token) {
+        Object raw = parseClaims(token).get(CLAIM_BRANCH_ID);
+        if (raw instanceof Number number) {
+            return number.longValue();
+        }
+        if (raw instanceof String str && !str.isBlank()) {
+            try {
+                return Long.parseLong(str.trim());
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    public String extractOrganizationId(String token) {
+        return parseClaims(token).get(CLAIM_ORGANIZATION_ID, String.class);
+    }
+
     // -----------------------------------------------------------------------
     // Private helpers
     // -----------------------------------------------------------------------
@@ -144,4 +179,3 @@ public class JwtService {
         }
     }
 }
-

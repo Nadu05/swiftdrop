@@ -9,6 +9,8 @@ public enum RoleName {
     MERCHANT,
     COURIER,
     DISPATCHER,
+    BRANCH_STAFF,
+    BRANCH_MANAGER,
+    HEAD_OFFICE_ADMIN,
     ADMIN
 }
-

@@ -9,6 +9,16 @@ export interface ParcelInfo {
 
 export interface UnassignedDelivery {
   orderId: string;
+  trackingNumber?: string;
+  deliveryJobId?: number | string;
+  pickupTaskId?: number | string;
+  taskCode?: string;
+  taskType?: 'PICKUP' | 'DELIVERY';
+  pickupMethod?: 'COURIER_PICKUP' | 'BRANCH_DROP_OFF' | string;
+  branchId?: number;
+  branchCode?: string;
+  branchName?: string;
+  pickupAddress?: string;
   recipientName: string;
   recipientPhone: string;
   deliveryAddress: string;
@@ -25,6 +35,7 @@ export interface DeliverySummaryMetrics {
   availableCouriers: number;
   highPriorityDeliveries: number;
   assignedToday: number;
+  pendingPickups?: number;
 }
 
 export interface DeliveryFilters {
@@ -36,39 +47,37 @@ export interface DeliveryFilters {
   pageSize: number;
 }
 
-/* --------------------------------------------------------------------------
-   Courier availability & assignment (frontend view models).
-   These are the shapes the UI works with. The wire DTOs for
-   GET /api/v1/dispatch/couriers/availability and
-   POST /api/v1/dispatch/assignments are not confirmed yet; they are mapped
-   onto these types in assignmentService.ts.
-   -------------------------------------------------------------------------- */
-
-export type CourierAvailabilityStatus = 'AVAILABLE' | 'BUSY' | 'OFFLINE';
+export type CourierAvailabilityStatus = 'AVAILABLE' | 'BUSY' | 'ON_BREAK' | 'OFFLINE';
 
 export interface CourierAvailability {
   id: string;
   courierCode: string;
   name: string;
-  /** Availability is its own field: zero active deliveries does not imply AVAILABLE. */
   status: CourierAvailabilityStatus;
   activeDeliveries: number;
-  /** Only shown when provided by the API. */
   completedToday?: number;
   maxCapacity: number;
-  /** Whether this courier may take the specific order (decided by the backend). */
   isEligible: boolean;
   ineligibilityReason?: string;
+  phone?: string;
+  vehicleType?: 'Motorcycle' | 'Van' | 'Bicycle' | string;
 }
 
 export interface AssignmentRequest {
   orderId: string;
+  deliveryJobId?: number | string;
+  pickupTaskId?: number | string;
+  taskType?: 'PICKUP' | 'DELIVERY';
   courierId: string;
+  priority?: string;
+  notes?: string;
 }
 
 export interface AssignmentResult {
+  assignmentId: string;
   orderId: string;
   courierId: string;
-  assignedAt?: string;
+  assignedAt: string;
+  courierPhone?: string;
+  courierVehicle?: string;
 }
-

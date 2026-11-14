@@ -260,3 +260,4 @@ public class CourierProfileEntity {
         this.updatedAt = updatedAt;
     }
 }
+

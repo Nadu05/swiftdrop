@@ -33,6 +33,12 @@ const STATUS_CONFIG: Record<
     bg: '#fffbeb',
     text: '#b45309',
   },
+  ON_BREAK: {
+    label: 'On Break',
+    dot: '#38bdf8',
+    bg: '#f0f9ff',
+    text: '#0369a1',
+  },
   OFFLINE: {
     label: 'Offline',
     dot: '#94a3b8',
@@ -48,7 +54,7 @@ export default function CourierSelectionCard({
   disabled = false,
 }: CourierSelectionCardProps) {
   const selectable = !disabled && isCourierSelectable(courier);
-  const statusInfo = STATUS_CONFIG[courier.status];
+  const statusInfo = STATUS_CONFIG[courier.status] ?? STATUS_CONFIG.OFFLINE;
   const workloadLevel = getWorkloadLevel(courier.activeDeliveries);
   const workloadPercent = getWorkloadPercent(courier.activeDeliveries, courier.maxCapacity);
 
@@ -154,7 +160,7 @@ export default function CourierSelectionCard({
         </div>
       )}
 
-      {courier.isEligible && courier.status !== 'AVAILABLE' && (
+      {courier.isEligible && (courier.status === 'OFFLINE' || courier.status === 'ON_BREAK') && (
         <div className="dispatcher-courier-card__ineligible-note">
           <span>Courier is not currently available for dispatch.</span>
         </div>

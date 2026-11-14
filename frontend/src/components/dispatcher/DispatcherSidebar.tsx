@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { memo, useEffect, useMemo, useRef } from 'react';
 import type { LucideIcon } from 'lucide-react';
+import { useAuthStore } from '@/store/auth.store';
 import {
   Bike,
   Box,
@@ -124,6 +125,15 @@ function DispatcherSidebar({ id, isOpen, onClose, onNavigate, onLogout }: Dispat
   const pathname = usePathname();
   const activeHref = useMemo(() => getActiveHref(pathname), [pathname]);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const user = useAuthStore((s) => s.user);
+  const displayName = user?.fullName || 'Dispatch Operations';
+  const displayRole = user?.roles?.join(', ') || 'DISPATCHER';
+  const initials = displayName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || '')
+    .join('') || 'DP';
 
   // Move focus into the drawer when it opens so keyboard users land inside it.
   useEffect(() => {
@@ -224,11 +234,11 @@ function DispatcherSidebar({ id, isOpen, onClose, onNavigate, onLogout }: Dispat
 
           <div className="dispatcher-sidebar__profile">
             <div className="dispatcher-sidebar__profile-avatar" aria-hidden="true">
-              DP
+              {initials}
             </div>
             <div className="dispatcher-sidebar__profile-info">
-              <span className="dispatcher-sidebar__profile-name">Dispatch Operations</span>
-              <span className="dispatcher-sidebar__profile-role">Head Office Control</span>
+              <span className="dispatcher-sidebar__profile-name">{displayName}</span>
+              <span className="dispatcher-sidebar__profile-role">{displayRole}</span>
             </div>
           </div>
         </div>

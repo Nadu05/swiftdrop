@@ -121,3 +121,4 @@ public class ProofOfDeliveryRequest {
         this.notes = notes;
     }
 }
+

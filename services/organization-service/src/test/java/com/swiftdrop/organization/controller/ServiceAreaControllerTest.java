@@ -15,6 +15,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
@@ -61,6 +62,7 @@ class ServiceAreaControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     @DisplayName("POST /service-areas should return 201 Created on valid input")
     void shouldReturn201OnValidCreate() throws Exception {
         ServiceAreaCreateRequest request = new ServiceAreaCreateRequest(
@@ -83,6 +85,7 @@ class ServiceAreaControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "HEAD_OFFICE_ADMIN")
     @DisplayName("POST /api/v1/service-areas should also work via dual mapping")
     void shouldSupportDirectRouteOnPost() throws Exception {
         ServiceAreaCreateRequest request = new ServiceAreaCreateRequest(
@@ -103,6 +106,7 @@ class ServiceAreaControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     @DisplayName("POST /service-areas should return 400 Bad Request when required fields are missing")
     void shouldReturn400WhenRequiredFieldsMissing() throws Exception {
         ServiceAreaCreateRequest emptyRequest = new ServiceAreaCreateRequest();
@@ -119,6 +123,7 @@ class ServiceAreaControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     @DisplayName("POST /service-areas should return 400 Bad Request when radius is zero or negative")
     void shouldReturn400WhenRadiusIsNonPositive() throws Exception {
         ServiceAreaCreateRequest request = new ServiceAreaCreateRequest(
@@ -179,6 +184,7 @@ class ServiceAreaControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     @DisplayName("PATCH /service-areas/{id} should return 200 OK on partial update")
     void shouldReturn200OnPatch() throws Exception {
         ServiceAreaUpdateRequest updateRequest = new ServiceAreaUpdateRequest();

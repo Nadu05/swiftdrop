@@ -13,13 +13,20 @@ public class RabbitMQConfig {
     public static final String ORGANIZATION_EXCHANGE = "swiftdrop.organization.exchange";
     public static final String ORGANIZATION_QUEUE = "swiftdrop.organization.queue";
     public static final String ORGANIZATION_ROUTING_KEY = "organization.event.#";
+    public static final String DOMAIN_EVENTS_EXCHANGE = "swiftdrop.events";
 
     @Bean
     public TopicExchange organizationExchange() { return new TopicExchange(ORGANIZATION_EXCHANGE); }
+
+    @Bean
+    public TopicExchange domainEventsExchange() { return new TopicExchange(DOMAIN_EVENTS_EXCHANGE, true, false); }
+
     @Bean
     public Queue organizationQueue() { return QueueBuilder.durable(ORGANIZATION_QUEUE).build(); }
     @Bean
-    public Binding organizationBinding(Queue organizationQueue, TopicExchange organizationExchange) {
+    public Binding organizationBinding(
+            Queue organizationQueue,
+            @org.springframework.beans.factory.annotation.Qualifier("organizationExchange") TopicExchange organizationExchange) {
         return BindingBuilder.bind(organizationQueue).to(organizationExchange).with(ORGANIZATION_ROUTING_KEY);
     }
     @Bean

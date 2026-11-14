@@ -385,3 +385,4 @@ public class PickupTaskDto {
         this.createdAt = createdAt;
     }
 }
+

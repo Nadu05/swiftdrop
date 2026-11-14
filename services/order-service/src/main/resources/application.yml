@@ -50,13 +50,15 @@ springdoc:
     path: /swagger-ui.html
 
 logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [corr=%X{correlationId:-none}] - %msg%n"
   level:
     com.swiftdrop.order: DEBUG
     org.springframework.web: INFO
 
 app:
   jwt:
-    secret: ${JWT_SECRET:swiftdrop-super-secret-jwt-key-must-be-at-least-32-bytes-long-2026}
+    secret: ${JWT_SECRET:Y2hhbmdlLW1lLWluLXByb2R1Y3Rpb24tYW5kLXVzZS1hLXN0cm9uZy1zZWNyZXQtaGVyZS0xMjM0NTY3ODk=}
 
 swiftdrop:
   organization-service:

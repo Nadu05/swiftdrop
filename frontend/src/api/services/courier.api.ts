@@ -1,112 +1,177 @@
-import { apiClient } from '@/api/axios-client';
+import { dispatchApi, type CourierProfileDto, type DeliveryJobDto } from '@/api/services/dispatch.api';
 import type {
+  CourierAvailabilityStatus,
   CourierJob,
+  CourierJobPriority,
+  CourierJobStatus,
   CourierProfile,
   FailedDeliveryInput,
   ProofOfDeliveryInput,
+  ProofOfDeliveryType,
 } from '@/types/courier.types';
-import {
-  mockAcceptJob,
-  mockCompleteDelivery,
-  mockGetMyJobs,
-  mockGetMyProfile,
-  mockMarkPickedUp,
-  mockReportFailure,
-  mockSetMyAvailability,
-} from './courier.mock';
 
-/**
- * Dispatch Service - courier-facing API module (Member 08 - Courier UI).
- *
- * Mode follows the dispatcher pages' switch NEXT_PUBLIC_DISPATCH_API_MODE:
- *   - unset / 'mock' (default): in-memory mock (courier.mock.ts)
- *   - 'api': real calls through the API Gateway (/api/v1/dispatch/**)
- *
- * The endpoint paths below are the proposed contract for dispatch-service
- * (Member 07). Response bodies are assumed to match the types in
- * types/courier.types.ts; adjust the mapping once the backend DTOs exist.
- */
-const USE_API = process.env.NEXT_PUBLIC_DISPATCH_API_MODE === 'api';
-
-const BASE = '/api/v1/dispatch/couriers/me';
-
-function toMessage(error: unknown, fallback: string): Error {
-  const err = error as { response?: { status?: number; data?: { message?: string } }; message?: string };
-  if (err?.response?.data?.message) return new Error(err.response.data.message);
-  if (err?.response?.status === 401) return new Error('Your session has expired. Please sign in again.');
-  if (err?.response?.status === 403) return new Error('You do not have permission to do this.');
-  if (err?.response?.status === 409) return new Error('This job was changed by your branch. Refresh and try again.');
-  if (error instanceof Error && !err.response) return USE_API ? new Error(fallback) : error;
-  return new Error(fallback);
+function normalizeVehicleType(value?: string): CourierProfile['vehicleType'] {
+  if (value === 'Van' || value === 'Bicycle') return value;
+  return 'Motorcycle';
 }
 
-async function call<T>(mock: () => Promise<T>, api: () => Promise<T>, fallback: string): Promise<T> {
-  try {
-    return await (USE_API ? api() : mock());
-  } catch (error) {
-    throw toMessage(error, fallback);
+function normalizeAvailabilityStatus(value?: string): CourierAvailabilityStatus {
+  if (value === 'BUSY' || value === 'ON_BREAK' || value === 'OFFLINE') return value;
+  return 'AVAILABLE';
+}
+
+function normalizeJobStatus(value?: string): CourierJobStatus {
+  switch (value) {
+    case 'ASSIGNED':
+    case 'ACCEPTED':
+    case 'IN_TRANSIT':
+    case 'DELIVERED':
+    case 'FAILED':
+      return value;
+    case 'PENDING_DISPATCHER_DECISION':
+    case 'RETURN_TO_SENDER':
+    case 'RETURNED_TO_SENDER':
+    case 'CANCELLED':
+      return 'FAILED';
+    default:
+      return 'ASSIGNED';
   }
 }
 
-/** GET /api/v1/dispatch/couriers/me */
-export function getMyCourierProfile(): Promise<CourierProfile> {
-  return call(
-    mockGetMyProfile,
-    async () => (await apiClient.get<CourierProfile>(BASE)).data,
-    'Could not load your courier profile.',
-  );
+function normalizePriority(value?: string): CourierJobPriority {
+  if (value === 'URGENT' || value === 'HIGH') return value;
+  if (value === 'EXPRESS') return 'URGENT';
+  return 'NORMAL';
 }
 
-/** PATCH /api/v1/dispatch/couriers/me/availability  { online: boolean } */
-export function setMyAvailability(online: boolean): Promise<CourierProfile> {
-  return call(
-    () => mockSetMyAvailability(online),
-    async () => (await apiClient.patch<CourierProfile>(`${BASE}/availability`, { online })).data,
-    'Could not update your availability.',
-  );
+function normalizePodType(value?: string): ProofOfDeliveryType {
+  if (value === 'SIGNATURE' || value === 'PHOTO') return value;
+  return 'OTP';
 }
 
-/** GET /api/v1/dispatch/couriers/me/assignments */
-export function getMyJobs(): Promise<CourierJob[]> {
-  return call(
-    mockGetMyJobs,
-    async () => (await apiClient.get<CourierJob[]>(`${BASE}/assignments`)).data,
-    'Could not load your deliveries.',
-  );
+export function mapCourierProfileDto(dto: CourierProfileDto): CourierProfile {
+  return {
+    id: String(dto.id),
+    courierCode: dto.courierCode || String(dto.id),
+    name: dto.name,
+    phone: dto.phone || '—',
+    email: dto.email || '',
+    vehicleType: normalizeVehicleType(dto.vehicleType),
+    vehiclePlate: dto.vehiclePlate || '—',
+    branchName: dto.branchName || 'Unassigned Branch',
+    zone: dto.zone || 'General Zone',
+    rating: Number(dto.rating ?? 5),
+    maxCapacity: Number(dto.maxCapacity ?? 8),
+    status: normalizeAvailabilityStatus(dto.status),
+    activeDeliveries: dto.activeDeliveries,
+    completedToday: dto.completedToday,
+    totalCompletedLifetime: dto.totalCompletedLifetime,
+  };
 }
 
-/** POST /api/v1/dispatch/couriers/me/assignments/{id}/accept */
-export function acceptJob(assignmentId: string): Promise<CourierJob> {
-  return call(
-    () => mockAcceptJob(assignmentId),
-    async () => (await apiClient.post<CourierJob>(`${BASE}/assignments/${assignmentId}/accept`)).data,
-    'Could not accept this job.',
-  );
+export function mapDeliveryJobDtoToCourierJob(dto: DeliveryJobDto): CourierJob {
+  const isPickup = dto.taskType === 'PICKUP' || Boolean(dto.jobCode?.startsWith('PKP-'));
+  const assignmentKey = String(dto.assignmentId ?? dto.assignmentCode ?? dto.id);
+  const weightKg = Number(dto.parcel?.weightKg ?? dto.parcelInfo?.weightKg ?? 0);
+  const category =
+    dto.parcelInfo?.category || dto.parcel?.description || (isPickup ? 'Courier Pickup' : 'Standard Parcel');
+  const handlingNotes = dto.parcel?.notes || dto.parcelInfo?.notes;
+
+  return {
+    assignmentId: assignmentKey,
+    jobCode: dto.jobCode,
+    taskType: isPickup ? 'PICKUP' : 'DELIVERY',
+    orderId: String(dto.orderId ?? ''),
+    trackingNumber: dto.trackingNumber || '',
+    status: normalizeJobStatus(dto.status),
+    priority: normalizePriority(dto.priority),
+    merchantName: dto.merchantName || dto.senderName || 'SwiftDrop Customer',
+    pickupAddress: dto.pickupAddress || dto.branchName || 'Origin Branch',
+    recipient: {
+      name: dto.recipient?.name || dto.recipientName || 'Recipient',
+      phone: dto.recipient?.phone || dto.recipientPhone || '—',
+      address: dto.recipient?.address || dto.dropoffAddress || '—',
+      city: dto.recipient?.city || dto.dropoffCity || '—',
+    },
+    parcel: {
+      category,
+      weightKg: Number.isFinite(weightKg) ? weightKg : 0,
+      handlingNotes: handlingNotes || undefined,
+    },
+    distanceKm: Number(dto.distanceKm ?? 0),
+    payoutLkr: Number(dto.payoutLkr ?? dto.deliveryFee ?? 0),
+    assignedAt: dto.assignedAt || dto.createdAt || new Date().toISOString(),
+    pickedUpAt: dto.pickedUpAt,
+    completedAt: dto.completedAt || dto.deliveredAt,
+    attemptCount: dto.attemptCount ?? dto.attempts?.length ?? 0,
+    maxAttempts: dto.maxAttempts ?? 3,
+    attempts: dto.attempts,
+    codAmount: dto.codAmount,
+    paymentMethod: dto.paymentMethod,
+    proofOfDelivery: dto.proofOfDelivery
+      ? {
+          type: normalizePodType(dto.proofOfDelivery.type),
+          receivedBy: dto.proofOfDelivery.receivedBy || 'Recipient',
+          reference:
+            dto.proofOfDelivery.reference ||
+            dto.proofOfDelivery.otpReference ||
+            dto.proofOfDelivery.signatureReference ||
+            dto.proofOfDelivery.photoEvidenceReference ||
+            '',
+        }
+      : undefined,
+    failure: dto.failure
+      ? {
+          reason: dto.failure.reason || 'Delivery failed',
+          notes: dto.failure.notes || '',
+        }
+      : undefined,
+  };
 }
 
-/** POST /api/v1/dispatch/couriers/me/assignments/{id}/pickup */
-export function markPickedUp(assignmentId: string): Promise<CourierJob> {
-  return call(
-    () => mockMarkPickedUp(assignmentId),
-    async () => (await apiClient.post<CourierJob>(`${BASE}/assignments/${assignmentId}/pickup`)).data,
-    'Could not mark this parcel as picked up.',
-  );
+export async function getMyCourierProfile(): Promise<CourierProfile> {
+  const dto = await dispatchApi.getMyCourierProfile();
+  return mapCourierProfileDto(dto);
 }
 
-/** POST /api/v1/dispatch/couriers/me/assignments/{id}/deliver  ProofOfDeliveryInput */
-export function completeDelivery(assignmentId: string, pod: ProofOfDeliveryInput): Promise<CourierJob> {
-  return call(
-    () => mockCompleteDelivery(assignmentId, pod),
-    async () => (await apiClient.post<CourierJob>(`${BASE}/assignments/${assignmentId}/deliver`, pod)).data,
-    'Could not complete this delivery.',
-  );
+export async function setMyAvailability(
+  online: boolean,
+  explicitStatus?: CourierAvailabilityStatus
+): Promise<CourierProfile> {
+  const dto = await dispatchApi.updateMyAvailability({
+    online,
+    status: explicitStatus ?? (online ? 'AVAILABLE' : 'OFFLINE'),
+  });
+  return mapCourierProfileDto(dto);
 }
 
-/** POST /api/v1/dispatch/couriers/me/assignments/{id}/fail  FailedDeliveryInput */
-export function reportFailedDelivery(assignmentId: string, input: FailedDeliveryInput): Promise<CourierJob> {
-  return call(
-    () => mockReportFailure(assignmentId, input),
-    async () => (await apiClient.post<CourierJob>(`${BASE}/assignments/${assignmentId}/fail`, input)).data,
-    'Could not report this failed delivery.',
-  );
+export async function getMyJobs(): Promise<CourierJob[]> {
+  const list = await dispatchApi.getMyAssignments();
+  return list.map(mapDeliveryJobDtoToCourierJob);
+}
+
+export async function acceptJob(assignmentId: string): Promise<CourierJob> {
+  const dto = await dispatchApi.acceptMyAssignment(assignmentId);
+  return mapDeliveryJobDtoToCourierJob(dto);
+}
+
+export async function markPickedUp(assignmentId: string): Promise<CourierJob> {
+  const dto = await dispatchApi.pickupMyAssignment(assignmentId);
+  return mapDeliveryJobDtoToCourierJob(dto);
+}
+
+export async function completeDelivery(
+  assignmentId: string,
+  pod: ProofOfDeliveryInput
+): Promise<CourierJob> {
+  const dto = await dispatchApi.deliverMyAssignment(assignmentId, pod);
+  return mapDeliveryJobDtoToCourierJob(dto);
+}
+
+export async function reportFailedDelivery(
+  assignmentId: string,
+  input: FailedDeliveryInput
+): Promise<CourierJob> {
+  const dto = await dispatchApi.failMyAssignment(assignmentId, input);
+  return mapDeliveryJobDtoToCourierJob(dto);
 }

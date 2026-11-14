@@ -13,3 +13,4 @@ public interface ProofOfDeliveryRepository extends JpaRepository<ProofOfDelivery
 
     Optional<ProofOfDelivery> findByTrackingNumberIgnoreCase(String trackingNumber);
 }
+

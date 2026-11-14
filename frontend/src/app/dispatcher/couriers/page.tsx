@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { RefreshCw, Clock } from 'lucide-react';
 import CourierSummaryCards from '@/components/dispatcher/couriers/CourierSummaryCards';
 import CourierFilters from '@/components/dispatcher/couriers/CourierFilters';
@@ -12,23 +13,33 @@ import {
 } from '@/components/dispatcher/couriers/couriersApi';
 import type {
   CourierProfile,
-  CourierSummaryMetrics,
   WorkloadFilter,
   SortOption,
 } from '@/components/dispatcher/couriers/types';
+import { dispatchQueryKeys } from '@/hooks/api/use-dispatch';
 
 export default function CourierManagementPage() {
-  const [couriers, setCouriers] = useState<CourierProfile[]>([]);
-  const [metrics, setMetrics] = useState<CourierSummaryMetrics>({
-    totalCouriers: 0,
-    availableCouriers: 0,
-    couriersOnDelivery: 0,
-    unavailableCouriers: 0,
+  const couriersQuery = useQuery({
+    queryKey: dispatchQueryKeys.couriers(),
+    queryFn: getCourierProfiles,
+    refetchInterval: 15_000,
   });
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<string>('');
-  const [error, setError] = useState<string | null>(null);
+
+  const couriers: CourierProfile[] = couriersQuery.data ?? [];
+  const isLoading = couriersQuery.isLoading;
+  const isRefreshing = couriersQuery.isFetching;
+  const error = couriersQuery.isError
+    ? couriersQuery.error instanceof Error
+      ? couriersQuery.error.message
+      : 'Unable to load couriers data. Please try again.'
+    : null;
+  const lastUpdated = couriersQuery.dataUpdatedAt
+    ? new Intl.DateTimeFormat('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      }).format(new Date(couriersQuery.dataUpdatedAt))
+    : '';
 
   // Filters State
   const [searchTerm, setSearchTerm] = useState('');
@@ -42,37 +53,8 @@ export default function CourierManagementPage() {
   // Selected courier for details dialog
   const [selectedCourier, setSelectedCourier] = useState<CourierProfile | null>(null);
 
-  const formatTimestamp = () => {
-    return new Intl.DateTimeFormat('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    }).format(new Date());
-  };
-
-  const loadData = useCallback(async () => {
-    try {
-      setError(null);
-      const profiles = await getCourierProfiles();
-      setCouriers(profiles);
-      setMetrics(calculateCourierSummaryMetrics(profiles));
-      setLastUpdated(formatTimestamp());
-    } catch (err: any) {
-      console.error('Failed to load couriers fleet:', err);
-      setError('Unable to load couriers data. Please check your network connection.');
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
   const handleRefresh = () => {
-    setIsRefreshing(true);
-    loadData();
+    couriersQuery.refetch();
   };
 
   // Filter & Sort Pipeline

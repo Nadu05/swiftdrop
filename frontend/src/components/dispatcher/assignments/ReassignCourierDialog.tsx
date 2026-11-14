@@ -5,9 +5,12 @@ import { X, RotateCcw, AlertCircle, ArrowRight, UserCheck, AlertTriangle } from 
 import type { AssignmentRecord, ReassignCourierPayload } from './types';
 import CourierSelectionCard from '../deliveries/CourierSelectionCard';
 import { getCourierAvailability } from '../deliveries/assignmentService';
+import { isCourierSelectable } from '../deliveries/courierUtils';
 import type { CourierAvailability, UnassignedDelivery } from '../deliveries/types';
 import { toDispatchError, type DispatchApiError } from '../deliveries/dispatchErrors';
-import { reassignCourier } from './assignmentsApi';
+import { reassignCourierSchema } from '@/schema/dispatch.schema';
+import { useReassignCourier } from '@/hooks/api/use-dispatch';
+import { mapAssignmentDto } from './assignmentsApi';
 
 interface ReassignCourierDialogProps {
   isOpen: boolean;
@@ -28,7 +31,8 @@ export default function ReassignCourierDialog({
   const [couriers, setCouriers] = useState<CourierAvailability[]>([]);
   const [selectedCourierId, setSelectedCourierId] = useState<string | null>(null);
   const [isLoadingCouriers, setIsLoadingCouriers] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const reassignMutation = useReassignCourier();
+  const isSubmitting = reassignMutation.isPending;
   const [error, setError] = useState<DispatchApiError | null>(null);
   const [step, setStep] = useState<ReassignStep>('form');
 
@@ -89,19 +93,20 @@ export default function ReassignCourierDialog({
   const selectedCourier = couriers.find((c) => c.id === selectedCourierId) ?? null;
 
   const handleSelectCourier = (courier: CourierAvailability) => {
-    if (!courier.isEligible || courier.status !== 'AVAILABLE') return;
+    if (!isCourierSelectable(courier)) return;
     if (courier.id === assignment.courier.id) return;
     setSelectedCourierId((curr) => (curr === courier.id ? null : courier.id));
     setError(null);
   };
 
   const handleProceedToConfirm = () => {
-    if (!reason.trim()) {
-      setError(toDispatchError(new Error('A valid reassignment reason is mandatory.')));
-      return;
-    }
-    if (!selectedCourier) {
-      setError(toDispatchError(new Error('Please select an eligible replacement courier.')));
+    const parsed = reassignCourierSchema.safeParse({
+      newCourierId: selectedCourierId ?? '',
+      reason,
+    });
+    if (!parsed.success) {
+      const msg = parsed.error.issues[0]?.message || 'Please complete reassignment details.';
+      setError(toDispatchError(new Error(msg)));
       return;
     }
     setError(null);
@@ -109,9 +114,12 @@ export default function ReassignCourierDialog({
   };
 
   const handleConfirmReassignment = async () => {
-    if (!selectedCourier || !reason.trim() || isSubmitting) return;
+    const parsed = reassignCourierSchema.safeParse({
+      newCourierId: selectedCourierId ?? '',
+      reason,
+    });
+    if (!parsed.success || !selectedCourier || isSubmitting) return;
 
-    setIsSubmitting(true);
     setError(null);
 
     const payload: ReassignCourierPayload = {
@@ -119,23 +127,19 @@ export default function ReassignCourierDialog({
       orderId: assignment.orderId,
       currentCourierId: assignment.courier.id,
       newCourierId: selectedCourier.id,
-      reason: reason.trim(),
+      reason: parsed.data.reason,
     };
 
     try {
-      const updated = await reassignCourier(payload, {
-        id: selectedCourier.id,
-        code: selectedCourier.courierCode,
-        name: selectedCourier.name,
-        phone: '+94 77 000 0000',
-        vehicle: 'Motorcycle',
+      const updatedDto = await reassignMutation.mutateAsync({
+        id: assignment.assignmentId,
+        payload,
       });
-      onSuccess(updated);
+      onSuccess(mapAssignmentDto(updatedDto));
       onClose();
     } catch (err) {
-      setError(toDispatchError(err));
-    } finally {
-      setIsSubmitting(false);
+      setError(toDispatchError(err instanceof Error ? err : new Error('Reassignment failed')));
+      setStep('form');
     }
   };
 

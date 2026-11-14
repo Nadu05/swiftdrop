@@ -30,12 +30,18 @@ public class MerchantApplicationService {
 
     private final MerchantApplicationRepository applicationRepository;
     private final MerchantApplicationHistoryRepository historyRepository;
+    private OrganizationEventPublisher eventPublisher;
 
     public MerchantApplicationService(
             MerchantApplicationRepository applicationRepository,
             MerchantApplicationHistoryRepository historyRepository) {
         this.applicationRepository = applicationRepository;
         this.historyRepository = historyRepository;
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setEventPublisher(OrganizationEventPublisher eventPublisher) {
+        this.eventPublisher = eventPublisher;
     }
 
     public MerchantApplicationResponse submitApplication(
@@ -85,6 +91,10 @@ public class MerchantApplicationService {
                 applicantUserId,
                 "Initial merchant onboarding submission"
         );
+
+        if (eventPublisher != null) {
+            eventPublisher.publishMerchantApplicationSubmitted(saved);
+        }
 
         log.info("Submitted new merchant application {} for business '{}'",
                 saved.getApplicationCode(), saved.getBusinessName());
@@ -199,6 +209,9 @@ public class MerchantApplicationService {
 
         MerchantApplication saved = applicationRepository.save(app);
         recordHistory(saved, previousStatus, MerchantApplicationStatus.APPROVED, "APPROVED", effectiveAdmin, adminUserId, notes);
+        if (eventPublisher != null) {
+            eventPublisher.publishMerchantApplicationApproved(saved, effectiveAdmin);
+        }
 
         log.info("Head Office Admin '{}' approved merchant application '{}'", effectiveAdmin, saved.getApplicationCode());
         return toResponse(saved);
@@ -234,6 +247,9 @@ public class MerchantApplicationService {
 
         MerchantApplication saved = applicationRepository.save(app);
         recordHistory(saved, previousStatus, MerchantApplicationStatus.REJECTED, "REJECTED", effectiveAdmin, adminUserId, reason);
+        if (eventPublisher != null) {
+            eventPublisher.publishMerchantApplicationRejected(saved, effectiveAdmin, reason);
+        }
 
         log.info("Head Office Admin '{}' rejected merchant application '{}': {}",
                 effectiveAdmin, saved.getApplicationCode(), reason);

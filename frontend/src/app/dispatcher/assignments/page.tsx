@@ -1,31 +1,52 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { RefreshCw, CheckCircle2 } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
 import AssignmentSummaryCards from '@/components/dispatcher/assignments/AssignmentSummaryCards';
 import AssignmentFilters from '@/components/dispatcher/assignments/AssignmentFilters';
 import AssignmentTable from '@/components/dispatcher/assignments/AssignmentTable';
 import AssignmentDetailsModal from '@/components/dispatcher/assignments/AssignmentDetailsModal';
 import ReassignCourierDialog from '@/components/dispatcher/assignments/ReassignCourierDialog';
-import {
-  getAssignments,
-  getAssignmentSummaryMetrics,
-} from '@/components/dispatcher/assignments/assignmentsApi';
+import { mapAssignmentDto } from '@/components/dispatcher/assignments/assignmentsApi';
 import type {
   AssignmentRecord,
   AssignmentSummaryMetrics,
 } from '@/components/dispatcher/assignments/types';
+import { dispatchQueryKeys, useAssignments } from '@/hooks/api/use-dispatch';
 
 export default function AssignmentsPage() {
-  const [assignments, setAssignments] = useState<AssignmentRecord[]>([]);
-  const [metrics, setMetrics] = useState<AssignmentSummaryMetrics>({
-    totalAssignments: 0,
-    activeAssignments: 0,
-    completedAssignments: 0,
-    reassignedDeliveries: 0,
-  });
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const queryClient = useQueryClient();
+  const assignmentsQuery = useAssignments(undefined, { refetchInterval: 15_000 });
+
+  const assignments = useMemo(
+    () => (assignmentsQuery.data || []).map(mapAssignmentDto),
+    [assignmentsQuery.data]
+  );
+
+  const metrics: AssignmentSummaryMetrics = useMemo(() => {
+    const totalAssignments = assignments.length;
+    const activeAssignments = assignments.filter((a) =>
+      ['ASSIGNED', 'ACCEPTED', 'IN_TRANSIT'].includes(a.deliveryStatus)
+    ).length;
+    const completedAssignments = assignments.filter(
+      (a) => a.deliveryStatus === 'DELIVERED'
+    ).length;
+    const reassignedDeliveries = assignments.filter(
+      (a) =>
+        (a.history || []).some((h) => Boolean(h.fromCourierName)) ||
+        a.deliveryStatus === 'REASSIGNED'
+    ).length;
+    return {
+      totalAssignments,
+      activeAssignments,
+      completedAssignments,
+      reassignedDeliveries,
+    };
+  }, [assignments]);
+
+  const isLoading = assignmentsQuery.isLoading;
+  const isRefreshing = assignmentsQuery.isFetching;
 
   // Filters State
   const [searchTerm, setSearchTerm] = useState('');
@@ -43,29 +64,8 @@ export default function AssignmentsPage() {
   // Toast Notification
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const loadData = useCallback(async () => {
-    try {
-      const [list, summary] = await Promise.all([
-        getAssignments(),
-        getAssignmentSummaryMetrics(),
-      ]);
-      setAssignments(list);
-      setMetrics(summary);
-    } catch (err) {
-      console.error('Failed to load assignments:', err);
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
   const handleRefresh = () => {
-    setIsRefreshing(true);
-    loadData();
+    assignmentsQuery.refetch();
   };
 
   // Filter & Sort Pipeline
@@ -104,10 +104,13 @@ export default function AssignmentsPage() {
       result = result.filter((a) => a.priority === priorityFilter);
     }
 
-    // Date Filter
+    // Date Filter (live calendar dates)
     if (dateFilter !== 'ALL') {
-      const today = new Date('2026-11-10').toDateString();
-      const yesterday = new Date('2026-11-09').toDateString();
+      const now = new Date();
+      const today = now.toDateString();
+      const yesterdayDate = new Date(now);
+      yesterdayDate.setDate(now.getDate() - 1);
+      const yesterday = yesterdayDate.toDateString();
 
       result = result.filter((a) => {
         const itemDate = new Date(a.assignedDate).toDateString();
@@ -141,7 +144,7 @@ export default function AssignmentsPage() {
     setTimeout(() => {
       setToastMessage(null);
     }, 5000);
-    loadData();
+    queryClient.invalidateQueries({ queryKey: dispatchQueryKeys.all });
   };
 
   return (
@@ -182,6 +185,24 @@ export default function AssignmentsPage() {
           </button>
         </div>
       </header>
+
+      {/* Error Alert */}
+      {assignmentsQuery.isError && (
+        <div className="dispatcher-error-banner" role="alert">
+          <AlertCircle size={18} aria-hidden="true" />
+          <div className="dispatcher-error-banner__body">
+            <strong>Failed to load assignments</strong>
+            <p>
+              {assignmentsQuery.error instanceof Error
+                ? assignmentsQuery.error.message
+                : 'Could not reach Dispatch Service.'}
+            </p>
+          </div>
+          <button type="button" className="dispatcher-action-btn-secondary" onClick={handleRefresh}>
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* 2. Summary Cards */}
       <AssignmentSummaryCards metrics={metrics} />

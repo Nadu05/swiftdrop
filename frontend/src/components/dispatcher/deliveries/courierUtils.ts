@@ -31,9 +31,9 @@ export function getWorkloadPercent(activeDeliveries: number, maxCapacity: number
   return Math.min(100, Math.round((activeDeliveries / maxCapacity) * 100));
 }
 
-/** Only couriers that are both AVAILABLE and eligible for the order may be selected. */
+/** Only couriers that are eligible and not offline/on break may be selected. */
 export function isCourierSelectable(courier: CourierAvailability): boolean {
-  return courier.status === 'AVAILABLE' && courier.isEligible;
+  return courier.status !== 'OFFLINE' && courier.status !== 'ON_BREAK' && courier.isEligible;
 }
 
 export function getInitials(name: string): string {

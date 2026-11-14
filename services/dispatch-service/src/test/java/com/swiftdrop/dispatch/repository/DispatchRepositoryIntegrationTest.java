@@ -150,3 +150,4 @@ class DispatchRepositoryIntegrationTest {
         assertEquals("EXC-9001", pending.get(0).getExceptionCode());
     }
 }
+

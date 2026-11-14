@@ -26,6 +26,10 @@ public interface CourierAssignmentRepository extends JpaRepository<CourierAssign
 
     List<CourierAssignment> findByPickupTaskIdOrderByAssignedAtDesc(Long pickupTaskId);
 
+    List<CourierAssignment> findByTransferManifestIdOrderByAssignedAtDesc(Long transferManifestId);
+
+    List<CourierAssignment> findByReturnTaskIdOrderByAssignedAtDesc(Long returnTaskId);
+
     @Query("SELECT COUNT(a) FROM CourierAssignment a WHERE a.courier.id = :courierId AND a.status IN :activeStatuses")
     long countByCourierIdAndStatusIn(
             @Param("courierId") Long courierId,
@@ -34,3 +38,4 @@ public interface CourierAssignmentRepository extends JpaRepository<CourierAssign
 
     boolean existsByAssignmentCodeIgnoreCase(String assignmentCode);
 }
+

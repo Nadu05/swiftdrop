@@ -48,6 +48,15 @@ public class DispatchService {
     private final DispatchEventPublisher eventPublisher;
     private final SecureRandom random = new SecureRandom();
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private ReturnTaskService returnTaskService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private OperationalExceptionService operationalExceptionService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private CustodyTrackingService custodyTrackingService;
+
     public DispatchService(
             CourierProfileRepository courierRepository,
             PickupTaskRepository pickupTaskRepository,
@@ -103,6 +112,18 @@ public class DispatchService {
 
         PickupTask task = buildPickupTaskFromOrder(orderInfo, method, request.getPriority());
         PickupTask saved = pickupTaskRepository.save(task);
+        eventPublisher.publishEvent(
+                "dispatch.pickup.created",
+                "PickupTaskCreated",
+                Map.of(
+                        "taskCode", saved.getTaskCode(),
+                        "orderId", saved.getOrderId(),
+                        "trackingNumber", saved.getTrackingNumber(),
+                        "pickupMethod", saved.getPickupMethod().name(),
+                        "originBranchId", saved.getOriginBranchId(),
+                        "originBranchName", saved.getOriginBranchName() != null ? saved.getOriginBranchName() : ""
+                )
+        );
         return toPickupTaskDto(saved);
     }
 
@@ -181,13 +202,15 @@ public class DispatchService {
         }
 
         eventPublisher.publishEvent(
-                "dispatch.branch.dropoff.confirmed",
-                "BRANCH_DROPOFF_CONFIRMED",
+                "dispatch.parcel.received_at_branch",
+                "ParcelReceivedAtBranch",
                 Map.of(
                         "taskCode", saved.getTaskCode(),
                         "orderId", saved.getOrderId(),
                         "trackingNumber", saved.getTrackingNumber(),
                         "branchId", saved.getOriginBranchId(),
+                        "branchName", saved.getOriginBranchName() != null ? saved.getOriginBranchName() : "",
+                        "pickupMethod", "BRANCH_DROPOFF",
                         "employeeId", employeeId,
                         "parcelReference", parcelRef
                 )
@@ -224,7 +247,19 @@ public class DispatchService {
         if (method == PickupMethod.COURIER_PICKUP
                 && !pickupTaskRepository.existsByOrderId(orderInfo.resolvedOrderId())) {
             PickupTask task = buildPickupTaskFromOrder(orderInfo, method, req.getPriority());
-            pickupTaskRepository.save(task);
+            PickupTask saved = pickupTaskRepository.save(task);
+            eventPublisher.publishEvent(
+                    "dispatch.pickup.created",
+                    "PickupTaskCreated",
+                    Map.of(
+                            "taskCode", saved.getTaskCode(),
+                            "orderId", saved.getOrderId(),
+                            "trackingNumber", saved.getTrackingNumber(),
+                            "pickupMethod", saved.getPickupMethod().name(),
+                            "originBranchId", saved.getOriginBranchId(),
+                            "originBranchName", saved.getOriginBranchName() != null ? saved.getOriginBranchName() : ""
+                    )
+            );
         }
     }
 
@@ -495,14 +530,16 @@ public class DispatchService {
         );
 
         eventPublisher.publishEvent(
-                "dispatch.pickup.assigned",
-                "PICKUP_COURIER_ASSIGNED",
+                "dispatch.courier.assigned",
+                "CourierAssigned",
                 Map.of(
+                        "assignmentType", "PICKUP",
                         "assignmentCode", savedAssignment.getAssignmentCode(),
                         "taskCode", pickupTask.getTaskCode(),
                         "orderId", pickupTask.getOrderId(),
                         "trackingNumber", pickupTask.getTrackingNumber(),
-                        "courierCode", courier.getCourierCode()
+                        "courierCode", courier.getCourierCode(),
+                        "courierName", courier.getName()
                 )
         );
 
@@ -597,14 +634,30 @@ public class DispatchService {
         );
 
         eventPublisher.publishEvent(
-                "dispatch.delivery.assigned",
-                "DELIVERY_COURIER_ASSIGNED",
+                "dispatch.courier.assigned",
+                "CourierAssigned",
+                Map.of(
+                        "assignmentType", "DELIVERY",
+                        "assignmentCode", savedAssignment.getAssignmentCode(),
+                        "jobCode", job.getJobCode(),
+                        "orderId", job.getOrderId(),
+                        "trackingNumber", job.getTrackingNumber(),
+                        "courierCode", courier.getCourierCode(),
+                        "courierName", courier.getName()
+                )
+        );
+        eventPublisher.publishEvent(
+                "dispatch.delivery.out_for_delivery",
+                "OutForDelivery",
                 Map.of(
                         "assignmentCode", savedAssignment.getAssignmentCode(),
                         "jobCode", job.getJobCode(),
                         "orderId", job.getOrderId(),
                         "trackingNumber", job.getTrackingNumber(),
-                        "courierCode", courier.getCourierCode()
+                        "branchId", job.getBranchId(),
+                        "branchName", job.getBranchName() != null ? job.getBranchName() : "",
+                        "courierCode", courier.getCourierCode(),
+                        "courierName", courier.getName()
                 )
         );
 
@@ -699,14 +752,17 @@ public class DispatchService {
         refreshCourierAvailabilityStatus(newCourier);
 
         eventPublisher.publishEvent(
-                "dispatch.delivery.reassigned",
-                "COURIER_REASSIGNED",
+                "dispatch.courier.assigned",
+                "CourierAssigned",
                 Map.of(
+                        "assignmentType", "REASSIGNMENT",
                         "assignmentCode", saved.getAssignmentCode(),
                         "orderId", saved.getOrderId(),
                         "trackingNumber", saved.getTrackingNumber(),
                         "fromCourierCode", previousCourier.getCourierCode(),
                         "toCourierCode", newCourier.getCourierCode(),
+                        "courierCode", newCourier.getCourierCode(),
+                        "courierName", newCourier.getName(),
                         "reason", request.getReason().trim()
                 )
         );
@@ -779,6 +835,9 @@ public class DispatchService {
 
     public DeliveryJobDto acceptAssignment(String assignmentIdOrCode, DispatchUserPrincipal principal) {
         CourierAssignment assignment = resolveAssignment(assignmentIdOrCode);
+        if (principal == null || (!principal.isCourier() && !principal.isAdmin())) {
+            throw new AccessDeniedException("Only the assigned courier may accept an assignment");
+        }
         verifyCourierOrDispatcherAccess(assignment, principal);
 
         if (assignment.getStatus() == AssignmentStatus.DELIVERED
@@ -867,13 +926,27 @@ public class DispatchService {
             }
 
             eventPublisher.publishEvent(
-                    "dispatch.pickup.completed",
-                    "PARCEL_PICKED_UP",
+                    "dispatch.parcel.picked_up",
+                    "ParcelPickedUp",
                     Map.of(
                             "assignmentCode", saved.getAssignmentCode(),
                             "taskCode", pickupTask.getTaskCode(),
                             "orderId", pickupTask.getOrderId(),
                             "trackingNumber", pickupTask.getTrackingNumber(),
+                            "courierCode", courier.getCourierCode(),
+                            "courierName", courier.getName()
+                    )
+            );
+            eventPublisher.publishEvent(
+                    "dispatch.parcel.received_at_branch",
+                    "ParcelReceivedAtBranch",
+                    Map.of(
+                            "taskCode", pickupTask.getTaskCode(),
+                            "orderId", pickupTask.getOrderId(),
+                            "trackingNumber", pickupTask.getTrackingNumber(),
+                            "branchId", pickupTask.getOriginBranchId(),
+                            "branchName", pickupTask.getOriginBranchName() != null ? pickupTask.getOriginBranchName() : "",
+                            "pickupMethod", "COURIER_PICKUP",
                             "courierCode", courier.getCourierCode()
                     )
             );
@@ -1008,14 +1081,16 @@ public class DispatchService {
 
         eventPublisher.publishEvent(
                 "dispatch.delivery.completed",
-                "DELIVERY_COMPLETED",
+                "DeliveryCompleted",
                 Map.of(
                         "assignmentCode", savedAssignment.getAssignmentCode(),
                         "jobCode", job.getJobCode(),
                         "orderId", job.getOrderId(),
                         "trackingNumber", job.getTrackingNumber(),
                         "recipientName", validatedPod.recipientName(),
-                        "proofType", validatedPod.proofType().name()
+                        "proofType", validatedPod.proofType().name(),
+                        "courierCode", courier.getCourierCode(),
+                        "courierName", courier.getName()
                 )
         );
 
@@ -1132,14 +1207,15 @@ public class DispatchService {
         orderServiceClient.notifyStatusTransition(job.getOrderId(), failPayload, principal.userId(), actorRole);
 
         eventPublisher.publishEvent(
-                escalatedToDispatcher ? "dispatch.exception.escalated" : "dispatch.delivery.failed",
-                escalatedToDispatcher ? "DELIVERY_ESCALATED_TO_DISPATCHER" : "DELIVERY_ATTEMPT_FAILED",
+                "dispatch.delivery.attempt_failed",
+                "DeliveryAttemptFailed",
                 Map.of(
                         "assignmentCode", savedAssignment.getAssignmentCode(),
                         "jobCode", job.getJobCode(),
                         "orderId", job.getOrderId(),
                         "trackingNumber", job.getTrackingNumber(),
                         "attemptNumber", attemptNumber,
+                        "maxAttempts", job.getMaxAttempts(),
                         "reason", failRequest.getReason().trim(),
                         "escalatedToDispatcher", escalatedToDispatcher
                 )
@@ -1218,11 +1294,32 @@ public class DispatchService {
         exception.setStatus(ExceptionStatus.RESOLVED);
 
         DeliveryJob job = exception.getDeliveryJob();
+        if ((job == null
+                || action == DispatcherDecisionAction.WRITE_OFF_LOST
+                || action == DispatcherDecisionAction.MARK_FOUND_RESUME
+                || action == DispatcherDecisionAction.ACKNOWLEDGE_DAMAGE
+                || action == DispatcherDecisionAction.CORRECT_HANDOVER)
+                && operationalExceptionService != null) {
+            return operationalExceptionService.applyDispatcherDecision(exception, action, request, principal);
+        }
+        if (job == null) {
+            exception.setResolutionNotes(request.getDecisionReason().trim());
+            return toDeliveryExceptionDto(exceptionRepository.save(exception));
+        }
         switch (action) {
             case RETURN_TO_SENDER -> {
                 job.setStatus(DeliveryJobStatus.RETURN_TO_SENDER);
                 job.setCompletedAt(now);
                 deliveryJobRepository.save(job);
+
+                if (returnTaskService != null) {
+                    returnTaskService.initiateFromException(
+                            exception,
+                            request.getDecisionReason().trim(),
+                            principal,
+                            false
+                    );
+                }
 
                 OrderStatusTransitionPayload rtsPayload = new OrderStatusTransitionPayload(
                         "RETURN_TO_SENDER",
@@ -1247,6 +1344,9 @@ public class DispatchService {
             case HOLD_AT_BRANCH -> {
                 job.setStatus(DeliveryJobStatus.UNASSIGNED);
                 deliveryJobRepository.save(job);
+            }
+            default -> {
+                exception.setResolutionNotes(request.getDecisionReason().trim());
             }
         }
 
@@ -1294,7 +1394,7 @@ public class DispatchService {
         if (!principal.isDispatcher()) {
             throw new AccessDeniedException("Dispatcher or Admin authorization is required to " + actionDesc);
         }
-        if (principal.branchId() != null && targetBranchId != null && !principal.branchId().equals(targetBranchId)) {
+        if (!principal.canManageBranch(targetBranchId)) {
             throw new AccessDeniedException(
                     "Dispatcher scoped to branch " + principal.branchId()
                             + " is not authorized to " + actionDesc
@@ -1303,16 +1403,22 @@ public class DispatchService {
     }
 
     private Long resolveScopedBranchId(DispatchUserPrincipal principal, Long requestedBranchId) {
-        if (principal != null && !principal.isAdmin() && principal.branchId() != null) {
-            if (requestedBranchId != null && !principal.branchId().equals(requestedBranchId)) {
-                throw new AccessDeniedException(
-                        "Dispatcher scoped to branch " + principal.branchId()
-                                + " cannot query branch " + requestedBranchId
-                );
-            }
-            return principal.branchId();
+        if (principal == null) {
+            throw new AccessDeniedException("Authentication is required");
         }
-        return requestedBranchId;
+        if (principal.isAdmin()) {
+            return requestedBranchId;
+        }
+        if (principal.branchId() == null) {
+            throw new AccessDeniedException("Branch-scoped staff must have an assigned branchId claim");
+        }
+        if (requestedBranchId != null && !principal.branchId().equals(requestedBranchId)) {
+            throw new AccessDeniedException(
+                    "Dispatcher scoped to branch " + principal.branchId()
+                            + " cannot query branch " + requestedBranchId
+            );
+        }
+        return principal.branchId();
     }
 
     private void verifyCourierOrDispatcherAccess(CourierAssignment assignment, DispatchUserPrincipal principal) {
@@ -2195,16 +2301,30 @@ public class DispatchService {
         DeliveryExceptionDto dto = new DeliveryExceptionDto();
         dto.setId(ex.getId());
         dto.setExceptionCode(ex.getExceptionCode());
-        dto.setDeliveryJobId(ex.getDeliveryJob().getId());
-        dto.setJobCode(ex.getDeliveryJob().getJobCode());
+        if (ex.getDeliveryJob() != null) {
+            dto.setDeliveryJobId(ex.getDeliveryJob().getId());
+            dto.setJobCode(ex.getDeliveryJob().getJobCode());
+            dto.setRecipientName(ex.getDeliveryJob().getRecipientName());
+            dto.setRecipientPhone(ex.getDeliveryJob().getRecipientPhone());
+            dto.setDeliveryAddress(ex.getDeliveryJob().getDeliveryAddress());
+        }
         dto.setOrderId(ex.getOrderId());
         dto.setTrackingNumber(ex.getTrackingNumber());
         dto.setBranchId(ex.getBranchId());
         dto.setBranchCode(ex.getBranchCode());
         dto.setBranchName(ex.getBranchName());
-        dto.setRecipientName(ex.getDeliveryJob().getRecipientName());
-        dto.setRecipientPhone(ex.getDeliveryJob().getRecipientPhone());
-        dto.setDeliveryAddress(ex.getDeliveryJob().getDeliveryAddress());
+        dto.setTransferManifestId(ex.getTransferManifestId());
+        dto.setManifestCode(ex.getManifestCode());
+        dto.setPickupTaskId(ex.getPickupTaskId());
+        dto.setReturnTaskId(ex.getReturnTaskId());
+        dto.setParcelReference(ex.getParcelReference());
+        dto.setDescription(ex.getDescription());
+        dto.setResponsibleUserId(ex.getResponsibleUserId());
+        dto.setResponsibleUserName(ex.getResponsibleUserName());
+        dto.setResponsibleUserRole(ex.getResponsibleUserRole());
+        dto.setEvidenceReference(ex.getEvidenceReference());
+        dto.setReportedAt(ex.getReportedAt() != null ? ex.getReportedAt().toString() : null);
+        dto.setResolutionNotes(ex.getResolutionNotes());
         dto.setExceptionType(ex.getExceptionType().name());
         dto.setStatus(ex.getStatus().name());
         dto.setFailedAttemptCount(ex.getFailedAttemptCount());
@@ -2219,3 +2339,4 @@ public class DispatchService {
         return dto;
     }
 }
+

@@ -8,8 +8,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
@@ -78,12 +80,29 @@ public class MerchantApplicationController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get merchant application details by ID or application code")
-    public ResponseEntity<MerchantApplicationResponse> findById(@PathVariable String id) {
-        return ResponseEntity.ok(merchantApplicationService.findByIdOrCode(id));
+    public ResponseEntity<MerchantApplicationResponse> findById(
+            @PathVariable String id,
+            Authentication authentication) {
+        MerchantApplicationResponse response = merchantApplicationService.findByIdOrCode(id);
+        if (!hasGlobalMerchantReadAccess(authentication)) {
+            String callerEmail = extractEmail(authentication);
+            String contactEmail = response.getContactPerson() != null ? response.getContactPerson().getEmail() : null;
+            boolean emailMatch = callerEmail != null && contactEmail != null && callerEmail.equalsIgnoreCase(contactEmail);
+            String callerId = extractUserId(authentication);
+            boolean orgMatch = authentication != null
+                    && authentication.getPrincipal() instanceof OrganizationUserPrincipal p
+                    && p.organizationId() != null
+                    && (p.organizationId().equalsIgnoreCase(response.getId())
+                        || (response.getNumericId() != null && p.organizationId().equals(String.valueOf(response.getNumericId()))));
+            if (!emailMatch && !orgMatch && (callerId == null || !callerId.equalsIgnoreCase(contactEmail))) {
+                throw new AccessDeniedException("You do not have permission to view this merchant application");
+            }
+        }
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/{id}/approve")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HEAD_OFFICE_ADMIN')")
     @Operation(summary = "Approve a merchant application (Head Office ADMIN only)")
     public ResponseEntity<MerchantApplicationResponse> approveApplication(
             @PathVariable String id,
@@ -98,7 +117,7 @@ public class MerchantApplicationController {
     }
 
     @PostMapping("/{id}/reject")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HEAD_OFFICE_ADMIN')")
     @Operation(summary = "Reject a merchant application with reason (Head Office ADMIN only)")
     public ResponseEntity<MerchantApplicationResponse> rejectApplication(
             @PathVariable String id,
@@ -110,6 +129,18 @@ public class MerchantApplicationController {
                 id, request, adminEmail, adminUserId
         );
         return ResponseEntity.ok(response);
+    }
+
+    private boolean hasGlobalMerchantReadAccess(Authentication authentication) {
+        if (authentication == null) return false;
+        if (authentication.getPrincipal() instanceof OrganizationUserPrincipal p && p.isGlobalAdmin()) {
+            return true;
+        }
+        return authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch(a -> a.equals("ROLE_ADMIN")
+                        || a.equals("ROLE_HEAD_OFFICE_ADMIN")
+                        || a.equals("ROLE_INTERNAL_SERVICE"));
     }
 
     private String extractUserId(Authentication authentication) {

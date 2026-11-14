@@ -589,3 +589,4 @@ public class DeliveryJob {
         this.proofOfDelivery = proofOfDelivery;
     }
 }
+

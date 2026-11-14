@@ -16,6 +16,9 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
@@ -24,6 +27,7 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -66,6 +70,7 @@ class BranchControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     @DisplayName("POST /branches should return 201 Created when request is valid")
     void shouldReturn201OnValidBranchCreation() throws Exception {
         BranchCreateRequest request = new BranchCreateRequest(
@@ -93,6 +98,7 @@ class BranchControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "HEAD_OFFICE_ADMIN")
     @DisplayName("POST /api/v1/branches should also work via dual mapping")
     void shouldSupportDirectRouteOnPost() throws Exception {
         BranchCreateRequest request = new BranchCreateRequest(
@@ -117,6 +123,7 @@ class BranchControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     @DisplayName("POST /branches should return 400 Bad Request when required fields are missing")
     void shouldReturn400WhenRequiredFieldsMissing() throws Exception {
         BranchCreateRequest invalidRequest = new BranchCreateRequest();
@@ -137,6 +144,7 @@ class BranchControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     @DisplayName("POST /branches should return 400 Bad Request when coordinates are out of valid range")
     void shouldReturn400WhenCoordinatesAreInvalid() throws Exception {
         BranchCreateRequest invalidCoords = new BranchCreateRequest(
@@ -160,6 +168,7 @@ class BranchControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     @DisplayName("POST /branches should return 409 Conflict when branch code already exists")
     void shouldReturn409WhenDuplicateCode() throws Exception {
         BranchCreateRequest request = new BranchCreateRequest(
@@ -237,6 +246,7 @@ class BranchControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     @DisplayName("PATCH /branches/{id} should return 200 OK on valid partial update")
     void shouldReturn200OnPatchUpdate() throws Exception {
         BranchUpdateRequest updateRequest = new BranchUpdateRequest();
@@ -270,6 +280,44 @@ class BranchControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(10L))
                 .andExpect(jsonPath("$[0].areaName").value("Kollupitiya Area"));
+    }
+
+    @Test
+    @DisplayName("POST /branches should return 401 Unauthorized when unauthenticated")
+    void shouldReturn401WhenCreatingBranchUnauthenticated() throws Exception {
+        mockMvc.perform(post("/branches")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockUser(roles = "CUSTOMER")
+    @DisplayName("POST /branches should return 403 Forbidden when caller is CUSTOMER")
+    void shouldReturn403WhenCustomerCreatesBranch() throws Exception {
+        mockMvc.perform(post("/branches")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("PATCH /branches/{id} should return 403 Forbidden when BRANCH_MANAGER updates a different branch")
+    void shouldReturn403WhenBranchManagerUpdatesDifferentBranch() throws Exception {
+        BranchUpdateRequest updateRequest = new BranchUpdateRequest();
+        updateRequest.setName("Unauthorized Update");
+
+        com.swiftdrop.organization.security.OrganizationUserPrincipal managerPrincipal =
+                new com.swiftdrop.organization.security.OrganizationUserPrincipal(
+                        "mgr-1", "mgr1@swiftdrop.lk", List.of("BRANCH_MANAGER"), 1L, null);
+        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                managerPrincipal, null, List.of(new SimpleGrantedAuthority("ROLE_BRANCH_MANAGER")));
+
+        mockMvc.perform(patch("/branches/2")
+                        .with(authentication(auth))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateRequest)))
+                .andExpect(status().isForbidden());
     }
 }
 

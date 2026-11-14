@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { DispatcherGuard } from '@/components/auth/RoleGuard';
+import { useLogout } from '@/hooks/api/use-auth';
 import DispatcherHeader from './DispatcherHeader';
 import DispatcherSidebar from './DispatcherSidebar';
 
@@ -16,6 +18,7 @@ const SCROLL_LOCK_CLASS = 'dispatcher-scroll-lock';
 export default function DispatcherShell({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const { mutate: triggerLogout } = useLogout();
 
   const toggleSidebar = useCallback(() => setIsSidebarOpen((open) => !open), []);
 
@@ -30,9 +33,8 @@ export default function DispatcherShell({ children }: { children: React.ReactNod
 
   const handleLogout = useCallback(() => {
     setIsSidebarOpen(false);
-    // TODO: integrate with the authentication flow once it exists
-    // (e.g. clear the session/token, then redirect to the login page).
-  }, []);
+    triggerLogout();
+  }, [triggerLogout]);
 
   // Escape closes the drawer; page scrolling is locked while it is open.
   useEffect(() => {
@@ -62,31 +64,33 @@ export default function DispatcherShell({ children }: { children: React.ReactNod
   }, []);
 
   return (
-    <div className="dispatcher-shell">
-      <a href={`#${MAIN_ID}`} className="dispatcher-skip-link">
-        Skip to main content
-      </a>
+    <DispatcherGuard>
+      <div className="dispatcher-shell">
+        <a href={`#${MAIN_ID}`} className="dispatcher-skip-link">
+          Skip to main content
+        </a>
 
-      <DispatcherSidebar
-        id={SIDEBAR_ID}
-        isOpen={isSidebarOpen}
-        onClose={dismissSidebar}
-        onNavigate={closeSidebar}
-        onLogout={handleLogout}
-      />
-
-      <div className="dispatcher-shell__body">
-        <DispatcherHeader
-          sidebarId={SIDEBAR_ID}
-          isSidebarOpen={isSidebarOpen}
-          onToggleSidebar={toggleSidebar}
-          menuButtonRef={menuButtonRef}
+        <DispatcherSidebar
+          id={SIDEBAR_ID}
+          isOpen={isSidebarOpen}
+          onClose={dismissSidebar}
+          onNavigate={closeSidebar}
+          onLogout={handleLogout}
         />
-        <main id={MAIN_ID} className="dispatcher-shell__main" tabIndex={-1}>
-          {children}
-        </main>
+
+        <div className="dispatcher-shell__body">
+          <DispatcherHeader
+            sidebarId={SIDEBAR_ID}
+            isSidebarOpen={isSidebarOpen}
+            onToggleSidebar={toggleSidebar}
+            menuButtonRef={menuButtonRef}
+          />
+          <main id={MAIN_ID} className="dispatcher-shell__main" tabIndex={-1}>
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </DispatcherGuard>
   );
 }
 

@@ -13,3 +13,4 @@ public enum AssignmentStatus {
         return this == ASSIGNED || this == ACCEPTED || this == IN_TRANSIT || this == REASSIGNED;
     }
 }
+

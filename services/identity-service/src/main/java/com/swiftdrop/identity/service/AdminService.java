@@ -118,6 +118,10 @@ public class AdminService {
         // Roles
         Set<Role> roles = resolveRoles(request.getRoles());
         user.setRoles(roles);
+        user.setBranchId(request.getBranchId());
+        user.setOrganizationId(request.getOrganizationId() != null && !request.getOrganizationId().isBlank()
+                ? request.getOrganizationId().trim()
+                : null);
 
         User saved = userRepository.save(user);
         log.info("Admin created new user '{}' with roles {}", saved.getEmail(), request.getRoles());
@@ -141,6 +145,14 @@ public class AdminService {
             if (request.getEmailVerified() && user.getEmailVerifiedAt() == null) {
                 user.setEmailVerifiedAt(LocalDateTime.now());
             }
+        }
+
+        if (request.getBranchId() != null) {
+            user.setBranchId(request.getBranchId());
+        }
+
+        if (request.getOrganizationId() != null) {
+            user.setOrganizationId(request.getOrganizationId().isBlank() ? null : request.getOrganizationId().trim());
         }
 
         // Roles update
@@ -336,7 +348,7 @@ public class AdminService {
                 .sorted()
                 .toList();
 
-        return new AdminUserResponse(
+        AdminUserResponse response = new AdminUserResponse(
                 user.getUserId(),
                 user.getFullName(),
                 user.getEmail(),
@@ -349,6 +361,9 @@ public class AdminService {
                 user.getUpdatedAt(),
                 user.getPasswordChangedAt()
         );
+        response.setBranchId(user.getBranchId());
+        response.setOrganizationId(user.getOrganizationId());
+        return response;
     }
 }
 

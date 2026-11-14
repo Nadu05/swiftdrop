@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Box, History, LayoutDashboard, Navigation, Package, User, Wallet, Layers } from 'lucide-react';
+import { Box, History, LayoutDashboard, Navigation, Package, User, Wallet, Layers, LogOut } from 'lucide-react';
+import { useLogout } from '@/hooks/api/use-auth';
+import { useAuthStore } from '@/store/auth.store';
 
 const navItems = [
   { name: 'Dashboard', href: '/courier', icon: LayoutDashboard },
@@ -19,6 +21,8 @@ const navItems = [
  */
 export default function CourierSidebar() {
   const pathname = usePathname();
+  const { mutate: triggerLogout, isPending: isLoggingOut } = useLogout();
+  const user = useAuthStore((s) => s.user);
 
   return (
     <aside
@@ -101,25 +105,68 @@ export default function CourierSidebar() {
         })}
       </nav>
 
-      <Link
-        href="/"
-        style={{
-          marginTop: 'auto',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.6rem',
-          padding: '0.75rem 1rem',
-          background: 'rgba(15, 23, 42, 0.6)',
-          borderRadius: '10px',
-          border: '1px solid rgba(59, 130, 246, 0.1)',
-          fontSize: '0.8rem',
-          color: '#94a3b8',
-          textDecoration: 'none',
-        }}
-      >
-        <Layers size={14} color="#3b82f6" />
-        Platform Overview
-      </Link>
+      <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        {user && (
+          <div
+            style={{
+              padding: '0.65rem 0.9rem',
+              background: 'rgba(15, 23, 42, 0.5)',
+              borderRadius: '10px',
+              border: '1px solid rgba(59, 130, 246, 0.12)',
+            }}
+          >
+            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#e2e8f0' }}>
+              {user.fullName}
+            </div>
+            <div style={{ fontSize: '0.68rem', color: '#64748b' }}>
+              {user.roles?.join(', ') || 'COURIER'}
+            </div>
+          </div>
+        )}
+
+        <Link
+          href="/"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.6rem',
+            padding: '0.75rem 1rem',
+            background: 'rgba(15, 23, 42, 0.6)',
+            borderRadius: '10px',
+            border: '1px solid rgba(59, 130, 246, 0.1)',
+            fontSize: '0.8rem',
+            color: '#94a3b8',
+            textDecoration: 'none',
+          }}
+        >
+          <Layers size={14} color="#3b82f6" />
+          Platform Overview
+        </Link>
+
+        <button
+          type="button"
+          onClick={() => triggerLogout()}
+          disabled={isLoggingOut}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.6rem',
+            padding: '0.7rem 1rem',
+            background: 'rgba(239, 68, 68, 0.08)',
+            borderRadius: '10px',
+            border: '1px solid rgba(239, 68, 68, 0.2)',
+            fontSize: '0.8rem',
+            fontWeight: 600,
+            color: '#fca5a5',
+            cursor: 'pointer',
+            width: '100%',
+            textAlign: 'left',
+          }}
+        >
+          <LogOut size={14} color="#f87171" />
+          {isLoggingOut ? 'Signing out...' : 'Logout'}
+        </button>
+      </div>
     </aside>
   );
 }

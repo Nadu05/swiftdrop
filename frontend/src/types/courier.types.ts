@@ -8,7 +8,7 @@
  */
 
 /** Same values the dispatcher sees on the courier availability list. */
-export type CourierAvailabilityStatus = 'AVAILABLE' | 'BUSY' | 'OFFLINE';
+export type CourierAvailabilityStatus = 'AVAILABLE' | 'BUSY' | 'ON_BREAK' | 'OFFLINE';
 
 /**
  * Lifecycle of one assignment from the courier's point of view.
@@ -35,10 +35,24 @@ export interface CourierProfile {
   rating: number;
   maxCapacity: number;
   status: CourierAvailabilityStatus;
+  activeDeliveries?: number;
+  completedToday?: number;
+  totalCompletedLifetime?: number;
+}
+
+export interface CourierAttemptRecord {
+  attemptNumber: number;
+  status?: string;
+  reason?: string;
+  failureReason?: string;
+  notes?: string;
+  attemptedAt?: string;
 }
 
 export interface CourierJob {
   assignmentId: string;
+  jobCode?: string;
+  taskType?: 'PICKUP' | 'DELIVERY';
   orderId: string;
   trackingNumber: string;
   status: CourierJobStatus;
@@ -61,6 +75,11 @@ export interface CourierJob {
   assignedAt: string; // ISO
   pickedUpAt?: string; // ISO
   completedAt?: string; // ISO, set when DELIVERED or FAILED
+  attemptCount?: number;
+  maxAttempts?: number;
+  attempts?: CourierAttemptRecord[];
+  codAmount?: number;
+  paymentMethod?: string;
   proofOfDelivery?: {
     type: ProofOfDeliveryType;
     receivedBy: string;
@@ -76,6 +95,7 @@ export interface ProofOfDeliveryInput {
   type: ProofOfDeliveryType;
   receivedBy: string;
   reference: string; // OTP code, signature id or photo reference
+  notes?: string;
 }
 
 export interface FailedDeliveryInput {

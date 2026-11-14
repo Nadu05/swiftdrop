@@ -21,6 +21,7 @@ import java.util.List;
 public class OrganizationJwtService {
 
     private static final Logger log = LoggerFactory.getLogger(OrganizationJwtService.class);
+    public static final String EXPECTED_ISSUER = "swiftdrop-identity-service";
 
     @Value("${app.jwt.secret:Y2hhbmdlLW1lLWluLXByb2R1Y3Rpb24tYW5kLXVzZS1hLXN0cm9uZy1zZWNyZXQtaGVyZS0xMjM0NTY3ODk=}")
     private String jwtSecret;
@@ -29,6 +30,7 @@ public class OrganizationJwtService {
         try {
             Claims claims = Jwts.parser()
                     .verifyWith(signingKey())
+                    .requireIssuer(EXPECTED_ISSUER)
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
@@ -49,16 +51,53 @@ public class OrganizationJwtService {
                 roles = Collections.emptyList();
             }
 
-            return new OrganizationUserPrincipal(userId, email, roles);
+            Long branchId = extractLongClaim(claims, "branchId");
+            String organizationId = claims.get("organizationId", String.class);
+            if (organizationId == null) {
+                organizationId = claims.get("orgId", String.class);
+            }
+
+            return new OrganizationUserPrincipal(userId, email, roles, branchId, organizationId);
         } catch (JwtException | IllegalArgumentException ex) {
             log.debug("Invalid JWT token in organization-service: {}", ex.getMessage());
             return null;
         }
     }
 
+    private Long extractLongClaim(Claims claims, String claimName) {
+        Object raw = claims.get(claimName);
+        if (raw instanceof Number number) {
+            return number.longValue();
+        }
+        if (raw instanceof String str && !str.isBlank()) {
+            try {
+                return Long.parseLong(str.trim());
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
     private SecretKey signingKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(jwtSecret);
+        byte[] keyBytes;
+        try {
+            keyBytes = Decoders.BASE64.decode(jwtSecret);
+            if (keyBytes.length < 32) {
+                keyBytes = sha256Bytes(jwtSecret);
+            }
+        } catch (Exception ex) {
+            keyBytes = sha256Bytes(jwtSecret);
+        }
         return Keys.hmacShaKeyFor(keyBytes);
     }
-}
 
+    private byte[] sha256Bytes(String value) {
+        try {
+            return java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 not available", e);
+        }
+    }
+}

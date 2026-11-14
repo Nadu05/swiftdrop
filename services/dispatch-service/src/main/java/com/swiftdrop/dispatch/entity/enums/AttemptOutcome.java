@@ -4,3 +4,4 @@ public enum AttemptOutcome {
     SUCCESS,
     FAILED
 }
+

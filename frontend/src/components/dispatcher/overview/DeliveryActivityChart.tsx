@@ -10,7 +10,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { dailyActivityMock, type DailyActivityData } from './mockData';
+import type { DailyActivityData } from './types';
 
 interface DeliveryActivityChartProps {
   data?: DailyActivityData[];
@@ -37,7 +37,7 @@ function CustomTooltip({ active, payload }: CustomTooltipProps) {
 }
 
 export default function DeliveryActivityChart({
-  data = dailyActivityMock,
+  data = [],
 }: DeliveryActivityChartProps) {
   const maxDeliveries = Math.max(...data.map((d) => d.deliveries), 0);
 

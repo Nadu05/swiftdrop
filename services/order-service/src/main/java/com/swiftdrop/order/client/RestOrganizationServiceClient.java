@@ -2,6 +2,7 @@ package com.swiftdrop.order.client;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.swiftdrop.order.config.CorrelationIdHolder;
 import com.swiftdrop.order.dto.RouteBranchResolutionDto;
 import com.swiftdrop.order.exception.ExternalServiceUnavailableException;
 import com.swiftdrop.order.exception.InvalidBranchCoverageException;
@@ -58,6 +59,7 @@ public class RestOrganizationServiceClient implements OrganizationServiceClient 
         try {
             RouteBranchResolutionDto response = restClient.post()
                     .uri("/api/v1/branches/resolve-route")
+                    .header(CorrelationIdHolder.HEADER_NAME, CorrelationIdHolder.currentOrNew())
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(payload)
                     .retrieve()

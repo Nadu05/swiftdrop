@@ -13,3 +13,4 @@ public interface DeliveryAttemptRepository extends JpaRepository<DeliveryAttempt
 
     long countByDeliveryJobId(Long deliveryJobId);
 }
+

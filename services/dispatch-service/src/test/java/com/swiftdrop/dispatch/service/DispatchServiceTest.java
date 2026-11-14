@@ -592,5 +592,24 @@ class DispatchServiceTest {
         // 4. Head Office ADMIN can access Branch 1 assignment across branches
         AssignmentRecordDto adminView = dispatchService.getAssignmentById("ASN-5001", adminPrincipal);
         assertEquals("ASN-5001", adminView.getAssignmentCode());
+
+        // 5. Dispatcher cannot accept assignment on behalf of courier
+        assertThrows(
+                AccessDeniedException.class,
+                () -> dispatchService.acceptAssignment("ASN-5001", branch1Dispatcher)
+        );
+
+        // 6. Dispatcher with null branchId fails closed
+        DispatchUserPrincipal nullBranchDispatcher =
+                new DispatchUserPrincipal("disp-null", "dispnull@swiftdrop.lk", List.of("DISPATCHER"), null);
+        assertThrows(
+                AccessDeniedException.class,
+                () -> dispatchService.getAssignmentById("ASN-5001", nullBranchDispatcher)
+        );
+        assertThrows(
+                AccessDeniedException.class,
+                () -> dispatchService.createPickupTask(taskReq, nullBranchDispatcher)
+        );
     }
 }
+

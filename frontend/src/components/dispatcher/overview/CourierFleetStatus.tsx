@@ -1,9 +1,19 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { Bike, Car, ArrowRight, ShieldCheck, Phone } from 'lucide-react';
-import { courierFleetMock, type CourierFleetMember, type CourierStatus } from './mockData';
+
+export type CourierStatus = 'AVAILABLE' | 'ON_DELIVERY' | 'BREAK' | 'OFFLINE';
+
+export interface CourierFleetMember {
+  id: string;
+  name: string;
+  phone: string;
+  vehicle: 'Motorcycle' | 'Van' | 'Bicycle';
+  status: CourierStatus;
+  activeOrders: number;
+  zone: string;
+}
 
 const courierStatusBadge: Record<CourierStatus, { label: string; dot: string; bg: string; text: string }> = {
   AVAILABLE: {
@@ -32,9 +42,12 @@ const courierStatusBadge: Record<CourierStatus, { label: string; dot: string; bg
   },
 };
 
-export default function CourierFleetStatus() {
-  const [couriers] = useState<CourierFleetMember[]>(courierFleetMock);
-
+export default function CourierFleetStatus({
+  couriers = [],
+}: {
+  couriers?: CourierFleetMember[];
+}) {
+  const safeTotal = couriers.length || 1;
   const availableCount = couriers.filter((c) => c.status === 'AVAILABLE').length;
   const onRouteCount = couriers.filter((c) => c.status === 'ON_DELIVERY').length;
   const onBreakCount = couriers.filter((c) => c.status === 'BREAK').length;
@@ -68,17 +81,17 @@ export default function CourierFleetStatus() {
         <div className="dispatcher-capacity-bar" aria-hidden="true">
           <div
             className="dispatcher-capacity-bar__segment dispatcher-capacity-bar__segment--blue"
-            style={{ width: `${(onRouteCount / couriers.length) * 100}%` }}
+            style={{ width: `${(onRouteCount / safeTotal) * 100}%` }}
             title={`${onRouteCount} On Route`}
           />
           <div
             className="dispatcher-capacity-bar__segment dispatcher-capacity-bar__segment--green"
-            style={{ width: `${(availableCount / couriers.length) * 100}%` }}
+            style={{ width: `${(availableCount / safeTotal) * 100}%` }}
             title={`${availableCount} Available`}
           />
           <div
             className="dispatcher-capacity-bar__segment dispatcher-capacity-bar__segment--amber"
-            style={{ width: `${(onBreakCount / couriers.length) * 100}%` }}
+            style={{ width: `${(onBreakCount / safeTotal) * 100}%` }}
             title={`${onBreakCount} On Break`}
           />
         </div>

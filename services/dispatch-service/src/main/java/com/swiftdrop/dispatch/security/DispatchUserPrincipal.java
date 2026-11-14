@@ -17,11 +17,11 @@ public record DispatchUserPrincipal(
     }
 
     public boolean isAdmin() {
-        return hasRole("ADMIN");
+        return hasRole("ADMIN") || hasRole("HEAD_OFFICE_ADMIN") || hasRole("INTERNAL_SERVICE");
     }
 
     public boolean isDispatcher() {
-        return hasRole("DISPATCHER");
+        return hasRole("DISPATCHER") || hasRole("BRANCH_MANAGER") || hasRole("BRANCH_STAFF");
     }
 
     public boolean isCourier() {
@@ -36,7 +36,7 @@ public record DispatchUserPrincipal(
             return false;
         }
         if (branchId == null || targetBranchId == null) {
-            return true;
+            return false;
         }
         return branchId.equals(targetBranchId);
     }

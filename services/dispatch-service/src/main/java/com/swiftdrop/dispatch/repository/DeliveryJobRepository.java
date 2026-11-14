@@ -27,3 +27,4 @@ public interface DeliveryJobRepository extends JpaRepository<DeliveryJob, Long> 
 
     boolean existsByTrackingNumberIgnoreCase(String trackingNumber);
 }
+

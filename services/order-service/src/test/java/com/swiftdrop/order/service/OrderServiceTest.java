@@ -233,11 +233,95 @@ class OrderServiceTest {
                 .isInstanceOf(AccessDeniedException.class)
                 .hasMessageContaining("You are not authorized to access another customer's order");
 
-        // Dispatcher can access operational orders
+        // Dispatcher assigned to origin branch (1L) can access operational orders
         OrderUserPrincipal dispatcher = new OrderUserPrincipal(
-                "disp-1", "dispatcher@swiftdrop.lk", null, List.of("DISPATCHER")
+                "disp-1", "dispatcher@swiftdrop.lk", null, List.of("DISPATCHER"), 1L
         );
         DeliveryOrderResponse dispatcherView = orderService.getOrderByIdOrTracking("SD-91003", dispatcher);
         assertThat(dispatcherView.getTrackingNumber()).isEqualTo("SD-91003");
+
+        // Dispatcher with null branchId fails closed
+        OrderUserPrincipal unscopedDispatcher = new OrderUserPrincipal(
+                "disp-null", "dispnull@swiftdrop.lk", null, List.of("DISPATCHER"), null
+        );
+        assertThatThrownBy(() -> orderService.getOrderByIdOrTracking("SD-91003", unscopedDispatcher))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("outside their assigned branch");
+
+        // Dispatcher for unrelated branch (99L) is denied
+        OrderUserPrincipal otherBranchDispatcher = new OrderUserPrincipal(
+                "disp-99", "disp99@swiftdrop.lk", null, List.of("DISPATCHER"), 99L
+        );
+        assertThatThrownBy(() -> orderService.getOrderByIdOrTracking("SD-91003", otherBranchDispatcher))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("outside their assigned branch");
+
+        // Customer cannot record branch drop-off intake
+        assertThatThrownBy(() -> orderService.recordBranchDropoff("SD-91003", "Self dropoff", ownerCustomer))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("Only authorized branch staff");
+
+        // Courier cannot cancel order
+        OrderUserPrincipal courier = new OrderUserPrincipal(
+                "courier-1", "courier1@swiftdrop.lk", null, List.of("COURIER"), 1L
+        );
+        assertThatThrownBy(() -> orderService.cancelOrder("SD-91003", new OrderCancelRequest("Courier cancel"), courier))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("Couriers are not permitted to cancel");
+
+        // Customer cannot spoof MERCHANT orderSourceType
+        request.setOrderSourceType("MERCHANT");
+        assertThatThrownBy(() -> orderService.createOrder(request, ownerCustomer))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("Only authenticated MERCHANT or ADMIN");
+    }
+
+    @Test
+    void getPublicTracking_RedactsStreetAddressesAndRecipientNames() {
+        when(organizationServiceClient.resolveRoute(anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+                .thenReturn(mockRouteResolution());
+        when(trackingNumberGenerator.generateUniqueTrackingNumber()).thenReturn("SD-91004");
+
+        final DeliveryOrder[] capturedOrder = new DeliveryOrder[1];
+        when(orderRepository.save(any(DeliveryOrder.class))).thenAnswer(inv -> {
+            DeliveryOrder o = inv.getArgument(0);
+            o.setId(104L);
+            capturedOrder[0] = o;
+            return o;
+        });
+
+        CreateOrderRequest request = new CreateOrderRequest();
+        request.setPickupContactName("Kasun Silva");
+        request.setPickupContactPhone("+94 77 111 2222");
+        request.setPickupAddress("120 Galle Road, Colombo 03");
+        request.setDropoffContactName("Nimal Perera");
+        request.setDropoffContactPhone("+94 77 333 4444");
+        request.setDropoffAddress("45 Peradeniya Road, Kandy");
+        request.setParcelDescription("Gift Box");
+        request.setParcelSize("SMALL");
+        request.setWeightKg(new BigDecimal("1.0"));
+        request.setPaymentMethod("COD");
+        request.setCodAmount(new BigDecimal("1500.00"));
+
+        OrderUserPrincipal customer = new OrderUserPrincipal(
+                "cust-1", "kasun@swiftdrop.lk", null, List.of("CUSTOMER")
+        );
+        orderService.createOrder(request, customer);
+
+        com.swiftdrop.order.entity.TrackingEvent podEvent = new com.swiftdrop.order.entity.TrackingEvent();
+        podEvent.setStatus(com.swiftdrop.order.entity.enums.OrderLifecycleStatus.DELIVERED);
+        podEvent.setLocation("45 Peradeniya Road, Kandy");
+        podEvent.setDescription("Delivered to Nimal Perera at 45 Peradeniya Road, Kandy (Recipient: Nimal Perera)");
+        capturedOrder[0].addTrackingEvent(podEvent);
+
+        when(orderRepository.findByTrackingNumberIgnoreCase("SD-91004"))
+                .thenReturn(Optional.of(capturedOrder[0]));
+
+        PublicTrackingResponse publicTracking = orderService.getPublicTracking("SD-91004");
+        assertThat(publicTracking.getEvents()).isNotEmpty();
+        for (PublicTrackingResponse.PublicTrackingEventDto ev : publicTracking.getEvents()) {
+            assertThat(ev.getLocation()).doesNotContain("45 Peradeniya Road").doesNotContain("120 Galle Road");
+            assertThat(ev.getDescription()).doesNotContain("Nimal Perera").doesNotContain("45 Peradeniya Road");
+        }
     }
 }

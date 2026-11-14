@@ -17,3 +17,4 @@ public class DispatchValidationException extends RuntimeException {
         return errorCode;
     }
 }
+

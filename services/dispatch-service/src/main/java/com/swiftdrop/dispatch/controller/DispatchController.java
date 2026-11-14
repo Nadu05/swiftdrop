@@ -320,3 +320,4 @@ public class DispatchController {
         return ResponseEntity.ok(dispatchService.resolveException(id, request, principal));
     }
 }
+

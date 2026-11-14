@@ -1,13 +1,11 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, ChevronRight, UserCheck, AlertCircle, UserMinus } from 'lucide-react';
-import {
-  courierWorkloadMock,
-  type CourierWorkloadItem,
-  type CourierWorkloadStatus,
-} from './mockData';
+import type {
+  CourierWorkloadItem,
+  CourierWorkloadStatus,
+} from './types';
 
 // Configurable workload threshold logic
 function getWorkloadLevel(active: number): {
@@ -40,6 +38,12 @@ const statusConfig: Record<
     text: '#b45309',
     dot: '#f59e0b',
   },
+  ON_BREAK: {
+    label: 'On Break',
+    bg: '#f0f9ff',
+    text: '#0369a1',
+    dot: '#38bdf8',
+  },
   OFFLINE: {
     label: 'Offline',
     bg: '#f8fafc',
@@ -56,13 +60,17 @@ function getInitials(name: string): string {
   return name.slice(0, 2).toUpperCase();
 }
 
-export default function CourierWorkload() {
-  const [couriers] = useState<CourierWorkloadItem[]>(courierWorkloadMock);
+interface CourierWorkloadProps {
+  couriers?: CourierWorkloadItem[];
+}
 
+export default function CourierWorkload({ couriers = [] }: CourierWorkloadProps) {
   const totalCouriers = couriers.length;
   const availableCouriers = couriers.filter((c) => c.status === 'AVAILABLE').length;
   const busyCouriers = couriers.filter((c) => c.status === 'BUSY').length;
-  const offlineCouriers = couriers.filter((c) => c.status === 'OFFLINE').length;
+  const offlineCouriers = couriers.filter(
+    (c) => c.status === 'OFFLINE' || c.status === 'ON_BREAK'
+  ).length;
 
   return (
     <article className="dispatcher-card dispatcher-workload-card">
@@ -134,11 +142,12 @@ export default function CourierWorkload() {
           </thead>
           <tbody>
             {couriers.map((courier) => {
-              const status = statusConfig[courier.status];
+              const status = statusConfig[courier.status] ?? statusConfig.OFFLINE;
               const workload = getWorkloadLevel(courier.activeDeliveries);
+              const safeMax = courier.maxCapacity > 0 ? courier.maxCapacity : 1;
               const percent = Math.min(
                 100,
-                Math.round((courier.activeDeliveries / courier.maxCapacity) * 100)
+                Math.round((courier.activeDeliveries / safeMax) * 100)
               );
 
               return (

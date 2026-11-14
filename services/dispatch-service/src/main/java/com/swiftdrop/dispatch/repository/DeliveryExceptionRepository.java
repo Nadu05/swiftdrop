@@ -15,6 +15,10 @@ public interface DeliveryExceptionRepository extends JpaRepository<DeliveryExcep
 
     List<DeliveryException> findByDeliveryJobIdOrderByCreatedAtDesc(Long deliveryJobId);
 
+    List<DeliveryException> findByTransferManifestIdOrderByCreatedAtDesc(Long transferManifestId);
+
+    List<DeliveryException> findByTrackingNumberIgnoreCaseOrderByCreatedAtDesc(String trackingNumber);
+
     List<DeliveryException> findByBranchIdOrderByCreatedAtDesc(Long branchId);
 
     List<DeliveryException> findByBranchIdAndStatusOrderByCreatedAtDesc(Long branchId, ExceptionStatus status);
@@ -23,3 +27,4 @@ public interface DeliveryExceptionRepository extends JpaRepository<DeliveryExcep
 
     List<DeliveryException> findAllByOrderByCreatedAtDesc();
 }
+
