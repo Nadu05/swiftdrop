@@ -32,6 +32,7 @@ export interface BranchResponse {
   addressLine1: string;
   addressLine2: string | null;
   city: string;
+  district?: string | null;
   phone: string;
   email: string | null;
   latitude: number;
@@ -51,6 +52,7 @@ export interface BranchCreateRequest {
   addressLine1: string;
   addressLine2?: string | null;
   city: string;
+  district?: string | null;
   phone: string;
   email?: string | null;
   latitude: number;
@@ -67,6 +69,7 @@ export interface BranchUpdateRequest {
   addressLine1?: string;
   addressLine2?: string | null;
   city?: string;
+  district?: string | null;
   phone?: string;
   email?: string | null;
   latitude?: number;
@@ -117,10 +120,11 @@ export interface OrganizationDashboardMetrics extends BranchSummaryMetrics {
 }
 
 /**
- * City-level branch distribution item derived from backend `BranchResponse[]` and `ServiceAreaResponse[]`.
+ * District-level branch distribution item derived from backend `BranchResponse[]` and `ServiceAreaResponse[]`.
  */
 export interface CityBranchDistributionItem {
   city: string;
+  district: string;
   totalBranches: number;
   activeBranches: number;
   inactiveBranches: number;

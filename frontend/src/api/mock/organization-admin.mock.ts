@@ -1,3 +1,4 @@
+import { inferSriLankanDistrict } from '@/lib/geocoding';
 import type {
   BranchCreateRequest,
   BranchPerformanceSummaryResponse,
@@ -30,6 +31,7 @@ const INITIAL_MOCK_BRANCHES: BranchResponse[] = [
     addressLine1: 'No. 45, Union Place',
     addressLine2: 'Colombo 02, Western Province',
     city: 'Colombo',
+    district: 'Colombo',
     phone: '+94 11 234 5678',
     email: 'colombo.central@swiftdrop.lk',
     latitude: 6.9218,
@@ -44,7 +46,8 @@ const INITIAL_MOCK_BRANCHES: BranchResponse[] = [
     name: 'Nugegoda Metro Hub',
     addressLine1: 'No. 210, High Level Road',
     addressLine2: 'Nugegoda, Colombo',
-    city: 'Colombo',
+    city: 'Nugegoda',
+    district: 'Colombo',
     phone: '+94 11 281 4490',
     email: 'nugegoda.hub@swiftdrop.lk',
     latitude: 6.8649,
@@ -60,6 +63,7 @@ const INITIAL_MOCK_BRANCHES: BranchResponse[] = [
     addressLine1: 'No. 120, Peradeniya Road',
     addressLine2: 'Kandy Municipal Limits',
     city: 'Kandy',
+    district: 'Kandy',
     phone: '+94 81 222 3344',
     email: 'kandy.main@swiftdrop.lk',
     latitude: 7.2906,
@@ -75,6 +79,7 @@ const INITIAL_MOCK_BRANCHES: BranchResponse[] = [
     addressLine1: 'No. 18, Wakwella Road',
     addressLine2: 'Near Galle Railway Station',
     city: 'Galle',
+    district: 'Galle',
     phone: '+94 91 223 4455',
     email: 'galle.south@swiftdrop.lk',
     latitude: 6.0535,
@@ -90,6 +95,7 @@ const INITIAL_MOCK_BRANCHES: BranchResponse[] = [
     addressLine1: 'No. 88, Colombo Road',
     addressLine2: 'Kurana, Negombo',
     city: 'Negombo',
+    district: 'Gampaha',
     phone: '+94 31 222 7890',
     email: 'negombo.coast@swiftdrop.lk',
     latitude: 7.2008,
@@ -105,6 +111,7 @@ const INITIAL_MOCK_BRANCHES: BranchResponse[] = [
     addressLine1: 'No. 64, Dambulla Road',
     addressLine2: 'Kurunegala Town Center',
     city: 'Kurunegala',
+    district: 'Kurunegala',
     phone: '+94 37 222 6120',
     email: 'kurunegala@swiftdrop.lk',
     latitude: 7.4818,
@@ -120,6 +127,7 @@ const INITIAL_MOCK_BRANCHES: BranchResponse[] = [
     addressLine1: 'No. 142, Hospital Road',
     addressLine2: 'Jaffna Town',
     city: 'Jaffna',
+    district: 'Jaffna',
     phone: '+94 21 222 5110',
     email: 'jaffna.north@swiftdrop.lk',
     latitude: 9.6615,
@@ -135,6 +143,7 @@ const INITIAL_MOCK_BRANCHES: BranchResponse[] = [
     addressLine1: 'No. 32, Anagarika Dharmapala Mawatha',
     addressLine2: 'Matara',
     city: 'Matara',
+    district: 'Matara',
     phone: '+94 41 222 8900',
     email: 'matara.hub@swiftdrop.lk',
     latitude: 5.9549,
@@ -502,6 +511,11 @@ export function createMockBranch(payload: BranchCreateRequest): BranchResponse {
     addressLine1: payload.addressLine1.trim(),
     addressLine2: payload.addressLine2 ? payload.addressLine2.trim() : null,
     city: payload.city.trim(),
+    district: inferSriLankanDistrict(
+      payload.city,
+      payload.district,
+      payload.addressLine2
+    ),
     phone: payload.phone.trim(),
     email: payload.email ? payload.email.trim() : null,
     latitude: Number(payload.latitude),
@@ -584,6 +598,19 @@ export function updateMockBranch(
           : null
         : existing.addressLine2,
     city: payload.city !== undefined ? payload.city.trim() : existing.city,
+    district:
+      payload.district !== undefined && payload.district !== null
+        ? inferSriLankanDistrict(
+            payload.city ?? existing.city,
+            payload.district,
+            payload.addressLine2 ?? existing.addressLine2
+          )
+        : existing.district ||
+          inferSriLankanDistrict(
+            payload.city ?? existing.city,
+            existing.district,
+            payload.addressLine2 ?? existing.addressLine2
+          ),
     phone: payload.phone !== undefined ? payload.phone.trim() : existing.phone,
     email:
       payload.email !== undefined

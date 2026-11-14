@@ -1,5 +1,6 @@
 import { isAxiosError } from 'axios';
 import { apiClient } from '@/api/axios-client';
+import { inferSriLankanDistrict } from '@/lib/geocoding';
 import {
   createMockBranch,
   getMockBranchById,
@@ -355,6 +356,19 @@ export async function getServiceAreasByBranch(
 }
 
 /**
+ * Resolves the Sri Lankan administrative district for a branch record.
+ */
+export function resolveBranchDistrict(
+  branch: Pick<BranchResponse, 'city' | 'district' | 'addressLine2'>
+): string {
+  return inferSriLankanDistrict(
+    branch.city,
+    branch.district,
+    branch.addressLine2
+  );
+}
+
+/**
  * Compute branch directory summary statistics from the backend `BranchResponse[]` array.
  */
 export function calculateBranchSummaryMetrics(
@@ -363,7 +377,7 @@ export function calculateBranchSummaryMetrics(
   const totalBranches = branches.length;
   let activeBranches = 0;
   let inactiveBranches = 0;
-  const distinctCities = new Set<string>();
+  const distinctDistricts = new Set<string>();
 
   for (const branch of branches) {
     if (branch.status === 'ACTIVE') {
@@ -372,8 +386,9 @@ export function calculateBranchSummaryMetrics(
       inactiveBranches += 1;
     }
 
-    if (branch.city && branch.city.trim().length > 0) {
-      distinctCities.add(branch.city.trim().toLowerCase());
+    const district = resolveBranchDistrict(branch);
+    if (district && district.trim().length > 0) {
+      distinctDistricts.add(district.trim().toLowerCase());
     }
   }
 
@@ -381,7 +396,7 @@ export function calculateBranchSummaryMetrics(
     totalBranches,
     activeBranches,
     inactiveBranches,
-    citiesCovered: distinctCities.size,
+    citiesCovered: distinctDistricts.size,
   };
 }
 
@@ -418,9 +433,9 @@ export function calculateOrganizationDashboardMetrics(
 }
 
 /**
- * Compute branch distribution by city from actual backend `BranchResponse[]` and `ServiceAreaResponse[]`.
+ * Compute branch distribution by Sri Lankan administrative district from `BranchResponse[]` and `ServiceAreaResponse[]`.
  */
-export function calculateBranchDistributionByCity(
+export function calculateBranchDistributionByDistrict(
   branches: BranchResponse[],
   serviceAreas: ServiceAreaResponse[] = []
 ): CityBranchDistributionItem[] {
@@ -434,10 +449,10 @@ export function calculateBranchDistributionByCity(
     );
   }
 
-  const cityMap = new Map<
+  const districtMap = new Map<
     string,
     {
-      displayCity: string;
+      displayDistrict: string;
       totalBranches: number;
       activeBranches: number;
       inactiveBranches: number;
@@ -446,10 +461,10 @@ export function calculateBranchDistributionByCity(
   >();
 
   for (const branch of branches) {
-    const rawCity = branch.city?.trim() || 'Unspecified';
-    const key = rawCity.toLowerCase();
-    const existing = cityMap.get(key) ?? {
-      displayCity: rawCity,
+    const rawDistrict = resolveBranchDistrict(branch) || 'Unspecified';
+    const key = rawDistrict.toLowerCase();
+    const existing = districtMap.get(key) ?? {
+      displayDistrict: rawDistrict,
       totalBranches: 0,
       activeBranches: 0,
       inactiveBranches: 0,
@@ -463,22 +478,25 @@ export function calculateBranchDistributionByCity(
       existing.inactiveBranches += 1;
     }
     existing.serviceAreaCount += serviceAreasByBranchId.get(branch.id) ?? 0;
-    cityMap.set(key, existing);
+    districtMap.set(key, existing);
   }
 
   const totalNetworkBranches = branches.length;
 
-  return Array.from(cityMap.values())
+  return Array.from(districtMap.values())
     .map((item) => ({
-      city: item.displayCity,
+      city: item.displayDistrict,
+      district: item.displayDistrict,
       totalBranches: item.totalBranches,
       activeBranches: item.activeBranches,
       inactiveBranches: item.inactiveBranches,
       serviceAreaCount: item.serviceAreaCount,
       percentageOfNetwork: Math.round((item.totalBranches / totalNetworkBranches) * 100),
     }))
-    .sort((a, b) => b.totalBranches - a.totalBranches || a.city.localeCompare(b.city));
+    .sort((a, b) => b.totalBranches - a.totalBranches || a.district.localeCompare(b.district));
 }
+
+export const calculateBranchDistributionByCity = calculateBranchDistributionByDistrict;
 
 /**
  * Fetch organization staff accounts for Screen 35 (Admin / Roles, Permissions and Audit Log).

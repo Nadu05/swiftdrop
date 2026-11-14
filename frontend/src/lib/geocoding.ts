@@ -33,9 +33,155 @@ export interface ReverseGeocodeResult {
   displayName: string;
   addressLine1: string;
   city: string;
+  district: string;
   latitude: number;
   longitude: number;
   source: 'nominatim' | 'sri-lanka-gazetteer' | 'coordinates-only';
+}
+
+/**
+ * All 25 Administrative Districts of Sri Lanka.
+ */
+export const SRI_LANKAN_DISTRICTS = [
+  'Ampara',
+  'Anuradhapura',
+  'Badulla',
+  'Batticaloa',
+  'Colombo',
+  'Galle',
+  'Gampaha',
+  'Hambantota',
+  'Jaffna',
+  'Kalutara',
+  'Kandy',
+  'Kegalle',
+  'Kilinochchi',
+  'Kurunegala',
+  'Mannar',
+  'Matale',
+  'Matara',
+  'Monaragala',
+  'Mullaitivu',
+  'Nuwara Eliya',
+  'Polonnaruwa',
+  'Puttalam',
+  'Ratnapura',
+  'Trincomalee',
+  'Vavuniya',
+] as const;
+
+const CITY_TO_DISTRICT_MAP: Record<string, string> = {
+  colombo: 'Colombo',
+  nugegoda: 'Colombo',
+  dehiwala: 'Colombo',
+  'mount lavinia': 'Colombo',
+  moratuwa: 'Colombo',
+  maharagama: 'Colombo',
+  rajagiriya: 'Colombo',
+  battaramulla: 'Colombo',
+  kotte: 'Colombo',
+  'sri jayawardenepura kotte': 'Colombo',
+  kaduwela: 'Colombo',
+  homagama: 'Colombo',
+  piliyandala: 'Colombo',
+  malabe: 'Colombo',
+  kolonnawa: 'Colombo',
+  negombo: 'Gampaha',
+  gampaha: 'Gampaha',
+  wattala: 'Gampaha',
+  kelaniya: 'Gampaha',
+  kadawatha: 'Gampaha',
+  kiribathgoda: 'Gampaha',
+  ja_ela: 'Gampaha',
+  'ja-ela': 'Gampaha',
+  minuwangoda: 'Gampaha',
+  kalutara: 'Kalutara',
+  panadura: 'Kalutara',
+  horana: 'Kalutara',
+  beruwala: 'Kalutara',
+  kandy: 'Kandy',
+  peradeniya: 'Kandy',
+  katugastota: 'Kandy',
+  gampola: 'Kandy',
+  matale: 'Matale',
+  dambulla: 'Matale',
+  'nuwara eliya': 'Nuwara Eliya',
+  hatton: 'Nuwara Eliya',
+  galle: 'Galle',
+  karapitiya: 'Galle',
+  hikkaduwa: 'Galle',
+  ambalangoda: 'Galle',
+  matara: 'Matara',
+  weligama: 'Matara',
+  hambantota: 'Hambantota',
+  tangalle: 'Hambantota',
+  jaffna: 'Jaffna',
+  chavakachcheri: 'Jaffna',
+  kilinochchi: 'Kilinochchi',
+  mannar: 'Mannar',
+  vavuniya: 'Vavuniya',
+  mullaitivu: 'Mullaitivu',
+  batticaloa: 'Batticaloa',
+  ampara: 'Ampara',
+  kalmunai: 'Ampara',
+  trincomalee: 'Trincomalee',
+  kurunegala: 'Kurunegala',
+  kuliyapitiya: 'Kurunegala',
+  puttalam: 'Puttalam',
+  chilaw: 'Puttalam',
+  anuradhapura: 'Anuradhapura',
+  polonnaruwa: 'Polonnaruwa',
+  badulla: 'Badulla',
+  bandarawela: 'Badulla',
+  monaragala: 'Monaragala',
+  ratnapura: 'Ratnapura',
+  embilipitiya: 'Ratnapura',
+  kegalle: 'Kegalle',
+  mawanella: 'Kegalle',
+};
+
+/**
+ * Infers the Sri Lankan administrative district from a branch's explicit district, city, or address.
+ */
+export function inferSriLankanDistrict(
+  city?: string | null,
+  explicitDistrict?: string | null,
+  addressLine2?: string | null
+): string {
+  const trimmedDistrict = explicitDistrict?.trim();
+  if (trimmedDistrict) {
+    const clean = trimmedDistrict.replace(/\s+district$/i, '').trim();
+    const matchedDistrict = SRI_LANKAN_DISTRICTS.find(
+      (d) => d.toLowerCase() === clean.toLowerCase()
+    );
+    if (matchedDistrict) return matchedDistrict;
+    return clean;
+  }
+
+  const trimmedCity = city?.trim() || '';
+  if (trimmedCity) {
+    const lowerCity = trimmedCity.toLowerCase().replace(/\s+\d+$/, '');
+    if (CITY_TO_DISTRICT_MAP[lowerCity]) {
+      return CITY_TO_DISTRICT_MAP[lowerCity];
+    }
+    const matchedFromDistrictList = SRI_LANKAN_DISTRICTS.find(
+      (d) => lowerCity.includes(d.toLowerCase())
+    );
+    if (matchedFromDistrictList) {
+      return matchedFromDistrictList;
+    }
+  }
+
+  if (addressLine2) {
+    const lowerAddr2 = addressLine2.toLowerCase();
+    for (const [cityKey, distVal] of Object.entries(CITY_TO_DISTRICT_MAP)) {
+      if (lowerAddr2.includes(cityKey)) {
+        return distVal;
+      }
+    }
+  }
+
+  return trimmedCity || 'Colombo';
 }
 
 /**
@@ -618,12 +764,18 @@ function parseNominatimItem(item: NominatimSearchItem, index: number): Geocoding
     addressLine1 = `${addressLine1}, ${city}`;
   }
 
+  const district = inferSriLankanDistrict(
+    city,
+    addr.state_district || addr.county || undefined
+  );
+
   return {
     id: `nom-${item.place_id ?? index}-${lat.toFixed(4)}`,
     shortTitle: firstSegments.slice(0, 2).join(', ') || addressLine1,
     displayName: rawDisplay,
     addressLine1: addressLine1.slice(0, 500),
     city: city.slice(0, 255),
+    district,
     latitude: Number(lat.toFixed(6)),
     longitude: Number(lng.toFixed(6)),
     source: 'nominatim',
@@ -769,6 +921,7 @@ export async function reverseGeocodeLocation(
           displayName: parsed.displayName,
           addressLine1: parsed.addressLine1,
           city: parsed.city,
+          district: parsed.district || inferSriLankanDistrict(parsed.city),
           latitude: clamped.latitude,
           longitude: clamped.longitude,
           source: 'nominatim',
@@ -793,6 +946,7 @@ export async function reverseGeocodeLocation(
       displayName: `Near ${nearest.shortTitle} (${clamped.latitude.toFixed(4)}, ${clamped.longitude.toFixed(4)})`,
       addressLine1: `${nearest.addressLine1} (${clamped.latitude.toFixed(4)}°N, ${clamped.longitude.toFixed(4)}°E)`,
       city: nearest.city,
+      district: nearest.district || inferSriLankanDistrict(nearest.city),
       latitude: clamped.latitude,
       longitude: clamped.longitude,
       source: 'sri-lanka-gazetteer',
@@ -803,6 +957,7 @@ export async function reverseGeocodeLocation(
     displayName: `Selected Location (${clamped.latitude.toFixed(5)}, ${clamped.longitude.toFixed(5)})`,
     addressLine1: `Location at ${clamped.latitude.toFixed(4)}° N, ${clamped.longitude.toFixed(4)}° E`,
     city: nearest.city,
+    district: nearest.district || inferSriLankanDistrict(nearest.city),
     latitude: clamped.latitude,
     longitude: clamped.longitude,
     source: 'coordinates-only',

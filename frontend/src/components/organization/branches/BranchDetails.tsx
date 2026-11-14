@@ -18,7 +18,10 @@ import {
   Radar,
   RefreshCw,
 } from 'lucide-react';
-import { calculateBranchPerformanceMetrics } from '@/api/services/organization.api';
+import {
+  calculateBranchPerformanceMetrics,
+  resolveBranchDistrict,
+} from '@/api/services/organization.api';
 import InteractiveBranchMap from '@/components/organization/map/InteractiveBranchMap';
 import type {
   BranchPerformanceSummaryResponse,
@@ -345,12 +348,19 @@ export default function BranchDetails({
             </div>
 
             <div className="org-details-list__item">
-              <dt className="org-details-list__term">City</dt>
+              <dt className="org-details-list__term">City / Town</dt>
               <dd className="org-details-list__desc">
                 <span className="org-branch-city">
                   <MapPin size={13} className="org-branch-city__icon" aria-hidden="true" />
                   <span>{branch.city}</span>
                 </span>
+              </dd>
+            </div>
+
+            <div className="org-details-list__item">
+              <dt className="org-details-list__term">District</dt>
+              <dd className="org-details-list__desc org-details-list__desc--strong">
+                {resolveBranchDistrict(branch)} District
               </dd>
             </div>
 

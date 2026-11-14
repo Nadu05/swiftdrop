@@ -396,4 +396,15 @@ describe('SwiftDrop Member 04 — Head Office Organization Admin UI Suite', () =
     assert.ok(deactivated);
     assert.equal(deactivated.status, 'INACTIVE');
   });
+
+  it('9. routes Reports & Analytics in OrganizationSidebar to /organization/reports', () => {
+    const reportItem = ORGANIZATION_NAV_ITEMS.find((item) => item.id === 'reports');
+    assert.ok(reportItem);
+    assert.equal(reportItem.href, '/organization/reports');
+    assert.equal(reportItem.implemented, true);
+
+    const html = renderToStaticMarkup(React.createElement(OrganizationSidebar));
+    assert.ok(html.includes('/organization/reports'));
+    assert.ok(html.includes('Reports &amp; Analytics'));
+  });
 });

@@ -33,13 +33,13 @@ function OrganizationWelcome({
         </div>
 
         <h1 id="org-admin-welcome-heading" className="org-page-header__title">
-          Organization Administration &amp; Network Overview
+          Welcome back, Organization Admin 👋
         </h1>
 
         <p className="org-page-header__subtitle">
-          Manage regional delivery hubs across Sri Lanka, configure circular service-area
-          coverage radii, and monitor branch-level operational throughput from one central
-          workspace.
+          Good to have you at the SwiftDrop Head Office console. Manage regional delivery hubs
+          across Sri Lankan districts, oversee 25 km circular service-area coverage zones, and
+          monitor daily branch performance from one central workspace.
         </p>
       </div>
 

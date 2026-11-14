@@ -27,6 +27,7 @@ export interface BranchLocationSelection {
   addressLine1?: string;
   addressLine2?: string;
   city?: string;
+  district?: string;
   label?: string;
 }
 
@@ -135,6 +136,7 @@ export default function BranchLocationPicker({
         addressLine1: suggestion.addressLine1,
         addressLine2: suggestion.addressLine2,
         city: suggestion.city,
+        district: suggestion.district,
         label: suggestion.displayName,
       });
     },
@@ -187,13 +189,14 @@ export default function BranchLocationPicker({
           longitude: reversed.longitude,
           addressLine1: reversed.addressLine1,
           city: reversed.city,
+          district: reversed.district,
           label: reversed.displayName,
         });
         setSearchQuery(reversed.displayName);
         setGeocodeStatusMessage(
           interactionType === 'drag'
-            ? `Marker refined to ${reversed.latitude.toFixed(5)}, ${reversed.longitude.toFixed(5)} (${reversed.city}). Address updated via reverse geocoding.`
-            : `Map location selected at ${reversed.latitude.toFixed(5)}, ${reversed.longitude.toFixed(5)} (${reversed.city}).`
+            ? `Marker refined to ${reversed.latitude.toFixed(5)}, ${reversed.longitude.toFixed(5)} (${reversed.city}, ${reversed.district} District). Address updated via reverse geocoding.`
+            : `Map location selected at ${reversed.latitude.toFixed(5)}, ${reversed.longitude.toFixed(5)} (${reversed.city}, ${reversed.district} District).`
         );
       } catch (err: unknown) {
         if (err instanceof Error && err.name === 'AbortError') return;

@@ -23,6 +23,10 @@ import {
   DEFAULT_BRANCH_FORM_VALUES,
   type BranchFormValues,
 } from '@/schema/branch.schema';
+import {
+  inferSriLankanDistrict,
+  SRI_LANKAN_DISTRICTS,
+} from '@/lib/geocoding';
 import { OrganizationApiError } from '@/api/services/organization.api';
 import type { BranchResponse } from '@/types/organization.types';
 import { Button } from '@/components/ui/button';
@@ -44,6 +48,7 @@ const VALID_FORM_FIELDS: readonly (keyof BranchFormValues)[] = [
   'addressLine1',
   'addressLine2',
   'city',
+  'district',
   'phone',
   'email',
   'latitude',
@@ -112,6 +117,17 @@ export default function BranchForm({
       }
       if (selection.city) {
         setValue('city', selection.city, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+      }
+      if (selection.district) {
+        setValue('district', selection.district, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+      } else if (selection.city) {
+        setValue('district', inferSriLankanDistrict(selection.city), {
           shouldDirty: true,
           shouldValidate: true,
         });
@@ -337,7 +353,7 @@ export default function BranchForm({
           onSelectLocation={handleSelectMapLocation}
         />
 
-        <div className="org-form-grid org-form-grid--3 mt-4 pt-4 border-t border-slate-100">
+        <div className="org-form-grid org-form-grid--2 mt-4 pt-4 border-t border-slate-100">
           {/* Address Line 1 */}
           <div className="org-form-field">
             <label htmlFor="branch-address-line1" className="org-form-label">
@@ -403,13 +419,13 @@ export default function BranchForm({
           {/* City */}
           <div className="org-form-field">
             <label htmlFor="branch-city" className="org-form-label">
-              <span>City</span>
+              <span>City / Town</span>
               <span className="org-form-required" aria-hidden="true">*</span>
             </label>
             <Input
               id="branch-city"
               type="text"
-              placeholder="e.g. Colombo"
+              placeholder="e.g. Colombo, Nugegoda, Negombo, Kandy"
               disabled={isDisabled}
               aria-required="true"
               aria-invalid={Boolean(errors.city)}
@@ -418,7 +434,17 @@ export default function BranchForm({
                 'h-10 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800',
                 errors.city && 'border-red-500 focus-visible:ring-red-500'
               )}
-              {...register('city')}
+              {...register('city', {
+                onChange: (e) => {
+                  const nextCity = e.target.value;
+                  if (nextCity && nextCity.trim().length >= 3) {
+                    const inferred = inferSriLankanDistrict(nextCity);
+                    if (SRI_LANKAN_DISTRICTS.includes(inferred as (typeof SRI_LANKAN_DISTRICTS)[number])) {
+                      setValue('district', inferred, { shouldValidate: true });
+                    }
+                  }
+                },
+              })}
             />
             <span id="branch-city-hint" className="org-form-hint">
               Primary city or municipality served by this branch.
@@ -426,6 +452,42 @@ export default function BranchForm({
             {errors.city && (
               <p id="branch-city-error" className="org-form-error" role="alert">
                 {errors.city.message}
+              </p>
+            )}
+          </div>
+
+          {/* District */}
+          <div className="org-form-field">
+            <label htmlFor="branch-district" className="org-form-label">
+              <span>District</span>
+              <span className="org-form-required" aria-hidden="true">*</span>
+            </label>
+            <select
+              id="branch-district"
+              disabled={isDisabled}
+              aria-required="true"
+              aria-invalid={Boolean(errors.district)}
+              aria-describedby={
+                errors.district ? 'branch-district-error' : 'branch-district-hint'
+              }
+              className={cn(
+                'h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-50',
+                errors.district && 'border-red-500 focus:ring-red-500'
+              )}
+              {...register('district')}
+            >
+              {SRI_LANKAN_DISTRICTS.map((dist) => (
+                <option key={dist} value={dist}>
+                  {dist} District
+                </option>
+              ))}
+            </select>
+            <span id="branch-district-hint" className="org-form-hint">
+              Sri Lankan administrative district (auto-matched from map or city).
+            </span>
+            {errors.district && (
+              <p id="branch-district-error" className="org-form-error" role="alert">
+                {errors.district.message}
               </p>
             )}
           </div>

@@ -74,10 +74,10 @@ export const ORGANIZATION_NAV_ITEMS: readonly OrganizationNavItem[] = [
   },
   {
     id: 'reports',
-    label: 'Reports',
-    href: '/organization/branches#reports',
+    label: 'Reports & Analytics',
+    href: '/organization/reports',
     icon: ChartColumn,
-    implemented: false,
+    implemented: true,
   },
   {
     id: 'roles-audit',
