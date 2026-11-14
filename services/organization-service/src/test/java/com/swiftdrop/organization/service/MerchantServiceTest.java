@@ -1,5 +1,6 @@
 package com.swiftdrop.organization.service;
 
+import com.swiftdrop.organization.config.CorrelationIdFilter;
 import com.swiftdrop.organization.dto.MerchantRegistrationRequest;
 import com.swiftdrop.organization.dto.MerchantResponse;
 import com.swiftdrop.organization.dto.MerchantUpdateRequest;
@@ -12,6 +13,7 @@ import com.swiftdrop.organization.exception.ResourceNotFoundException;
 import com.swiftdrop.organization.messaging.MerchantEventType;
 import com.swiftdrop.organization.messaging.MerchantLifecycleEvent;
 import com.swiftdrop.organization.repository.MerchantProfileRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -21,6 +23,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.MDC;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.Clock;
@@ -336,9 +339,15 @@ class MerchantServiceTest {
     @DisplayName("Status Transition Tests")
     class StatusTransitionTests {
 
+        @AfterEach
+        void clearMdc() {
+            MDC.clear();
+        }
+
         @Test
-        @DisplayName("Approve merchant: PENDING -> APPROVED publishes event")
+        @DisplayName("Approve merchant: PENDING -> APPROVED publishes event and propagates correlationId from MDC")
         void approve_FromPending_Success() {
+            MDC.put(CorrelationIdFilter.MDC_KEY, "corr-approve-10");
             when(repository.findById(10L)).thenReturn(Optional.of(sampleProfile));
             when(repository.save(any(MerchantProfile.class))).thenAnswer(i -> i.getArgument(0));
 
@@ -351,6 +360,7 @@ class MerchantServiceTest {
             verify(eventPublisher).publishEvent(eventCaptor.capture());
             MerchantLifecycleEvent published = eventCaptor.getValue();
             assertThat(published.eventType()).isEqualTo(MerchantEventType.APPROVED.eventType());
+            assertThat(published.correlationId()).isEqualTo("corr-approve-10");
             assertThat(published.merchantId()).isEqualTo(10L);
             assertThat(published.previousStatus()).isEqualTo("PENDING");
             assertThat(published.status()).isEqualTo("APPROVED");

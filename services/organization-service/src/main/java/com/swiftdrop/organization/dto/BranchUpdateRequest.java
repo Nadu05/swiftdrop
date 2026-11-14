@@ -10,21 +10,28 @@ import jakarta.validation.constraints.*;
 public class BranchUpdateRequest {
 
     @Size(max = 50, message = "Branch code must be at most 50 characters")
+    @Pattern(regexp = MerchantValidationPatterns.BRANCH_CODE,
+            message = "Branch code must not be blank and may contain only letters, numbers, hyphens, and underscores")
     private String code;
 
     @Size(max = 255, message = "Branch name must be at most 255 characters")
+    @Pattern(regexp = MerchantValidationPatterns.NON_BLANK, message = "Branch name must not be blank")
     private String name;
 
     @Size(max = 500, message = "Address line 1 must be at most 500 characters")
+    @Pattern(regexp = MerchantValidationPatterns.NON_BLANK, message = "Address line 1 must not be blank")
     private String addressLine1;
 
     @Size(max = 500, message = "Address line 2 must be at most 500 characters")
     private String addressLine2;
 
     @Size(max = 255, message = "City must be at most 255 characters")
+    @Pattern(regexp = MerchantValidationPatterns.NON_BLANK, message = "City must not be blank")
     private String city;
 
     @Size(max = 50, message = "Phone must be at most 50 characters")
+    @Pattern(regexp = MerchantValidationPatterns.PHONE,
+            message = "Phone must be a valid phone number (e.g. +94 11 234 5678)")
     private String phone;
 
     @Email(message = "Email must be a valid email address")
@@ -40,6 +47,7 @@ public class BranchUpdateRequest {
     private Double longitude;
 
     @Size(max = 20, message = "Status must be at most 20 characters")
+    @Pattern(regexp = MerchantValidationPatterns.NON_BLANK, message = "Status must not be blank")
     private String status;
 
     public BranchUpdateRequest() {}
