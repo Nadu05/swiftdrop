@@ -108,7 +108,7 @@ export default function Link({ href, children, ...props }) {
                 format: "module",
                 shortCircuit: true,
                 source: `export function usePathname() {
-    return globalThis.__TEST_PATHNAME__ ?? "/organization/console";
+    return globalThis.__TEST_PATHNAME__ ?? "/organization";
 }
 export function useSearchParams() {
     return new URLSearchParams(globalThis.__TEST_SEARCH_PARAMS__ ?? "");

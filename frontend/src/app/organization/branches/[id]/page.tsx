@@ -14,15 +14,21 @@ import {
 import BranchDetails from '@/components/organization/branches/BranchDetails';
 import BranchStatusDialog from '@/components/organization/branches/BranchStatusDialog';
 import { OrganizationApiError } from '@/api/services/organization.api';
-import { useBranch } from '@/hooks/api/use-organization';
+import {
+  useBranch,
+  useBranchPerformanceSummary,
+  useBranchServiceAreas,
+} from '@/hooks/api/use-organization';
 import type { BranchResponse } from '@/types/organization.types';
 
 /**
  * Branch Details Page (/organization/branches/[id])
- * Member 04 — Organization Admin UI (Phase 3)
+ * Member 04 — Organization Admin UI
  *
- * Fetches a single branch via `GET /api/v1/organization/branches/{id}` using TanStack Query
- * and supports status activation/deactivation via `PATCH /api/v1/organization/branches/{id}`.
+ * Fetches:
+ * - `GET /api/v1/organization/branches/{id}` (Branch identity, address, coordinates, status)
+ * - `GET /api/v1/organization/service-areas/branch/{branchId}` (Member 03 circular service-area radius zones)
+ * - `GET /api/v1/organization/branches/{id}/performance-summary` (Branch operational analytics contract)
  */
 export default function BranchDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -34,8 +40,22 @@ export default function BranchDetailsPage() {
     data: branch,
     isLoading: isQueryLoading,
     error: queryError,
-    refetch,
+    refetch: refetchBranch,
   } = useBranch(numericId);
+
+  const {
+    data: serviceAreas = [],
+    isLoading: isLoadingServiceAreas,
+    error: rawServiceAreasError,
+    refetch: refetchServiceAreas,
+  } = useBranchServiceAreas(numericId);
+
+  const {
+    data: performanceSummary = null,
+    isLoading: isLoadingPerformance,
+    error: rawPerformanceError,
+    refetch: refetchPerformance,
+  } = useBranchPerformanceSummary(numericId);
 
   // Status confirmation dialog state
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState<boolean>(false);
@@ -55,6 +75,18 @@ export default function BranchDetailsPage() {
       : `Unable to load branch #${numericId} from the Organization Service.`
     : null;
 
+  const serviceAreasError = rawServiceAreasError
+    ? rawServiceAreasError instanceof Error
+      ? rawServiceAreasError.message
+      : `Unable to load service areas for branch #${numericId}.`
+    : null;
+
+  const performanceError = rawPerformanceError
+    ? rawPerformanceError instanceof Error
+      ? rawPerformanceError.message
+      : `Branch analytics endpoint is currently unavailable for branch #${numericId}.`
+    : null;
+
   const handleStatusUpdated = (updatedBranch: BranchResponse) => {
     setIsStatusDialogOpen(false);
     const actionWord =
@@ -65,8 +97,18 @@ export default function BranchDetailsPage() {
   };
 
   const fetchBranch = useCallback(() => {
-    refetch();
-  }, [refetch]);
+    refetchBranch();
+    refetchServiceAreas();
+    refetchPerformance();
+  }, [refetchBranch, refetchServiceAreas, refetchPerformance]);
+
+  const handleRetryServiceAreas = useCallback(() => {
+    refetchServiceAreas();
+  }, [refetchServiceAreas]);
+
+  const handleRetryPerformance = useCallback(() => {
+    refetchPerformance();
+  }, [refetchPerformance]);
 
   return (
     <div className="org-page">
@@ -106,8 +148,8 @@ export default function BranchDetailsPage() {
             {branch ? branch.name : 'Branch Details'}
           </h1>
           <p className="org-page-header__subtitle">
-            View complete branch identity, physical address, geographic coordinates, contact
-            channels, and operational status.
+            View complete branch identity, physical address, interactive map coverage, circular
+            service-area radius zones, and branch analytics.
           </p>
         </div>
       </header>
@@ -176,6 +218,14 @@ export default function BranchDetailsPage() {
           <BranchDetails
             branch={branch}
             onRequestStatusToggle={() => setIsStatusDialogOpen(true)}
+            serviceAreas={serviceAreas}
+            isLoadingServiceAreas={isLoadingServiceAreas}
+            serviceAreasError={serviceAreasError}
+            onRetryServiceAreas={handleRetryServiceAreas}
+            performanceSummary={performanceSummary}
+            isLoadingPerformance={isLoadingPerformance}
+            performanceError={performanceError}
+            onRetryPerformance={handleRetryPerformance}
           />
 
           <BranchStatusDialog
@@ -189,4 +239,3 @@ export default function BranchDetailsPage() {
     </div>
   );
 }
-

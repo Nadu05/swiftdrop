@@ -15,10 +15,11 @@ import BranchFilters from '@/components/organization/branches/BranchFilters';
 import BranchTable from '@/components/organization/branches/BranchTable';
 import BranchStatusDialog from '@/components/organization/branches/BranchStatusDialog';
 import { calculateBranchSummaryMetrics } from '@/api/services/organization.api';
-import { useBranches } from '@/hooks/api/use-organization';
+import { useBranches, useServiceAreas } from '@/hooks/api/use-organization';
 import type {
   BranchResponse,
   BranchStatusFilter,
+  ServiceAreaResponse,
 } from '@/types/organization.types';
 
 const DIRECTORY_TABS = [
@@ -58,9 +59,17 @@ export default function OrganizationBranchesPage() {
     dataUpdatedAt,
   } = useBranches();
 
-  // Search & Status Filter state
+  const {
+    data: serviceAreas = [],
+    isLoading: isLoadingServiceAreas,
+    error: serviceAreasError,
+    refetch: refetchServiceAreas,
+  } = useServiceAreas();
+
+  // Search, Status & City Filter state
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<BranchStatusFilter>('ALL');
+  const [cityFilter, setCityFilter] = useState<string>('ALL');
 
   // Confirmed operation toast banner (Create, Edit, Activate, Deactivate)
   const [successBanner, setSuccessBanner] = useState<string | null>(null);
@@ -108,15 +117,18 @@ export default function OrganizationBranchesPage() {
 
   const handleRefresh = useCallback(() => {
     refetch();
-  }, [refetch]);
+    refetchServiceAreas();
+  }, [refetch, refetchServiceAreas]);
 
   const handleRetry = useCallback(() => {
     refetch();
-  }, [refetch]);
+    refetchServiceAreas();
+  }, [refetch, refetchServiceAreas]);
 
   const handleResetFilters = useCallback(() => {
     setSearchQuery('');
     setStatusFilter('ALL');
+    setCityFilter('ALL');
   }, []);
 
   // Summary metrics derived from the full loaded branch list
@@ -125,12 +137,40 @@ export default function OrganizationBranchesPage() {
     [branches]
   );
 
-  // Filtered branch list by search query (code, name, or city) and status filter
+  // Distinct sorted city options from loaded branches
+  const availableCities = useMemo(() => {
+    const citySet = new Set<string>();
+    for (const branch of branches) {
+      const trimmed = branch.city.trim();
+      if (trimmed) {
+        citySet.add(trimmed);
+      }
+    }
+    return Array.from(citySet).sort((a, b) => a.localeCompare(b));
+  }, [branches]);
+
+  // Group service areas by branchId
+  const serviceAreasByBranchId = useMemo(() => {
+    const grouped: Record<number, ServiceAreaResponse[]> = {};
+    for (const area of serviceAreas) {
+      if (!grouped[area.branchId]) {
+        grouped[area.branchId] = [];
+      }
+      grouped[area.branchId].push(area);
+    }
+    return grouped;
+  }, [serviceAreas]);
+
+  // Filtered branch list by search query (code, name, or city), status filter, and city filter
   const filteredBranches = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
 
     return branches.filter((branch) => {
       if (statusFilter !== 'ALL' && branch.status !== statusFilter) {
+        return false;
+      }
+
+      if (cityFilter !== 'ALL' && branch.city.trim().toLowerCase() !== cityFilter.toLowerCase()) {
         return false;
       }
 
@@ -143,9 +183,12 @@ export default function OrganizationBranchesPage() {
 
       return true;
     });
-  }, [branches, searchQuery, statusFilter]);
+  }, [branches, searchQuery, statusFilter, cityFilter]);
 
-  const hasActiveFilters = searchQuery.trim().length > 0 || statusFilter !== 'ALL';
+  const hasActiveFilters =
+    searchQuery.trim().length > 0 || statusFilter !== 'ALL' || cityFilter !== 'ALL';
+
+  const serviceAreasAvailable = !isLoadingServiceAreas && !serviceAreasError;
 
   const handleRequestToggleStatus = useCallback((branch: BranchResponse) => {
     setBranchPendingStatusToggle(branch);
@@ -190,8 +233,8 @@ export default function OrganizationBranchesPage() {
           <p className="org-page-header__eyebrow">Admin / Branch Directory and Staff</p>
           <h1 className="org-page-header__title">Branch Management</h1>
           <p className="org-page-header__subtitle">
-            Manage regional branches, contact details, and operational status across the
-            SwiftDrop Head Office network.
+            Manage regional branches, contact details, interactive map locations, and circular
+            service-area coverage across the SwiftDrop Head Office network.
           </p>
         </div>
 
@@ -263,12 +306,15 @@ export default function OrganizationBranchesPage() {
       {/* Branch Summary Cards */}
       <BranchSummaryCards metrics={summaryMetrics} isLoading={isLoading} />
 
-      {/* Search & Status Filter Toolbar */}
+      {/* Search, Status & City Filter Toolbar */}
       <BranchFilters
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         statusFilter={statusFilter}
         onStatusFilterChange={setStatusFilter}
+        cityFilter={cityFilter}
+        onCityFilterChange={setCityFilter}
+        availableCities={availableCities}
         totalCount={branches.length}
         filteredCount={filteredBranches.length}
         activeCount={summaryMetrics.activeBranches}
@@ -286,6 +332,8 @@ export default function OrganizationBranchesPage() {
         onRetry={handleRetry}
         onResetFilters={handleResetFilters}
         onToggleStatus={handleRequestToggleStatus}
+        serviceAreasByBranchId={serviceAreasByBranchId}
+        serviceAreasAvailable={serviceAreasAvailable}
       />
 
       {/* Activate / Deactivate Confirmation Dialog */}

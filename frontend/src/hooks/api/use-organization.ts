@@ -2,27 +2,19 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  confirmBranchCourierAssignment,
   createBranch,
   getBranchById,
-  getBranchCourierRoster,
-  getBranchDeliveryForAssignment,
-  getBranchDeliveryQueue,
   getBranches,
   getBranchPerformanceSummary,
-  getEligibleBranchCouriers,
   getOrganizationAuditEvents,
   getOrganizationStaffAccounts,
   getServiceAreas,
   getServiceAreasByBranch,
-  resolveNearestBranch,
   updateBranch,
   updateBranchStatus,
 } from '@/api/services/organization.api';
 import type {
-  BranchCourierAssignmentPayload,
   BranchCreateRequest,
-  BranchResolutionRequest,
   BranchResponse,
   BranchStatus,
   BranchUpdateRequest,
@@ -42,14 +34,6 @@ export const organizationKeys = {
     [...organizationKeys.all, 'service-areas', { status: status ?? 'ALL' }] as const,
   branchServiceAreas: (branchId: number) =>
     [...organizationKeys.all, 'branch-service-areas', branchId] as const,
-  deliveryQueue: (branchId?: number) =>
-    [...organizationKeys.all, 'delivery-queue', branchId ?? 'all'] as const,
-  deliveryForAssignment: (branchId: number, deliveryId: string) =>
-    [...organizationKeys.all, 'delivery-assign', branchId, deliveryId] as const,
-  eligibleCouriers: (branchId: number) =>
-    [...organizationKeys.all, 'eligible-couriers', branchId] as const,
-  courierRoster: (branchId?: number) =>
-    [...organizationKeys.all, 'courier-roster', branchId ?? 'all'] as const,
   branchPerformance: (branchId?: number) =>
     [...organizationKeys.all, 'branch-performance', branchId ?? 'none'] as const,
   staffAccounts: () => [...organizationKeys.all, 'staff-accounts'] as const,
@@ -87,36 +71,6 @@ export function useBranchServiceAreas(branchId: number) {
     queryKey: organizationKeys.branchServiceAreas(branchId),
     queryFn: () => getServiceAreasByBranch(branchId),
     enabled: Number.isInteger(branchId) && branchId > 0,
-  });
-}
-
-export function useBranchDeliveryQueue(branchId?: number) {
-  return useQuery({
-    queryKey: organizationKeys.deliveryQueue(branchId),
-    queryFn: () => getBranchDeliveryQueue(branchId),
-  });
-}
-
-export function useBranchDeliveryForAssignment(deliveryId: string, branchId?: number) {
-  return useQuery({
-    queryKey: organizationKeys.deliveryForAssignment(branchId ?? 0, deliveryId),
-    queryFn: () => getBranchDeliveryForAssignment(deliveryId, branchId),
-    enabled: Boolean(deliveryId),
-  });
-}
-
-export function useEligibleBranchCouriers(deliveryId: string, branchId?: number) {
-  return useQuery({
-    queryKey: organizationKeys.eligibleCouriers(branchId ?? 0),
-    queryFn: () => getEligibleBranchCouriers(deliveryId, branchId),
-    enabled: Boolean(deliveryId),
-  });
-}
-
-export function useBranchCourierRoster(branchId?: number) {
-  return useQuery({
-    queryKey: organizationKeys.courierRoster(branchId),
-    queryFn: () => getBranchCourierRoster(branchId),
   });
 }
 
@@ -182,31 +136,6 @@ export function useUpdateBranchStatus() {
       queryClient.setQueryData(organizationKeys.branch(updatedBranch.id), updatedBranch);
       await queryClient.invalidateQueries({
         queryKey: [...organizationKeys.all, 'branches'],
-      });
-    },
-  });
-}
-
-export function useResolveNearestBranch() {
-  return useMutation({
-    mutationFn: (payload: BranchResolutionRequest) => resolveNearestBranch(payload),
-  });
-}
-
-export function useConfirmBranchCourierAssignment() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (payload: BranchCourierAssignmentPayload) =>
-      confirmBranchCourierAssignment(payload),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: [...organizationKeys.all, 'delivery-queue'],
-      });
-      await queryClient.invalidateQueries({
-        queryKey: [...organizationKeys.all, 'courier-roster'],
-      });
-      await queryClient.invalidateQueries({
-        queryKey: [...organizationKeys.all, 'eligible-couriers'],
       });
     },
   });

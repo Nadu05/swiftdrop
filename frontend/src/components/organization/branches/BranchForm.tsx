@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -15,6 +15,9 @@ import {
   Save,
 } from 'lucide-react';
 import BranchFormSection from './BranchFormSection';
+import BranchLocationPicker, {
+  type BranchLocationSelection,
+} from './BranchLocationPicker';
 import {
   branchFormSchema,
   DEFAULT_BRANCH_FORM_VALUES,
@@ -50,7 +53,6 @@ const VALID_FORM_FIELDS: readonly (keyof BranchFormValues)[] = [
 export default function BranchForm({
   mode,
   initialValues = DEFAULT_BRANCH_FORM_VALUES,
-  branchStatus,
   onSubmit,
   onCancel,
   onSuccessNavigate,
@@ -64,6 +66,8 @@ export default function BranchForm({
     handleSubmit,
     reset,
     setError,
+    setValue,
+    watch,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<BranchFormValues>({
     resolver: zodResolver(branchFormSchema),
@@ -75,6 +79,46 @@ export default function BranchForm({
   useEffect(() => {
     reset(initialValues);
   }, [initialValues, reset]);
+
+  const watchedLatitude = watch('latitude');
+  const watchedLongitude = watch('longitude');
+  const watchedName = watch('name');
+  const watchedCode = watch('code');
+  const watchedAddressLine1 = watch('addressLine1');
+  const watchedCity = watch('city');
+
+  const handleSelectMapLocation = useCallback(
+    (selection: BranchLocationSelection) => {
+      setValue('latitude', selection.latitude, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      setValue('longitude', selection.longitude, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+
+      if (selection.addressLine1) {
+        setValue('addressLine1', selection.addressLine1, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+      }
+      if (selection.addressLine2 !== undefined) {
+        setValue('addressLine2', selection.addressLine2, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+      }
+      if (selection.city) {
+        setValue('city', selection.city, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+      }
+    },
+    [setValue]
+  );
 
   const handleFormSubmit = async (values: BranchFormValues) => {
     setSubmitError(null);
@@ -224,7 +268,7 @@ export default function BranchForm({
               {...register('name')}
             />
             <span id="branch-name-hint" className="org-form-hint">
-              Human-readable regional hub name displayed to dispatchers and staff (max 255 characters).
+              Human-readable regional hub name displayed across the organization (max 255 characters).
             </span>
             {errors.name && (
               <p id="branch-name-error" className="org-form-error" role="alert">
@@ -265,14 +309,35 @@ export default function BranchForm({
         </div>
       </BranchFormSection>
 
-      {/* SECTION 2: Address & Geographic Coordinates */}
+      {/* SECTION 2: Interactive Location Selection & Street Address */}
       <BranchFormSection
         id="org-section-location"
-        title="Address &amp; Geographic Coordinates"
-        description="Physical street address, municipality, and GPS coordinates for branch routing and service area resolution."
+        title="Branch Location &amp; Street Address"
+        description="Search for a Sri Lankan place or address, click the map, or drag the marker to set the branch location. Coordinates and street address stay synchronized."
         icon={MapPin}
       >
-        <div className="org-form-grid org-form-grid--2">
+        <BranchLocationPicker
+          latitude={
+            Number.isFinite(watchedLatitude)
+              ? watchedLatitude
+              : DEFAULT_BRANCH_FORM_VALUES.latitude
+          }
+          longitude={
+            Number.isFinite(watchedLongitude)
+              ? watchedLongitude
+              : DEFAULT_BRANCH_FORM_VALUES.longitude
+          }
+          branchName={watchedName}
+          branchCode={watchedCode}
+          currentAddressLine1={watchedAddressLine1}
+          currentCity={watchedCity}
+          disabled={isDisabled}
+          latitudeError={errors.latitude?.message}
+          longitudeError={errors.longitude?.message}
+          onSelectLocation={handleSelectMapLocation}
+        />
+
+        <div className="org-form-grid org-form-grid--3 mt-4 pt-4 border-t border-slate-100">
           {/* Address Line 1 */}
           <div className="org-form-field">
             <label htmlFor="branch-address-line1" className="org-form-label">
@@ -287,7 +352,9 @@ export default function BranchForm({
               aria-required="true"
               aria-invalid={Boolean(errors.addressLine1)}
               aria-describedby={
-                errors.addressLine1 ? 'branch-address-line1-error' : undefined
+                errors.addressLine1
+                  ? 'branch-address-line1-error'
+                  : 'branch-address-line1-hint'
               }
               className={cn(
                 'h-10 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800',
@@ -295,6 +362,9 @@ export default function BranchForm({
               )}
               {...register('addressLine1')}
             />
+            <span id="branch-address-line1-hint" className="org-form-hint">
+              Populated from map selection; refine street number if needed.
+            </span>
             {errors.addressLine1 && (
               <p id="branch-address-line1-error" className="org-form-error" role="alert">
                 {errors.addressLine1.message}
@@ -329,9 +399,7 @@ export default function BranchForm({
               </p>
             )}
           </div>
-        </div>
 
-        <div className="org-form-grid org-form-grid--3">
           {/* City */}
           <div className="org-form-field">
             <label htmlFor="branch-city" className="org-form-label">
@@ -358,72 +426,6 @@ export default function BranchForm({
             {errors.city && (
               <p id="branch-city-error" className="org-form-error" role="alert">
                 {errors.city.message}
-              </p>
-            )}
-          </div>
-
-          {/* Latitude */}
-          <div className="org-form-field">
-            <label htmlFor="branch-latitude" className="org-form-label">
-              <span>Latitude</span>
-              <span className="org-form-required" aria-hidden="true">*</span>
-            </label>
-            <Input
-              id="branch-latitude"
-              type="number"
-              step="any"
-              placeholder="e.g. 6.9218"
-              disabled={isDisabled}
-              aria-required="true"
-              aria-invalid={Boolean(errors.latitude)}
-              aria-describedby={
-                errors.latitude ? 'branch-latitude-error' : 'branch-latitude-hint'
-              }
-              className={cn(
-                'h-10 font-mono bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800',
-                errors.latitude && 'border-red-500 focus-visible:ring-red-500'
-              )}
-              {...register('latitude', { valueAsNumber: true })}
-            />
-            <span id="branch-latitude-hint" className="org-form-hint">
-              Decimal degrees between -90.0 and 90.0.
-            </span>
-            {errors.latitude && (
-              <p id="branch-latitude-error" className="org-form-error" role="alert">
-                {errors.latitude.message}
-              </p>
-            )}
-          </div>
-
-          {/* Longitude */}
-          <div className="org-form-field">
-            <label htmlFor="branch-longitude" className="org-form-label">
-              <span>Longitude</span>
-              <span className="org-form-required" aria-hidden="true">*</span>
-            </label>
-            <Input
-              id="branch-longitude"
-              type="number"
-              step="any"
-              placeholder="e.g. 79.8562"
-              disabled={isDisabled}
-              aria-required="true"
-              aria-invalid={Boolean(errors.longitude)}
-              aria-describedby={
-                errors.longitude ? 'branch-longitude-error' : 'branch-longitude-hint'
-              }
-              className={cn(
-                'h-10 font-mono bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800',
-                errors.longitude && 'border-red-500 focus-visible:ring-red-500'
-              )}
-              {...register('longitude', { valueAsNumber: true })}
-            />
-            <span id="branch-longitude-hint" className="org-form-hint">
-              Decimal degrees between -180.0 and 180.0.
-            </span>
-            {errors.longitude && (
-              <p id="branch-longitude-error" className="org-form-error" role="alert">
-                {errors.longitude.message}
               </p>
             )}
           </div>
@@ -488,7 +490,7 @@ export default function BranchForm({
               {...register('email')}
             />
             <span id="branch-email-hint" className="org-form-hint">
-              Official branch dispatch or administration email address.
+              Official branch administration email address.
             </span>
             {errors.email && (
               <p id="branch-email-error" className="org-form-error" role="alert">

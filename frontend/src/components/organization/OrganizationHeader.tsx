@@ -19,27 +19,6 @@ interface BreadcrumbSegment {
 }
 
 function getBreadcrumbsForPath(pathname: string | null): BreadcrumbSegment[] {
-  if (pathname?.startsWith('/organization/console')) {
-    const consoleBase: BreadcrumbSegment[] = [
-      { label: 'SwiftDrop', href: '/' },
-      { label: 'Branch Console', href: '/organization/console' },
-    ];
-
-    if (pathname === '/organization/console') {
-      return [...consoleBase, { label: 'Branch Manager Dashboard' }];
-    }
-    if (pathname === '/organization/console/requests') {
-      return [...consoleBase, { label: 'Delivery Request Queue' }];
-    }
-    if (pathname === '/organization/console/assign') {
-      return [...consoleBase, { label: 'Courier Assignment' }];
-    }
-    if (pathname === '/organization/console/couriers') {
-      return [...consoleBase, { label: 'Courier Roster' }];
-    }
-    return [...consoleBase, { label: 'Branch Manager Dashboard' }];
-  }
-
   const base: BreadcrumbSegment[] = [
     { label: 'SwiftDrop', href: '/' },
     { label: 'Admin', href: '/organization' },
@@ -80,7 +59,7 @@ function getBreadcrumbsForPath(pathname: string | null): BreadcrumbSegment[] {
     ];
   }
 
-  return [...base, { label: 'Branch Directory and Staff' }];
+  return [...base, { label: 'Branch Directory' }];
 }
 
 function OrganizationHeader({
