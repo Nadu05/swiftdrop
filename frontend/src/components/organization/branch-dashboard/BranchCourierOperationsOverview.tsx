@@ -132,11 +132,6 @@ function BranchCourierOperationsOverview({
             >
               Courier Operations Overview
             </h2>
-            {isPreviewMode && (
-              <span className="org-dashboard-badge org-dashboard-badge--preview">
-                Demonstration Data
-              </span>
-            )}
             <span className="org-dashboard-badge org-dashboard-badge--contract">
               Dispatch Service Contract
             </span>

@@ -7,7 +7,6 @@ import {
   MapPin,
   RefreshCw,
   ShieldAlert,
-  Sparkles,
   UserCheck,
 } from 'lucide-react';
 import type { BranchResponse } from '@/types/organization.types';
@@ -63,35 +62,19 @@ function BranchManagerWelcome({
               Branch Console / Daily Operations
             </span>
 
-            {/* Development Preview Badge */}
-            {isPreviewMode && (
-              <span
-                className="org-bm-welcome__preview-pill"
-                title="Dashboard is running in Development Preview mode with realistic mock data"
-                data-testid="branch-welcome-preview-badge"
-              >
-                <Sparkles size={12} className="text-amber-500" aria-hidden="true" />
-                <span>Development Preview</span>
-              </span>
-            )}
-
             <span
               className="org-bm-welcome__role-pill"
               title={
                 managerDisplayName
                   ? `Authenticated Branch Manager: ${managerDisplayName}`
-                  : isPreviewMode
-                    ? 'Preview Branch Manager Session (Colombo Central Branch CMB-001)'
-                    : 'Authentication integration deferred (Member 01 Identity Service)'
+                  : 'Authentication integration deferred (Member 01 Identity Service)'
               }
             >
               <UserCheck size={13} aria-hidden="true" />
               <span>
                 {managerDisplayName
                   ? `Welcome, ${managerDisplayName}`
-                  : isPreviewMode
-                    ? 'Welcome, Branch Manager (Preview)'
-                    : 'Welcome, Branch Manager'}
+                  : 'Welcome, Branch Manager'}
               </span>
             </span>
 
@@ -193,11 +176,6 @@ function BranchManagerWelcome({
                   <span className="org-status-badge__dot" aria-hidden="true" />
                   <span>{branch.status}</span>
                 </span>
-                {isPreviewMode && (
-                  <span className="text-[11px] font-semibold text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                    Mock Branch ID #{branch.id}
-                  </span>
-                )}
               </div>
               <div className="org-bm-identity-bar__meta">
                 <span className="inline-flex items-center gap-1 text-xs text-slate-600">

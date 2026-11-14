@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   Inbox,
   PackageCheck,
-  Sparkles,
   UserCheck,
 } from 'lucide-react';
 import type { BranchDeliveryOperationsMetrics } from '@/types/organization.types';
@@ -196,11 +195,6 @@ function BranchDeliverySummaryCards({
         <div>
           <div className="flex items-center gap-2">
             <h2 className="org-bm-section__title">Delivery Operations Summary</h2>
-            {isPreviewMode && (
-              <span className="org-dashboard-badge org-dashboard-badge--preview">
-                Demonstration Figures
-              </span>
-            )}
           </div>
           <p className="org-bm-section__subtitle">
             Live branch delivery counts across dispatch stages. Logically consistent summary representation.

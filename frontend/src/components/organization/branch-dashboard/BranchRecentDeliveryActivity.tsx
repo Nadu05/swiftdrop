@@ -15,7 +15,6 @@ import {
   Package,
   RefreshCw,
   Search,
-  Sparkles,
   User,
   UserPlus,
   X,
@@ -142,11 +141,6 @@ function BranchRecentDeliveryActivity({
             >
               Recent Delivery Activity
             </h2>
-            {isPreviewMode && (
-              <span className="org-dashboard-badge org-dashboard-badge--preview">
-                Demonstration Data
-              </span>
-            )}
             {!error && !isLoading && (
               <span className="org-dashboard-badge org-dashboard-badge--contract">
                 {filteredRequests.length} of {requests.length}{' '}

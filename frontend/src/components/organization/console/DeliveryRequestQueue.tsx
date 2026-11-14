@@ -167,7 +167,7 @@ export default function DeliveryRequestQueue() {
 
       return true;
     });
-  }, [requests, searchQuery, statusFilter]);
+  }, [effectiveRequests, searchQuery, statusFilter]);
 
   const isLoading = !isPreview && (isLoadingBranches || isLoadingQueue);
   const isBackendQueueUnavailable = isPreview
@@ -183,11 +183,6 @@ export default function DeliveryRequestQueue() {
             <h1 className="org-console-header__page-title">
               Branch Console / Delivery Request Queue
             </h1>
-            {isPreview && (
-              <span className="org-dashboard-badge org-dashboard-badge--preview">
-                Development Preview
-              </span>
-            )}
           </div>
 
           <div className="org-console-header__utility">
@@ -495,16 +490,16 @@ export default function DeliveryRequestQueue() {
               <Inbox size={22} aria-hidden="true" />
             </div>
             <h4 className="org-empty-state__title">
-              {requests.length === 0
+              {effectiveRequests.length === 0
                 ? `No Delivery Requests Routed to ${selectedBranch.name}`
                 : 'No Matching Delivery Requests'}
             </h4>
             <p className="org-empty-state__description">
-              {requests.length === 0
+              {effectiveRequests.length === 0
                 ? 'There are currently no incoming delivery requests assigned to this branch.'
                 : 'No delivery requests match your current search or status filter criteria.'}
             </p>
-            {requests.length > 0 && (
+            {effectiveRequests.length > 0 && (
               <div className="org-empty-state__actions">
                 <button
                   type="button"

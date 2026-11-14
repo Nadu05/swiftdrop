@@ -196,11 +196,6 @@ export default function CourierRosterView() {
             <h1 className="org-console-header__page-title">
               Branch Console / Courier Roster
             </h1>
-            {isPreview && (
-              <span className="org-dashboard-badge org-dashboard-badge--preview">
-                Development Preview
-              </span>
-            )}
           </div>
 
           <div className="org-console-header__utility">
@@ -422,16 +417,16 @@ export default function CourierRosterView() {
               <Truck size={22} aria-hidden="true" />
             </div>
             <h4 className="org-empty-state__title">
-              {couriers.length === 0
+              {effectiveCouriers.length === 0
                 ? `No Couriers Registered for ${selectedBranch.name}`
                 : 'No Matching Couriers'}
             </h4>
             <p className="org-empty-state__description">
-              {couriers.length === 0
+              {effectiveCouriers.length === 0
                 ? 'No couriers are currently assigned to this branch in the backend.'
                 : 'No couriers match your search query or availability filter.'}
             </p>
-            {couriers.length > 0 && (
+            {effectiveCouriers.length > 0 && (
               <div className="org-empty-state__actions">
                 <button
                   type="button"

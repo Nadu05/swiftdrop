@@ -10,7 +10,6 @@ import {
   Info,
   Package,
   RefreshCw,
-  Sparkles,
   TrendingUp,
 } from 'lucide-react';
 import {
@@ -167,11 +166,6 @@ function BranchPerformanceOverview({
             >
               Branch Performance Overview
             </h2>
-            {isPreviewMode && (
-              <span className="org-dashboard-badge org-dashboard-badge--preview">
-                Demonstration Data
-              </span>
-            )}
             <span className="org-dashboard-badge org-dashboard-badge--contract">
               {activePerformance.periodLabel || 'Today'}
             </span>
@@ -368,11 +362,6 @@ function BranchPerformanceOverview({
                 Comparison of delivery requests received vs. successfully delivered at Colombo Central Branch.
               </p>
             </div>
-            {isPreviewMode && (
-              <span className="text-[11px] font-semibold text-amber-800 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
-                Demonstration Trend Data
-              </span>
-            )}
           </div>
 
           <div

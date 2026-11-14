@@ -246,11 +246,6 @@ export default function CourierAssignmentView() {
             <h1 className="org-console-header__page-title">
               Branch Console / Courier Assignment
             </h1>
-            {isPreview && (
-              <span className="org-dashboard-badge org-dashboard-badge--preview">
-                Development Preview
-              </span>
-            )}
           </div>
 
           <div className="org-console-header__utility">
@@ -402,13 +397,13 @@ export default function CourierAssignmentView() {
                   </div>
                 ))}
               </div>
-            ) : eligibleCouriers.length > 0 ? (
+            ) : effectiveEligibleCouriers.length > 0 ? (
               <>
                 <ul
                   className="org-console-list"
                   aria-label="Eligible couriers sorted by distance and workload"
                 >
-                  {eligibleCouriers.map((courier, idx) => {
+                  {effectiveEligibleCouriers.map((courier, idx) => {
                     const isSelected = courier.id === selectedCourier?.id;
                     const isTinted = idx % 2 === 0;
 

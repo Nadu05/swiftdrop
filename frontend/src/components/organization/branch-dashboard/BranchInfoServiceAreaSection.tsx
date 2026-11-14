@@ -67,11 +67,6 @@ function BranchInfoServiceAreaSection({
             >
               Branch Information &amp; Service Area Coverage
             </h2>
-            {isPreviewMode && (
-              <span className="org-dashboard-badge org-dashboard-badge--preview">
-                Demonstration Profile
-              </span>
-            )}
             {!canEditBranchConfig && (
               <span
                 className="org-bm-readonly-badge"

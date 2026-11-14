@@ -25,101 +25,15 @@ import type {
  */
 
 // ---------------------------------------------------------------------------
-// Preview Mode Configuration & State Helpers
+// Preview Mode Configuration Helper (.env Controlled)
 // ---------------------------------------------------------------------------
 
-export type PreviewScenarioState =
-  | 'NORMAL'
-  | 'EMPTY'
-  | 'LOADING'
-  | 'API_ERROR'
-  | 'PARTIAL_DATA';
-
-const PREVIEW_STORAGE_KEY = 'swiftdrop_branch_dashboard_preview_active';
-const PREVIEW_SCENARIO_STORAGE_KEY = 'swiftdrop_branch_dashboard_preview_scenario';
-
 /**
- * Determines whether development preview mode is currently active.
- *
- * Precedence:
- * 1. Explicit window/URL parameter `?preview=true` or `?preview=false`
- * 2. Session storage override (when developer toggles the UI switch)
- * 3. Environment variable `NEXT_PUBLIC_BRANCH_DASHBOARD_PREVIEW === 'true'`
- * 4. Default: false (strictly disabled in production)
+ * Determines whether development preview mode is currently active via environment configuration:
+ * `NEXT_PUBLIC_BRANCH_DASHBOARD_PREVIEW=true`
  */
 export function isBranchDashboardPreviewActive(): boolean {
-  if (typeof window !== 'undefined') {
-    // 1. Check URL query parameters
-    try {
-      const urlParams = new URLSearchParams(window.location.search);
-      const urlParam = urlParams.get('preview');
-      if (urlParam === 'true') return true;
-      if (urlParam === 'false') return false;
-    } catch {
-      // Ignore URL parsing errors in non-browser environments
-    }
-
-    // 2. Check session storage override
-    try {
-      const stored = sessionStorage.getItem(PREVIEW_STORAGE_KEY);
-      if (stored === 'true') return true;
-      if (stored === 'false') return false;
-    } catch {
-      // Ignore storage access errors
-    }
-  }
-
-  // 3. Environment variable check
   return process.env.NEXT_PUBLIC_BRANCH_DASHBOARD_PREVIEW === 'true';
-}
-
-/**
- * Sets the preview mode active state in session storage for the current browser tab.
- */
-export function setBranchDashboardPreviewActive(active: boolean): void {
-  if (typeof window !== 'undefined') {
-    try {
-      sessionStorage.setItem(PREVIEW_STORAGE_KEY, active ? 'true' : 'false');
-    } catch {
-      // Ignore storage errors
-    }
-  }
-}
-
-/**
- * Retrieves the current preview scenario (NORMAL, EMPTY, LOADING, API_ERROR, PARTIAL_DATA).
- */
-export function getBranchDashboardPreviewScenario(): PreviewScenarioState {
-  if (typeof window !== 'undefined') {
-    try {
-      const scenario = sessionStorage.getItem(PREVIEW_SCENARIO_STORAGE_KEY);
-      if (
-        scenario === 'NORMAL' ||
-        scenario === 'EMPTY' ||
-        scenario === 'LOADING' ||
-        scenario === 'API_ERROR' ||
-        scenario === 'PARTIAL_DATA'
-      ) {
-        return scenario;
-      }
-    } catch {
-      // Fall through to default
-    }
-  }
-  return 'NORMAL';
-}
-
-/**
- * Sets the active preview scenario in session storage.
- */
-export function setBranchDashboardPreviewScenario(scenario: PreviewScenarioState): void {
-  if (typeof window !== 'undefined') {
-    try {
-      sessionStorage.setItem(PREVIEW_SCENARIO_STORAGE_KEY, scenario);
-    } catch {
-      // Ignore storage errors
-    }
-  }
 }
 
 // ---------------------------------------------------------------------------

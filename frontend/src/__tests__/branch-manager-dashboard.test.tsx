@@ -561,10 +561,10 @@ describe("Branch Manager Dashboard — Unit & Component Verification Suite", () 
             <BranchManagerDashboard previewMode={true} />
         );
 
-        // Verification of Preview Mode Labeling & Banner
-        assert.match(previewHtml, /Development Preview Active/);
-        assert.match(previewHtml, /Colombo Central Branch \(CMB-001\) · Demonstration Data/);
-        assert.match(previewHtml, /Development Preview/);
+        // Ensure no preview banner cards or toggle buttons are rendered
+        assert.doesNotMatch(previewHtml, /Development Preview Active/);
+        assert.doesNotMatch(previewHtml, /Exit Preview/);
+        assert.doesNotMatch(previewHtml, /Enable Preview Mode/);
 
         // Branch Identity & Location Verification
         assert.match(previewHtml, /Colombo Central Branch — Branch Manager Dashboard/);
@@ -622,7 +622,6 @@ describe("Branch Manager Dashboard — Unit & Component Verification Suite", () 
 
         assert.match(initialHtml, /SD-CMB-8401/);
         assert.match(initialHtml, /SD-CMB-8402/);
-        assert.match(initialHtml, /Demonstration Data/);
         assert.match(initialHtml, /Search by delivery ID/);
 
         // Filter only UNASSIGNED requests
@@ -719,7 +718,7 @@ describe("Branch Manager Dashboard — Unit & Component Verification Suite", () 
         assert.doesNotMatch(previewHtmlMatcher(normalApiHtml), /Colombo Central Branch/);
         assert.match(normalApiHtml, /Branch Operations API Unavailable/);
         assert.match(normalApiHtml, /Network timeout: API Gateway unreachable/);
-        assert.match(normalApiHtml, /Enable Preview Mode/);
+        assert.doesNotMatch(normalApiHtml, /Enable Preview Mode/);
     });
 });
 

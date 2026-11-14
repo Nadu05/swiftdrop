@@ -38,7 +38,6 @@ import type {
   ServiceAreaResponse,
 } from '@/types/organization.types';
 import {
-  getBranchDashboardPreviewScenario,
   isBranchDashboardPreviewActive,
   MOCK_BRANCH_INFO,
   MOCK_COMPUTED_PERFORMANCE,
@@ -48,9 +47,6 @@ import {
   MOCK_DELIVERY_SUMMARY_METRICS,
   MOCK_PERFORMANCE_SUMMARY,
   MOCK_SERVICE_AREAS,
-  setBranchDashboardPreviewActive,
-  setBranchDashboardPreviewScenario,
-  type PreviewScenarioState,
 } from '@/api/mock/branch-dashboard.mock';
 import BranchManagerWelcome from './BranchManagerWelcome';
 import BranchQuickActions from './BranchQuickActions';
@@ -59,7 +55,6 @@ import BranchRecentDeliveryActivity from './BranchRecentDeliveryActivity';
 import BranchCourierOperationsOverview from './BranchCourierOperationsOverview';
 import BranchPerformanceOverview from './BranchPerformanceOverview';
 import BranchInfoServiceAreaSection from './BranchInfoServiceAreaSection';
-import BranchDashboardPreviewBanner from './BranchDashboardPreviewBanner';
 
 export interface BranchManagerDashboardProps {
   /**
@@ -157,17 +152,13 @@ export default function BranchManagerDashboard({
       ? urlBranchIdOverride
       : searchParams?.get('branchId') ?? null;
 
-  // Development Preview Mode State
-  const [isPreviewActive, setIsPreviewActive] = useState<boolean>(() => {
-    if (explicitPreviewMode !== undefined) return explicitPreviewMode;
-    // Don't auto-enable preview mode if explicit testOverrides are passed in tests
-    if (testOverrides) return false;
-    return isBranchDashboardPreviewActive();
-  });
-
-  const [previewScenario, setPreviewScenario] = useState<PreviewScenarioState>(() => {
-    return getBranchDashboardPreviewScenario();
-  });
+  // Development Preview Mode (controlled strictly via .env or explicit prop)
+  const isPreviewActive =
+    explicitPreviewMode !== undefined
+      ? explicitPreviewMode
+      : testOverrides
+        ? false
+        : isBranchDashboardPreviewActive();
 
   const [simulatedRefreshing, setSimulatedRefreshing] = useState(false);
   const [simulatedLastUpdated, setSimulatedLastUpdated] = useState<string>(() => {
@@ -196,7 +187,7 @@ export default function BranchManagerDashboard({
     explicitManagerName !== undefined
       ? explicitManagerName
       : isPreviewActive
-        ? 'A. Wickramasinghe (Branch Manager)'
+        ? 'A. Wickramasinghe'
         : storeManagerName;
 
   const canAccessHeadOffice =
@@ -219,7 +210,7 @@ export default function BranchManagerDashboard({
       ? testOverrides.branchesError
       : branchesQuery.error;
 
-  // Determine effective branches based on preview mode & scenario
+  // Determine effective branches based on preview mode
   const { branches, isLoadingBranches, rawBranchesError } = useMemo(() => {
     if (!isPreviewActive) {
       return {
@@ -229,22 +220,6 @@ export default function BranchManagerDashboard({
       };
     }
 
-    if (previewScenario === 'LOADING') {
-      return { branches: [], isLoadingBranches: true, rawBranchesError: null };
-    }
-
-    if (previewScenario === 'API_ERROR') {
-      return {
-        branches: [],
-        isLoadingBranches: false,
-        rawBranchesError: new OrganizationApiError(
-          'API Gateway (:8080) connection refused. Organization Service is unreachable.',
-          { status: 503 }
-        ),
-      };
-    }
-
-    // Normal or Empty or Partial Data in preview mode provides Colombo Central Branch
     const effectiveBranches =
       liveBranches.length > 0 ? liveBranches : [MOCK_BRANCH_INFO];
     return {
@@ -254,7 +229,6 @@ export default function BranchManagerDashboard({
     };
   }, [
     isPreviewActive,
-    previewScenario,
     liveBranches,
     liveIsLoadingBranches,
     liveRawBranchesError,
@@ -272,7 +246,7 @@ export default function BranchManagerDashboard({
         explicitAssignedBranchId:
           explicitAssignedBranchId !== undefined
             ? explicitAssignedBranchId
-            : isPreviewActive && previewScenario !== 'EMPTY' && !testOverrides
+            : isPreviewActive && !testOverrides
               ? MOCK_BRANCH_INFO.id
               : undefined,
         storeAssignedBranchId,
@@ -283,7 +257,6 @@ export default function BranchManagerDashboard({
     [
       explicitAssignedBranchId,
       isPreviewActive,
-      previewScenario,
       testOverrides,
       storeAssignedBranchId,
       branches,
@@ -327,19 +300,6 @@ export default function BranchManagerDashboard({
     }
 
     if (isPreviewActive) {
-      if (previewScenario === 'LOADING') {
-        return { deliveryQueue: [], isLoadingQueue: true, rawQueueError: null };
-      }
-      if (previewScenario === 'PARTIAL_DATA') {
-        return {
-          deliveryQueue: [],
-          isLoadingQueue: false,
-          rawQueueError: new Error('Branch delivery queue API is not yet available from Order Service.'),
-        };
-      }
-      if (previewScenario === 'EMPTY') {
-        return { deliveryQueue: [], isLoadingQueue: false, rawQueueError: null };
-      }
       return { deliveryQueue: MOCK_DELIVERY_QUEUE, isLoadingQueue: false, rawQueueError: null };
     }
 
@@ -353,7 +313,6 @@ export default function BranchManagerDashboard({
     testOverrides?.isLoadingQueue,
     testOverrides?.queueError,
     isPreviewActive,
-    previewScenario,
     activeBranchId,
     queueQuery.data,
     queueQuery.isLoading,
@@ -371,19 +330,6 @@ export default function BranchManagerDashboard({
     }
 
     if (isPreviewActive) {
-      if (previewScenario === 'LOADING') {
-        return { courierRoster: [], isLoadingRoster: true, rawRosterError: null };
-      }
-      if (previewScenario === 'PARTIAL_DATA') {
-        return {
-          courierRoster: [],
-          isLoadingRoster: false,
-          rawRosterError: new Error('Branch courier roster API is not yet available from Dispatch Service.'),
-        };
-      }
-      if (previewScenario === 'EMPTY') {
-        return { courierRoster: [], isLoadingRoster: false, rawRosterError: null };
-      }
       return { courierRoster: MOCK_COURIER_ROSTER, isLoadingRoster: false, rawRosterError: null };
     }
 
@@ -397,7 +343,6 @@ export default function BranchManagerDashboard({
     testOverrides?.isLoadingRoster,
     testOverrides?.rosterError,
     isPreviewActive,
-    previewScenario,
     activeBranchId,
     rosterQuery.data,
     rosterQuery.isLoading,
@@ -415,12 +360,6 @@ export default function BranchManagerDashboard({
     }
 
     if (isPreviewActive) {
-      if (previewScenario === 'LOADING') {
-        return { serviceAreas: [], isLoadingServiceAreas: true, rawServiceAreasError: null };
-      }
-      if (previewScenario === 'EMPTY') {
-        return { serviceAreas: [], isLoadingServiceAreas: false, rawServiceAreasError: null };
-      }
       return { serviceAreas: MOCK_SERVICE_AREAS, isLoadingServiceAreas: false, rawServiceAreasError: null };
     }
 
@@ -434,7 +373,6 @@ export default function BranchManagerDashboard({
     testOverrides?.isLoadingServiceAreas,
     testOverrides?.serviceAreasError,
     isPreviewActive,
-    previewScenario,
     activeBranchId,
     serviceAreasQuery.data,
     serviceAreasQuery.isLoading,
@@ -452,19 +390,6 @@ export default function BranchManagerDashboard({
     }
 
     if (isPreviewActive) {
-      if (previewScenario === 'LOADING') {
-        return { performanceSummary: null, isLoadingPerformance: true, rawPerformanceError: null };
-      }
-      if (previewScenario === 'PARTIAL_DATA') {
-        return {
-          performanceSummary: null,
-          isLoadingPerformance: false,
-          rawPerformanceError: new Error('Branch performance analytics API is not yet available from backend.'),
-        };
-      }
-      if (previewScenario === 'EMPTY') {
-        return { performanceSummary: null, isLoadingPerformance: false, rawPerformanceError: null };
-      }
       return { performanceSummary: MOCK_PERFORMANCE_SUMMARY, isLoadingPerformance: false, rawPerformanceError: null };
     }
 
@@ -478,7 +403,6 @@ export default function BranchManagerDashboard({
     testOverrides?.isLoadingPerformance,
     testOverrides?.performanceError,
     isPreviewActive,
-    previewScenario,
     activeBranchId,
     performanceQuery.data,
     performanceQuery.isLoading,
@@ -548,7 +472,7 @@ export default function BranchManagerDashboard({
 
   // 5. Derived Operational Metrics
   const deliveryMetrics = useMemo(() => {
-    if (isPreviewActive && previewScenario === 'NORMAL') {
+    if (isPreviewActive) {
       return MOCK_DELIVERY_SUMMARY_METRICS;
     }
     return calculateBranchDeliveryOperationsMetrics(
@@ -556,24 +480,24 @@ export default function BranchManagerDashboard({
       performanceSummary,
       isQueueAvailable
     );
-  }, [isPreviewActive, previewScenario, deliveryQueue, performanceSummary, isQueueAvailable]);
+  }, [isPreviewActive, deliveryQueue, performanceSummary, isQueueAvailable]);
 
   const courierMetrics = useMemo(() => {
-    if (isPreviewActive && previewScenario === 'NORMAL') {
+    if (isPreviewActive) {
       return MOCK_COURIER_METRICS;
     }
     return calculateBranchCourierOperationsMetrics(
       courierRoster,
       isRosterAvailable
     );
-  }, [isPreviewActive, previewScenario, courierRoster, isRosterAvailable]);
+  }, [isPreviewActive, courierRoster, isRosterAvailable]);
 
   const computedPerformance = useMemo(() => {
-    if (isPreviewActive && previewScenario === 'NORMAL') {
+    if (isPreviewActive) {
       return MOCK_COMPUTED_PERFORMANCE;
     }
     return calculateBranchPerformanceMetrics(performanceSummary);
-  }, [isPreviewActive, previewScenario, performanceSummary]);
+  }, [isPreviewActive, performanceSummary]);
 
   const firstUnassignedDelivery = useMemo(
     () =>
@@ -606,7 +530,7 @@ export default function BranchManagerDashboard({
     isLoadingServiceAreas,
   ]);
 
-  // Refresh handler (handles both live network refetch and mock simulation)
+  // Refresh handler
   const handleRefreshAll = useCallback(() => {
     if (isPreviewActive) {
       setSimulatedRefreshing(true);
@@ -649,33 +573,8 @@ export default function BranchManagerDashboard({
     [setAssignedBranchId]
   );
 
-  const handleTogglePreviewMode = useCallback((active: boolean) => {
-    setIsPreviewActive(active);
-    setBranchDashboardPreviewActive(active);
-    if (!active) {
-      // Re-trigger live refetch when exiting preview mode
-      branchesQuery.refetch();
-    }
-  }, [branchesQuery]);
-
-  const handleScenarioChange = useCallback((scenario: PreviewScenarioState) => {
-    setPreviewScenario(scenario);
-    setBranchDashboardPreviewScenario(scenario);
-  }, []);
-
   return (
     <div className="org-page org-bm-dashboard" data-testid="branch-manager-dashboard">
-      {/* Development Preview Banner */}
-      {isPreviewActive && (
-        <BranchDashboardPreviewBanner
-          scenario={previewScenario}
-          onScenarioChange={handleScenarioChange}
-          onTogglePreview={handleTogglePreviewMode}
-          onSimulateRefresh={handleRefreshAll}
-          isRefreshing={simulatedRefreshing}
-        />
-      )}
-
       {/* Section A: Branch Welcome & Assigned Branch Identity */}
       <BranchManagerWelcome
         branch={resolvedBranch}
@@ -707,9 +606,7 @@ export default function BranchManagerDashboard({
               aria-hidden="true"
             />
             <span>
-              {isPreviewActive
-                ? 'Simulating branch operational data refresh for preview mode...'
-                : 'Refreshing branch operational data with the API Gateway...'}
+              Refreshing branch operational data with the API Gateway...
             </span>
           </div>
         </div>
@@ -863,8 +760,7 @@ export default function BranchManagerDashboard({
               <span>
                 Verify that the API Gateway (<code className="org-inline-code">:8080</code>)
                 and Organization Service (<code className="org-inline-code">:8082</code>)
-                are running. Or enable <strong>Development Preview Mode</strong> to preview
-                the complete dashboard with realistic sample data.
+                are running.
               </span>
             </div>
             <div className="org-state-box__actions">
@@ -875,13 +771,6 @@ export default function BranchManagerDashboard({
               >
                 <RefreshCw size={14} aria-hidden="true" />
                 <span>Retry Connection</span>
-              </button>
-              <button
-                type="button"
-                className="org-btn org-btn--secondary"
-                onClick={() => handleTogglePreviewMode(true)}
-              >
-                <span>Enable Preview Mode</span>
               </button>
             </div>
           </div>
@@ -928,13 +817,6 @@ export default function BranchManagerDashboard({
               >
                 <RefreshCw size={14} aria-hidden="true" />
                 <span>Retry Branch Resolution</span>
-              </button>
-              <button
-                type="button"
-                className="org-btn org-btn--secondary"
-                onClick={() => handleTogglePreviewMode(true)}
-              >
-                <span>Enable Development Preview</span>
               </button>
             </div>
           </div>
