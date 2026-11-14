@@ -10,9 +10,10 @@ export const isToday = (iso?: string) => !!iso && new Date(iso).toDateString() =
 
 export const byCompletedDesc = (a: CourierJob, b: CourierJob) => (b.completedAt ?? '').localeCompare(a.completedAt ?? '');
 
-export const sumPayout = (jobs: CourierJob[]) => jobs.reduce((total, job) => total + job.payoutLkr, 0);
+export const sumPayout = (jobs: CourierJob[]) => jobs.reduce((total, job) => total + (job.payoutLkr ?? 0), 0);
 
-export const formatLkr = (amount: number) => `LKR ${amount.toLocaleString('en-LK')}`;
+export const formatLkr = (amount: number | null | undefined) =>
+  amount == null ? '—' : `LKR ${amount.toLocaleString('en-LK')}`;
 
 export const formatTime = (iso?: string) =>
   iso ? new Intl.DateTimeFormat('en-LK', { hour: 'numeric', minute: '2-digit' }).format(new Date(iso)) : '—';

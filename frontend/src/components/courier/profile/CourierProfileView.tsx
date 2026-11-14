@@ -35,7 +35,13 @@ export default function CourierProfileView() {
           <div>
             <p className="courier-profile__name">{profile.name}</p>
             <p className="courier-profile__meta">
-              {profile.courierCode} · <Star size={14} className="courier-icon--warning" aria-hidden="true" /> {profile.rating.toFixed(1)} rating
+              {profile.courierCode}
+              {profile.rating != null && (
+                <>
+                  {' · '}
+                  <Star size={14} className="courier-icon--warning" aria-hidden="true" /> {profile.rating.toFixed(1)} rating
+                </>
+              )}
             </p>
           </div>
         </div>
@@ -45,7 +51,7 @@ export default function CourierProfileView() {
       <div className="grid-cols-3">
         <InfoCard icon={<Phone size={18} className="courier-icon--primary" aria-hidden="true" />} title="Contact">
           <Field label="Phone">{profile.phone}</Field>
-          <Field label="Email">{profile.email}</Field>
+          {profile.email && <Field label="Email">{profile.email}</Field>}
         </InfoCard>
         <InfoCard icon={<Bike size={18} className="courier-icon--success" aria-hidden="true" />} title="Vehicle">
           <Field label="Type">{profile.vehicleType}</Field>
@@ -54,7 +60,7 @@ export default function CourierProfileView() {
         </InfoCard>
         <InfoCard icon={<Building2 size={18} className="courier-icon--purple" aria-hidden="true" />} title="Branch">
           <Field label="Assigned branch">{profile.branchName}</Field>
-          <Field label="Service zone">{profile.zone}</Field>
+          {profile.zone && <Field label="Service zone">{profile.zone}</Field>}
         </InfoCard>
       </div>
 
