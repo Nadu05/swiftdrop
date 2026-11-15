@@ -68,6 +68,27 @@
   --sd-radius-lg: 12px;
   --sd-radius-xl: 16px;
   --sd-radius-full: 9999px;
+
+  /* SwiftDrop brand palette (Global UI/UX Design System doc, section 3).
+     Opt-in via the `.sd-theme-light` scope below; existing tokens are unchanged. */
+  --sd-brand-navy: #102b50;
+  --sd-brand-navy-deep: #0b1f38;
+  --sd-brand-blue: #1677e8;
+  --sd-brand-blue-hover: #1265c5;
+  --sd-brand-blue-light: #eaf3ff;
+  --sd-brand-page: #f5f7fa;
+  --sd-brand-card: #ffffff;
+  --sd-brand-border: #e5eaf0;
+  --sd-brand-text: #111827;
+  --sd-brand-text-muted: #64748b;
+  --sd-brand-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Light SwiftDrop theme scope. Pages opt in by wrapping their layout in `.sd-theme-light`. */
+.sd-theme-light {
+  background: var(--sd-brand-page);
+  color: var(--sd-brand-text);
+  font-family: var(--sd-brand-font);
 }
 
 /* ---------- 2. Global Preflight / Reset (Eliminates raw browser styles) ---------- */
