@@ -41,6 +41,51 @@ public class Assignment {
     @Column(name = "assigned_at", nullable = false)
     private LocalDateTime assignedAt;
 
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
+
+    @Column(name = "delivery_attempts", nullable = false)
+    private Integer deliveryAttempts = 1;
+
+    @Column(name = "delivery_notes", length = 1000)
+    private String deliveryNotes;
+
+    @Column(name = "failure_reason", length = 500)
+    private String failureReason;
+
+    @Column(name = "tracking_number", length = 100)
+    private String trackingNumber;
+
+    @Column(name = "recipient_name", length = 255)
+    private String recipientName;
+
+    @Column(name = "recipient_phone", length = 50)
+    private String recipientPhone;
+
+    @Column(name = "delivery_address", length = 500)
+    private String deliveryAddress;
+
+    @Column(name = "recipient_city", length = 100)
+    private String recipientCity;
+
+    @Column(name = "merchant_name", length = 255)
+    private String merchantName;
+
+    @Column(name = "merchant_phone", length = 50)
+    private String merchantPhone;
+
+    @Column(name = "priority", length = 20)
+    private String priority = "NORMAL";
+
+    @Column(name = "package_category", length = 100)
+    private String packageCategory;
+
+    @Column(name = "package_weight", length = 50)
+    private String packageWeight;
+
+    @OneToOne(mappedBy = "assignment", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private DeliveryProof deliveryProof;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -54,6 +99,12 @@ public class Assignment {
         }
         if (assignedAt == null) {
             assignedAt = LocalDateTime.now();
+        }
+        if (deliveryAttempts == null) {
+            deliveryAttempts = 1;
+        }
+        if (priority == null) {
+            priority = "NORMAL";
         }
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
@@ -158,6 +209,129 @@ public class Assignment {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public LocalDateTime getCompletedAt() {
+        return completedAt;
+    }
+
+    public void setCompletedAt(LocalDateTime completedAt) {
+        this.completedAt = completedAt;
+    }
+
+    public Integer getDeliveryAttempts() {
+        return deliveryAttempts != null ? deliveryAttempts : 1;
+    }
+
+    public void setDeliveryAttempts(Integer deliveryAttempts) {
+        this.deliveryAttempts = deliveryAttempts;
+    }
+
+    public String getDeliveryNotes() {
+        return deliveryNotes;
+    }
+
+    public void setDeliveryNotes(String deliveryNotes) {
+        this.deliveryNotes = deliveryNotes;
+    }
+
+    public String getFailureReason() {
+        return failureReason;
+    }
+
+    public void setFailureReason(String failureReason) {
+        this.failureReason = failureReason;
+    }
+
+    public String getTrackingNumber() {
+        return trackingNumber;
+    }
+
+    public void setTrackingNumber(String trackingNumber) {
+        this.trackingNumber = trackingNumber;
+    }
+
+    public String getRecipientName() {
+        return recipientName;
+    }
+
+    public void setRecipientName(String recipientName) {
+        this.recipientName = recipientName;
+    }
+
+    public String getRecipientPhone() {
+        return recipientPhone;
+    }
+
+    public void setRecipientPhone(String recipientPhone) {
+        this.recipientPhone = recipientPhone;
+    }
+
+    public String getDeliveryAddress() {
+        return deliveryAddress;
+    }
+
+    public void setDeliveryAddress(String deliveryAddress) {
+        this.deliveryAddress = deliveryAddress;
+    }
+
+    public String getRecipientCity() {
+        return recipientCity;
+    }
+
+    public void setRecipientCity(String recipientCity) {
+        this.recipientCity = recipientCity;
+    }
+
+    public String getMerchantName() {
+        return merchantName;
+    }
+
+    public void setMerchantName(String merchantName) {
+        this.merchantName = merchantName;
+    }
+
+    public String getMerchantPhone() {
+        return merchantPhone;
+    }
+
+    public void setMerchantPhone(String merchantPhone) {
+        this.merchantPhone = merchantPhone;
+    }
+
+    public String getPriority() {
+        return priority != null ? priority : "NORMAL";
+    }
+
+    public void setPriority(String priority) {
+        this.priority = priority;
+    }
+
+    public String getPackageCategory() {
+        return packageCategory;
+    }
+
+    public void setPackageCategory(String packageCategory) {
+        this.packageCategory = packageCategory;
+    }
+
+    public String getPackageWeight() {
+        return packageWeight;
+    }
+
+    public void setPackageWeight(String packageWeight) {
+        this.packageWeight = packageWeight;
+    }
+
+    public DeliveryProof getDeliveryProof() {
+        return deliveryProof;
+    }
+
+    public void setDeliveryProof(DeliveryProof deliveryProof) {
+        this.deliveryProof = deliveryProof;
+        if (deliveryProof != null && deliveryProof.getAssignment() != this) {
+            deliveryProof.setAssignment(this);
+        }
     }
 }
 

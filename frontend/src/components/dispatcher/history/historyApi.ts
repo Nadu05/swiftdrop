@@ -2,6 +2,7 @@ import type {
   DeliveryHistoryRecord,
   DeliveryHistorySummaryMetrics,
 } from './types';
+import { dispatchRequest } from '../dispatcherApiClient';
 import { getAssignments } from '../assignments/assignmentsApi';
 
 export const deliveryHistoryMockData: DeliveryHistoryRecord[] = [
@@ -511,63 +512,71 @@ export function calculateHistoryMetrics(records: DeliveryHistoryRecord[]): Deliv
   };
 }
 
-export async function getDeliveryHistory(): Promise<{
+interface DeliveryHistoryEnvelope {
+  deliveries: DeliveryHistoryRecord[];
+  metrics?: DeliveryHistorySummaryMetrics;
+}
+
+export async function getDeliveryHistory(filters?: {
+  courierId?: string | number;
+  branchId?: string | number;
+  status?: string;
+  priority?: string;
+  search?: string;
+}): Promise<{
   deliveries: DeliveryHistoryRecord[];
   metrics: DeliveryHistorySummaryMetrics;
 }> {
   try {
-    const assignments = await getAssignments();
-    const completedAssignments = assignments.filter(
-      (a) => a.deliveryStatus === 'DELIVERED' || a.deliveryStatus === 'FAILED'
-    );
-    if (completedAssignments.length > 0) {
-      const liveHistory: DeliveryHistoryRecord[] = completedAssignments.map((a) => ({
-        id: a.assignmentId,
-        orderId: a.orderId,
-        trackingNumber: a.trackingNumber,
-        recipient: a.recipient,
-        merchant: {
-          name: a.merchantName,
-          phone: '+94 11 234 5678',
-        },
-        courier: {
-          id: a.courier.id,
-          name: a.courier.name,
-          code: a.courier.code,
-          vehiclePlate: 'WP BDF-8942',
-          phone: a.courier.phone,
-        },
-        status: a.deliveryStatus === 'DELIVERED' ? 'DELIVERED' : 'FAILED',
-        pod:
-          a.deliveryStatus === 'DELIVERED'
-            ? {
-                recipientName: a.recipient.name,
-                confirmationDetails: 'Package delivered and recorded.',
-                podReference: `POD-${a.trackingNumber}`,
-                podType: 'SIGNATURE',
-              }
-            : undefined,
-        completedAt: a.assignedDate,
-        deliveryAttempts: a.deliveryAttempts,
-        deliveryNotes: a.notes || 'Dispatch delivery fulfilled.',
-        parcel: {
-          category: 'Standard Package',
-          weight: '1.5 kg',
-        },
-        priority: a.priority,
-        timeline: [],
-      }));
+    const params = new URLSearchParams();
+    if (filters?.courierId && filters.courierId !== 'ALL') {
+      params.append('courierId', String(filters.courierId));
+    }
+    if (filters?.branchId) {
+      params.append('branchId', String(filters.branchId));
+    }
+    if (filters?.status && filters.status !== 'ALL') {
+      params.append('status', filters.status);
+    }
+    if (filters?.priority && filters.priority !== 'ALL') {
+      params.append('priority', filters.priority);
+    }
+    if (filters?.search) {
+      params.append('search', filters.search);
+    }
 
-      const metrics = calculateHistoryMetrics(liveHistory);
-      return { deliveries: liveHistory, metrics };
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+    const envelope = await dispatchRequest<DeliveryHistoryEnvelope>(`/api/v1/dispatch/history${queryString}`);
+
+    if (envelope && Array.isArray(envelope.deliveries) && envelope.deliveries.length > 0) {
+      const metrics = envelope.metrics || calculateHistoryMetrics(envelope.deliveries);
+      return {
+        deliveries: envelope.deliveries,
+        metrics,
+      };
     }
   } catch (err) {
-    console.warn('Could not fetch backend delivery history:', err);
+    console.warn('Backend /api/v1/dispatch/history unavailable, using offline fallback:', err);
   }
 
+  // Fallback to rich mock data if backend unavailable or empty during local offline dev
   const metrics = calculateHistoryMetrics(deliveryHistoryMockData);
   return {
     deliveries: [...deliveryHistoryMockData],
     metrics,
   };
+}
+
+export async function getDeliveryHistoryRecordById(id: string): Promise<DeliveryHistoryRecord | null> {
+  try {
+    const record = await dispatchRequest<DeliveryHistoryRecord>(
+      `/api/v1/dispatch/history/${encodeURIComponent(id)}`
+    );
+    if (record) {
+      return record;
+    }
+  } catch (err) {
+    console.warn(`Backend /api/v1/dispatch/history/${id} unavailable, checking fallback:`, err);
+  }
+  return deliveryHistoryMockData.find((r) => r.id === id || r.orderId === id || r.trackingNumber === id) || null;
 }
