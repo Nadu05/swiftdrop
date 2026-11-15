@@ -1,5 +1,6 @@
 package com.swiftdrop.dispatch.service;
 
+import com.swiftdrop.dispatch.client.courier.CourierOrderDetails;
 import com.swiftdrop.dispatch.dto.OrderDetailsDto;
 import com.swiftdrop.dispatch.entity.Assignment;
 import com.swiftdrop.dispatch.entity.CourierDelivery;
@@ -48,6 +49,27 @@ public class CourierDeliverySnapshotService {
         delivery.setWeightKg(order.getWeightKg() == null ? null : BigDecimal.valueOf(order.getWeightKg()));
         delivery.setHandlingNotes(order.getHandlingNotes());
         delivery.setPayoutAmount(payoutAmount);
+        return deliveryRepository.save(delivery);
+    }
+
+    /** Snapshot from Order's ready-for-dispatch data (used by the courier portal to fill missing details). */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public CourierDelivery recordFromOrder(Assignment assignment, CourierOrderDetails order) {
+        CourierDelivery delivery = deliveryRepository.findByAssignmentId(assignment.getId())
+                .orElseGet(() -> new CourierDelivery(assignment));
+        delivery.setTrackingNumber(order.trackingNumber());
+        delivery.setPriority(order.priority());
+        delivery.setRecipientName(order.recipientName());
+        delivery.setRecipientPhone(order.recipientPhone());
+        delivery.setDeliveryAddress(order.deliveryAddress());
+        delivery.setDeliveryCity(order.city());
+        delivery.setPickupName(order.merchantName());
+        delivery.setPickupPhone(order.merchantContact());
+        delivery.setPickupAddress(order.pickupAddress());
+        delivery.setPickupCity(order.pickupCity());
+        delivery.setPackageType(order.packageType());
+        delivery.setWeightKg(order.weightKg() == null ? null : BigDecimal.valueOf(order.weightKg()));
+        delivery.setHandlingNotes(order.handlingNotes());
         return deliveryRepository.save(delivery);
     }
 }

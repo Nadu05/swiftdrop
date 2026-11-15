@@ -1,5 +1,7 @@
 package com.swiftdrop.dispatch.service;
 
+import com.swiftdrop.dispatch.client.courier.CourierOrderDetails;
+import com.swiftdrop.dispatch.client.courier.CourierOrderLookupClient;
 import com.swiftdrop.dispatch.dto.courier.CourierJobResponse;
 import com.swiftdrop.dispatch.dto.courier.CourierProfileResponse;
 import com.swiftdrop.dispatch.dto.courier.FailedDeliveryRequest;
@@ -48,6 +50,8 @@ class CourierPortalServiceTest {
     @Mock private CourierAssignmentRepository assignmentRepository;
     @Mock private CourierDeliveryRepository deliveryRepository;
     @Mock private CourierService courierService;
+    @Mock private CourierOrderLookupClient orderLookup;
+    @Mock private CourierDeliverySnapshotService snapshotService;
 
     private CourierPortalService service;
     private Courier courier;
@@ -55,7 +59,7 @@ class CourierPortalServiceTest {
     @BeforeEach
     void setUp() {
         service = new CourierPortalService(courierRepository, assignmentRepository, deliveryRepository,
-                courierService, Clock.fixed(NOW, ZoneOffset.UTC));
+                courierService, orderLookup, snapshotService, Clock.fixed(NOW, ZoneOffset.UTC));
         courier = new Courier("CR-103", null, "Kasun Dias", "+94 72 333 8899", CourierStatus.AVAILABLE,
                 VehicleType.MOTORCYCLE, "WP BHK-4471", 1L, 8);
         courier.setId(COURIER_ID);
@@ -156,6 +160,54 @@ class CourierPortalServiceTest {
             assertThat(jobs.get(0).trackingNumber()).isEqualTo("SD-261114-ABC");
             assertThat(jobs.get(1).trackingNumber()).isNull();
             assertThat(jobs.get(1).recipient()).isNull();
+        }
+
+        @Test
+        @DisplayName("an open job without details is filled in from Order once")
+        void fillsMissingDetails() {
+            Assignment a = assignment(AssignmentStatus.ASSIGNED);
+            CourierOrderDetails order = new CourierOrderDetails(ORDER_ID, "SD-1", "STANDARD", "Amali", "+94", "18 Rd",
+                    "Rajagiriya", "Cafe Mocha", "+94 11", "SMALL", 1.2, null, "12 Galle Rd", "Colombo");
+            when(courierRepository.findById(COURIER_ID)).thenReturn(Optional.of(courier));
+            when(assignmentRepository.findCourierJobs(any(), any(), any())).thenReturn(List.of(a));
+            when(deliveryRepository.findByAssignmentIdIn(List.of(ASSIGNMENT_ID))).thenReturn(List.of());
+            when(orderLookup.findOpenOrders()).thenReturn(List.of(order));
+            CourierDelivery filled = details(a);
+            filled.setPickupAddress("12 Galle Rd");
+            when(snapshotService.recordFromOrder(a, order)).thenReturn(filled);
+
+            CourierJobResponse job = service.listJobs(COURIER_ID, null).get(0);
+
+            assertThat(job.trackingNumber()).isEqualTo("SD-261114-ABC");
+            assertThat(job.pickup().address()).isEqualTo("12 Galle Rd");
+        }
+
+        @Test
+        @DisplayName("Order not having the order (or being down) still returns the bare job")
+        void orderMissing() {
+            Assignment a = assignment(AssignmentStatus.ACCEPTED);
+            when(courierRepository.findById(COURIER_ID)).thenReturn(Optional.of(courier));
+            when(assignmentRepository.findCourierJobs(any(), any(), any())).thenReturn(List.of(a));
+            when(deliveryRepository.findByAssignmentIdIn(List.of(ASSIGNMENT_ID))).thenReturn(List.of());
+            when(orderLookup.findOpenOrders()).thenReturn(List.of());
+
+            CourierJobResponse job = service.listJobs(COURIER_ID, null).get(0);
+
+            assertThat(job.recipient()).isNull();
+            verifyNoInteractions(snapshotService);
+        }
+
+        @Test
+        @DisplayName("finished jobs and jobs with details do not call Order")
+        void noLookupWhenNotNeeded() {
+            Assignment done = assignment(AssignmentStatus.DELIVERED);
+            when(courierRepository.findById(COURIER_ID)).thenReturn(Optional.of(courier));
+            when(assignmentRepository.findCourierJobs(any(), any(), any())).thenReturn(List.of(done));
+            when(deliveryRepository.findByAssignmentIdIn(List.of(ASSIGNMENT_ID))).thenReturn(List.of());
+
+            service.listJobs(COURIER_ID, null);
+
+            verifyNoInteractions(orderLookup);
         }
 
         @Test

@@ -1,5 +1,7 @@
 package com.swiftdrop.dispatch.service;
 
+import com.swiftdrop.dispatch.client.courier.CourierOrderDetails;
+import com.swiftdrop.dispatch.client.courier.CourierOrderLookupClient;
 import com.swiftdrop.dispatch.dto.courier.CourierJobResponse;
 import com.swiftdrop.dispatch.dto.courier.CourierProfileResponse;
 import com.swiftdrop.dispatch.dto.courier.FailedDeliveryRequest;
@@ -24,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -53,6 +56,10 @@ public class CourierPortalService {
             AssignmentStatus.ASSIGNED, AssignmentStatus.ACCEPTED, AssignmentStatus.IN_TRANSIT,
             AssignmentStatus.DELIVERED, AssignmentStatus.FAILED);
 
+    /** Jobs still being worked; only these get missing details filled in. */
+    static final Set<AssignmentStatus> OPEN_STATUSES = EnumSet.of(
+            AssignmentStatus.ASSIGNED, AssignmentStatus.ACCEPTED, AssignmentStatus.IN_TRANSIT);
+
     static final int DEFAULT_LIMIT = 100;
     static final int MAX_LIMIT = 200;
 
@@ -62,25 +69,34 @@ public class CourierPortalService {
     private final CourierAssignmentRepository assignmentRepository;
     private final CourierDeliveryRepository deliveryRepository;
     private final CourierService courierService;
+    private final CourierOrderLookupClient orderLookup;
+    private final CourierDeliverySnapshotService snapshotService;
     private final Clock clock;
 
     @Autowired
     public CourierPortalService(CourierRepository courierRepository,
                                 CourierAssignmentRepository assignmentRepository,
                                 CourierDeliveryRepository deliveryRepository,
-                                CourierService courierService) {
-        this(courierRepository, assignmentRepository, deliveryRepository, courierService, Clock.systemUTC());
+                                CourierService courierService,
+                                CourierOrderLookupClient orderLookup,
+                                CourierDeliverySnapshotService snapshotService) {
+        this(courierRepository, assignmentRepository, deliveryRepository, courierService, orderLookup,
+                snapshotService, Clock.systemUTC());
     }
 
     CourierPortalService(CourierRepository courierRepository,
                          CourierAssignmentRepository assignmentRepository,
                          CourierDeliveryRepository deliveryRepository,
                          CourierService courierService,
+                         CourierOrderLookupClient orderLookup,
+                         CourierDeliverySnapshotService snapshotService,
                          Clock clock) {
         this.courierRepository = courierRepository;
         this.assignmentRepository = assignmentRepository;
         this.deliveryRepository = deliveryRepository;
         this.courierService = courierService;
+        this.orderLookup = orderLookup;
+        this.snapshotService = snapshotService;
         this.clock = clock;
     }
 
@@ -111,7 +127,11 @@ public class CourierPortalService {
 
     // ------------------------------------------------------------------ jobs
 
-    @Transactional(readOnly = true)
+    /**
+     * The courier's jobs, newest first. Open jobs that have no delivery details yet (the dispatcher's assign
+     * flow does not record them) are filled in from Order once; if Order is unreachable the jobs are still
+     * returned without details.
+     */
     public List<CourierJobResponse> listJobs(Long courierId, Integer limit) {
         findCourier(courierId);
         int size = limit == null ? DEFAULT_LIMIT : Math.max(1, Math.min(limit, MAX_LIMIT));
@@ -120,11 +140,31 @@ public class CourierPortalService {
         if (assignments.isEmpty()) {
             return List.of();
         }
-        Map<Long, CourierDelivery> details = deliveryRepository
+        Map<Long, CourierDelivery> details = new HashMap<>(deliveryRepository
                 .findByAssignmentIdIn(assignments.stream().map(Assignment::getId).toList())
                 .stream()
-                .collect(Collectors.toMap(d -> d.getAssignment().getId(), Function.identity()));
+                .collect(Collectors.toMap(d -> d.getAssignment().getId(), Function.identity())));
+        fillMissingDetails(assignments, details);
         return assignments.stream().map(a -> toJob(a, details.get(a.getId()))).toList();
+    }
+
+    private void fillMissingDetails(List<Assignment> assignments, Map<Long, CourierDelivery> details) {
+        List<Assignment> missing = assignments.stream()
+                .filter(a -> OPEN_STATUSES.contains(a.getStatus()) && !details.containsKey(a.getId()))
+                .toList();
+        if (missing.isEmpty()) {
+            return;
+        }
+        Map<Long, CourierOrderDetails> orders = orderLookup.findOpenOrders().stream()
+                .filter(o -> o.id() != null)
+                .collect(Collectors.toMap(CourierOrderDetails::id, Function.identity(), (x, y) -> x));
+        for (Assignment a : missing) {
+            CourierOrderDetails order = orders.get(a.getOrderId());
+            if (order != null) {
+                details.put(a.getId(), snapshotService.recordFromOrder(a, order));
+                log.info("Filled delivery details for assignment {} from order {}", a.getId(), a.getOrderId());
+            }
+        }
     }
 
     /**
