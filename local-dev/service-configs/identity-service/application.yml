@@ -11,7 +11,7 @@ spring:
   application:
     name: identity-service
   datasource:
-    url: jdbc:postgresql://localhost:5432/swiftdrop_identity
+    url: jdbc:postgresql://localhost:5437/swiftdrop_identity
     username: postgres
     password: postgrespassword
     driver-class-name: org.postgresql.Driver
