@@ -8,6 +8,10 @@ server:
   port: 8084
 
 spring:
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
   application:
     name: dispatch-service
   datasource:

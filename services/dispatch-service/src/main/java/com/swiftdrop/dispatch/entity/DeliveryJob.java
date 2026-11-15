@@ -17,6 +17,10 @@ public class DeliveryJob {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version = 0L;
+
     @Column(name = "job_code", nullable = false, unique = true, length = 32)
     private String jobCode;
 
@@ -588,5 +592,8 @@ public class DeliveryJob {
     public void setProofOfDelivery(ProofOfDelivery proofOfDelivery) {
         this.proofOfDelivery = proofOfDelivery;
     }
-}
 
+    public Long getVersion() {
+        return version;
+    }
+}

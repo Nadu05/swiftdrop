@@ -17,6 +17,10 @@ public class CourierAssignment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version = 0L;
+
     @Column(name = "assignment_code", nullable = false, unique = true, length = 32)
     private String assignmentCode;
 
@@ -317,5 +321,8 @@ public class CourierAssignment {
     public void setReturnTask(ReturnTask returnTask) {
         this.returnTask = returnTask;
     }
-}
 
+    public Long getVersion() {
+        return version;
+    }
+}

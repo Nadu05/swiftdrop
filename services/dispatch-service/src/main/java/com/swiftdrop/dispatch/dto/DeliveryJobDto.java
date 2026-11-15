@@ -41,6 +41,7 @@ public class DeliveryJobDto {
     private ProofOfDeliverySummaryDto proofOfDelivery;
     private FailureSummaryDto failure;
     private List<AttemptRecordDto> attempts = new ArrayList<>();
+    private List<String> allowedActions = new ArrayList<>();
 
     public DeliveryJobDto() {
     }
@@ -645,5 +646,12 @@ public class DeliveryJobDto {
     public void setAttempts(List<AttemptRecordDto> attempts) {
         this.attempts = attempts;
     }
-}
 
+    public List<String> getAllowedActions() {
+        return allowedActions;
+    }
+
+    public void setAllowedActions(List<String> allowedActions) {
+        this.allowedActions = allowedActions;
+    }
+}
