@@ -1,6 +1,9 @@
 package com.swiftdrop.dispatch.exception;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
@@ -78,6 +81,49 @@ public class GlobalExceptionHandler {
         body.put("error", "Validation Failed");
         body.put("message", errors.values().stream().findFirst().orElse("Request validation failed"));
         body.put("validationErrors", errors);
+        return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler({ObjectOptimisticLockingFailureException.class, jakarta.persistence.OptimisticLockException.class})
+    public ResponseEntity<Map<String, Object>> handleConcurrentUpdate(Exception ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now().toString());
+        body.put("status", HttpStatus.CONFLICT.value());
+        body.put("error", "Conflict");
+        body.put("errorCode", "CONCURRENT_UPDATE");
+        body.put("message", "This delivery was changed by another request. Refresh and try again.");
+        return new ResponseEntity<>(body, HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(IdempotencyConflictException.class)
+    public ResponseEntity<Map<String, Object>> handleIdempotencyConflict(IdempotencyConflictException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now().toString());
+        body.put("status", HttpStatus.CONFLICT.value());
+        body.put("error", "Conflict");
+        body.put("errorCode", "IDEMPOTENCY_CONFLICT");
+        body.put("message", ex.getMessage());
+        return new ResponseEntity<>(body, HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleUploadTooLarge(MaxUploadSizeExceededException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now().toString());
+        body.put("status", HttpStatus.PAYLOAD_TOO_LARGE.value());
+        body.put("error", "Payload Too Large");
+        body.put("errorCode", "POD_PHOTO_TOO_LARGE");
+        body.put("message", "Photo must be 5 MB or smaller");
+        return new ResponseEntity<>(body, HttpStatus.PAYLOAD_TOO_LARGE);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Map<String, Object>> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now().toString());
+        body.put("status", HttpStatus.BAD_REQUEST.value());
+        body.put("error", "Bad Request");
+        body.put("message", "Invalid value for parameter " + ex.getName());
         return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
     }
 
