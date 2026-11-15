@@ -514,9 +514,10 @@ class OrderControllerTest {
         mvc.perform(get("/api/v1/orders/cities").header("Authorization", "Bearer " + TestTokens.customer(42)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(org.hamcrest.Matchers.greaterThanOrEqualTo(25)))
-                .andExpect(jsonPath("$[0].code").value("AMPARA"))
-                .andExpect(jsonPath("$[0].name").value("Ampara"))
+                .andExpect(jsonPath("$[0].code").value("AKKARAIPATTU"))
+                .andExpect(jsonPath("$[0].name").value("Akkaraipattu"))
                 .andExpect(jsonPath("$[0].district").value("Ampara"))
+                .andExpect(jsonPath("$[0].province").value("Eastern"))
                 .andExpect(jsonPath("$[0].latitude").doesNotExist())
                 .andExpect(jsonPath("$[0].longitude").doesNotExist());
     }

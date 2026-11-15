@@ -92,6 +92,19 @@ public class DeliveryOrder {
     @Column(name = "dropoff_city", length = 40)
     private String dropoffCity;
 
+    /** Province and district of the pickup / delivery town; null only for orders created before they were recorded. */
+    @Column(name = "pickup_province", length = 40)
+    private String pickupProvince;
+
+    @Column(name = "pickup_district", length = 40)
+    private String pickupDistrict;
+
+    @Column(name = "dropoff_province", length = 40)
+    private String dropoffProvince;
+
+    @Column(name = "dropoff_district", length = 40)
+    private String dropoffDistrict;
+
     /** The parts of {@code deliveryFee}; the database enforces that they add up to it. */
     @Column(name = "base_fee", nullable = false, precision = 12, scale = 2)
     private BigDecimal baseFee = BigDecimal.ZERO;
@@ -189,6 +202,18 @@ public class DeliveryOrder {
 
     public String getDropoffCity() { return dropoffCity; }
     public void setDropoffCity(String dropoffCity) { this.dropoffCity = dropoffCity; }
+
+    public String getPickupProvince() { return pickupProvince; }
+    public void setPickupProvince(String pickupProvince) { this.pickupProvince = pickupProvince; }
+
+    public String getPickupDistrict() { return pickupDistrict; }
+    public void setPickupDistrict(String pickupDistrict) { this.pickupDistrict = pickupDistrict; }
+
+    public String getDropoffProvince() { return dropoffProvince; }
+    public void setDropoffProvince(String dropoffProvince) { this.dropoffProvince = dropoffProvince; }
+
+    public String getDropoffDistrict() { return dropoffDistrict; }
+    public void setDropoffDistrict(String dropoffDistrict) { this.dropoffDistrict = dropoffDistrict; }
 
     public BigDecimal getBaseFee() { return baseFee; }
     public void setBaseFee(BigDecimal baseFee) { this.baseFee = baseFee; }

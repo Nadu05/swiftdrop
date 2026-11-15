@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -25,6 +25,7 @@ import { apiClient } from '@/api/axios-client';
 import type { UserProfile } from '@/types/auth.types';
 import { getBranches, resolveNearestBranch } from '@/api/services/organization.api';
 import { getCityCoordinates } from '@/lib/city-coordinates';
+import { provinceOfDistrict } from '@/lib/provinces';
 import type { CityOption, OrderQuoteResponse, ParcelSize } from '@/types/order.types';
 import type { BranchResolutionResponse, BranchResponse } from '@/types/organization.types';
 
@@ -127,6 +128,11 @@ export default function RequestDeliveryPage() {
   const [cities, setCities] = useState<CityOption[]>([]);
   const [pickupCity, setPickupCity] = useState<string>('');
   const [deliveryCity, setDeliveryCity] = useState<string>('');
+  // Province and district chosen before the town (the town list is narrowed by them)
+  const [pickupProvince, setPickupProvince] = useState<string>('');
+  const [pickupDistrict, setPickupDistrict] = useState<string>('');
+  const [deliveryProvince, setDeliveryProvince] = useState<string>('');
+  const [deliveryDistrict, setDeliveryDistrict] = useState<string>('');
 
   // Branch that handles the pickup (resolved automatically by the Organization Service)
   const [branchLookup, setBranchLookup] = useState<BranchLookup>({ state: 'idle' });
@@ -226,6 +232,46 @@ export default function RequestDeliveryPage() {
 
   const weightKg = Number(weightInput);
   const selectedSize = SIZE_OPTIONS.find((o) => o.value === parcelSize);
+  const provinceOf = (c: CityOption) => c.province || provinceOfDistrict(c.district) || '';
+  const provinces = useMemo(
+    () => Array.from(new Set(cities.map(provinceOf).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+    [cities]
+  );
+  const districtsOf = (province: string) =>
+    Array.from(new Set(cities.filter((c) => provinceOf(c) === province).map((c) => c.district || '').filter(Boolean))).sort(
+      (a, b) => a.localeCompare(b)
+    );
+  const townsOf = (district: string) => cities.filter((c) => c.district === district);
+
+  // Changing a province clears the district and town; changing a district clears the town (a district with a
+  // single town selects it automatically)
+  const handlePickupProvinceChange = (value: string) => {
+    setPickupProvince(value);
+    setPickupDistrict('');
+    setPickupCity('');
+    clearError('pickupProvince');
+  };
+  const handlePickupDistrictChange = (value: string) => {
+    setPickupDistrict(value);
+    const towns = townsOf(value);
+    setPickupCity(towns.length === 1 ? towns[0].code : '');
+    clearError('pickupDistrict');
+    clearError('pickupCity');
+  };
+  const handleDeliveryProvinceChange = (value: string) => {
+    setDeliveryProvince(value);
+    setDeliveryDistrict('');
+    setDeliveryCity('');
+    clearError('deliveryProvince');
+  };
+  const handleDeliveryDistrictChange = (value: string) => {
+    setDeliveryDistrict(value);
+    const towns = townsOf(value);
+    setDeliveryCity(towns.length === 1 ? towns[0].code : '');
+    clearError('deliveryDistrict');
+    clearError('deliveryCity');
+  };
+
   const cityName = (code: string) => cities.find((c) => c.code === code)?.name || code;
 
   /** Returns a message when the weight is unusable or too heavy for the chosen size, otherwise null. */
@@ -341,12 +387,24 @@ export default function RequestDeliveryPage() {
     if (!parcelSize) {
       errs.parcelSize = 'Please choose a parcel size';
     }
+    if (!pickupProvince) {
+      errs.pickupProvince = 'Please choose the pickup province';
+    }
+    if (!pickupDistrict) {
+      errs.pickupDistrict = 'Please choose the pickup district';
+    }
     if (!pickupCity) {
       errs.pickupCity = 'Please choose the nearest pickup town / city';
     } else if (branchLookup.state === 'loading') {
       errs.branch = 'Still finding your nearest branch. Please wait a moment.';
     } else if (branchLookup.state === 'unsupported') {
       errs.branch = branchLookup.message;
+    }
+    if (!deliveryProvince) {
+      errs.deliveryProvince = 'Please choose the delivery province';
+    }
+    if (!deliveryDistrict) {
+      errs.deliveryDistrict = 'Please choose the delivery district';
     }
     if (!deliveryCity) {
       errs.deliveryCity = 'Please choose the nearest delivery town / city';
@@ -539,6 +597,57 @@ export default function RequestDeliveryPage() {
                     )}
                   </div>
 
+                  {/* Pickup Province / District / Town */}
+                  <div className="sd-two-col">
+                    <div className="sd-field-group">
+                      <div className="sd-label-row">
+                        <label htmlFor="pickupProvince" className="sd-field-label">
+                          Province <span className="sd-required">*</span>
+                        </label>
+                      </div>
+                      <select
+                        id="pickupProvince"
+                        value={pickupProvince}
+                        onChange={(e) => handlePickupProvinceChange(e.target.value)}
+                        className={`sd-text-input sd-select ${validationErrors.pickupProvince ? 'has-error' : ''}`}
+                      >
+                        <option value="">Select a province</option>
+                        {provinces.map((p) => (
+                          <option key={p} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                      </select>
+                      {validationErrors.pickupProvince && (
+                        <div className="sd-error-hint">{validationErrors.pickupProvince}</div>
+                      )}
+                    </div>
+                    <div className="sd-field-group">
+                      <div className="sd-label-row">
+                        <label htmlFor="pickupDistrict" className="sd-field-label">
+                          District <span className="sd-required">*</span>
+                        </label>
+                      </div>
+                      <select
+                        id="pickupDistrict"
+                        value={pickupDistrict}
+                        disabled={!pickupProvince}
+                        onChange={(e) => handlePickupDistrictChange(e.target.value)}
+                        className={`sd-text-input sd-select ${validationErrors.pickupDistrict ? 'has-error' : ''}`}
+                      >
+                        <option value="">{pickupProvince ? 'Select a district' : 'Select a province first'}</option>
+                        {districtsOf(pickupProvince).map((d) => (
+                          <option key={d} value={d}>
+                            {d}
+                          </option>
+                        ))}
+                      </select>
+                      {validationErrors.pickupDistrict && (
+                        <div className="sd-error-hint">{validationErrors.pickupDistrict}</div>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Pickup Town / City */}
                   <div className="sd-field-group">
                     <div className="sd-label-row">
@@ -549,14 +658,15 @@ export default function RequestDeliveryPage() {
                     <select
                       id="pickupCity"
                       value={pickupCity}
+                      disabled={!pickupDistrict}
                       onChange={(e) => {
                         setPickupCity(e.target.value);
                         clearError('pickupCity');
                       }}
                       className={`sd-text-input sd-select ${validationErrors.pickupCity ? 'has-error' : ''}`}
                     >
-                      <option value="">Select a town / city</option>
-                      {cities.map((c) => (
+                      <option value="">{pickupDistrict ? 'Select a town / city' : 'Select a district first'}</option>
+                      {townsOf(pickupDistrict).map((c) => (
                         <option key={c.code} value={c.code}>
                           {c.name}
                         </option>
@@ -664,6 +774,57 @@ export default function RequestDeliveryPage() {
                     )}
                   </div>
 
+                  {/* Delivery Province / District / Town */}
+                  <div className="sd-two-col">
+                    <div className="sd-field-group">
+                      <div className="sd-label-row">
+                        <label htmlFor="deliveryProvince" className="sd-field-label">
+                          Province <span className="sd-required">*</span>
+                        </label>
+                      </div>
+                      <select
+                        id="deliveryProvince"
+                        value={deliveryProvince}
+                        onChange={(e) => handleDeliveryProvinceChange(e.target.value)}
+                        className={`sd-text-input sd-select ${validationErrors.deliveryProvince ? 'has-error' : ''}`}
+                      >
+                        <option value="">Select a province</option>
+                        {provinces.map((p) => (
+                          <option key={p} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                      </select>
+                      {validationErrors.deliveryProvince && (
+                        <div className="sd-error-hint">{validationErrors.deliveryProvince}</div>
+                      )}
+                    </div>
+                    <div className="sd-field-group">
+                      <div className="sd-label-row">
+                        <label htmlFor="deliveryDistrict" className="sd-field-label">
+                          District <span className="sd-required">*</span>
+                        </label>
+                      </div>
+                      <select
+                        id="deliveryDistrict"
+                        value={deliveryDistrict}
+                        disabled={!deliveryProvince}
+                        onChange={(e) => handleDeliveryDistrictChange(e.target.value)}
+                        className={`sd-text-input sd-select ${validationErrors.deliveryDistrict ? 'has-error' : ''}`}
+                      >
+                        <option value="">{deliveryProvince ? 'Select a district' : 'Select a province first'}</option>
+                        {districtsOf(deliveryProvince).map((d) => (
+                          <option key={d} value={d}>
+                            {d}
+                          </option>
+                        ))}
+                      </select>
+                      {validationErrors.deliveryDistrict && (
+                        <div className="sd-error-hint">{validationErrors.deliveryDistrict}</div>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Delivery Town / City */}
                   <div className="sd-field-group">
                     <div className="sd-label-row">
@@ -674,14 +835,15 @@ export default function RequestDeliveryPage() {
                     <select
                       id="deliveryCity"
                       value={deliveryCity}
+                      disabled={!deliveryDistrict}
                       onChange={(e) => {
                         setDeliveryCity(e.target.value);
                         clearError('deliveryCity');
                       }}
                       className={`sd-text-input sd-select ${validationErrors.deliveryCity ? 'has-error' : ''}`}
                     >
-                      <option value="">Select a town / city</option>
-                      {cities.map((c) => (
+                      <option value="">{deliveryDistrict ? 'Select a town / city' : 'Select a district first'}</option>
+                      {townsOf(deliveryDistrict).map((c) => (
                         <option key={c.code} value={c.code}>
                           {c.name}
                         </option>

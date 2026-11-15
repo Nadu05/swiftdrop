@@ -33,6 +33,7 @@ export interface CityOption {
   code: string;
   name: string;
   district?: string;
+  province?: string;
 }
 
 /**
@@ -133,6 +134,11 @@ export interface DeliveryOrder {
   /** Id of the branch serving the order (name comes from the Organization Service). */
   branchId?: number;
   distanceKm?: number;
+  /** Province and district of the pickup / delivery town (absent on very old orders). */
+  pickupProvince?: string;
+  pickupDistrict?: string;
+  dropoffProvince?: string;
+  dropoffDistrict?: string;
   /** How the delivery fee was calculated; absent on records that do not carry it. */
   feeBreakdown?: FeeBreakdown;
 }
