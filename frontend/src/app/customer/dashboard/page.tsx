@@ -73,15 +73,8 @@ export default function CustomerDashboardPage() {
 
   const profile = profileQuery.data ?? null;
   const orders = Array.isArray(ordersQuery.data) ? ordersQuery.data : [];
-  const isLoading =
-    profileQuery.isLoading ||
-    ordersQuery.isLoading ||
-    profileQuery.isFetching ||
-    ordersQuery.isFetching;
-  const error =
-    profileQuery.error?.message ||
-    ordersQuery.error?.message ||
-    null;
+  const isLoading = profileQuery.isLoading && !profileQuery.data && !user;
+  const error = !user && !profile && profileQuery.error ? profileQuery.error.message : null;
 
   const loadDashboardData = useCallback(() => {
     void profileQuery.refetch();
