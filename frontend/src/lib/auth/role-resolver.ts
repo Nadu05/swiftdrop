@@ -23,12 +23,12 @@ export const ROLE_PRIORITY: readonly UserRole[] = [
  * Authoritative mapping from backend canonical roles to their primary dashboard routes.
  */
 export const ROLE_DASHBOARD_MAP: Record<string, string> = {
-  HEAD_OFFICE_ADMIN: '/admin/dashboard',
-  SYSTEM_ADMIN: '/admin/dashboard',
-  ADMIN: '/admin/dashboard',
-  BRANCH_MANAGER: '/branch/dashboard',
-  BRANCH_ADMIN: '/branch/dashboard',
-  BRANCH_STAFF: '/branch/dashboard',
+  HEAD_OFFICE_ADMIN: '/organization',
+  SYSTEM_ADMIN: '/organization',
+  ADMIN: '/organization',
+  BRANCH_MANAGER: '/organization',
+  BRANCH_ADMIN: '/organization',
+  BRANCH_STAFF: '/organization',
   DISPATCHER: '/dispatcher/dashboard',
   COURIER: '/courier/dashboard',
   MERCHANT: '/merchant/dashboard',
@@ -179,6 +179,17 @@ const ROUTE_ROLE_MATRIX: Array<{ prefix: string; allowedRoles: string[] }> = [
       'BRANCH_MANAGER',
       'BRANCH_ADMIN',
       'BRANCH_STAFF',
+    ],
+  },
+  {
+    prefix: '/branch-admin',
+    allowedRoles: [
+      'BRANCH_MANAGER',
+      'BRANCH_ADMIN',
+      'BRANCH_STAFF',
+      'ADMIN',
+      'HEAD_OFFICE_ADMIN',
+      'SYSTEM_ADMIN',
     ],
   },
   {

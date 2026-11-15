@@ -637,13 +637,13 @@ export default function SwiftDropLandingPage() {
                   </Link>
                 </li>
                 <li>
-                  <Link href="/branch/dashboard" className="hover:text-sky-400">
+                  <Link href="/organization" className="hover:text-sky-400">
                     Branch Admin Portal
                   </Link>
                 </li>
                 <li>
-                  <Link href="/admin/dashboard" className="hover:text-sky-400">
-                    System Admin Portal
+                  <Link href="/organization" className="hover:text-sky-400">
+                    Organization Admin Portal
                   </Link>
                 </li>
               </ul>

@@ -1,19 +1,20 @@
+# =============================================================================
+# SwiftDrop Order Service — Local Developer Configuration
+# Ready-to-use configuration with hardcoded local PostgreSQL & RabbitMQ
+# No environment variables required.
+# =============================================================================
+
 server:
-  port: ${SERVER_PORT:8083}
+  port: 8083
 
 spring:
   application:
     name: order-service
-  config:
-    import:
-      - optional:file:.env[.properties]
-      - optional:file:src/.env[.properties]
-      - optional:file:../../infrastructure/dev/.env[.properties]
-      - optional:file:infrastructure/dev/.env[.properties]
   datasource:
-    url: jdbc:postgresql://${NEON_HOST}/${ORDER_DB_NAME:swiftdrop_order}?sslmode=${NEON_SSLMODE:require}
-    username: ${NEON_USER}
-    password: ${NEON_PASSWORD}
+    url: jdbc:postgresql://localhost:5433/swiftdrop_order
+    username: postgres
+    password: postgrespassword
+    driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10
       minimum-idle: 2
@@ -31,14 +32,14 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
     validate-on-migrate: false
-    url: ${FLYWAY_DB_URL:${spring.datasource.url}}
-    user: ${FLYWAY_DB_USER:${spring.datasource.username}}
-    password: ${FLYWAY_DB_PASSWORD:${spring.datasource.password}}
+    url: jdbc:postgresql://localhost:5433/swiftdrop_order
+    user: postgres
+    password: postgrespassword
   rabbitmq:
-    host: ${RABBITMQ_HOST:localhost}
-    port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USER:swiftdrop}
-    password: ${RABBITMQ_PASSWORD:password}
+    host: localhost
+    port: 5672
+    username: swiftdrop
+    password: password123
     connection-timeout: 10000
 
 management:
@@ -65,23 +66,21 @@ logging:
 
 app:
   jwt:
-    secret: ${JWT_SECRET:Y2hhbmdlLW1lLWluLXByb2R1Y3Rpb24tYW5kLXVzZS1hLXN0cm9uZy1zZWNyZXQtaGVyZS0xMjM0NTY3ODk=}
+    secret: Y2hhbmdlLW1lLWluLXByb2R1Y3Rpb24tYW5kLXVzZS1hLXN0cm9uZy1zZWNyZXQtaGVyZS0xMjM0NTY3ODk=
 
 swiftdrop:
   organization-service:
-    base-url: ${ORGANIZATION_SERVICE_URL:http://localhost:8082}
+    base-url: http://localhost:8082
   pricing:
-    # PROVISIONAL INITIAL RATES (Configurable per BD-06 / UD-10)
     provisional: true
-    currency: ${PRICING_CURRENCY:LKR}
-    base-fee: ${PRICING_BASE_FEE:450.00}
-    per-km-rate: ${PRICING_PER_KM_RATE:65.00}
-    included-weight-kg: ${PRICING_INCLUDED_WEIGHT_KG:1.00}
-    per-kg-rate: ${PRICING_PER_KG_RATE:120.00}
-    quote-validity-minutes: ${PRICING_QUOTE_VALIDITY_MINUTES:30}
+    currency: LKR
+    base-fee: 450.00
+    per-km-rate: 65.00
+    included-weight-kg: 1.00
+    per-kg-rate: 120.00
+    quote-validity-minutes: 30
     size-surcharges:
-      SMALL: ${PRICING_SURCHARGE_SMALL:0.00}
-      MEDIUM: ${PRICING_SURCHARGE_MEDIUM:250.00}
-      LARGE: ${PRICING_SURCHARGE_LARGE:650.00}
-      EXTRA_LARGE: ${PRICING_SURCHARGE_EXTRA_LARGE:1200.00}
-
+      SMALL: 0.00
+      MEDIUM: 250.00
+      LARGE: 650.00
+      EXTRA_LARGE: 1200.00

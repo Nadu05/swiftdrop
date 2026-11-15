@@ -28,6 +28,7 @@ import type {
   MerchantApprovalSummaryMetrics,
   MerchantApprovalFilterState,
 } from '@/components/dispatcher/merchant-approvals/types';
+import { AdminGuard } from '@/components/auth/RoleGuard';
 
 function OrganizationMerchantManagementContent() {
   const searchParams = useSearchParams();
@@ -547,15 +548,17 @@ function OrganizationMerchantManagementContent() {
 
 export default function OrganizationMerchantManagementPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="dispatcher-overview" style={{ padding: '2rem', color: '#64748b' }}>
-          Loading Head Office merchant approvals...
-        </div>
-      }
-    >
-      <OrganizationMerchantManagementContent />
-    </Suspense>
+    <AdminGuard>
+      <Suspense
+        fallback={
+          <div className="dispatcher-overview" style={{ padding: '2rem', color: '#64748b' }}>
+            Loading Head Office merchant approvals...
+          </div>
+        }
+      >
+        <OrganizationMerchantManagementContent />
+      </Suspense>
+    </AdminGuard>
   );
 }
 

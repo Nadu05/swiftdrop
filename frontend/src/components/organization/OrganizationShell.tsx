@@ -1,8 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BranchGuard } from '@/components/auth/RoleGuard';
 import { DashboardTopBar } from '@/components/dashboard/DashboardTopBar';
+import { useAuthStore } from '@/store/auth.store';
+import { resolveOrganizationPermissions } from '@/lib/auth/branch-admin-permissions';
 import OrganizationSidebar from './OrganizationSidebar';
 
 const SIDEBAR_ID = 'org-sidebar';
@@ -11,8 +13,8 @@ const DESKTOP_QUERY = '(min-width: 1024px)';
 const SCROLL_LOCK_CLASS = 'org-scroll-lock';
 
 /**
- * Independent client shell for Member 04's Organization Admin UI.
- * Protected by BranchGuard (ADMIN, HEAD_OFFICE_ADMIN, BRANCH_MANAGER, BRANCH_STAFF).
+ * Shared client shell for Organization & Branch Administration UI.
+ * Protected by BranchGuard (ADMIN, HEAD_OFFICE_ADMIN, BRANCH_MANAGER, BRANCH_ADMIN, BRANCH_STAFF).
  */
 export default function OrganizationShell({
   children,
@@ -21,6 +23,19 @@ export default function OrganizationShell({
 }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+
+  const user = useAuthStore((s) => s.user);
+  const activeRole = useAuthStore((s) => s.activeRole);
+  const permissions = useMemo(
+    () => resolveOrganizationPermissions(user, activeRole),
+    [user, activeRole]
+  );
+
+  const portalLabel = permissions.isGlobalAdmin
+    ? 'Organization Governance'
+    : permissions.authorizedBranchId
+      ? `Branch Administration · Hub #${permissions.authorizedBranchId}`
+      : 'Branch Administration';
 
   const toggleSidebar = useCallback(() => setIsSidebarOpen((open) => !open), []);
 
@@ -71,7 +86,7 @@ export default function OrganizationShell({
 
         <div className="org-shell__body">
           <DashboardTopBar
-            portalLabel="Organization Governance"
+            portalLabel={portalLabel}
             theme="light"
             onMobileMenuToggle={toggleSidebar}
           />

@@ -16,6 +16,8 @@ import type { BranchResponse } from '@/types/organization.types';
 export interface BranchDetailsProps {
   branch: BranchResponse;
   onRequestStatusToggle: (branch: BranchResponse) => void;
+  canManageBranch?: boolean;
+  canToggleStatus?: boolean;
 }
 
 function formatDateTime(isoString: string | undefined | null): string {
@@ -40,6 +42,8 @@ function formatDateTime(isoString: string | undefined | null): string {
 export default function BranchDetails({
   branch,
   onRequestStatusToggle,
+  canManageBranch = false,
+  canToggleStatus = false,
 }: BranchDetailsProps) {
   const isActive = branch.status === 'ACTIVE';
 
@@ -89,26 +93,32 @@ export default function BranchDetails({
           </div>
         </div>
 
-        <div className="org-details-hero__actions">
-          <Link
-            href={`/organization/branches/${branch.id}/edit`}
-            className="org-btn org-btn--primary"
-          >
-            <Pencil size={14} aria-hidden="true" />
-            <span>Edit Branch</span>
-          </Link>
+        {(canManageBranch || canToggleStatus) && (
+          <div className="org-details-hero__actions">
+            {canManageBranch && (
+              <Link
+                href={`/organization/branches/${branch.id}/edit`}
+                className="org-btn org-btn--primary"
+              >
+                <Pencil size={14} aria-hidden="true" />
+                <span>Edit Branch</span>
+              </Link>
+            )}
 
-          <button
-            type="button"
-            className={`org-btn ${
-              isActive ? 'org-btn--danger-outline' : 'org-btn--success-outline'
-            }`}
-            onClick={() => onRequestStatusToggle(branch)}
-          >
-            <Power size={14} aria-hidden="true" />
-            <span>{isActive ? 'Deactivate Branch' : 'Activate Branch'}</span>
-          </button>
-        </div>
+            {canToggleStatus && (
+              <button
+                type="button"
+                className={`org-btn ${
+                  isActive ? 'org-btn--danger-outline' : 'org-btn--success-outline'
+                }`}
+                onClick={() => onRequestStatusToggle(branch)}
+              >
+                <Power size={14} aria-hidden="true" />
+                <span>{isActive ? 'Deactivate Branch' : 'Activate Branch'}</span>
+              </button>
+            )}
+          </div>
+        )}
       </section>
 
       {/* 2. Detail Cards Grid */}

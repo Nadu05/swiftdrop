@@ -19,6 +19,7 @@ import {
   type BranchFormValues,
 } from '@/schema/branch.schema';
 import type { BranchResponse } from '@/types/organization.types';
+import { AdminGuard } from '@/components/auth/RoleGuard';
 
 /**
  * Edit Branch Page (/organization/branches/[id]/edit)
@@ -92,7 +93,8 @@ export default function EditBranchPage() {
   };
 
   return (
-    <div className="org-page">
+    <AdminGuard>
+      <div className="org-page">
       {/* In-page Breadcrumb & Back Navigation */}
       <div className="org-subpage-topbar">
         <Link href="/organization/branches" className="org-back-link">
@@ -169,7 +171,8 @@ export default function EditBranchPage() {
           onSuccessNavigate={handleSuccessNavigate}
         />
       ) : null}
-    </div>
+      </div>
+    </AdminGuard>
   );
 }
 

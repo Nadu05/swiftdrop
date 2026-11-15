@@ -2,20 +2,23 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { memo, useEffect, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
+  Activity,
+  ArrowDownToLine,
+  ArrowUpFromLine,
   Building2,
   ChartColumn,
   ClipboardList,
   LayoutDashboard,
-  ShieldCheck,
-  Settings,
   Store,
   Truck,
   Users,
   X,
 } from 'lucide-react';
+import { useAuthStore } from '@/store/auth.store';
+import { resolveOrganizationPermissions } from '@/lib/auth/branch-admin-permissions';
 
 export interface OrganizationNavItem {
   id: string;
@@ -26,9 +29,72 @@ export interface OrganizationNavItem {
 }
 
 /**
- * Navigation items matching Figma Frame 34 — Admin / Branch Directory and Staff (node 20:843).
- * In Phase 1, `/organization` and `/organization/branches` are active routes;
- * sibling Head Office items are rendered to match the Figma sidebar design.
+ * Branch Administrator Sidebar Navigation Items.
+ * Strictly excludes Head Office / Main System Admin modules such as
+ * Branch Creation, Merchant Approvals, and Global User Management.
+ */
+export const BRANCH_ADMIN_NAV_ITEMS: readonly OrganizationNavItem[] = [
+  {
+    id: 'dashboard',
+    label: 'Dashboard',
+    href: '/organization',
+    icon: LayoutDashboard,
+    implemented: true,
+  },
+  {
+    id: 'staff-management',
+    label: 'Staff Management',
+    href: '/organization/staff',
+    icon: Users,
+    implemented: true,
+  },
+  {
+    id: 'orders',
+    label: 'Orders',
+    href: '/organization/orders',
+    icon: ClipboardList,
+    implemented: true,
+  },
+  {
+    id: 'incoming-parcels',
+    label: 'Incoming Parcels',
+    href: '/organization/incoming-parcels',
+    icon: ArrowDownToLine,
+    implemented: true,
+  },
+  {
+    id: 'outgoing-parcels',
+    label: 'Outgoing Parcels',
+    href: '/organization/outgoing-parcels',
+    icon: ArrowUpFromLine,
+    implemented: true,
+  },
+  {
+    id: 'couriers-dispatchers',
+    label: 'Courier & Dispatcher Overview',
+    href: '/organization/couriers',
+    icon: Truck,
+    implemented: true,
+  },
+  {
+    id: 'reports-analytics',
+    label: 'Reports & Analytics',
+    href: '/organization/reports',
+    icon: ChartColumn,
+    implemented: true,
+  },
+  {
+    id: 'branch-activity',
+    label: 'Branch Activity',
+    href: '/organization/activity',
+    icon: Activity,
+    implemented: true,
+  },
+];
+
+/**
+ * Main System / Head Office Administrator Navigation Items.
+ * Includes global Branch Management and Merchant Approvals plus branch operations oversight.
  */
 export const ORGANIZATION_NAV_ITEMS: readonly OrganizationNavItem[] = [
   {
@@ -39,34 +105,6 @@ export const ORGANIZATION_NAV_ITEMS: readonly OrganizationNavItem[] = [
     implemented: true,
   },
   {
-    id: 'merchant-approvals',
-    label: 'Merchant approvals',
-    href: '/organization/merchants',
-    icon: Store,
-    implemented: true,
-  },
-  {
-    id: 'orders',
-    label: 'Orders',
-    href: '/organization/branches#orders',
-    icon: ClipboardList,
-    implemented: false,
-  },
-  {
-    id: 'customers',
-    label: 'Customers',
-    href: '/organization/branches#customers',
-    icon: Users,
-    implemented: false,
-  },
-  {
-    id: 'couriers',
-    label: 'Couriers',
-    href: '/organization/branches#couriers',
-    icon: Truck,
-    implemented: false,
-  },
-  {
     id: 'branches',
     label: 'Branches',
     href: '/organization/branches',
@@ -74,25 +112,60 @@ export const ORGANIZATION_NAV_ITEMS: readonly OrganizationNavItem[] = [
     implemented: true,
   },
   {
-    id: 'reports',
-    label: 'Reports',
-    href: '/organization/branches#reports',
+    id: 'merchant-approvals',
+    label: 'Merchant approvals',
+    href: '/organization/merchants',
+    icon: Store,
+    implemented: true,
+  },
+  {
+    id: 'staff-management',
+    label: 'Staff Management',
+    href: '/organization/staff',
+    icon: Users,
+    implemented: true,
+  },
+  {
+    id: 'orders',
+    label: 'Orders',
+    href: '/organization/orders',
+    icon: ClipboardList,
+    implemented: true,
+  },
+  {
+    id: 'incoming-parcels',
+    label: 'Incoming Parcels',
+    href: '/organization/incoming-parcels',
+    icon: ArrowDownToLine,
+    implemented: true,
+  },
+  {
+    id: 'outgoing-parcels',
+    label: 'Outgoing Parcels',
+    href: '/organization/outgoing-parcels',
+    icon: ArrowUpFromLine,
+    implemented: true,
+  },
+  {
+    id: 'couriers-dispatchers',
+    label: 'Courier & Dispatcher Overview',
+    href: '/organization/couriers',
+    icon: Truck,
+    implemented: true,
+  },
+  {
+    id: 'reports-analytics',
+    label: 'Reports & Analytics',
+    href: '/organization/reports',
     icon: ChartColumn,
-    implemented: false,
+    implemented: true,
   },
   {
-    id: 'roles-audit',
-    label: 'Roles & audit',
-    href: '/organization/branches#roles-audit',
-    icon: ShieldCheck,
-    implemented: false,
-  },
-  {
-    id: 'settings',
-    label: 'Settings',
-    href: '/organization/branches#settings',
-    icon: Settings,
-    implemented: false,
+    id: 'branch-activity',
+    label: 'Branch Activity',
+    href: '/organization/activity',
+    icon: Activity,
+    implemented: true,
   },
 ];
 
@@ -112,6 +185,21 @@ function OrganizationSidebar({
   const pathname = usePathname();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
+  const user = useAuthStore((s) => s.user);
+  const activeRole = useAuthStore((s) => s.activeRole);
+
+  const permissions = useMemo(
+    () => resolveOrganizationPermissions(user, activeRole),
+    [user, activeRole]
+  );
+
+  const navItems = useMemo(() => {
+    if (permissions.isGlobalAdmin) {
+      return ORGANIZATION_NAV_ITEMS;
+    }
+    return BRANCH_ADMIN_NAV_ITEMS;
+  }, [permissions.isGlobalAdmin]);
+
   useEffect(() => {
     if (isOpen) {
       closeButtonRef.current?.focus();
@@ -120,6 +208,9 @@ function OrganizationSidebar({
 
   const isItemActive = (item: OrganizationNavItem): boolean => {
     if (!pathname) return false;
+    if (item.id === 'overview' || item.id === 'dashboard') {
+      return pathname === '/organization' || pathname === '/organization/branch-admin';
+    }
     if (item.id === 'branches') {
       return pathname === '/organization/branches' || pathname.startsWith('/organization/branches/');
     }
@@ -131,11 +222,20 @@ function OrganizationSidebar({
         pathname.startsWith('/organization/merchant-approvals/')
       );
     }
-    if (item.id === 'overview') {
-      return pathname === '/organization';
-    }
-    return false;
+    return pathname === item.href || pathname.startsWith(`${item.href}/`);
   };
+
+  const brandSubtitle = permissions.isGlobalAdmin
+    ? 'HEAD OFFICE'
+    : permissions.authorizedBranchId
+      ? `BRANCH ADMIN · #${permissions.authorizedBranchId}`
+      : 'BRANCH ADMIN';
+
+  const footerLabel = permissions.isGlobalAdmin
+    ? 'Signed in: Head Office'
+    : permissions.authorizedBranchId
+      ? `Signed in: Branch #${permissions.authorizedBranchId}`
+      : 'Signed in: Branch Admin';
 
   return (
     <>
@@ -148,17 +248,21 @@ function OrganizationSidebar({
       <aside
         id={id}
         className={`org-sidebar${isOpen ? ' org-sidebar--open' : ''}`}
-        aria-label="Organization Head Office sidebar"
+        aria-label={
+          permissions.isGlobalAdmin
+            ? 'Organization Head Office sidebar'
+            : 'Branch Administrator sidebar'
+        }
       >
         <div className="org-sidebar__header">
           <Link
             href="/organization"
             className="org-sidebar__brand"
-            aria-label="SwiftDrop Head Office — Organization Admin Dashboard"
+            aria-label="SwiftDrop — Administration Dashboard"
             onClick={onNavigate}
           >
             <span className="org-sidebar__brand-name">SwiftDrop</span>
-            <span className="org-sidebar__brand-subtitle">HEAD OFFICE</span>
+            <span className="org-sidebar__brand-subtitle">{brandSubtitle}</span>
           </Link>
 
           <button
@@ -172,9 +276,9 @@ function OrganizationSidebar({
           </button>
         </div>
 
-        <nav className="org-sidebar__nav" aria-label="Organization navigation">
+        <nav className="org-sidebar__nav" aria-label="Administration navigation">
           <ul className="org-sidebar__list">
-            {ORGANIZATION_NAV_ITEMS.map((item) => {
+            {navItems.map((item) => {
               const Icon = item.icon;
               const active = isItemActive(item);
 
@@ -214,7 +318,7 @@ function OrganizationSidebar({
         <div className="org-sidebar__footer">
           <div className="org-sidebar__signed-in">
             <span className="org-sidebar__status-dot" aria-hidden="true" />
-            <span>Signed in: Head Office</span>
+            <span>{footerLabel}</span>
           </div>
         </div>
       </aside>
@@ -223,4 +327,3 @@ function OrganizationSidebar({
 }
 
 export default memo(OrganizationSidebar);
-

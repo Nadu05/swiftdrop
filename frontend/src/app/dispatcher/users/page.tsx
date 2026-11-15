@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import BranchWorkforcePage from '@/app/branch/workforce/page';
+import BranchStaffManagement from '@/components/organization/branch-admin/BranchStaffManagement';
 
 export default function DispatcherUsersPage() {
-  return <BranchWorkforcePage />;
+  return <BranchStaffManagement />;
 }

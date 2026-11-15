@@ -461,6 +461,29 @@ export interface ReceiveManifestRequest {
   notes?: string;
 }
 
+export interface ParcelCustodyRecordDto {
+  id: number;
+  orderId?: string | number;
+  trackingNumber?: string;
+  parcelReference?: string;
+  manifestId?: number;
+  manifestCode?: string;
+  actionType?: string;
+  custodyStatus?: string;
+  fromHolderType?: string;
+  fromHolderId?: string;
+  fromHolderName?: string;
+  toHolderType?: string;
+  toHolderId?: string;
+  toHolderName?: string;
+  branchId?: number;
+  branchCode?: string;
+  branchName?: string;
+  notes?: string;
+  recordedAt?: string;
+  createdAt?: string;
+}
+
 function handleDispatchError(error: unknown, fallback: string): never {
   const message = getApiErrorMessage(error);
   throw new Error(message && message !== 'An unexpected error occurred' ? message : fallback);
@@ -891,6 +914,22 @@ export const dispatchApi = {
       return data;
     } catch (error) {
       handleDispatchError(error, 'Failed to cancel transfer manifest');
+    }
+  },
+
+  async getCustodyRecords(params?: {
+    orderId?: string | number;
+    trackingNumber?: string;
+    manifestId?: number;
+  }): Promise<ParcelCustodyRecordDto[]> {
+    try {
+      const { data } = await axiosClient.get<ParcelCustodyRecordDto[]>(
+        '/api/v1/dispatch/custody',
+        { params }
+      );
+      return Array.isArray(data) ? data : [];
+    } catch (error) {
+      handleDispatchError(error, 'Failed to load parcel custody records');
     }
   },
 };

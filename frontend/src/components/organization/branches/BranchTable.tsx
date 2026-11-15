@@ -24,6 +24,8 @@ export interface BranchTableProps {
   onRetry: () => void;
   onResetFilters: () => void;
   onToggleStatus: (branch: BranchResponse) => void;
+  canManageBranches?: boolean;
+  canToggleStatus?: boolean;
 }
 
 export default function BranchTable({
@@ -35,6 +37,8 @@ export default function BranchTable({
   onRetry,
   onResetFilters,
   onToggleStatus,
+  canManageBranches = false,
+  canToggleStatus = false,
 }: BranchTableProps) {
   return (
     <section className="org-directory-card" aria-labelledby="org-directory-card-heading">
@@ -229,30 +233,34 @@ export default function BranchTable({
                           <span>View</span>
                         </Link>
 
-                        <Link
-                          href={`/organization/branches/${branch.id}/edit`}
-                          className="org-action-btn"
-                          aria-label={`Edit ${branch.name}`}
-                          title="Edit branch"
-                        >
-                          <Pencil size={14} aria-hidden="true" />
-                          <span>Edit</span>
-                        </Link>
+                        {canManageBranches && (
+                          <Link
+                            href={`/organization/branches/${branch.id}/edit`}
+                            className="org-action-btn"
+                            aria-label={`Edit ${branch.name}`}
+                            title="Edit branch"
+                          >
+                            <Pencil size={14} aria-hidden="true" />
+                            <span>Edit</span>
+                          </Link>
+                        )}
 
-                        <button
-                          type="button"
-                          className={`org-action-btn ${
-                            isActive
-                              ? 'org-action-btn--deactivate'
-                              : 'org-action-btn--activate'
-                          }`}
-                          onClick={() => onToggleStatus(branch)}
-                          aria-label={`${isActive ? 'Deactivate' : 'Activate'} ${branch.name}`}
-                          title={isActive ? 'Deactivate branch' : 'Activate branch'}
-                        >
-                          <Power size={14} aria-hidden="true" />
-                          <span>{isActive ? 'Deactivate' : 'Activate'}</span>
-                        </button>
+                        {canToggleStatus && (
+                          <button
+                            type="button"
+                            className={`org-action-btn ${
+                              isActive
+                                ? 'org-action-btn--deactivate'
+                                : 'org-action-btn--activate'
+                            }`}
+                            onClick={() => onToggleStatus(branch)}
+                            aria-label={`${isActive ? 'Deactivate' : 'Activate'} ${branch.name}`}
+                            title={isActive ? 'Deactivate branch' : 'Activate branch'}
+                          >
+                            <Power size={14} aria-hidden="true" />
+                            <span>{isActive ? 'Deactivate' : 'Activate'}</span>
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

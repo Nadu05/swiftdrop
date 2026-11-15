@@ -10,6 +10,7 @@ const protectedRoutes = [
   '/courier',
   '/dispatcher',
   '/branch',
+  '/branch-admin',
   '/admin',
   '/organization',
   '/book',

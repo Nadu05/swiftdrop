@@ -62,7 +62,7 @@ const SEEDED_ACCOUNTS = [
     description: 'Monitor Colombo Central Hub incoming/outgoing manifests and branch couriers',
     icon: Building2,
     color: '#ec4899',
-    badge: '/branch/dashboard',
+    badge: '/organization',
   },
   {
     key: 'SYSTEM_ADMIN',
@@ -71,7 +71,7 @@ const SEEDED_ACCOUNTS = [
     description: 'System-wide user management, branch governance, merchant approvals & health',
     icon: Shield,
     color: '#a855f7',
-    badge: '/admin/dashboard',
+    badge: '/organization',
   },
 ] as const;
 

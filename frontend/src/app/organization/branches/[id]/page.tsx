@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   RefreshCw,
   SearchX,
+  ShieldAlert,
   X,
 } from 'lucide-react';
 import BranchDetails from '@/components/organization/branches/BranchDetails';
@@ -18,6 +19,11 @@ import {
   OrganizationApiError,
 } from '@/api/services/organization.api';
 import type { BranchResponse } from '@/types/organization.types';
+import { useAuthStore } from '@/store/auth.store';
+import {
+  canAccessBranchData,
+  resolveOrganizationPermissions,
+} from '@/lib/auth/branch-admin-permissions';
 
 /**
  * Branch Details Page (/organization/branches/[id])
@@ -32,9 +38,21 @@ export default function BranchDetailsPage() {
   const numericId = Number(rawId);
   const isValidBranchId = Number.isInteger(numericId) && numericId > 0;
 
+  const user = useAuthStore((s) => s.user);
+  const activeRole = useAuthStore((s) => s.activeRole);
+  const permissions = useMemo(
+    () => resolveOrganizationPermissions(user, activeRole),
+    [user, activeRole]
+  );
+  const isAuthorizedForBranch = useMemo(
+    () => isValidBranchId && canAccessBranchData(user, numericId, activeRole),
+    [isValidBranchId, user, numericId, activeRole]
+  );
+
   const [branch, setBranch] = useState<BranchResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isNotFound, setIsNotFound] = useState<boolean>(false);
+  const [isForbidden, setIsForbidden] = useState<boolean>(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   // Status confirmation dialog state
@@ -49,8 +67,19 @@ export default function BranchDetailsPage() {
       return;
     }
 
+    if (!isAuthorizedForBranch) {
+      setIsLoading(false);
+      setIsForbidden(true);
+      setBranch(null);
+      setLoadError(
+        `Access denied: Your Branch Administrator session is scoped to Branch #${permissions.authorizedBranchId ?? 'None'} and cannot view Branch #${numericId}.`
+      );
+      return;
+    }
+
     setIsLoading(true);
     setIsNotFound(false);
+    setIsForbidden(false);
     setLoadError(null);
 
     try {
@@ -71,7 +100,13 @@ export default function BranchDetailsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [isValidBranchId, numericId, rawId]);
+  }, [
+    isValidBranchId,
+    isAuthorizedForBranch,
+    permissions.authorizedBranchId,
+    numericId,
+    rawId,
+  ]);
 
   useEffect(() => {
     fetchBranch();
@@ -143,6 +178,22 @@ export default function BranchDetailsPage() {
             </p>
           </div>
         </section>
+      ) : isForbidden ? (
+        <section className="org-directory-card" role="alert">
+          <div className="org-state-box org-state-box--error">
+            <div className="org-state-box__icon org-state-box__icon--error" aria-hidden="true">
+              <ShieldAlert size={22} />
+            </div>
+            <h2 className="org-state-box__title">403 — Branch Scope Restricted</h2>
+            <p className="org-state-box__desc">{loadError}</p>
+            <div className="org-state-box__actions">
+              <Link href="/organization" className="org-btn org-btn--primary">
+                <ArrowLeft size={15} aria-hidden="true" />
+                <span>Return to Assigned Branch Dashboard</span>
+              </Link>
+            </div>
+          </div>
+        </section>
       ) : isNotFound ? (
         /* 2. Branch Not Found State (HTTP 404 or Invalid ID) */
         <section className="org-directory-card" role="alert">
@@ -195,6 +246,8 @@ export default function BranchDetailsPage() {
           <BranchDetails
             branch={branch}
             onRequestStatusToggle={() => setIsStatusDialogOpen(true)}
+            canManageBranch={permissions.canManageAllBranches}
+            canToggleStatus={permissions.canCreateOrDeactivateBranches}
           />
 
           <BranchStatusDialog

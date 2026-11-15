@@ -18,8 +18,27 @@ import OrganizationWelcome from './OrganizationWelcome';
 import OrganizationSummaryCards from './OrganizationSummaryCards';
 import BranchStatusOverview from './BranchStatusOverview';
 import ServiceAreaOverview from './ServiceAreaOverview';
+import BranchAdminDashboard from '@/components/organization/branch-admin/BranchAdminDashboard';
+import { useAuthStore } from '@/store/auth.store';
+import { resolveOrganizationPermissions } from '@/lib/auth/branch-admin-permissions';
 
 export default function OrganizationDashboard() {
+  const user = useAuthStore((s) => s.user);
+  const activeRole = useAuthStore((s) => s.activeRole);
+  const permissions = useMemo(
+    () => resolveOrganizationPermissions(user, activeRole),
+    [user, activeRole]
+  );
+
+  // Branch Administrators see their assigned Branch Administrator Dashboard at /organization
+  if (!permissions.isGlobalAdmin) {
+    return <BranchAdminDashboard />;
+  }
+
+  return <HeadOfficeOrganizationDashboard />;
+}
+
+function HeadOfficeOrganizationDashboard() {
   const [branches, setBranches] = useState<BranchResponse[]>([]);
   const [serviceAreas, setServiceAreas] = useState<ServiceAreaResponse[]>([]);
 

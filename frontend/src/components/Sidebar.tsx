@@ -34,11 +34,10 @@ interface SidebarProps {
 }
 
 const adminNavItems = [
-  { name: 'Admin Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
-  { name: 'User Management', href: '/admin/users', icon: Users },
-  { name: 'Roles & Permissions', href: '/admin/roles', icon: Layers },
+  { name: 'Organization Admin Dashboard', href: '/organization', icon: LayoutDashboard },
   { name: 'Branch Network', href: '/organization/branches', icon: Building2 },
   { name: 'Merchant Approvals', href: '/organization/merchants', icon: Server },
+  { name: 'Staff Management', href: '/organization/staff', icon: Users },
   { name: 'Customer Directory', href: '/customers', icon: Target },
   { name: 'Service Health', href: '/health', icon: Activity },
   { name: 'API Diagnostics', href: '/api-tester', icon: Terminal },
@@ -161,8 +160,7 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarPr
               const Icon = item.icon;
               const isActive =
                 pathname === item.href ||
-                (item.href === '/admin/dashboard' && pathname === '/admin') ||
-                (item.href !== '/admin/dashboard' && pathname.startsWith(item.href));
+                (item.href !== '/organization' && pathname.startsWith(item.href));
               return (
                 <Link
                   key={item.href}

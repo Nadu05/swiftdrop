@@ -5,6 +5,8 @@ import { usePathname } from 'next/navigation';
 import { memo, useMemo } from 'react';
 import type { Ref } from 'react';
 import { Menu } from 'lucide-react';
+import { useAuthStore } from '@/store/auth.store';
+import { resolveOrganizationPermissions } from '@/lib/auth/branch-admin-permissions';
 
 export interface OrganizationHeaderProps {
   sidebarId: string;
@@ -18,14 +20,55 @@ interface BreadcrumbSegment {
   href?: string;
 }
 
-function getBreadcrumbsForPath(pathname: string | null): BreadcrumbSegment[] {
+function getBreadcrumbsForPath(
+  pathname: string | null,
+  isGlobalAdmin: boolean
+): BreadcrumbSegment[] {
   const base: BreadcrumbSegment[] = [
     { label: 'SwiftDrop', href: '/' },
-    { label: 'Admin', href: '/organization' },
+    {
+      label: isGlobalAdmin ? 'Head Office' : 'Branch Admin',
+      href: '/organization',
+    },
   ];
 
-  if (!pathname || pathname === '/organization') {
-    return [...base, { label: 'Organization Dashboard' }];
+  if (!pathname || pathname === '/organization' || pathname === '/organization/branch-admin') {
+    return [
+      ...base,
+      { label: isGlobalAdmin ? 'Organization Dashboard' : 'Branch Dashboard' },
+    ];
+  }
+
+  if (pathname.startsWith('/organization/staff')) {
+    return [...base, { label: 'Staff Management' }];
+  }
+
+  if (pathname.startsWith('/organization/orders')) {
+    return [...base, { label: 'Branch Orders' }];
+  }
+
+  if (pathname.startsWith('/organization/incoming-parcels')) {
+    return [...base, { label: 'Incoming Parcels' }];
+  }
+
+  if (pathname.startsWith('/organization/outgoing-parcels')) {
+    return [...base, { label: 'Outgoing Parcels' }];
+  }
+
+  if (pathname.startsWith('/organization/parcels')) {
+    return [...base, { label: 'Incoming & Outgoing Parcels' }];
+  }
+
+  if (pathname.startsWith('/organization/couriers')) {
+    return [...base, { label: 'Courier & Dispatcher Overview' }];
+  }
+
+  if (pathname.startsWith('/organization/reports')) {
+    return [...base, { label: 'Reports & Analytics' }];
+  }
+
+  if (pathname.startsWith('/organization/activity')) {
+    return [...base, { label: 'Branch Activity Log' }];
   }
 
   if (pathname === '/organization/branches/create') {
@@ -55,7 +98,7 @@ function getBreadcrumbsForPath(pathname: string | null): BreadcrumbSegment[] {
     ];
   }
 
-  return [...base, { label: 'Branch Directory and Staff' }];
+  return [...base, { label: 'Branch Directory' }];
 }
 
 function OrganizationHeader({
@@ -65,7 +108,17 @@ function OrganizationHeader({
   menuButtonRef,
 }: OrganizationHeaderProps) {
   const pathname = usePathname();
-  const segments = useMemo(() => getBreadcrumbsForPath(pathname), [pathname]);
+  const user = useAuthStore((s) => s.user);
+  const activeRole = useAuthStore((s) => s.activeRole);
+  const permissions = useMemo(
+    () => resolveOrganizationPermissions(user, activeRole),
+    [user, activeRole]
+  );
+
+  const segments = useMemo(
+    () => getBreadcrumbsForPath(pathname, permissions.isGlobalAdmin),
+    [pathname, permissions.isGlobalAdmin]
+  );
 
   return (
     <header className="org-header">

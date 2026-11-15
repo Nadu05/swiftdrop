@@ -23,6 +23,7 @@ import type {
   BranchStatusFilter,
 } from '@/types/organization.types';
 import { useAuthStore } from '@/store/auth.store';
+import { resolveOrganizationPermissions } from '@/lib/auth/branch-admin-permissions';
 
 const DIRECTORY_TABS = [
   { id: 'branch-directory', label: 'Branch directory', active: true },
@@ -33,15 +34,12 @@ const DIRECTORY_TABS = [
 
 export default function OrganizationBranchesPage() {
   const user = useAuthStore((s) => s.user);
-  const canAddBranch = Boolean(
-    user?.roles?.some(
-      (r) =>
-        r === 'ADMIN' ||
-        r === 'HEAD_OFFICE_ADMIN' ||
-        r === 'ROLE_ADMIN' ||
-        r === 'ROLE_HEAD_OFFICE_ADMIN'
-    )
+  const activeRole = useAuthStore((s) => s.activeRole);
+  const permissions = useMemo(
+    () => resolveOrganizationPermissions(user, activeRole),
+    [user, activeRole]
   );
+  const canAddBranch = permissions.canCreateOrDeactivateBranches;
 
   const [branches, setBranches] = useState<BranchResponse[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -74,7 +72,15 @@ export default function OrganizationBranchesPage() {
     try {
       setError(null);
       const data = await getBranches();
-      setBranches(data);
+      // Enforce branch data isolation: Branch Admins only see their assigned branch
+      const scoped = permissions.canManageAllBranches
+        ? data
+        : data.filter(
+            (b) =>
+              permissions.authorizedBranchId !== null &&
+              Number(b.id) === Number(permissions.authorizedBranchId)
+          );
+      setBranches(scoped);
       setLastUpdated(formatTimestamp());
     } catch (err: unknown) {
       setBranches([]);
@@ -87,7 +93,7 @@ export default function OrganizationBranchesPage() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, []);
+  }, [permissions.canManageAllBranches, permissions.authorizedBranchId]);
 
   useEffect(() => {
     loadLiveBranches();
@@ -317,6 +323,8 @@ export default function OrganizationBranchesPage() {
         onRetry={handleRetry}
         onResetFilters={handleResetFilters}
         onToggleStatus={handleRequestToggleStatus}
+        canManageBranches={permissions.canManageAllBranches}
+        canToggleStatus={permissions.canCreateOrDeactivateBranches}
       />
 
       {/* Activate / Deactivate Confirmation Dialog */}
