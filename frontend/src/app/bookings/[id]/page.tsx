@@ -25,7 +25,7 @@ import {
   RotateCcw,
   ExternalLink,
 } from 'lucide-react';
-import { getOrderById } from '@/api/services/orders.api';
+import { getOrderById, getOrderCourier } from '@/api/services/orders.api';
 import type { DeliveryOrder, OrderStatus } from '@/types/order.types';
 
 /**
@@ -100,7 +100,18 @@ export default function OrderDetailsPage() {
 
     try {
       const data = await getOrderById(id);
-      setOrder(data);
+      // The assigned courier lives in the Dispatch Service; no courier yet means "not assigned yet"
+      const courier = await getOrderCourier(data.id ?? id);
+      setOrder({
+        ...data,
+        courierName: courier?.name,
+        courierPhone: courier?.phone,
+        courierVehicle: courier
+          ? [courier.vehicleType && courier.vehicleType.charAt(0) + courier.vehicleType.slice(1).toLowerCase(), courier.vehiclePlate]
+              .filter(Boolean)
+              .join(' · ') || undefined
+          : undefined,
+      });
     } catch (err: any) {
       setError(
         err.message || 'Unable to load delivery details. Please check your connection and try again.'
@@ -333,7 +344,7 @@ export default function OrderDetailsPage() {
                     </span>
                     <div className="sd-ribbon-text">
                       <span className="lbl">Assigned Courier</span>
-                      <span className="val">{order.courierName || 'Kasun Perera'}</span>
+                      <span className="val">{order.courierName || 'Not assigned yet'}</span>
                     </div>
                   </div>
                 </div>
@@ -417,38 +428,44 @@ export default function OrderDetailsPage() {
                     })}
                   </div>
 
-                  {/* Assigned Courier Strip */}
+                  {/* Assigned Courier Strip: only real courier details, nothing made up */}
                   <div className="sd-courier-box">
                     <div className="sd-courier-avatar">
-                      {order.courierName
-                        ? order.courierName
-                            .split(' ')
-                            .map((n) => n[0])
-                            .slice(0, 2)
-                            .join('')
-                            .toUpperCase()
-                        : 'KP'}
+                      {order.courierName ? (
+                        order.courierName
+                          .split(' ')
+                          .map((n) => n[0])
+                          .slice(0, 2)
+                          .join('')
+                          .toUpperCase()
+                      ) : (
+                        <Truck size={18} />
+                      )}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div className="sd-courier-name-row">
-                        <span className="sd-courier-name">{order.courierName || 'Kasun Perera'}</span>
-                        <span className="sd-courier-verified-tag">
-                          <ShieldCheck size={12} /> Verified Courier
-                        </span>
+                        <span className="sd-courier-name">{order.courierName || 'Not assigned yet'}</span>
+                        {order.courierName && (
+                          <span className="sd-courier-verified-tag">
+                            <ShieldCheck size={12} /> Verified Courier
+                          </span>
+                        )}
                       </div>
                       <div className="sd-courier-meta">
-                        <span>Colombo Central Fleet</span>
+                        <span>
+                          {order.courierName
+                            ? [order.courierPhone, order.courierVehicle].filter(Boolean).join(' · ') || 'Assigned courier'
+                            : 'A courier will be assigned to your delivery soon.'}
+                        </span>
                       </div>
                     </div>
-                    <div className="sd-courier-actions">
-                      <a
-                        href={`tel:${order.courierPhone || '+94771234567'}`}
-                        className="sd-courier-call-btn"
-                        title="Call courier"
-                      >
-                        <Phone size={13} /> Call
-                      </a>
-                    </div>
+                    {order.courierPhone && (
+                      <div className="sd-courier-actions">
+                        <a href={`tel:${order.courierPhone}`} className="sd-courier-call-btn" title="Call courier">
+                          <Phone size={13} /> Call
+                        </a>
+                      </div>
+                    )}
                   </div>
                 </section>
 

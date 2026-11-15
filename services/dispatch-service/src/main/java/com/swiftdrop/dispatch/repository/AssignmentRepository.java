@@ -48,6 +48,18 @@ public interface AssignmentRepository extends JpaRepository<Assignment, Long> {
     @Query("""
         SELECT a FROM Assignment a
         JOIN FETCH a.courier c
+        WHERE a.orderId = :orderId
+          AND a.status IN :statuses
+        ORDER BY a.assignedAt DESC, a.id DESC
+        """)
+    List<Assignment> findActiveByOrderIdWithCourier(
+        @Param("orderId") Long orderId,
+        @Param("statuses") Collection<AssignmentStatus> statuses
+    );
+
+    @Query("""
+        SELECT a FROM Assignment a
+        JOIN FETCH a.courier c
         WHERE a.id = :id
         """)
     Optional<Assignment> findByIdWithCourier(@Param("id") Long id);

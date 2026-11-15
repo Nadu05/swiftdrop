@@ -1,4 +1,5 @@
 import { apiClient } from '@/api/axios-client';
+import { provinceOfDistrict } from '@/lib/provinces';
 import type { 
   CityOption,
   OrderQuoteRequest, 
@@ -6,6 +7,7 @@ import type {
   CreateOrderRequest,
   CreateOrderResponse,
   DeliveryOrder,
+  OrderCourier,
   PublicTrackingResponse
 } from '@/types/order.types';
 
@@ -22,15 +24,98 @@ import type {
  * The codes match the Order Service town list (GET /api/v1/orders/cities).
  */
 const FALLBACK_CITIES: CityOption[] = [
-  ['AMPARA', 'Ampara'], ['ANURADHAPURA', 'Anuradhapura'], ['BADULLA', 'Badulla'], ['BATTICALOA', 'Batticaloa'],
-  ['CHILAW', 'Chilaw'], ['COLOMBO', 'Colombo'], ['DAMBULLA', 'Dambulla'], ['DEHIWALA', 'Dehiwala-Mount Lavinia'],
-  ['GALLE', 'Galle'], ['GAMPAHA', 'Gampaha'], ['HAMBANTOTA', 'Hambantota'], ['JAFFNA', 'Jaffna'],
-  ['KALUTARA', 'Kalutara'], ['KANDY', 'Kandy'], ['KEGALLE', 'Kegalle'], ['KILINOCHCHI', 'Kilinochchi'],
-  ['KOTTE', 'Sri Jayawardenepura Kotte'], ['KURUNEGALA', 'Kurunegala'], ['MANNAR', 'Mannar'], ['MATALE', 'Matale'],
-  ['MATARA', 'Matara'], ['MONARAGALA', 'Monaragala'], ['MORATUWA', 'Moratuwa'], ['MULLAITIVU', 'Mullaitivu'],
-  ['NEGOMBO', 'Negombo'], ['NUWARA_ELIYA', 'Nuwara Eliya'], ['PANADURA', 'Panadura'], ['POLONNARUWA', 'Polonnaruwa'],
-  ['PUTTALAM', 'Puttalam'], ['RATNAPURA', 'Ratnapura'], ['TRINCOMALEE', 'Trincomalee'], ['VAVUNIYA', 'Vavuniya'],
-].map(([code, name]) => ({ code, name }));
+  ['COLOMBO', 'Colombo', 'Colombo'],
+  ['DEHIWALA', 'Dehiwala-Mount Lavinia', 'Colombo'],
+  ['KOTTE', 'Sri Jayawardenepura Kotte', 'Colombo'],
+  ['MORATUWA', 'Moratuwa', 'Colombo'],
+  ['NEGOMBO', 'Negombo', 'Gampaha'],
+  ['GAMPAHA', 'Gampaha', 'Gampaha'],
+  ['KALUTARA', 'Kalutara', 'Kalutara'],
+  ['PANADURA', 'Panadura', 'Kalutara'],
+  ['KANDY', 'Kandy', 'Kandy'],
+  ['MATALE', 'Matale', 'Matale'],
+  ['DAMBULLA', 'Dambulla', 'Matale'],
+  ['NUWARA_ELIYA', 'Nuwara Eliya', 'Nuwara Eliya'],
+  ['GALLE', 'Galle', 'Galle'],
+  ['MATARA', 'Matara', 'Matara'],
+  ['HAMBANTOTA', 'Hambantota', 'Hambantota'],
+  ['RATNAPURA', 'Ratnapura', 'Ratnapura'],
+  ['KEGALLE', 'Kegalle', 'Kegalle'],
+  ['BADULLA', 'Badulla', 'Badulla'],
+  ['MONARAGALA', 'Monaragala', 'Monaragala'],
+  ['BATTICALOA', 'Batticaloa', 'Batticaloa'],
+  ['AMPARA', 'Ampara', 'Ampara'],
+  ['TRINCOMALEE', 'Trincomalee', 'Trincomalee'],
+  ['JAFFNA', 'Jaffna', 'Jaffna'],
+  ['KILINOCHCHI', 'Kilinochchi', 'Kilinochchi'],
+  ['MANNAR', 'Mannar', 'Mannar'],
+  ['MULLAITIVU', 'Mullaitivu', 'Mullaitivu'],
+  ['VAVUNIYA', 'Vavuniya', 'Vavuniya'],
+  ['KURUNEGALA', 'Kurunegala', 'Kurunegala'],
+  ['PUTTALAM', 'Puttalam', 'Puttalam'],
+  ['CHILAW', 'Chilaw', 'Puttalam'],
+  ['ANURADHAPURA', 'Anuradhapura', 'Anuradhapura'],
+  ['POLONNARUWA', 'Polonnaruwa', 'Polonnaruwa'],
+  ['MAHARAGAMA', 'Maharagama', 'Colombo'],
+  ['HOMAGAMA', 'Homagama', 'Colombo'],
+  ['PILIYANDALA', 'Piliyandala', 'Colombo'],
+  ['WATTALA', 'Wattala', 'Gampaha'],
+  ['JA_ELA', 'Ja-Ela', 'Gampaha'],
+  ['KELANIYA', 'Kelaniya', 'Gampaha'],
+  ['MINUWANGODA', 'Minuwangoda', 'Gampaha'],
+  ['HORANA', 'Horana', 'Kalutara'],
+  ['BERUWALA', 'Beruwala', 'Kalutara'],
+  ['ALUTHGAMA', 'Aluthgama', 'Kalutara'],
+  ['PERADENIYA', 'Peradeniya', 'Kandy'],
+  ['GAMPOLA', 'Gampola', 'Kandy'],
+  ['KATUGASTOTA', 'Katugastota', 'Kandy'],
+  ['HATTON', 'Hatton', 'Nuwara Eliya'],
+  ['TALAWAKELE', 'Talawakele', 'Nuwara Eliya'],
+  ['HIKKADUWA', 'Hikkaduwa', 'Galle'],
+  ['AMBALANGODA', 'Ambalangoda', 'Galle'],
+  ['ELPITIYA', 'Elpitiya', 'Galle'],
+  ['WELIGAMA', 'Weligama', 'Matara'],
+  ['AKURESSA', 'Akuressa', 'Matara'],
+  ['DIKWELLA', 'Dikwella', 'Matara'],
+  ['TANGALLE', 'Tangalle', 'Hambantota'],
+  ['TISSAMAHARAMA', 'Tissamaharama', 'Hambantota'],
+  ['AMBALANTOTA', 'Ambalantota', 'Hambantota'],
+  ['BALANGODA', 'Balangoda', 'Ratnapura'],
+  ['EMBILIPITIYA', 'Embilipitiya', 'Ratnapura'],
+  ['EHELIYAGODA', 'Eheliyagoda', 'Ratnapura'],
+  ['MAWANELLA', 'Mawanella', 'Kegalle'],
+  ['WARAKAPOLA', 'Warakapola', 'Kegalle'],
+  ['RAMBUKKANA', 'Rambukkana', 'Kegalle'],
+  ['BANDARAWELA', 'Bandarawela', 'Badulla'],
+  ['HAPUTALE', 'Haputale', 'Badulla'],
+  ['WELLAWAYA', 'Wellawaya', 'Monaragala'],
+  ['BIBILE', 'Bibile', 'Monaragala'],
+  ['KATTANKUDY', 'Kattankudy', 'Batticaloa'],
+  ['ERAVUR', 'Eravur', 'Batticaloa'],
+  ['KALMUNAI', 'Kalmunai', 'Ampara'],
+  ['AKKARAIPATTU', 'Akkaraipattu', 'Ampara'],
+  ['SAMMANTHURAI', 'Sammanthurai', 'Ampara'],
+  ['KINNIYA', 'Kinniya', 'Trincomalee'],
+  ['KANTALE', 'Kantale', 'Trincomalee'],
+  ['CHAVAKACHCHERI', 'Chavakachcheri', 'Jaffna'],
+  ['POINT_PEDRO', 'Point Pedro', 'Jaffna'],
+  ['PARANTHAN', 'Paranthan', 'Kilinochchi'],
+  ['PUTHUKKUDIYIRUPPU', 'Puthukkudiyiruppu', 'Mullaitivu'],
+  ['KULIYAPITIYA', 'Kuliyapitiya', 'Kurunegala'],
+  ['POLGAHAWELA', 'Polgahawela', 'Kurunegala'],
+  ['WARIYAPOLA', 'Wariyapola', 'Kurunegala'],
+  ['WENNAPPUWA', 'Wennappuwa', 'Puttalam'],
+  ['MARAWILA', 'Marawila', 'Puttalam'],
+  ['KEKIRAWA', 'Kekirawa', 'Anuradhapura'],
+  ['MEDAWACHCHIYA', 'Medawachchiya', 'Anuradhapura'],
+  ['HINGURAKGODA', 'Hingurakgoda', 'Polonnaruwa'],
+  ['MEDIRIGIRIYA', 'Medirigiriya', 'Polonnaruwa']
+].map(([code, name, district]) => ({
+  code,
+  name,
+  district,
+  province: provinceOfDistrict(district),
+}));
 
 /**
  * Fetch the supported pickup / delivery towns for the booking form.
@@ -331,6 +416,23 @@ export async function getOrderById(id: string | number): Promise<DeliveryOrder> 
       id: String(id),
       trackingNumber: idStr.startsWith('SD-') ? idStr : `SD-${idStr}`,
     };
+  }
+}
+
+/**
+ * Fetch the courier currently assigned to an order (name, phone, vehicle) from the Dispatch Service.
+ *
+ * Endpoint: GET /api/v1/dispatch/assignments/by-order/{orderId}/courier
+ *
+ * @returns the courier, or null when the order has no active assignment yet (HTTP 404) or the
+ *          Dispatch Service cannot be reached, so the page can show "not assigned yet".
+ */
+export async function getOrderCourier(orderId: string | number): Promise<OrderCourier | null> {
+  try {
+    const response = await apiClient.get<OrderCourier>(`/api/v1/dispatch/assignments/by-order/${orderId}/courier`);
+    return response.data?.name ? response.data : null;
+  } catch {
+    return null;
   }
 }
 

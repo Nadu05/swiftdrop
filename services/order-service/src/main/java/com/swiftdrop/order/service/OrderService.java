@@ -14,6 +14,7 @@ import com.swiftdrop.order.exception.BusinessRuleException;
 import com.swiftdrop.order.exception.PriceChangedException;
 import com.swiftdrop.order.exception.ResourceNotFoundException;
 import com.swiftdrop.order.location.CityDirectory;
+import com.swiftdrop.order.location.Provinces;
 import com.swiftdrop.order.messaging.OrderEventRecorder;
 import com.swiftdrop.order.pricing.FeeBreakdown;
 import com.swiftdrop.order.pricing.PriceQuote;
@@ -225,6 +226,11 @@ public class OrderService {
         order.setDeliveryInstructions(blankToNull(request.deliveryInstructions()));
         order.setPickupCity(price.pickup().code());
         order.setDropoffCity(price.dropoff().code());
+        // Province and district come from the chosen towns, so they can never disagree with the town
+        order.setPickupDistrict(price.pickup().district());
+        order.setPickupProvince(Provinces.of(price.pickup()));
+        order.setDropoffDistrict(price.dropoff().district());
+        order.setDropoffProvince(Provinces.of(price.dropoff()));
         order.setDistanceKm(price.distanceKm());
         order.setDeliveryFee(fee.totalFee());
         order.setBaseFee(fee.baseFee());
