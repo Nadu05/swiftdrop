@@ -96,12 +96,12 @@ export default function ReassignCourierDialog({
   };
 
   const handleProceedToConfirm = () => {
-    if (!reason.trim()) {
-      setError(toDispatchError(new Error('A valid reassignment reason is mandatory.')));
-      return;
-    }
     if (!selectedCourier) {
       setError(toDispatchError(new Error('Please select an eligible replacement courier.')));
+      return;
+    }
+    if (!reason.trim()) {
+      setError(toDispatchError(new Error('Please enter a reassignment reason (e.g. Courier vehicle breakdown, route congestion).')));
       return;
     }
     setError(null);
@@ -115,6 +115,7 @@ export default function ReassignCourierDialog({
     setError(null);
 
     const payload: ReassignCourierPayload = {
+      id: assignment.id,
       assignmentId: assignment.assignmentId,
       orderId: assignment.orderId,
       currentCourierId: assignment.courier.id,
@@ -239,7 +240,7 @@ export default function ReassignCourierDialog({
               <button
                 type="button"
                 className="dispatcher-btn-primary"
-                disabled={!selectedCourierId || !reason.trim() || isSubmitting}
+                disabled={isSubmitting}
                 onClick={handleProceedToConfirm}
               >
                 <RotateCcw size={15} aria-hidden="true" />

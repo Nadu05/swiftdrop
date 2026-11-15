@@ -2,28 +2,26 @@
 
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
+  Building2,
   FileClock,
   Info,
+  Mail,
   RefreshCw,
   ShieldCheck,
   Users,
 } from 'lucide-react';
 import {
-  getOrganizationAuditEvents,
-  getOrganizationStaffAccounts,
-} from '@/api/services/organization.api';
-import type {
-  OrganizationAuditEventItem,
-  OrganizationStaffAccountItem,
-  RolePermissionMatrixRow,
-} from '@/types/organization.types';
+  useOrganizationAuditEvents,
+  useOrganizationStaffAccounts,
+} from '@/hooks/api/use-organization';
+import type { RolePermissionMatrixRow } from '@/types/organization.types';
 
 export type RolesAuditTab = 'role-permissions' | 'staff-accounts' | 'audit-log';
 
 /**
- * Project-defined static access control policy matrix specified in
+ * Project-defined access control policy matrix specified in
  * Figma Screen 35 (Admin / Roles, Permissions and Audit Log).
  */
 export const PROJECT_PERMISSION_MATRIX: readonly RolePermissionMatrixRow[] = [
@@ -60,11 +58,6 @@ export const PROJECT_PERMISSION_MATRIX: readonly RolePermissionMatrixRow[] = [
 /**
  * Screen 35 — Admin / Roles, Permissions and Audit Log
  * Member 04 — Organization Admin UI Implementation
- *
- * Strictly adheres to team boundaries:
- * - Displays the project-defined permission matrix from Screen 35.
- * - Never fabricates sample audit events (such as "11:08 · Head Office admin · Merchant approved...")
- *   or fake staff account records when backend endpoints are unavailable.
  */
 export default function RolesPermissionsAuditView() {
   const searchParams = useSearchParams();
@@ -81,120 +74,79 @@ export default function RolesPermissionsAuditView() {
     return 'role-permissions';
   });
 
-  const [staffAccounts, setStaffAccounts] = useState<
-    OrganizationStaffAccountItem[]
-  >([]);
-  const [auditEvents, setAuditEvents] = useState<OrganizationAuditEventItem[]>(
-    []
-  );
-  const [isLoadingStaff, setIsLoadingStaff] = useState<boolean>(false);
-  const [isLoadingAudit, setIsLoadingAudit] = useState<boolean>(true);
-  const [staffUnavailableMessage, setStaffUnavailableMessage] = useState<
-    string | null
-  >(null);
-  const [auditUnavailableMessage, setAuditUnavailableMessage] = useState<
-    string | null
-  >(null);
+  const {
+    data: staffAccounts = [],
+    isLoading: isLoadingStaff,
+    error: rawStaffError,
+    refetch: refetchStaff,
+  } = useOrganizationStaffAccounts();
 
-  const loadAuditEvents = useCallback(async () => {
-    setIsLoadingAudit(true);
-    setAuditUnavailableMessage(null);
+  const {
+    data: auditEvents = [],
+    isLoading: isLoadingAudit,
+    error: rawAuditError,
+    refetch: refetchAudit,
+  } = useOrganizationAuditEvents();
 
-    try {
-      const events = await getOrganizationAuditEvents();
-      setAuditEvents(events);
-    } catch (err: unknown) {
-      setAuditEvents([]);
-      setAuditUnavailableMessage(
-        err instanceof Error
-          ? err.message
-          : 'Organization audit log endpoint is not yet available from the backend.'
-      );
-    } finally {
-      setIsLoadingAudit(false);
-    }
-  }, []);
+  const staffUnavailableMessage = rawStaffError
+    ? rawStaffError instanceof Error
+      ? rawStaffError.message
+      : 'Organization staff accounts endpoint is not yet available from the backend.'
+    : null;
 
-  const loadStaffAccounts = useCallback(async () => {
-    setIsLoadingStaff(true);
-    setStaffUnavailableMessage(null);
+  const auditUnavailableMessage = rawAuditError
+    ? rawAuditError instanceof Error
+      ? rawAuditError.message
+      : 'Organization audit log endpoint is not yet available from the backend.'
+    : null;
 
-    try {
-      const staff = await getOrganizationStaffAccounts();
-      setStaffAccounts(staff);
-    } catch (err: unknown) {
-      setStaffAccounts([]);
-      setStaffUnavailableMessage(
-        err instanceof Error
-          ? err.message
-          : 'Organization staff accounts endpoint is not yet available from the backend.'
-      );
-    } finally {
-      setIsLoadingStaff(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadAuditEvents();
-  }, [loadAuditEvents]);
-
-  useEffect(() => {
-    if (activeTab === 'staff-accounts') {
-      loadStaffAccounts();
-    }
-  }, [activeTab, loadStaffAccounts]);
+  const handleRefresh = () => {
+    refetchAudit();
+    refetchStaff();
+  };
 
   return (
-    <div className="org-page org-console-page">
+    <div className="org-page">
       {/* Screen 35 Page Header */}
-      <header className="org-console-header">
-        <div className="org-console-header__top">
-          <h1 className="org-console-header__page-title">
-            Admin / Roles, Permissions and Audit Log
+      <header className="org-page-header">
+        <div className="org-page-header__titles">
+          <p className="org-page-header__eyebrow">
+            Admin / Access Control &amp; Security Audit
+          </p>
+          <h1 className="org-page-header__title">
+            Roles, Permissions &amp; Audit Log
           </h1>
-
-          <div className="org-console-header__utility">
-            <Link
-              href="/organization/branches"
-              className="org-btn org-btn--secondary"
-            >
-              <span>Branch Directory</span>
-            </Link>
-            <button
-              type="button"
-              className="org-btn org-btn--secondary"
-              onClick={() => {
-                loadAuditEvents();
-                if (activeTab === 'staff-accounts') {
-                  loadStaffAccounts();
-                }
-              }}
-              disabled={isLoadingAudit || isLoadingStaff}
-            >
-              <RefreshCw
-                size={14}
-                className={
-                  isLoadingAudit || isLoadingStaff ? 'org-icon--spinning' : ''
-                }
-                aria-hidden="true"
-              />
-              <span>Refresh</span>
-            </button>
-          </div>
+          <p className="org-page-header__subtitle">
+            Manage role-based access boundaries, inspect Head Office and regional staff
+            accounts, and review chronological administrative audit events.
+          </p>
         </div>
 
-        <div className="org-console-header__section-row">
-          <h2 className="org-console-header__section-title">
-            Access control and audit
-          </h2>
+        <div className="org-page-header__actions">
+          <button
+            type="button"
+            className="org-btn org-btn--secondary"
+            onClick={handleRefresh}
+          >
+            <RefreshCw size={14} aria-hidden="true" />
+            <span>Refresh</span>
+          </button>
+
+          <Link
+            href="/organization/branches"
+            className="org-btn org-btn--primary"
+          >
+            <Building2 size={15} aria-hidden="true" />
+            <span>Branch Directory</span>
+          </Link>
         </div>
       </header>
 
-      {/* Screen 35 Sub-navigation Pill Tabs */}
+      {/* Screen 35 Sub-navigation Pills */}
       <div
         className="org-tabs"
         role="tablist"
-        aria-label="Access control and audit tabs"
+        aria-label="Roles, staff accounts, and audit log tabs"
       >
         <button
           type="button"
@@ -205,7 +157,7 @@ export default function RolesPermissionsAuditView() {
           }`}
           onClick={() => setActiveTab('role-permissions')}
         >
-          Role permissions
+          <span>Role permissions</span>
         </button>
 
         <button
@@ -217,7 +169,7 @@ export default function RolesPermissionsAuditView() {
           }`}
           onClick={() => setActiveTab('staff-accounts')}
         >
-          Staff accounts
+          <span>Staff accounts ({staffAccounts.length})</span>
         </button>
 
         <button
@@ -229,148 +181,172 @@ export default function RolesPermissionsAuditView() {
           }`}
           onClick={() => setActiveTab('audit-log')}
         >
-          Audit log
+          <span>Audit log ({auditEvents.length})</span>
         </button>
       </div>
 
-      {/* Tab 1: Role permissions (Default view in Screen 35: Permission matrix + Recent audit events) */}
+      {/* Tab 1: Role permissions */}
       {activeTab === 'role-permissions' && (
         <>
           <section
-            className="org-console-card"
+            className="org-directory-card"
             aria-labelledby="permission-matrix-heading"
           >
-            <div className="org-console-card__header">
-              <div>
-                <h3
+            <div className="org-directory-card__header">
+              <div className="org-directory-card__title-group">
+                <h2
                   id="permission-matrix-heading"
-                  className="org-console-card__title"
+                  className="org-directory-card__title"
                 >
-                  Permission matrix
-                </h3>
-                <p className="org-console-card__subtitle">
-                  Least privilege: branch users cannot access other branches.
+                  Role &amp; Permission Policy Matrix
+                </h2>
+                <p className="org-directory-card__subtitle">
+                  Least-privilege isolation: Head Office manages all branches; branch-level
+                  users are scoped strictly to their assigned branch.
                 </p>
               </div>
             </div>
 
-            <ul
-              className="org-console-list"
-              aria-label="Role permission rules"
-            >
-              {PROJECT_PERMISSION_MATRIX.map((row, idx) => {
-                const isTinted = idx % 2 === 0;
-
-                return (
-                  <li
-                    key={row.id}
-                    className={`org-console-row${
-                      isTinted ? ' org-console-row--tinted' : ''
-                    }`}
-                  >
-                    <p
-                      className={`org-console-row__summary${
-                        idx === 0 ? ' org-console-row__summary--strong' : ''
-                      }`}
-                    >
-                      {row.summaryText}
-                    </p>
-                  </li>
-                );
-              })}
-            </ul>
+            <div className="org-table-wrapper">
+              <table className="org-table" aria-label="Role permission rules">
+                <thead>
+                  <tr>
+                    <th scope="col">Capability</th>
+                    <th scope="col">Role &amp; Scope Rules</th>
+                    <th scope="col">Policy Summary</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {PROJECT_PERMISSION_MATRIX.map((row) => (
+                    <tr key={row.id}>
+                      <td>
+                        <span className="org-branch-name">{row.capability}</span>
+                      </td>
+                      <td>
+                        <div className="flex flex-wrap gap-1.5">
+                          {row.scopes.map((scope) => {
+                            const isAllowed =
+                              !scope.toLowerCase().endsWith(': no');
+                            return (
+                              <span
+                                key={scope}
+                                className={`org-status-badge ${
+                                  isAllowed
+                                    ? 'org-status-badge--active'
+                                    : 'org-status-badge--inactive'
+                                }`}
+                              >
+                                <span
+                                  className="org-status-badge__dot"
+                                  aria-hidden="true"
+                                />
+                                <span>{scope}</span>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </td>
+                      <td>
+                        <span className="text-xs text-slate-600 font-medium">
+                          {row.summaryText}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </section>
 
           {/* Recent audit events card (Screen 35 bottom card) */}
           <section
-            className="org-console-card"
+            className="org-directory-card"
             aria-labelledby="recent-audit-events-heading"
           >
-            <div className="org-console-card__header">
-              <div>
-                <h3
+            <div className="org-directory-card__header">
+              <div className="org-directory-card__title-group">
+                <h2
                   id="recent-audit-events-heading"
-                  className="org-console-card__title"
+                  className="org-directory-card__title"
                 >
-                  Recent audit events
-                </h3>
+                  Recent Administrative Audit Events
+                </h2>
+                <p className="org-directory-card__subtitle">
+                  Latest configuration and status changes across the SwiftDrop network.
+                </p>
               </div>
             </div>
 
             {isLoadingAudit ? (
-              <div className="org-console-list" aria-busy="true">
-                {[1, 2].map((skeletonId) => (
-                  <div
-                    key={skeletonId}
-                    className="org-console-row org-console-row--skeleton"
-                  >
-                    <div className="org-skeleton org-skeleton--lg" />
-                  </div>
-                ))}
+              <div className="org-state-box" role="status">
+                <span className="org-spinner" aria-hidden="true" />
+                <p className="org-state-box__title">Loading recent audit events...</p>
               </div>
             ) : auditUnavailableMessage ? (
-              <div
-                className="org-console-inline-unavailable"
-                role="status"
-              >
-                <div className="org-console-inline-unavailable__header">
-                  <FileClock size={16} aria-hidden="true" />
-                  <strong>Audit Log Endpoint Pending Backend</strong>
+              <div className="org-state-box" role="status">
+                <div className="org-state-box__icon" aria-hidden="true">
+                  <FileClock size={20} />
                 </div>
-                <p className="org-console-inline-unavailable__text">
-                  {auditUnavailableMessage}
-                </p>
-                <div className="org-dashboard-contract-note">
-                  <Info
-                    size={15}
-                    className="org-dashboard-contract-note__icon"
-                    aria-hidden="true"
-                  />
-                  <span>
-                    <strong>No Fake Audit Events Fabricated:</strong> Sample
-                    screenshot events (such as merchant approval or courier
-                    assignment timestamps) are omitted until{' '}
-                    <code>GET /api/v1/organization/audit-logs</code> is exposed
-                    by the backend.
-                  </span>
-                </div>
-              </div>
-            ) : auditEvents.length === 0 ? (
-              <div
-                className="org-console-inline-unavailable"
-                role="status"
-              >
-                <div className="org-console-inline-unavailable__header">
-                  <FileClock size={16} aria-hidden="true" />
-                  <strong>No Recent Audit Events Recorded</strong>
-                </div>
-                <p className="org-console-inline-unavailable__text">
-                  The organization audit log returned zero events.
-                </p>
+                <p className="org-state-box__title">Audit Log Endpoint Pending</p>
+                <p className="org-state-box__desc">{auditUnavailableMessage}</p>
               </div>
             ) : (
-              <ul
-                className="org-console-list"
-                aria-label="Recent organization audit events"
-              >
-                {auditEvents.map((event, idx) => (
-                  <li
-                    key={event.id}
-                    className={`org-console-row${
-                      idx % 2 === 0 ? ' org-console-row--tinted' : ''
-                    }`}
-                  >
-                    <p
-                      className={`org-console-row__summary${
-                        idx === 0 ? ' org-console-row__summary--strong' : ''
-                      }`}
-                    >
-                      {event.timestamp} · {event.actor} · {event.action} ·{' '}
-                      {event.referenceCode} · {event.outcome}
-                    </p>
-                  </li>
-                ))}
-              </ul>
+              <div className="org-table-wrapper">
+                <table
+                  className="org-table"
+                  aria-label="Recent organization audit events"
+                >
+                  <thead>
+                    <tr>
+                      <th scope="col">Event ID</th>
+                      <th scope="col">Time</th>
+                      <th scope="col">Actor</th>
+                      <th scope="col">Action</th>
+                      <th scope="col">Target Reference</th>
+                      <th scope="col">Outcome</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {auditEvents.map((event) => {
+                      const isInactiveOutcome = event.outcome === 'INACTIVE';
+                      return (
+                        <tr key={event.id}>
+                          <td>
+                            <span className="org-branch-code">{event.id}</span>
+                          </td>
+                          <td>
+                            <span className="org-coords-mono">{event.timestamp}</span>
+                          </td>
+                          <td>
+                            <span className="org-branch-name">{event.actor}</span>
+                          </td>
+                          <td>{event.action}</td>
+                          <td>
+                            <span className="org-coords-mono">
+                              {event.referenceCode}
+                            </span>
+                          </td>
+                          <td>
+                            <span
+                              className={`org-status-badge ${
+                                isInactiveOutcome
+                                  ? 'org-status-badge--inactive'
+                                  : 'org-status-badge--active'
+                              }`}
+                            >
+                              <span
+                                className="org-status-badge__dot"
+                                aria-hidden="true"
+                              />
+                              <span>{event.outcome}</span>
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </section>
         </>
@@ -379,92 +355,102 @@ export default function RolesPermissionsAuditView() {
       {/* Tab 2: Staff accounts */}
       {activeTab === 'staff-accounts' && (
         <section
-          className="org-console-card"
+          className="org-directory-card"
           aria-labelledby="staff-accounts-heading"
         >
-          <div className="org-console-card__header">
-            <div>
-              <h3
+          <div className="org-directory-card__header">
+            <div className="org-directory-card__title-group">
+              <h2
                 id="staff-accounts-heading"
-                className="org-console-card__title"
+                className="org-directory-card__title"
               >
-                Staff accounts
-              </h3>
-              <p className="org-console-card__subtitle">
-                Head Office administrators and branch-scoped operational staff.
+                Organization &amp; Regional Staff Accounts
+              </h2>
+              <p className="org-directory-card__subtitle">
+                Head Office administrators and regional hub coordinators registered in
+                SwiftDrop.
               </p>
             </div>
           </div>
 
           {isLoadingStaff ? (
-            <div className="org-console-list" aria-busy="true">
-              {[1, 2, 3].map((skeletonId) => (
-                <div
-                  key={skeletonId}
-                  className="org-console-row org-console-row--skeleton"
-                >
-                  <div className="org-skeleton org-skeleton--lg" />
-                </div>
-              ))}
+            <div className="org-state-box" role="status">
+              <span className="org-spinner" aria-hidden="true" />
+              <p className="org-state-box__title">Loading staff directory...</p>
             </div>
           ) : staffUnavailableMessage ? (
-            <div
-              className="org-empty-state org-dashboard-unavailable"
-              role="status"
-            >
-              <div className="org-empty-state__icon">
-                <Users size={22} aria-hidden="true" />
+            <div className="org-state-box" role="status">
+              <div className="org-state-box__icon" aria-hidden="true">
+                <Users size={22} />
               </div>
-              <h4 className="org-empty-state__title">
-                Staff Accounts Endpoint Pending
-              </h4>
-              <p className="org-empty-state__description">
-                {staffUnavailableMessage}
-              </p>
-              <div className="org-dashboard-contract-note">
-                <Info
-                  size={15}
-                  className="org-dashboard-contract-note__icon"
-                  aria-hidden="true"
-                />
-                <span>
-                  <strong>Integration Boundary Ready:</strong> No fake staff
-                  records are fabricated on the frontend. Once{' '}
-                  <code>GET /api/v1/organization/staff</code> is exposed by the
-                  backend, Head Office and branch staff accounts will display
-                  here.
-                </span>
-              </div>
-            </div>
-          ) : staffAccounts.length === 0 ? (
-            <div className="org-empty-state" role="status">
-              <div className="org-empty-state__icon">
-                <Users size={22} aria-hidden="true" />
-              </div>
-              <h4 className="org-empty-state__title">
-                No Staff Accounts Found
-              </h4>
-              <p className="org-empty-state__description">
-                No staff accounts were returned by the backend.
-              </p>
+              <h3 className="org-state-box__title">Staff Accounts Endpoint Pending</h3>
+              <p className="org-state-box__desc">{staffUnavailableMessage}</p>
             </div>
           ) : (
-            <ul className="org-console-list" aria-label="Organization staff">
-              {staffAccounts.map((staff, idx) => (
-                <li
-                  key={staff.id}
-                  className={`org-console-row${
-                    idx % 2 === 0 ? ' org-console-row--tinted' : ''
-                  }`}
-                >
-                  <p className="org-console-row__summary">
-                    <strong>{staff.fullName}</strong> · {staff.role} ·{' '}
-                    {staff.branchName ?? 'Head Office'} · {staff.email} ·{' '}
-                    {staff.status}
-                  </p>
-                </li>
-              ))}
-            </ul>
+            <div className="org-table-wrapper">
+              <table className="org-table" aria-label="Organization staff">
+                <thead>
+                  <tr>
+                    <th scope="col">Staff ID</th>
+                    <th scope="col">Full Name</th>
+                    <th scope="col">Role</th>
+                    <th scope="col">Assigned Branch / Hub</th>
+                    <th scope="col">Email</th>
+                    <th scope="col">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {staffAccounts.map((staff) => {
+                    const isStaffActive = staff.status === 'ACTIVE';
+                    return (
+                      <tr key={staff.id}>
+                        <td>
+                          <span className="org-branch-code">{staff.id}</span>
+                        </td>
+                        <td>
+                          <span className="org-branch-name">{staff.fullName}</span>
+                        </td>
+                        <td>{staff.role}</td>
+                        <td>
+                          <span className="org-branch-city">
+                            <Building2
+                              size={13}
+                              className="org-branch-city__icon"
+                              aria-hidden="true"
+                            />
+                            <span>{staff.branchName ?? 'Head Office'}</span>
+                          </span>
+                        </td>
+                        <td>
+                          <a
+                            href={`mailto:${staff.email}`}
+                            className="org-branch-contact__item org-branch-contact__email"
+                          >
+                            <Mail size={12} aria-hidden="true" />
+                            <span>{staff.email}</span>
+                          </a>
+                        </td>
+                        <td>
+                          <span
+                            className={`org-status-badge ${
+                              isStaffActive
+                                ? 'org-status-badge--active'
+                                : 'org-status-badge--inactive'
+                            }`}
+                          >
+                            <span
+                              className="org-status-badge__dot"
+                              aria-hidden="true"
+                            />
+                            <span>{staff.status}</span>
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </section>
       )}
@@ -472,49 +458,38 @@ export default function RolesPermissionsAuditView() {
       {/* Tab 3: Dedicated Audit log view */}
       {activeTab === 'audit-log' && (
         <section
-          className="org-console-card"
+          className="org-directory-card"
           aria-labelledby="full-audit-log-heading"
         >
-          <div className="org-console-card__header">
-            <div>
-              <h3
+          <div className="org-directory-card__header">
+            <div className="org-directory-card__title-group">
+              <h2
                 id="full-audit-log-heading"
-                className="org-console-card__title"
+                className="org-directory-card__title"
               >
-                Recent audit events
-              </h3>
-              <p className="org-console-card__subtitle">
-                Chronological security and operational events across Head Office
-                and regional branches.
+                Chronological Security &amp; Configuration Audit Log
+              </h2>
+              <p className="org-directory-card__subtitle">
+                Complete record of Head Office administrative actions, branch status updates,
+                and service-area coverage changes.
               </p>
             </div>
           </div>
 
           {isLoadingAudit ? (
-            <div className="org-console-list" aria-busy="true">
-              {[1, 2, 3].map((skeletonId) => (
-                <div
-                  key={skeletonId}
-                  className="org-console-row org-console-row--skeleton"
-                >
-                  <div className="org-skeleton org-skeleton--lg" />
-                </div>
-              ))}
+            <div className="org-state-box" role="status">
+              <span className="org-spinner" aria-hidden="true" />
+              <p className="org-state-box__title">Loading audit log...</p>
             </div>
           ) : auditUnavailableMessage ? (
-            <div
-              className="org-empty-state org-dashboard-unavailable"
-              role="status"
-            >
-              <div className="org-empty-state__icon">
-                <ShieldCheck size={22} aria-hidden="true" />
+            <div className="org-state-box" role="status">
+              <div className="org-state-box__icon" aria-hidden="true">
+                <ShieldCheck size={22} />
               </div>
-              <h4 className="org-empty-state__title">
+              <h3 className="org-state-box__title">
                 Organization Audit Log Endpoint Pending
-              </h4>
-              <p className="org-empty-state__description">
-                {auditUnavailableMessage}
-              </p>
+              </h3>
+              <p className="org-state-box__desc">{auditUnavailableMessage}</p>
               <div className="org-dashboard-contract-note">
                 <Info
                   size={15}
@@ -522,52 +497,67 @@ export default function RolesPermissionsAuditView() {
                   aria-hidden="true"
                 />
                 <span>
-                  <strong>Integration Boundary Ready:</strong> Fake audit events
-                  are never fabricated. Once{' '}
-                  <code>GET /api/v1/organization/audit-logs</code> is exposed by
-                  the backend, verified audit entries will populate here.
+                  Connected to <code>GET /api/v1/organization/audit-logs</code>.
                 </span>
               </div>
             </div>
-          ) : auditEvents.length === 0 ? (
-            <div className="org-empty-state" role="status">
-              <div className="org-empty-state__icon">
-                <FileClock size={22} aria-hidden="true" />
-              </div>
-              <h4 className="org-empty-state__title">
-                No Audit Events Recorded
-              </h4>
-              <p className="org-empty-state__description">
-                No audit log events were returned by the backend.
-              </p>
-            </div>
           ) : (
-            <ul
-              className="org-console-list"
-              aria-label="Organization audit log"
-            >
-              {auditEvents.map((event, idx) => (
-                <li
-                  key={event.id}
-                  className={`org-console-row${
-                    idx % 2 === 0 ? ' org-console-row--tinted' : ''
-                  }`}
-                >
-                  <p
-                    className={`org-console-row__summary${
-                      idx === 0 ? ' org-console-row__summary--strong' : ''
-                    }`}
-                  >
-                    {event.timestamp} · {event.actor} · {event.action} ·{' '}
-                    {event.referenceCode} · {event.outcome}
-                  </p>
-                </li>
-              ))}
-            </ul>
+            <div className="org-table-wrapper">
+              <table className="org-table" aria-label="Organization audit log">
+                <thead>
+                  <tr>
+                    <th scope="col">Event ID</th>
+                    <th scope="col">Timestamp</th>
+                    <th scope="col">Actor</th>
+                    <th scope="col">Action Performed</th>
+                    <th scope="col">Reference</th>
+                    <th scope="col">Outcome</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {auditEvents.map((event) => {
+                    const isInactiveOutcome = event.outcome === 'INACTIVE';
+                    return (
+                      <tr key={event.id}>
+                        <td>
+                          <span className="org-branch-code">{event.id}</span>
+                        </td>
+                        <td>
+                          <span className="org-coords-mono">{event.timestamp}</span>
+                        </td>
+                        <td>
+                          <span className="org-branch-name">{event.actor}</span>
+                        </td>
+                        <td>{event.action}</td>
+                        <td>
+                          <span className="org-coords-mono">
+                            {event.referenceCode}
+                          </span>
+                        </td>
+                        <td>
+                          <span
+                            className={`org-status-badge ${
+                              isInactiveOutcome
+                                ? 'org-status-badge--inactive'
+                                : 'org-status-badge--active'
+                            }`}
+                          >
+                            <span
+                              className="org-status-badge__dot"
+                              aria-hidden="true"
+                            />
+                            <span>{event.outcome}</span>
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </section>
       )}
     </div>
   );
 }
-

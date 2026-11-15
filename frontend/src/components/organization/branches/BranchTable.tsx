@@ -10,10 +10,11 @@ import {
   Pencil,
   Phone,
   Power,
+  Radar,
   RefreshCw,
   SearchX,
 } from 'lucide-react';
-import type { BranchResponse } from '@/types/organization.types';
+import type { BranchResponse, ServiceAreaResponse } from '@/types/organization.types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
@@ -26,6 +27,8 @@ export interface BranchTableProps {
   onRetry: () => void;
   onResetFilters: () => void;
   onToggleStatus: (branch: BranchResponse) => void;
+  serviceAreasByBranchId?: Record<number, ServiceAreaResponse[]>;
+  serviceAreasAvailable?: boolean;
 }
 
 export default function BranchTable({
@@ -37,6 +40,8 @@ export default function BranchTable({
   onRetry,
   onResetFilters,
   onToggleStatus,
+  serviceAreasByBranchId = {},
+  serviceAreasAvailable = false,
 }: BranchTableProps) {
   return (
     <section className="org-directory-card" aria-labelledby="org-directory-card-heading">
@@ -46,7 +51,8 @@ export default function BranchTable({
             Branch directory
           </h2>
           <p className="org-directory-card__subtitle">
-            Head Office sees all branches; branch users are restricted to their own branch.
+            Head Office Admin view of all organization branches, geographic coordinates, and
+            configured circular service-area coverage.
           </p>
         </div>
       </div>
@@ -106,7 +112,7 @@ export default function BranchTable({
           </div>
           <h3 className="org-state-box__title">No matching branches found</h3>
           <p className="org-state-box__desc">
-            No branches match your current search query or status filter. Try adjusting your
+            No branches match your current search query, city, or status filter. Try adjusting your
             search terms or clearing the active filters.
           </p>
           <div className="org-state-box__actions">
@@ -129,6 +135,7 @@ export default function BranchTable({
                 <th scope="col">Branch Name</th>
                 <th scope="col">City</th>
                 <th scope="col">Address</th>
+                <th scope="col">Service Area</th>
                 <th scope="col">Contact Information</th>
                 <th scope="col">Status</th>
                 <th scope="col" className="org-table__th--actions">
@@ -139,6 +146,8 @@ export default function BranchTable({
             <tbody>
               {branches.map((branch) => {
                 const isActive = branch.status === 'ACTIVE';
+                const branchAreas = serviceAreasByBranchId[branch.id] ?? [];
+                const primaryArea = branchAreas[0] ?? null;
 
                 return (
                   <tr key={branch.id} className="org-table__row">
@@ -178,6 +187,26 @@ export default function BranchTable({
                           <span className="org-branch-address__line2">{branch.addressLine2}</span>
                         )}
                       </div>
+                    </td>
+
+                    {/* Service Area Coverage */}
+                    <td data-label="Service Area">
+                      {!serviceAreasAvailable ? (
+                        <span className="org-branch-contact__muted">—</span>
+                      ) : !primaryArea ? (
+                        <span className="org-branch-contact__muted">
+                          No service area configured
+                        </span>
+                      ) : (
+                        <Link
+                          href={`/organization/branches/${branch.id}`}
+                          className="org-radius-pill"
+                          title="Inspect circular service area coverage on branch map"
+                        >
+                          <Radar size={12} aria-hidden="true" />
+                          <span>{primaryArea.maxRadiusKm} km radius</span>
+                        </Link>
+                      )}
                     </td>
 
                     {/* Contact Information */}

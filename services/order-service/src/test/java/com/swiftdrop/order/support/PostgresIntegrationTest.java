@@ -14,6 +14,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
  */
 public abstract class PostgresIntegrationTest {
 
+    @SuppressWarnings("resource")
     private static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine")
             .withDatabaseName("order_db_test")
             .withUsername("test")

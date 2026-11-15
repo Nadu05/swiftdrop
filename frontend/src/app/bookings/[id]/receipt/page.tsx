@@ -134,6 +134,8 @@ export default function CustomerReceiptPage() {
     td { padding: 12px 10px; font-size: 14px; border-bottom: 1px solid #f1f5f9; }
     .total-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 24px; text-align: right; }
     .total-title { font-size: 13px; color: #64748b; }
+    .calc { border-bottom: 2px solid #0f172a; margin-bottom: 10px; padding-bottom: 8px; text-align: left; }
+    .calc-row { display: flex; justify-content: space-between; font-size: 13px; color: #475569; padding: 2px 0; }
     .total-amount { font-size: 26px; font-weight: 800; color: #0f172a; }
     .footer { border-top: 1px dashed #cbd5e1; padding-top: 16px; font-size: 11px; color: #64748b; text-align: center; }
     @media print { body { padding: 0; } .receipt { border: none; padding: 0; } }
@@ -158,8 +160,8 @@ export default function CustomerReceiptPage() {
         <div class="tracking-title">Authoritative Tracking Number</div>
         <div class="tracking-code">${order.trackingNumber || 'SD-' + order.id}</div>
       </div>
-      <div style="font-size: 12px; color: #16a34a; font-weight: 700; background: #f0fdf4; padding: 4px 10px; border-radius: 999px; border: 1px solid #bbf7d0;">
-        PAID IN FULL
+      <div style="font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; ${(order.status || '').toUpperCase() === 'DELIVERED' ? 'color: #16a34a; background: #f0fdf4; border: 1px solid #bbf7d0;' : 'color: #dc2626; background: #fef2f2; border: 1px solid #fecaca;'}">
+        ${(order.status || '').toUpperCase() === 'DELIVERED' ? 'PAID IN FULL' : 'NOT PAID'}
       </div>
     </div>
 
@@ -196,6 +198,12 @@ export default function CustomerReceiptPage() {
     </table>
 
     <div class="total-card">
+      <div class="calc"><div class="total-title" style="margin-bottom: 4px;">How the total is calculated</div>${[
+        ['Base delivery fee', order.feeBreakdown?.baseFee],
+        ['Weight charge' + (order.weightKg ? ' (' + order.weightKg + ' kg)' : ''), order.feeBreakdown?.weightFee],
+        ['Distance charge' + (order.distanceKm ? ' (' + order.distanceKm + ' km)' : ''), order.feeBreakdown?.distanceFee],
+        ['Zone surcharge', order.feeBreakdown?.zoneSurcharge],
+      ].map(([label, amount]) => '<div class="calc-row"><span>' + label + '</span><span>' + (amount === undefined || amount === null ? '—' : currency + ' ' + Number(amount).toFixed(2)) + '</span></div>').join('')}</div>
       <div class="total-title">Total Amount Paid</div>
       <div class="total-amount">${currency} ${feeVal}</div>
       <div style="font-size: 11px; color: #16a34a; margin-top: 4px;">✓ Verified by SwiftDrop Order Service. No outstanding dues.</div>
@@ -240,8 +248,35 @@ export default function CustomerReceiptPage() {
   };
 
   const receiptRef = order ? `REC-${String(order.id).padStart(6, '0')}` : 'REC-000000';
+  const isDelivered = (order?.status || '').toUpperCase() === 'DELIVERED';
   const feeAmount = order ? Number(order.deliveryFee || 1250).toFixed(2) : '1250.00';
   const currencyCode = order?.currency || 'LKR';
+
+  // The four charges that make up the fee, in the order they are added. The amounts are exactly what the
+  // Order Service stored with the order (they add up to the total); without them only the descriptions show.
+  const breakdown = order?.feeBreakdown;
+  const feeRows: { label: string; note: string; amount: number | null }[] = [
+    {
+      label: 'Base delivery fee',
+      note: 'Fixed charge for every delivery',
+      amount: breakdown ? Number(breakdown.baseFee) : null,
+    },
+    {
+      label: `Weight charge${order?.weightKg ? ` (${order.weightKg} kg)` : ''}`,
+      note: 'For weight above the included allowance',
+      amount: breakdown ? Number(breakdown.weightFee) : null,
+    },
+    {
+      label: `Distance charge${order?.distanceKm ? ` (${order.distanceKm} km)` : ''}`,
+      note: 'Based on the distance between the two towns',
+      amount: breakdown ? Number(breakdown.distanceFee) : null,
+    },
+    {
+      label: 'Zone surcharge',
+      note: 'Only when pickup and delivery are in different districts',
+      amount: breakdown ? Number(breakdown.zoneSurcharge) : null,
+    },
+  ];
 
   return (
     <div className="sd-fullpage-root">
@@ -270,29 +305,19 @@ export default function CustomerReceiptPage() {
                 type="button"
                 onClick={handleDownloadOfflineReceipt}
                 className="sd-header-btn secondary"
-                title="Download self-contained offline receipt file"
+                title="Download your receipt"
               >
                 {downloadSuccess ? (
                   <>
                     <Check size={14} color="#34d399" />
-                    <span>Saved File!</span>
+                    <span>Downloaded!</span>
                   </>
                 ) : (
                   <>
                     <FileDown size={14} />
-                    <span>Save Offline File</span>
+                    <span>Download</span>
                   </>
                 )}
-              </button>
-
-              <button
-                type="button"
-                onClick={handlePrint}
-                className="sd-header-btn secondary"
-                title="Save as PDF via browser print dialog"
-              >
-                <Download size={14} />
-                <span>Download / PDF</span>
               </button>
 
               <button
@@ -311,24 +336,15 @@ export default function CustomerReceiptPage() {
 
       {/* ---------------- MAIN BODY CANVAS (LIGHT THEME) ---------------- */}
       <main className="sd-fullpage-body">
-        <div className="sd-content-wrapper">
-          {/* Breadcrumb row (Screen only) */}
-          <div className="sd-breadcrumb-row no-print">
-            <Link href="/customer/dashboard" className="sd-breadcrumb-link">
-              Dashboard
-            </Link>
-            <span className="sd-crumb-sep">/</span>
-            <Link href="/bookings" className="sd-breadcrumb-link">
-              My Deliveries
-            </Link>
-            <span className="sd-crumb-sep">/</span>
-            <Link href={`/bookings/${id}`} className="sd-breadcrumb-link">
-              Details &amp; Milestones
-            </Link>
-            <span className="sd-crumb-sep">/</span>
-            <span className="sd-breadcrumb-current">Official Receipt</span>
-          </div>
+        {/* PAGE HEADING (left aligned with the top bar) */}
+        <div className="sd-page-heading no-print">
+          <h2 className="sd-page-heading-title">Booking Receipt</h2>
+          <p className="sd-page-heading-sub">
+            Your receipt for this delivery, with the charges that make up the total.
+          </p>
+        </div>
 
+        <div className="sd-content-wrapper">
           {/* LOADING STATE */}
           {isLoading && (
             <div className="sd-card sd-state-card no-print">
@@ -392,9 +408,15 @@ export default function CustomerReceiptPage() {
                     </div>
                     <div className="sd-meta-line">
                       <span className="lbl">Status:</span>
-                      <span className="val status-paid">
-                        <CheckCircle2 size={12} /> Paid &amp; Confirmed
-                      </span>
+                      {isDelivered ? (
+                        <span className="val status-paid">
+                          <CheckCircle2 size={12} /> Paid &amp; Confirmed
+                        </span>
+                      ) : (
+                        <span className="val status-unpaid">
+                          <AlertCircle size={12} /> Not Paid
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -407,6 +429,14 @@ export default function CustomerReceiptPage() {
                   </div>
 
                   <div className="sd-tracking-right">
+                    <div className="sd-barcode-simulated">
+                      <span className="sd-barcode-lines">
+                        {'||| | |||| | ||| |||| | || | |||| ||| | ||||'.split('').map((bar, i) => (
+                          <span key={i}>{bar === ' ' ? ' ' : bar}</span>
+                        ))}
+                      </span>
+                      <span className="sd-barcode-text">{order.trackingNumber}</span>
+                    </div>
                     <button
                       type="button"
                       onClick={handleCopyTracking}
@@ -416,10 +446,6 @@ export default function CustomerReceiptPage() {
                       {copied ? <Check size={12} color="#16a34a" /> : <Copy size={12} />}
                       <span>{copied ? 'Copied' : 'Copy'}</span>
                     </button>
-                    <div className="sd-barcode-simulated">
-                      <span className="sd-barcode-lines">||| | |||| | ||| |||| | || | |||| ||| | ||||</span>
-                      <span className="sd-barcode-text">{order.trackingNumber}</span>
-                    </div>
                   </div>
                 </div>
 
@@ -504,28 +530,24 @@ export default function CustomerReceiptPage() {
 
                 {/* Financial Summary Card */}
                 <div className="sd-financial-box">
-                  <div className="sd-fin-row">
-                    <span className="lbl">Base Delivery Logistics Fee</span>
-                    <span className="val">
-                      {currencyCode} {(Number(order.deliveryFee || 1250) * 0.85).toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="sd-fin-row">
-                    <span className="lbl">Fuel Surcharge &amp; Branch Handling</span>
-                    <span className="val">
-                      {currencyCode} {(Number(order.deliveryFee || 1250) * 0.15).toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="sd-fin-divider" />
+                  <div className="sd-fin-heading">How your total is calculated</div>
+                  {feeRows.map((row) => (
+                    <div className="sd-bill-line" key={row.label}>
+                      <div className="sd-bill-item">
+                        <span className="sd-bill-label">{row.label}</span>
+                        <span className="sd-bill-note">{row.note}</span>
+                      </div>
+                      <span className="sd-bill-amount">
+                        {row.amount === null ? '—' : `${currencyCode} ${row.amount.toFixed(2)}`}
+                      </span>
+                    </div>
+                  ))}
+                  <div className="sd-bill-rule" />
                   <div className="sd-fin-row total">
                     <span className="lbl">TOTAL AMOUNT PAID</span>
                     <span className="val">
                       {currencyCode} {feeAmount}
                     </span>
-                  </div>
-                  <div className="sd-fin-verified">
-                    <CheckCircle2 size={13} color="#16a34a" /> Authoritative fee calculated &amp;
-                    verified by SwiftDrop Order Service. Paid in full.
                   </div>
                 </div>
 
@@ -542,50 +564,8 @@ export default function CustomerReceiptPage() {
                       Support: support@swiftdrop.lk · Helpline: +94 11 234 5678 · Colombo Central Branch
                     </p>
                   </div>
-
-                  <div className="sd-footer-right">
-                    <div className="sd-qr-box">
-                      <div className="sd-qr-dummy">
-                        <span>QR CODE</span>
-                        <code>{order.trackingNumber}</code>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </article>
-
-              {/* Bottom Screen Toolbar (No-Print) */}
-              <div className="sd-bottom-toolbar no-print">
-                <Link href={`/bookings/${id}`} className="sd-toolbar-back-btn">
-                  <ArrowLeft size={16} /> Return to Delivery Details &amp; Milestones
-                </Link>
-
-                <div className="sd-toolbar-right">
-                  <button
-                    type="button"
-                    onClick={handleDownloadOfflineReceipt}
-                    className="sd-toolbar-action-btn secondary"
-                  >
-                    <FileDown size={15} /> Save Offline File
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handlePrint}
-                    className="sd-toolbar-action-btn secondary"
-                  >
-                    <Download size={15} /> Download PDF
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handlePrint}
-                    className="sd-toolbar-action-btn primary"
-                  >
-                    <Printer size={15} /> Print Receipt
-                  </button>
-                </div>
-              </div>
             </div>
           )}
         </div>
@@ -710,6 +690,32 @@ export default function CustomerReceiptPage() {
         .sd-content-wrapper {
           max-width: 900px;
           margin: 0 auto;
+        }
+
+        /* Page heading under the top bar */
+        .sd-page-heading {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+          width: 100%;
+          max-width: 1200px;
+          margin: 0 auto 1.5rem;
+          text-align: left;
+        }
+
+        .sd-page-heading-title {
+          font-size: 1.625rem;
+          font-weight: 800;
+          letter-spacing: -0.025em;
+          color: #0f172a;
+          margin: 0;
+        }
+
+        .sd-page-heading-sub {
+          font-size: 0.875rem;
+          color: #64748b;
+          font-weight: 500;
+          margin: 0;
         }
 
         /* Breadcrumbs */
@@ -900,6 +906,14 @@ export default function CustomerReceiptPage() {
           border-radius: 4px;
         }
 
+        .sd-meta-line .val.status-unpaid {
+          color: #b45309;
+          font-weight: 700;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.3rem;
+        }
+
         .sd-meta-line .val.status-paid {
           color: #15803d;
           display: inline-flex;
@@ -947,6 +961,9 @@ export default function CustomerReceiptPage() {
           display: flex;
           align-items: center;
           gap: 1rem;
+          flex: 1;
+          min-width: 0;
+          justify-content: flex-end;
         }
 
         .sd-copy-pill {
@@ -970,6 +987,9 @@ export default function CustomerReceiptPage() {
         }
 
         .sd-barcode-simulated {
+          flex: 1;
+          min-width: 0;
+          overflow: hidden;
           display: flex;
           flex-direction: column;
           align-items: flex-end;
@@ -980,6 +1000,9 @@ export default function CustomerReceiptPage() {
         }
 
         .sd-barcode-lines {
+          display: flex;
+          justify-content: space-between;
+          width: 100%;
           font-family: monospace;
           font-size: 0.95rem;
           letter-spacing: 0.15em;
@@ -1157,6 +1180,54 @@ export default function CustomerReceiptPage() {
           color: #0f172a;
         }
 
+        .sd-fin-heading {
+          font-size: 0.7rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: #64748b;
+          margin-bottom: 0.15rem;
+        }
+
+        .sd-bill-line {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 1rem;
+          padding: 0.6rem 0;
+          border-bottom: 1px dashed #e2e8f0;
+        }
+
+        .sd-bill-item {
+          display: flex;
+          flex-direction: column;
+          gap: 0.1rem;
+        }
+
+        .sd-bill-label {
+          font-size: 0.875rem;
+          font-weight: 600;
+          color: #0f172a;
+        }
+
+        .sd-bill-note {
+          font-size: 0.72rem;
+          color: #94a3b8;
+        }
+
+        .sd-bill-amount {
+          font-size: 0.9rem;
+          font-weight: 600;
+          color: #0f172a;
+          white-space: nowrap;
+        }
+
+        .sd-bill-rule {
+          height: 0;
+          border-top: 2px solid #0f172a;
+          margin: 0.35rem 0 0.15rem;
+        }
+
         .sd-fin-divider {
           height: 1px;
           background: #e2e8f0;
@@ -1176,7 +1247,7 @@ export default function CustomerReceiptPage() {
         /* Document Footer */
         .sd-doc-footer {
           display: flex;
-          justify-content: space-between;
+          justify-content: center;
           align-items: flex-end;
           gap: 1.5rem;
           padding-top: 1.25rem;
@@ -1186,8 +1257,12 @@ export default function CustomerReceiptPage() {
         .sd-footer-left {
           display: flex;
           flex-direction: column;
+          align-items: center;
+          text-align: center;
           gap: 0.35rem;
-          max-width: 520px;
+          width: 100%;
+          max-width: 620px;
+          margin: 0 auto;
         }
 
         .sd-verified-badge {

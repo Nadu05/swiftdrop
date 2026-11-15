@@ -1,6 +1,6 @@
 'use client';
 
-import { Filter, RotateCcw, Search, X } from 'lucide-react';
+import { Filter, MapPin, RotateCcw, Search, X } from 'lucide-react';
 import type { BranchStatusFilter } from '@/types/organization.types';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,9 @@ export interface BranchFiltersProps {
   onSearchChange: (value: string) => void;
   statusFilter: BranchStatusFilter;
   onStatusFilterChange: (status: BranchStatusFilter) => void;
+  cityFilter?: string;
+  onCityFilterChange?: (city: string) => void;
+  availableCities?: string[];
   totalCount: number;
   filteredCount: number;
   activeCount: number;
@@ -32,13 +35,19 @@ export default function BranchFilters({
   onSearchChange,
   statusFilter,
   onStatusFilterChange,
+  cityFilter = 'ALL',
+  onCityFilterChange,
+  availableCities = [],
   totalCount,
   filteredCount,
   activeCount,
   inactiveCount,
   onResetFilters,
 }: BranchFiltersProps) {
-  const hasActiveFilters = searchQuery.trim().length > 0 || statusFilter !== 'ALL';
+  const hasActiveFilters =
+    searchQuery.trim().length > 0 ||
+    statusFilter !== 'ALL' ||
+    (cityFilter !== 'ALL' && cityFilter.trim().length > 0);
 
   const getOptionCount = (value: BranchStatusFilter): number => {
     if (value === 'ACTIVE') return activeCount;
@@ -82,48 +91,77 @@ export default function BranchFilters({
 
       {/* Filter Controls Row */}
       <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-slate-100 dark:border-slate-800">
-        <div
-          className="flex flex-wrap items-center gap-2"
-          role="group"
-          aria-label="Filter branches by status"
-        >
-          <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500 mr-1">
-            <Filter size={13} aria-hidden="true" />
-            <span>Status:</span>
-          </span>
+        <div className="flex flex-wrap items-center gap-3">
+          <div
+            className="flex flex-wrap items-center gap-2"
+            role="group"
+            aria-label="Filter branches by status"
+          >
+            <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500 mr-1">
+              <Filter size={13} aria-hidden="true" />
+              <span>Status:</span>
+            </span>
 
-          {STATUS_OPTIONS.map((option) => {
-            const isSelected = statusFilter === option.value;
-            const count = getOptionCount(option.value);
+            {STATUS_OPTIONS.map((option) => {
+              const isSelected = statusFilter === option.value;
+              const count = getOptionCount(option.value);
 
-            return (
-              <Button
-                key={option.value}
-                type="button"
-                variant={isSelected ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => onStatusFilterChange(option.value)}
-                className={`h-8 gap-2 rounded-full px-3 text-xs font-medium ${
-                  isSelected
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
-                }`}
-                aria-pressed={isSelected}
-              >
-                <span>{option.label}</span>
-                <Badge
-                  variant={isSelected ? 'secondary' : 'outline'}
-                  className={`h-4 min-w-4 px-1 text-[10px] rounded-full border-0 ${
+              return (
+                <Button
+                  key={option.value}
+                  type="button"
+                  variant={isSelected ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => onStatusFilterChange(option.value)}
+                  className={`h-8 gap-2 rounded-full px-3 text-xs font-medium ${
                     isSelected
-                      ? 'bg-blue-500/30 text-white'
-                      : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                      : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
                   }`}
+                  aria-pressed={isSelected}
                 >
-                  {count}
-                </Badge>
-              </Button>
-            );
-          })}
+                  <span>{option.label}</span>
+                  <Badge
+                    variant={isSelected ? 'secondary' : 'outline'}
+                    className={`h-4 min-w-4 px-1 text-[10px] rounded-full border-0 ${
+                      isSelected
+                        ? 'bg-blue-500/30 text-white'
+                        : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                    }`}
+                  >
+                    {count}
+                  </Badge>
+                </Button>
+              );
+            })}
+          </div>
+
+          {/* City Filter Select */}
+          {onCityFilterChange && availableCities.length > 0 && (
+            <div className="flex items-center gap-2 pl-2 border-l border-slate-200 dark:border-slate-800">
+              <label
+                htmlFor="org-branch-city-filter"
+                className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-slate-500"
+              >
+                <MapPin size={13} aria-hidden="true" />
+                <span>City:</span>
+              </label>
+              <select
+                id="org-branch-city-filter"
+                value={cityFilter}
+                onChange={(event) => onCityFilterChange(event.target.value)}
+                className="h-8 rounded-full border border-slate-200 bg-slate-50 px-3 text-xs font-medium text-slate-700 focus:border-blue-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                aria-label="Filter branches by city"
+              >
+                <option value="ALL">All Cities ({availableCities.length})</option>
+                {availableCities.map((city) => (
+                  <option key={city} value={city}>
+                    {city}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-3">

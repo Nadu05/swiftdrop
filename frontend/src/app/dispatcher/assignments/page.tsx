@@ -26,6 +26,7 @@ export default function AssignmentsPage() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Filters State
   const [searchTerm, setSearchTerm] = useState('');
@@ -45,14 +46,16 @@ export default function AssignmentsPage() {
 
   const loadData = useCallback(async () => {
     try {
+      setError(null);
       const [list, summary] = await Promise.all([
         getAssignments(),
         getAssignmentSummaryMetrics(),
       ]);
       setAssignments(list);
       setMetrics(summary);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load assignments:', err);
+      setError('Unable to reach the Dispatch Service. Please ensure the backend is running on http://localhost:8084.');
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -216,6 +219,7 @@ export default function AssignmentsPage() {
       <AssignmentTable
         assignments={paginatedAssignments}
         isLoading={isLoading}
+        error={error}
         onViewDetails={(a) => setSelectedDetailsAssignment(a)}
         onReassignCourier={(a) => setSelectedReassignAssignment(a)}
         currentPage={currentPage}

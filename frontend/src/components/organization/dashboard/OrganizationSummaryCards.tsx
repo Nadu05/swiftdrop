@@ -24,7 +24,7 @@ function OrganizationSummaryCards({
       description: isLoading
         ? 'Loading registered hubs...'
         : `${metrics.citiesCovered} distinct ${
-            metrics.citiesCovered === 1 ? 'city' : 'cities'
+            metrics.citiesCovered === 1 ? 'district' : 'districts'
           } represented`,
       icon: Building2,
       iconColors: 'bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400',
@@ -47,7 +47,7 @@ function OrganizationSummaryCards({
     },
     {
       id: 'service-areas',
-      title: serviceAreasAvailable ? 'Active Service Areas' : 'Cities Covered',
+      title: serviceAreasAvailable ? 'Active Service Areas' : 'Districts Covered',
       value: isLoading
         ? '—'
         : serviceAreasAvailable
@@ -56,10 +56,10 @@ function OrganizationSummaryCards({
       description: isLoading
         ? 'Loading coverage metrics...'
         : serviceAreasAvailable
-          ? `${metrics.totalServiceAreas} total configured radius ${
+          ? `${metrics.totalServiceAreas} total configured 25 km radius ${
               metrics.totalServiceAreas === 1 ? 'zone' : 'zones'
             }`
-          : 'Distinct municipal cities across branches',
+          : 'Distinct Sri Lankan districts across branches',
       icon: Radar,
       iconColors: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400',
     },

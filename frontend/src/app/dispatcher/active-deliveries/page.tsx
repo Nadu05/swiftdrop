@@ -23,6 +23,7 @@ export default function ActiveDeliveriesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
 
   // Filters State
   const [searchTerm, setSearchTerm] = useState('');
@@ -46,12 +47,14 @@ export default function ActiveDeliveriesPage() {
 
   const loadData = useCallback(async () => {
     try {
+      setError(null);
       const result = await getActiveDeliveries();
       setDeliveries(result.deliveries);
       setMetrics(result.metrics);
       setLastUpdated(formatTimestamp());
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load active deliveries:', err);
+      setError('Unable to load active deliveries. Please ensure the Dispatch Service is running on http://localhost:8084.');
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -195,6 +198,7 @@ export default function ActiveDeliveriesPage() {
       <ActiveDeliveryTable
         deliveries={paginatedDeliveries}
         isLoading={isLoading}
+        error={error}
         onViewDetails={(record) => setSelectedDelivery(record)}
         currentPage={currentPage}
         totalPages={totalPages}

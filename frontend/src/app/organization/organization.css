@@ -1666,3 +1666,1377 @@ body.org-scroll-lock {
     justify-content: space-between;
   }
 }
+
+
+/* ==========================================================================
+   Organization Admin Module (Member 04 — Branch Console & Branch Manager Dashboard)
+   Scoped under .org-console-* and .org-bm-* classes, consistent with SwiftDrop UI tokens.
+   ========================================================================== */
+
+/* Sidebar Mode Switch & Scope Pill */
+.org-sidebar__mode-switch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  width: 100%;
+  padding: 0.55rem 0.85rem;
+  margin-bottom: 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(96, 165, 250, 0.35);
+  background: rgba(37, 99, 235, 0.22);
+  color: #dbeafe;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.org-sidebar__mode-switch:hover {
+  background: rgba(37, 99, 235, 0.38);
+  border-color: rgba(147, 197, 253, 0.55);
+  color: #ffffff;
+}
+
+.org-sidebar__scope-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0.48rem 0.75rem;
+  margin-bottom: 0.75rem;
+  border-radius: var(--radius-sm);
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  color: #cbd5e1;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Shared Branch Console Page Header & Card Structure (Screens 28, 29, 30) */
+.org-console-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.org-console-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.org-console-header__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.org-console-header__page-title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--org-text);
+  letter-spacing: -0.02em;
+}
+
+.org-console-header__utility {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.org-console-header__section-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.org-console-header__section-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--org-text-secondary);
+}
+
+.org-console-branch-context {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.org-console-branch-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: var(--radius-full);
+  background: #e0ebff;
+  border: 1px solid var(--color-blue-200);
+  color: var(--org-primary);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+.org-console-branch-pill--select {
+  cursor: pointer;
+  appearance: auto;
+  font-family: inherit;
+}
+
+.org-console-branch-pill--muted {
+  background: var(--color-slate-100);
+  border-color: var(--color-slate-300);
+  color: var(--org-text-muted);
+}
+
+.org-console-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.org-console-kpi-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1.15rem 1.35rem;
+  background: var(--org-surface);
+  border: 1px solid var(--org-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+}
+
+.org-console-kpi-card__label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--org-text-muted);
+}
+
+.org-console-kpi-card__value {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--org-text);
+  line-height: 1.15;
+}
+
+.org-console-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  padding: 1.35rem 1.5rem;
+  background: var(--org-surface);
+  border: 1px solid var(--org-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+}
+
+.org-console-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+}
+
+.org-console-card__title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--org-text);
+}
+
+.org-console-card__subtitle {
+  font-size: 0.8125rem;
+  color: var(--org-text-muted);
+  margin-top: 0.15rem;
+}
+
+.org-console-card__header-links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.org-console-filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.6fr) minmax(180px, 1fr);
+  gap: 0.85rem;
+}
+
+.org-console-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.org-console-filter-field__label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--org-text-secondary);
+}
+
+.org-console-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.org-console-input-wrap__icon {
+  position: absolute;
+  left: 0.75rem;
+  color: var(--org-text-muted);
+  pointer-events: none;
+}
+
+.org-console-input,
+.org-console-select {
+  width: 100%;
+  height: 38px;
+  padding: 0 0.85rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--org-border-strong);
+  background: var(--color-white);
+  color: var(--org-text);
+  font-family: inherit;
+  font-size: 0.825rem;
+}
+
+.org-console-input--with-icon {
+  padding-left: 2.25rem;
+}
+
+.org-console-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.org-console-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--org-border);
+  background: var(--color-white);
+}
+
+.org-console-row--tinted {
+  background: #f8fafc;
+}
+
+.org-console-row__summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  font-size: 0.835rem;
+  color: var(--org-text-secondary);
+}
+
+.org-console-row__summary--strong {
+  font-weight: 700;
+  color: var(--org-text);
+}
+
+.org-console-row__primary {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--org-text);
+}
+
+.org-console-row__route {
+  font-weight: 600;
+  color: var(--org-text);
+}
+
+.org-console-row__meta {
+  color: var(--org-text-muted);
+}
+
+.org-console-row__sep {
+  color: var(--color-slate-300);
+}
+
+.org-console-row__action-link {
+  color: var(--org-primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.org-console-row__action-link:hover {
+  text-decoration: underline;
+}
+
+/* Shared Empty & Skeleton States */
+.org-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 0.55rem;
+  padding: 2.25rem 1.5rem;
+  border-radius: 10px;
+  border: 1px dashed var(--org-border-strong);
+  background: var(--color-slate-50);
+}
+
+.org-empty-state--error {
+  background: #fff5f5;
+  border-color: var(--color-red-200);
+}
+
+.org-empty-state--compact {
+  padding: 1.5rem 1.25rem;
+}
+
+.org-empty-state__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #e0ebff;
+  color: var(--org-primary);
+}
+
+.org-empty-state__icon--error {
+  background: var(--color-red-100);
+  color: var(--color-red-600);
+}
+
+.org-empty-state__title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--org-text);
+}
+
+.org-empty-state__description {
+  font-size: 0.8125rem;
+  color: var(--org-text-muted);
+  max-width: 540px;
+  line-height: 1.45;
+}
+
+.org-empty-state__actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.45rem;
+}
+
+.org-shell {
+  /* Light-theme overrides for shadcn/ui primitives inside the Organization module */
+  --background: 0 0% 100%;
+  --foreground: 218 39% 17%;
+  --card: 0 0% 100%;
+  --card-foreground: 218 39% 17%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 218 39% 17%;
+  --primary: 223 87% 55%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 214 32% 95%;
+  --secondary-foreground: 218 39% 17%;
+  --muted: 214 32% 95%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 214 32% 94%;
+  --accent-foreground: 218 39% 17%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 217 24% 90%;
+  --input: 217 24% 88%;
+  --ring: 223 87% 55%;
+}
+
+.org-skeleton,
+.org-skeleton-card {
+  border-radius: var(--radius-md);
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: org-shimmer 1.5s infinite linear;
+}
+
+.org-skeleton--lg {
+  width: 100%;
+  height: 24px;
+  border-radius: 6px;
+}
+
+.org-skeleton--md {
+  width: 85%;
+  height: 18px;
+  border-radius: 6px;
+}
+
+.org-skeleton--sm {
+  width: 65%;
+  height: 14px;
+  border-radius: 5px;
+}
+
+.org-skeleton-card {
+  width: 100%;
+  height: 96px;
+}
+
+@keyframes org-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.org-icon--spinning {
+  animation: spin 0.9s linear infinite;
+}
+
+/* ==========================================================================
+   Courier Assignment & Console Shared Styles (Screens 28, 29, 30, 35)
+   ========================================================================== */
+
+.org-console-status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.85rem;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+.org-console-status-pill--unassigned {
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  color: #92400e;
+}
+
+.org-console-assign-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.org-console-assign-left,
+.org-console-assign-right {
+  height: 100%;
+}
+
+.org-console-summary-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1rem 1.15rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-slate-50);
+  border: 1px solid var(--org-border);
+}
+
+.org-console-summary-line {
+  font-size: 0.85rem;
+  color: var(--org-text-secondary);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.org-console-summary-line--strong {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--org-text);
+  font-family: var(--font-mono);
+}
+
+.org-console-summary-line--muted {
+  font-size: 0.78rem;
+  color: var(--org-text-muted);
+}
+
+.org-console-inline-unavailable {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem 1.15rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-slate-50);
+  border: 1px dashed var(--org-border-strong);
+  color: var(--org-text-secondary);
+}
+
+.org-console-inline-unavailable__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--org-text);
+}
+
+.org-console-inline-unavailable__text {
+  font-size: 0.8rem;
+  color: var(--org-text-muted);
+  line-height: 1.45;
+  margin: 0;
+}
+
+.org-console-note-field {
+  margin-top: 0.35rem;
+}
+
+.org-console-row--interactive {
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.org-console-row--interactive:hover {
+  border-color: var(--color-blue-300);
+  background: #f8fbff;
+}
+
+.org-console-row--selected {
+  background: #eff6ff !important;
+  border-color: var(--org-primary) !important;
+  box-shadow: 0 0 0 1px var(--org-primary);
+}
+
+.org-console-row--skeleton {
+  padding: 1rem;
+}
+
+.org-console-selected-courier {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.85rem 1.1rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-green-50);
+  border: 1px solid var(--color-green-200);
+}
+
+.org-console-selected-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.28rem 0.7rem;
+  border-radius: var(--radius-full);
+  background: var(--color-green-600);
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.org-console-selected-meta {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-green-900);
+}
+
+.org-console-assign-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--org-border);
+}
+
+.org-btn--confirm-green {
+  background: var(--color-green-600);
+  border-color: var(--color-green-600);
+  color: #ffffff;
+}
+
+.org-btn--confirm-green:hover:not(:disabled) {
+  background: var(--color-green-700);
+  border-color: var(--color-green-700);
+}
+
+/* ==========================================================================
+   Organization Welcome Banner (.org-welcome-banner)
+   ========================================================================== */
+
+.org-welcome-banner {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1.5rem 1.75rem;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+  border: 1px solid var(--org-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+}
+
+.org-welcome-banner__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1 1 0%;
+  min-width: 0;
+  max-width: 720px;
+}
+
+.org-welcome-banner__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+  align-self: center;
+  gap: 0.6rem;
+}
+
+@media (max-width: 900px) {
+  .org-welcome-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .org-welcome-banner__actions {
+    flex-wrap: wrap;
+    align-self: flex-end;
+  }
+}
+
+.org-welcome-banner__eyebrow-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.org-welcome-banner__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.055em;
+  color: var(--org-primary);
+}
+
+.org-welcome-banner__role-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: var(--radius-full);
+  background: var(--color-blue-50);
+  border: 1px solid var(--color-blue-200);
+  color: var(--color-blue-800);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   Interactive Branch Map, Location Picker & Service-Area Visualization
+   ========================================================================== */
+
+.org-map-shell,
+.org-map-wrapper {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--org-border);
+  border-radius: var(--radius-md);
+  background: var(--org-surface);
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
+}
+
+.org-map-viewport {
+  position: relative;
+  width: 100%;
+  min-height: 280px;
+  background: #e2e8f0;
+  overflow: hidden;
+  user-select: none;
+}
+
+.org-map-grid-backdrop,
+.org-map-tile-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background-color: #eef2f6;
+  background-image:
+    linear-gradient(to right, rgba(148, 163, 184, 0.22) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148, 163, 184, 0.22) 1px, transparent 1px);
+  background-size: 36px 36px;
+}
+
+.org-map-tile {
+  position: absolute;
+  width: 256px;
+  height: 256px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.org-map-svg-overlay,
+.org-map-overlay-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.org-map-svg-overlay g {
+  pointer-events: all;
+}
+
+/* Map Marker & Floating Label */
+.org-map-marker-wrapper {
+  position: absolute;
+  z-index: 3;
+  transform: translate(-50%, -100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+
+.org-map-marker-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.28rem 0.65rem;
+  margin-bottom: 6px;
+  border-radius: var(--radius-full);
+  background: rgba(15, 23, 42, 0.9);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.22);
+  backdrop-filter: blur(4px);
+}
+
+.org-map-marker-label__code {
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  background: rgba(59, 130, 246, 0.4);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #bfdbfe;
+}
+
+.org-map-marker-label__name {
+  font-weight: 700;
+}
+
+.org-map-marker-label__coords {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  color: #cbd5e1;
+}
+
+.org-map-marker-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--org-primary);
+  color: #ffffff;
+  border: 2.5px solid #ffffff;
+  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.4);
+  padding: 0;
+  pointer-events: auto;
+  cursor: default;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.org-map-marker-pin--draggable {
+  cursor: grab;
+}
+
+.org-map-marker-pin--draggable:hover {
+  transform: scale(1.07);
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.5);
+}
+
+.org-map-marker-pin--draggable:active {
+  cursor: grabbing;
+}
+
+.org-map-marker-pulse {
+  width: 14px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.28);
+  margin-top: 2px;
+}
+
+/* Top-Left Coordinate & Hint Pills */
+.org-map-overlay-top-left {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 4;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  pointer-events: none;
+}
+
+.org-map-coord-pill,
+.org-map-hint-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  padding: 0.34rem 0.7rem;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid var(--org-border);
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--org-text-secondary);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(4px);
+}
+
+/* Top-Right Map Zoom & Recenter Controls */
+.org-map-controls {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid var(--org-border);
+  border-radius: var(--radius-sm);
+  padding: 0.25rem;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1);
+}
+
+.org-map-control-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--org-text);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.org-map-control-btn:hover:not(:disabled) {
+  background: var(--color-slate-100);
+  color: var(--org-primary);
+}
+
+.org-map-control-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Bottom-Right Map Attribution */
+.org-map-attribution {
+  position: absolute;
+  bottom: 0.5rem;
+  right: 0.65rem;
+  z-index: 4;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--org-text-muted);
+  pointer-events: none;
+}
+
+/* Branch Location Picker (Create & Edit Branch Forms) */
+.org-location-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.org-location-picker__search-block {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.org-location-picker__dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  background: var(--org-surface);
+  border: 1px solid var(--org-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.org-location-picker__dropdown-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.55rem 0.85rem;
+  border-bottom: 1px solid var(--color-slate-100);
+  background: var(--color-slate-50);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--org-text-secondary);
+}
+
+.org-location-picker__suggestions-list {
+  margin: 0;
+  padding: 0.35rem;
+  list-style: none;
+}
+
+.org-location-picker__suggestion-btn {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.org-location-picker__suggestion-btn:hover {
+  background: var(--color-blue-50);
+}
+
+.org-location-picker__quick-chips {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding-top: 0.15rem;
+}
+
+.org-location-picker__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--org-border);
+  background: var(--color-slate-50);
+  color: var(--org-text-secondary);
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.org-location-picker__chip:hover:not(:disabled) {
+  border-color: var(--color-blue-300);
+  background: var(--color-blue-50);
+  color: var(--org-primary);
+}
+
+.org-location-picker__status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.85rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-green-50);
+  border: 1px solid var(--color-green-200);
+  color: var(--color-green-800);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.org-location-picker__status--warning {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #92400e;
+}
+
+.org-location-picker__coords-bar {
+  padding: 0.9rem 1.05rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-slate-50);
+  border: 1px solid var(--org-border);
+}
+
+.org-location-picker__coords-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.org-location-picker__coord-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+
+.org-location-picker__coord-input {
+  width: 100%;
+  padding: 0.48rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--org-border);
+  background: #ffffff;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--org-text);
+}
+
+/* Service-Area Visualizer & Pills on Branch Directory / Branch Details */
+.org-service-area-visualizer {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.org-service-area-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.org-radius-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.24rem 0.65rem;
+  border-radius: var(--radius-full);
+  background: var(--color-blue-50);
+  border: 1px solid var(--color-blue-200);
+  color: var(--color-blue-800);
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+a.org-radius-pill:hover {
+  background: #dbeafe;
+  border-color: var(--color-blue-300);
+}
+
+.org-coords-mono {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--org-text-secondary);
+}
+
+.org-table__row--selected {
+  background: var(--color-blue-50) !important;
+}
+
+/* Branch Analytics Summary Cards on Branch Details */
+.org-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.org-summary-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 1.15rem 1.25rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-slate-50);
+  border: 1px solid var(--org-border);
+}
+
+.org-summary-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.org-summary-card__label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--org-text-secondary);
+}
+
+.org-summary-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.org-summary-card__icon--blue {
+  background: #e0ebff;
+  color: var(--org-primary);
+}
+
+.org-summary-card__icon--green {
+  background: var(--color-green-100);
+  color: var(--color-green-700);
+}
+
+.org-summary-card__icon--indigo {
+  background: #e0e7ff;
+  color: #4f46e5;
+}
+
+.org-summary-card__value {
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: var(--org-text);
+  line-height: 1.15;
+}
+
+.org-summary-card__meta {
+  font-size: 0.78rem;
+  color: var(--org-text-muted);
+  margin: 0;
+}
+
+/* City Distribution & Network Performance Strip on Organization Dashboard */
+.org-city-distribution-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 0.9rem;
+}
+
+.org-city-distribution-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 1.05rem 1.15rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-slate-50);
+  border: 1px solid var(--org-border);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.org-city-distribution-card:hover {
+  border-color: var(--color-blue-300);
+  box-shadow: 0 3px 10px rgba(37, 99, 235, 0.06);
+}
+
+.org-city-distribution-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.org-city-distribution-card__bar-track {
+  width: 100%;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-slate-200);
+  overflow: hidden;
+}
+
+.org-city-distribution-card__bar-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--org-primary);
+  transition: width 0.25s ease;
+}
+
+.org-city-distribution-card__meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.85rem;
+  font-size: 0.75rem;
+  color: var(--org-text-secondary);
+}
+
+.org-city-distribution-card__stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-weight: 600;
+}
+
+.org-city-distribution-card__stat--active {
+  color: var(--color-green-700);
+}
+
+.org-city-distribution-card__stat--inactive {
+  color: var(--org-text-muted);
+}
+
+/* Dashboard Performance KPI Strip & Completion Rate Cell */
+.org-perf-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 0.85rem;
+}
+
+.org-perf-kpi-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.9rem 1.05rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-slate-50);
+  border: 1px solid var(--org-border);
+}
+
+.org-perf-kpi-pill__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.org-perf-kpi-pill__icon--blue {
+  background: #e0ebff;
+  color: var(--org-primary);
+}
+
+.org-perf-kpi-pill__icon--green {
+  background: var(--color-green-100);
+  color: var(--color-green-700);
+}
+
+.org-perf-kpi-pill__icon--indigo {
+  background: #e0e7ff;
+  color: #4f46e5;
+}
+
+.org-perf-kpi-pill__icon--amber {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.org-perf-kpi-pill__label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--org-text-muted);
+}
+
+.org-perf-kpi-pill__value {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--org-text);
+  margin-top: 0.1rem;
+}
+
+.org-perf-rate-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 115px;
+}
+
+.org-perf-rate-cell__value {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-green-700);
+  min-width: 40px;
+}
+
+.org-perf-rate-cell__bar {
+  flex: 1;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-slate-200);
+  overflow: hidden;
+}
+
+.org-perf-rate-cell__fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--color-green-600);
+}
+
+/* Honest Analytics Contract Notice */
+.org-analytics-unavailable {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1.1rem 1.25rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-slate-50);
+  border: 1px dashed var(--org-border-strong);
+}
+
+.org-analytics-unavailable__info {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  max-width: 780px;
+}
+
+.org-analytics-unavailable__icon {
+  color: var(--org-primary);
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.org-analytics-unavailable__title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--org-text);
+  margin: 0 0 0.2rem;
+}
+
+.org-analytics-unavailable__desc {
+  font-size: 0.8rem;
+  color: var(--org-text-secondary);
+  line-height: 1.45;
+  margin: 0;
+}
+
+

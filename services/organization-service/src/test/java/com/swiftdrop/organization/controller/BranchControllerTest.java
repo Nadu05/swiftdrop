@@ -267,5 +267,54 @@ class BranchControllerTest {
                 .andExpect(jsonPath("$[0].id").value(10L))
                 .andExpect(jsonPath("$[0].areaName").value("Kollupitiya Area"));
     }
+
+    @Test
+    @DisplayName("POST /branches should return 400 Bad Request when branch code or phone format is invalid")
+    void shouldReturn400WhenCodeOrPhoneFormatInvalid() throws Exception {
+        BranchCreateRequest invalidFormat = new BranchCreateRequest(
+                "INVALID CODE @@@",
+                "Colombo Branch",
+                "123 Galle Road",
+                null,
+                "Colombo",
+                "not-a-phone",
+                "colombo@swiftdrop.lk",
+                6.9271,
+                79.8612
+        );
+
+        mockMvc.perform(post("/branches")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidFormat)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.timestamp").value(org.hamcrest.Matchers.endsWith("Z")))
+                .andExpect(jsonPath("$.fieldErrors.code").exists())
+                .andExpect(jsonPath("$.fieldErrors.phone").exists());
+    }
+
+    @Test
+    @DisplayName("PATCH /branches/{id} should return 400 Bad Request when provided required fields are blank")
+    void shouldReturn400WhenPatchFieldsAreBlank() throws Exception {
+        BranchUpdateRequest blankPatch = new BranchUpdateRequest();
+        blankPatch.setCode("   ");
+        blankPatch.setName("   ");
+        blankPatch.setAddressLine1("");
+        blankPatch.setCity("  ");
+        blankPatch.setPhone("   ");
+        blankPatch.setStatus("   ");
+
+        mockMvc.perform(patch("/branches/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(blankPatch)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.fieldErrors.code").exists())
+                .andExpect(jsonPath("$.fieldErrors.name").exists())
+                .andExpect(jsonPath("$.fieldErrors.addressLine1").exists())
+                .andExpect(jsonPath("$.fieldErrors.city").exists())
+                .andExpect(jsonPath("$.fieldErrors.phone").exists())
+                .andExpect(jsonPath("$.fieldErrors.status").exists());
+    }
 }
 

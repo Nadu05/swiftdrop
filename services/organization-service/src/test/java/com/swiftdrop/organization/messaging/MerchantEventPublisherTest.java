@@ -1,14 +1,21 @@
 package com.swiftdrop.organization.messaging;
 
+import com.swiftdrop.organization.config.CorrelationIdFilter;
+import com.swiftdrop.organization.config.RabbitMQConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.MDC;
 import org.springframework.amqp.AmqpException;
+import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 
+import java.util.concurrent.atomic.AtomicReference;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -21,7 +28,7 @@ class MerchantEventPublisherTest {
 
     private MerchantEventPublisher publisher;
 
-    private static final String EXCHANGE = "swiftdrop.events";
+    private static final String EXCHANGE = RabbitMQConfig.EVENTS_EXCHANGE;
 
     @BeforeEach
     void setUp() {
@@ -29,7 +36,19 @@ class MerchantEventPublisherTest {
     }
 
     @Test
-    @DisplayName("Publishes organization.merchant.approved.v1 event to swiftdrop.events exchange")
+    @DisplayName("RabbitMQConfig declares durable swiftdrop.events topic exchange matching publisher")
+    void rabbitMQConfig_DeclaresDurableSwiftdropEventsExchange() {
+        RabbitMQConfig config = new RabbitMQConfig();
+        TopicExchange eventsExchange = config.eventsExchange(RabbitMQConfig.EVENTS_EXCHANGE);
+
+        assertThat(eventsExchange.getName()).isEqualTo("swiftdrop.events");
+        assertThat(eventsExchange.getName()).isEqualTo(publisher.getExchange());
+        assertThat(eventsExchange.isDurable()).isTrue();
+        assertThat(eventsExchange.isAutoDelete()).isFalse();
+    }
+
+    @Test
+    @DisplayName("Publishes organization.merchant.approved.v1 event to swiftdrop.events exchange with correlationId")
     void onMerchantLifecycleEvent_Approved_Success() {
         MerchantLifecycleEvent event = new MerchantLifecycleEvent(
                 "evt-1",
@@ -37,6 +56,7 @@ class MerchantEventPublisherTest {
                 1,
                 "2026-11-13T10:00:00Z",
                 MerchantLifecycleEvent.PRODUCER,
+                "corr-evt-1",
                 10L,
                 "user-123",
                 "Fresh Mart",
@@ -45,6 +65,12 @@ class MerchantEventPublisherTest {
                 null
         );
 
+        AtomicReference<String> mdcDuringSend = new AtomicReference<>();
+        doAnswer(invocation -> {
+            mdcDuringSend.set(MDC.get(CorrelationIdFilter.MDC_KEY));
+            return null;
+        }).when(rabbitTemplate).convertAndSend(eq(EXCHANGE), eq("organization.merchant.approved.v1"), eq(event));
+
         publisher.onMerchantLifecycleEvent(event);
 
         verify(rabbitTemplate).convertAndSend(
@@ -52,6 +78,9 @@ class MerchantEventPublisherTest {
                 eq("organization.merchant.approved.v1"),
                 eq(event)
         );
+        assertThat(event.correlationId()).isEqualTo("corr-evt-1");
+        assertThat(mdcDuringSend.get()).isEqualTo("corr-evt-1");
+        assertThat(MDC.get(CorrelationIdFilter.MDC_KEY)).isNull();
     }
 
     @Test
@@ -63,6 +92,7 @@ class MerchantEventPublisherTest {
                 1,
                 "2026-11-13T10:00:00Z",
                 MerchantLifecycleEvent.PRODUCER,
+                "corr-evt-2",
                 10L,
                 "user-123",
                 "Fresh Mart",
@@ -89,6 +119,7 @@ class MerchantEventPublisherTest {
                 1,
                 "2026-11-13T10:00:00Z",
                 MerchantLifecycleEvent.PRODUCER,
+                "corr-evt-3",
                 10L,
                 "user-123",
                 "Fresh Mart",
@@ -105,6 +136,7 @@ class MerchantEventPublisherTest {
                 1,
                 "2026-11-13T10:00:00Z",
                 MerchantLifecycleEvent.PRODUCER,
+                "corr-evt-4",
                 10L,
                 "user-123",
                 "Fresh Mart",
@@ -125,6 +157,7 @@ class MerchantEventPublisherTest {
                 1,
                 "2026-11-13T10:00:00Z",
                 MerchantLifecycleEvent.PRODUCER,
+                "corr-evt-5",
                 10L,
                 "user-123",
                 "Fresh Mart",

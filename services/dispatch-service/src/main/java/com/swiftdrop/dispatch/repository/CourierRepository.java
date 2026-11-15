@@ -2,7 +2,11 @@ package com.swiftdrop.dispatch.repository;
 
 import com.swiftdrop.dispatch.entity.Courier;
 import com.swiftdrop.dispatch.entity.enums.CourierStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -24,5 +28,12 @@ public interface CourierRepository extends JpaRepository<Courier, Long> {
     boolean existsByCourierCode(String courierCode);
 
     boolean existsByUserId(Long userId);
-}
 
+    /**
+     * Acquire a pessimistic write lock (SELECT ... FOR UPDATE) on the Courier row
+     * to prevent concurrent assignment requests from exceeding the courier's maximum capacity.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM Courier c WHERE c.id = :id")
+    Optional<Courier> findByIdForUpdate(@Param("id") Long id);
+}

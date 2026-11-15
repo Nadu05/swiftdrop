@@ -1,7 +1,9 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { X, Building, MapPin, Bike, Car, Phone, Clock, FileText, CheckCircle2, AlertTriangle, History } from 'lucide-react';
-import type { AssignmentRecord } from './types';
+import type { AssignmentHistoryEntry, AssignmentRecord } from './types';
+import { getAssignmentHistory } from './assignmentsApi';
 
 interface AssignmentDetailsModalProps {
   isOpen: boolean;
@@ -25,6 +27,22 @@ export default function AssignmentDetailsModal({
   assignment,
   onReassignClick,
 }: AssignmentDetailsModalProps) {
+  const [historyEntries, setHistoryEntries] = useState<AssignmentHistoryEntry[]>([]);
+
+  useEffect(() => {
+    if (isOpen && assignment) {
+      if (assignment.history && assignment.history.length > 0) {
+        setHistoryEntries(assignment.history);
+      } else {
+        getAssignmentHistory(assignment.assignmentId).then((history) => {
+          setHistoryEntries(history);
+        });
+      }
+    } else {
+      setHistoryEntries([]);
+    }
+  }, [isOpen, assignment]);
+
   if (!isOpen || !assignment) return null;
 
   const formatDate = (isoString: string) => {
@@ -157,33 +175,39 @@ export default function AssignmentDetailsModal({
           <div className="dispatcher-modal-section">
             <div className="dispatcher-modal-section-title">
               <History size={15} aria-hidden="true" />
-              <span>Assignment Audit History ({assignment.history.length})</span>
+              <span>Assignment Audit History ({historyEntries.length})</span>
             </div>
 
             <div className="dispatcher-assignment-history">
-              {assignment.history.map((entry) => (
-                <div key={entry.id} className="dispatcher-assignment-history-item">
-                  <div className="dispatcher-assignment-history-dot" />
-                  <div className="dispatcher-assignment-history-content">
-                    <div className="dispatcher-assignment-history-header">
-                      <span className="dispatcher-assignment-history-courier">
-                        {entry.fromCourierName
-                          ? `${entry.fromCourierName} ➔ ${entry.toCourierName}`
-                          : `Assigned to ${entry.toCourierName}`}
+              {historyEntries.length === 0 ? (
+                <div className="text-xs text-slate-500 py-2">
+                  No reassignment history recorded for this delivery yet.
+                </div>
+              ) : (
+                historyEntries.map((entry) => (
+                  <div key={entry.id} className="dispatcher-assignment-history-item">
+                    <div className="dispatcher-assignment-history-dot" />
+                    <div className="dispatcher-assignment-history-content">
+                      <div className="dispatcher-assignment-history-header">
+                        <span className="dispatcher-assignment-history-courier">
+                          {entry.fromCourierName
+                            ? `${entry.fromCourierName} ➔ ${entry.toCourierName}`
+                            : `Assigned to ${entry.toCourierName}`}
+                        </span>
+                        <span className="dispatcher-assignment-history-time">
+                          {formatDate(entry.timestamp)}
+                        </span>
+                      </div>
+                      <span className="dispatcher-assignment-history-reason">
+                        Reason: <em>"{entry.reason}"</em>
                       </span>
-                      <span className="dispatcher-assignment-history-time">
-                        {formatDate(entry.timestamp)}
+                      <span className="dispatcher-assignment-history-by">
+                        Logged by {entry.assignedBy}
                       </span>
                     </div>
-                    <span className="dispatcher-assignment-history-reason">
-                      Reason: <em>"{entry.reason}"</em>
-                    </span>
-                    <span className="dispatcher-assignment-history-by">
-                      Logged by {entry.assignedBy}
-                    </span>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>

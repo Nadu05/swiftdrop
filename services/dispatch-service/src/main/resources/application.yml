@@ -5,9 +5,9 @@ spring:
   application:
     name: dispatch-service
   datasource:
-    url: jdbc:postgresql://${NEON_HOST}:5432/swiftdrop_dispatch?sslmode=require
-    username: ${NEON_USER}
-    password: ${NEON_PASSWORD}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${NEON_HOST:localhost}:5432/${DISPATCH_DB_NAME:swiftdrop_dispatch}?sslmode=require}
+    username: ${SPRING_DATASOURCE_USERNAME:${NEON_USER:admin}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${NEON_PASSWORD:admin@1234}}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10
@@ -32,12 +32,13 @@ spring:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USER:swiftdrop}
-    password: ${RABBITMQ_PASSWORD:password123}
+    password: ${RABBITMQ_PASSWORD}
     connection-timeout: 10000
 
 services:
   order:
     base-url: ${ORDER_SERVICE_URL:http://localhost:8083}
+    verify-on-assignment: ${ORDER_VERIFY_ON_ASSIGNMENT:false}
     ready-for-dispatch-path: ${ORDER_SERVICE_READY_PATH:/api/v1/orders/ready-for-dispatch}
     connect-timeout: 3000
     read-timeout: 5000

@@ -3,32 +3,33 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
-  Package,
   PlusCircle,
   RotateCcw,
   Search,
-  MapPin,
-  Calendar,
   AlertCircle,
   Loader2,
-  ChevronRight,
-  Truck,
-  User,
-  Phone,
-  CheckCircle2,
-  Compass,
-  Building,
-  HelpCircle,
-  Bell,
   ArrowLeft,
-  FileText,
 } from 'lucide-react';
-import { getCustomerOrders } from '@/api/services/orders.api';
-import { getCurrentUserProfile } from '@/api/services/auth.api';
-import type { DeliveryOrder, OrderStatus } from '@/types/order.types';
-import type { UserProfile } from '@/types/auth.types';
+import { listMyOrders } from '@/api/services/orders.api';
+import DeliveriesTable from '@/components/customer/DeliveriesTable';
+import type { DeliveryOrder } from '@/types/order.types';
 
-type DeliveryTab = 'ACTIVE' | 'HISTORY' | 'ADDRESSES';
+/** Filter tabs: every delivery, then one tab per step of the delivery lifecycle. */
+const DELIVERY_TABS = [
+  { key: 'ALL', label: 'ALL' },
+  { key: 'CREATED', label: 'CREATED' },
+  { key: 'PICKED UP', label: 'PICKED UP' },
+  { key: 'IN TRANSIT', label: 'IN TRANSIT' },
+  { key: 'OUT FOR DELIVERY', label: 'OUT FOR DELIVERY' },
+  { key: 'DELIVERED', label: 'DELIVERED' },
+  { key: 'FAILED', label: 'FAILED' },
+] as const;
+type DeliveryTab = (typeof DELIVERY_TABS)[number]['key'];
+
+/** 'OUT_FOR_DELIVERY' / 'Out for Delivery' -> 'OUT FOR DELIVERY' */
+function normalizeStatus(status?: string): string {
+  return (status || '').replace(/_/g, ' ').trim().toUpperCase();
+}
 
 /**
  * Member 06: SwiftDrop Customer App — Tracking and History / My Deliveries
@@ -42,25 +43,20 @@ type DeliveryTab = 'ACTIVE' | 'HISTORY' | 'ADDRESSES';
  * - Capsule tabs: [ ACTIVE ] [ HISTORY ] [ ADDRESSES ]
  */
 export default function CustomerBookingsPage() {
-  const [activeTab, setActiveTab] = useState<DeliveryTab>('ACTIVE');
+  const [activeTab, setActiveTab] = useState<DeliveryTab>('ALL');
   const [orders, setOrders] = useState<DeliveryOrder[]>([]);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [historySearch, setHistorySearch] = useState<string>('');
 
-  // Fetch authenticated customer orders and profile concurrently
+  // Fetch the authenticated customer's orders
   const loadDeliveries = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const [orderData, userProfile] = await Promise.all([
-        getCustomerOrders(),
-        getCurrentUserProfile().catch(() => null),
-      ]);
+      const orderData = await listMyOrders();
       setOrders(Array.isArray(orderData) ? orderData : []);
-      setProfile(userProfile);
     } catch (err: any) {
       setError(
         err.message || 'We could not load your deliveries. Please check your connection and try again.'
@@ -74,63 +70,19 @@ export default function CustomerBookingsPage() {
     loadDeliveries();
   }, [loadDeliveries]);
 
-  // Determine active deliveries vs completed/history
-  const isActiveStatus = (status: OrderStatus) => {
-    const s = (status || '').toUpperCase();
-    return s === 'CREATED' || s === 'PICKED UP' || s === 'IN TRANSIT' || s === 'OUT FOR DELIVERY';
-  };
-
-  const activeDeliveries = orders.filter((o) => isActiveStatus(o.status));
-  const primaryActiveOrder = activeDeliveries[0] || null;
-  const historyDeliveries = orders.filter((o) => !isActiveStatus(o.status));
-
-  // Recent deliveries list
-  const recentDeliveries = (historyDeliveries.length > 0 ? historyDeliveries : orders)
-    .filter((o) => o.id !== primaryActiveOrder?.id)
-    .slice(0, 4);
-
-  // Format date helper: e.g. "21 Oct"
-  const formatShortDate = (dateString?: string) => {
-    if (!dateString) return '';
-    try {
-      const d = new Date(dateString);
-      return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
-    } catch {
-      return '';
-    }
-  };
-
-  // Human-readable status milestone description
-  const getMilestoneSummary = (status?: OrderStatus) => {
-    const s = (status || '').toUpperCase();
-    switch (s) {
-      case 'CREATED':
-        return 'Booking confirmed · Awaiting courier pickup';
-      case 'PICKED UP':
-        return 'Courier collected parcel · In transit to branch';
-      case 'IN TRANSIT':
-        return 'Pickup complete · Moving through network';
-      case 'OUT FOR DELIVERY':
-        return 'Out for delivery · Arriving today';
-      case 'DELIVERED':
-        return 'Delivered successfully';
-      case 'FAILED':
-      case 'CANCELLED':
-        return 'Delivery unfulfilled · Refund processed';
-      default:
-        return 'Order in progress';
-    }
-  };
-
-  // Branch / Origin location helper
-  const getBranchLocation = (order: DeliveryOrder) => {
-    if (order.branch) return order.branch;
-    if (order.pickupAddress) {
-      const parts = order.pickupAddress.split(',');
-      return parts[0].trim() || 'Central Dispatch Hub';
-    }
-    return 'Colombo Central Branch';
-  };
+  // Rows for the table: the chosen step, narrowed by the search box
+  const visibleOrders = orders
+    .filter((o) => activeTab === 'ALL' || normalizeStatus(o.status) === activeTab)
+    .filter((o) => {
+      const q = historySearch.trim().toLowerCase();
+      return (
+        !q ||
+        o.trackingNumber?.toLowerCase().includes(q) ||
+        o.pickupAddress?.toLowerCase().includes(q) ||
+        o.dropoffAddress?.toLowerCase().includes(q) ||
+        o.dropoffContactName?.toLowerCase().includes(q)
+      );
+    });
 
   return (
     <div className="sd-fullpage-root">
@@ -171,36 +123,44 @@ export default function CustomerBookingsPage() {
       {/* ---------------- MAIN BODY CANVAS (100% LIGHT THEME, ZERO BLUE MARGINS) ---------------- */}
       <main className="sd-fullpage-body">
         <div className="sd-content-wrapper">
+          {/* PAGE HEADING */}
+          <div className="sd-page-heading">
+            <h2 className="sd-page-heading-title">My Deliveries</h2>
+            <p className="sd-page-heading-sub">
+              Track every parcel you have booked and open any delivery to see its full details.
+            </p>
+          </div>
+
           {/* TABS SECTION */}
           <div className="sd-tabs-section">
+            <div className="sd-card sd-search-bar">
+              <Search size={17} color="#64748b" />
+              <input
+                type="text"
+                placeholder="Search deliveries..."
+                value={historySearch}
+                onChange={(e) => setHistorySearch(e.target.value)}
+                className="sd-search-input"
+              />
+              {historySearch && (
+                <button type="button" onClick={() => setHistorySearch('')} className="sd-clear-btn">
+                  Clear
+                </button>
+              )}
+            </div>
             <div className="sd-tabs-capsule" role="tablist" aria-label="Deliveries filter">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === 'ACTIVE'}
-                onClick={() => setActiveTab('ACTIVE')}
-                className={`sd-tab ${activeTab === 'ACTIVE' ? 'active' : ''}`}
-              >
-                ACTIVE {activeDeliveries.length > 0 && `(${activeDeliveries.length})`}
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === 'HISTORY'}
-                onClick={() => setActiveTab('HISTORY')}
-                className={`sd-tab ${activeTab === 'HISTORY' ? 'active' : ''}`}
-              >
-                HISTORY {orders.length > 0 && `(${orders.length})`}
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === 'ADDRESSES'}
-                onClick={() => setActiveTab('ADDRESSES')}
-                className={`sd-tab ${activeTab === 'ADDRESSES' ? 'active' : ''}`}
-              >
-                ADDRESSES
-              </button>
+              {DELIVERY_TABS.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`sd-tab ${activeTab === tab.key ? 'active' : ''}`}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -233,319 +193,22 @@ export default function CustomerBookingsPage() {
           {!isLoading && !error && (
             <div className="sd-tab-content-layout">
               {/* ==============================================================
-                  TAB 1: ACTIVE DELIVERIES
+                  DELIVERIES LIST (all deliveries, or the chosen delivery step)
                  ============================================================== */}
-              {activeTab === 'ACTIVE' && (
-                <div className="sd-active-grid">
-                  {/* PRIMARY ACTIVE DELIVERY CARD */}
-                  <div className="sd-card sd-primary-card">
-                    {primaryActiveOrder ? (
-                      <>
-                        <div className="sd-card-top-row">
-                          <div className="sd-code-wrap">
-                            <span className="sd-order-code">{primaryActiveOrder.trackingNumber}</span>
-                            <span className="sd-dot">·</span>
-                            <span className="sd-status-pill active">Active</span>
-                          </div>
-                          <span className="sd-branch-tag">{getBranchLocation(primaryActiveOrder)}</span>
-                        </div>
-
-                        <div className="sd-courier-strip">
-                          <div className="sd-courier-avatar">
-                            <Truck size={18} color="#2563eb" />
-                          </div>
-                          <div>
-                            <div className="sd-courier-name">
-                              {primaryActiveOrder.courierName ||
-                                (primaryActiveOrder.status !== 'Created'
-                                  ? 'Verified Courier Assigned'
-                                  : 'Dispatching Courier')}
-                            </div>
-                            <div className="sd-courier-vehicle">
-                              {primaryActiveOrder.courierVehicle || 'Motorbike · Standard Fleet'}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="sd-milestone-box">
-                          <CheckCircle2 size={15} color="#16a34a" />
-                          <span>{getMilestoneSummary(primaryActiveOrder.status)}</span>
-                        </div>
-
-                        <div className="sd-address-preview-grid">
-                          <div>
-                            <span className="sd-addr-lbl">Pickup:</span>
-                            <div className="sd-addr-txt">{primaryActiveOrder.pickupAddress}</div>
-                          </div>
-                          <div>
-                            <span className="sd-addr-lbl">Destination:</span>
-                            <div className="sd-addr-txt">{primaryActiveOrder.dropoffAddress}</div>
-                          </div>
-                        </div>
-
-                        <div className="sd-card-actions-row">
-                          <Link
-                            href={`/tracking?trackingNumber=${encodeURIComponent(primaryActiveOrder.trackingNumber)}`}
-                            className="sd-btn-primary"
-                          >
-                            <Compass size={15} /> Track live delivery
-                          </Link>
-                          <Link
-                            href={`/bookings/${primaryActiveOrder.id}`}
-                            className="sd-btn-secondary"
-                          >
-                            Details &amp; Milestones
-                          </Link>
-                          <Link
-                            href={`/bookings/${primaryActiveOrder.id}/receipt`}
-                            className="sd-btn-secondary"
-                          >
-                            <FileText size={14} /> Receipt
-                          </Link>
-                        </div>
-                      </>
-                    ) : (
-                      /* Empty state for Active tab */
-                      <div className="sd-empty-state">
-                        <div className="sd-empty-icon-wrap">
-                          <Package size={32} color="#2563eb" />
-                        </div>
-                        <h3 className="sd-empty-title">No active deliveries</h3>
-                        <p className="sd-empty-sub">
-                          You don't have any active deliveries right now. Book a courier today for secure, fast parcel delivery.
-                        </p>
-                        <Link href="/book" className="sd-btn-primary">
-                          <PlusCircle size={15} /> Create a delivery
-                        </Link>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* RECENT DELIVERIES CARD */}
-                  <div className="sd-card sd-recent-card">
-                    <div className="sd-recent-header">
-                      <h3 className="sd-card-heading">Recent deliveries</h3>
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab('HISTORY')}
-                        className="sd-link-sm"
-                      >
-                        All History →
-                      </button>
-                    </div>
-
-                    {recentDeliveries.length > 0 ? (
-                      <div className="sd-recent-list">
-                        {recentDeliveries.map((item) => (
-                          <Link
-                            key={item.id}
-                            href={`/bookings/${item.id}`}
-                            className="sd-recent-row"
-                          >
-                            <div className="sd-recent-info">
-                              <span className="sd-recent-code">{item.trackingNumber || `#${item.id}`}</span>
-                              <span className="sd-dot">·</span>
-                              <span className="sd-recent-status">{item.status}</span>
-                              {item.createdAt && (
-                                <>
-                                  <span className="sd-dot">·</span>
-                                  <span className="sd-recent-date">{formatShortDate(item.createdAt)}</span>
-                                </>
-                              )}
-                            </div>
-                            <ChevronRight size={15} color="#94a3b8" />
-                          </Link>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="sd-empty-sub" style={{ padding: '1rem 0' }}>
-                        No recent deliveries recorded yet.
-                      </div>
-                    )}
-                  </div>
-
-                  {/* ACCOUNT & SHORTCUTS CARD */}
-                  <div className="sd-card sd-shortcuts-card">
-                    <h3 className="sd-card-heading">Customer Account</h3>
-                    <div className="sd-shortcuts-grid">
-                      <Link href="/customer/profile" className="sd-shortcut-item">
-                        <User size={16} color="#2563eb" />
-                        <span>My Profile</span>
-                      </Link>
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab('ADDRESSES')}
-                        className="sd-shortcut-item btn-like"
-                      >
-                        <MapPin size={16} color="#16a34a" />
-                        <span>Saved Addresses</span>
-                      </button>
-                      <Link href="/tracking" className="sd-shortcut-item">
-                        <Compass size={16} color="#0891b2" />
-                        <span>Live Tracking</span>
-                      </Link>
-                      <Link href="/customer/dashboard" className="sd-shortcut-item">
-                        <CheckCircle2 size={16} color="#7c3aed" />
-                        <span>Customer Dashboard</span>
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* ==============================================================
-                  TAB 2: FULL HISTORY
-                 ============================================================== */}
-              {activeTab === 'HISTORY' && (
-                <div className="sd-history-layout">
-                  {/* Search filter for history */}
-                  <div className="sd-card sd-search-bar">
-                    <Search size={17} color="#64748b" />
-                    <input
-                      type="text"
-                      placeholder="Filter history by tracking number, pickup, or destination..."
-                      value={historySearch}
-                      onChange={(e) => setHistorySearch(e.target.value)}
-                      className="sd-search-input"
-                    />
-                    {historySearch && (
-                      <button
-                        type="button"
-                        onClick={() => setHistorySearch('')}
-                        className="sd-clear-btn"
-                      >
-                        Clear
-                      </button>
-                    )}
-                  </div>
-
-                  {orders.length === 0 ? (
-                    <div className="sd-card sd-empty-state">
-                      <div className="sd-empty-icon-wrap">
-                        <Package size={32} color="#2563eb" />
-                      </div>
-                      <h3 className="sd-empty-title">No delivery history yet</h3>
-                      <p className="sd-empty-sub">
-                        Your completed and past delivery bookings will appear here once placed.
-                      </p>
-                      <Link href="/book" className="sd-btn-primary">
-                        <PlusCircle size={15} /> Book a delivery
-                      </Link>
-                    </div>
-                  ) : (
-                    <div className="sd-history-list">
-                      {orders
-                        .filter((o) => {
-                          const q = historySearch.toLowerCase();
-                          return (
-                            !q ||
-                            o.trackingNumber?.toLowerCase().includes(q) ||
-                            o.pickupAddress?.toLowerCase().includes(q) ||
-                            o.dropoffAddress?.toLowerCase().includes(q)
-                          );
-                        })
-                        .map((item) => (
-                          <div key={item.id} className="sd-card sd-history-item-card">
-                            <div className="sd-history-item-top">
-                              <div className="sd-history-title-wrap">
-                                <span className="sd-order-code">{item.trackingNumber || `#${item.id}`}</span>
-                                <span className="sd-dot">·</span>
-                                <span className="sd-status-pill">{item.status}</span>
-                                {item.createdAt && (
-                                  <>
-                                    <span className="sd-dot">·</span>
-                                    <span className="sd-recent-date">{formatShortDate(item.createdAt)}</span>
-                                  </>
-                                )}
-                              </div>
-                              <div className="sd-history-fee">
-                                {item.currency || 'LKR'} {Number(item.deliveryFee || 0).toFixed(2)}
-                              </div>
-                            </div>
-
-                            <div className="sd-history-route">
-                              <div className="sd-route-row">
-                                <span className="sd-route-dot from"></span>
-                                <span className="sd-route-txt">{item.pickupAddress}</span>
-                              </div>
-                              <div className="sd-route-row">
-                                <span className="sd-route-dot to"></span>
-                                <span className="sd-route-txt">{item.dropoffAddress}</span>
-                              </div>
-                            </div>
-
-                            <div className="sd-history-actions">
-                              <Link
-                                href={`/tracking?trackingNumber=${encodeURIComponent(item.trackingNumber || '')}`}
-                                className="sd-chip-btn"
-                              >
-                                Track on Map
-                              </Link>
-                              <Link
-                                href={`/bookings/${item.id}`}
-                                className="sd-chip-btn"
-                              >
-                                Milestones &amp; Details
-                              </Link>
-                              <Link
-                                href={`/bookings/${item.id}/receipt`}
-                                className="sd-chip-btn"
-                              >
-                                View Receipt
-                              </Link>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* ==============================================================
-                  TAB 3: ADDRESSES & SAVED LOCATIONS
-                 ============================================================== */}
-              {activeTab === 'ADDRESSES' && (
-                <div className="sd-addresses-layout">
-                  <div className="sd-card sd-address-card">
-                    <div className="sd-address-card-header">
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                        <MapPin size={18} color="#2563eb" />
-                        <h3 className="sd-card-heading" style={{ margin: 0 }}>Default Delivery Address</h3>
-                      </div>
-                      <Link href="/customer/profile" className="sd-link-sm">
-                        Edit in Profile →
-                      </Link>
-                    </div>
-
-                    <div className="sd-address-content">
-                      <div className="sd-addr-name">{profile?.name || 'Customer'}</div>
-                      <div className="sd-addr-full">
-                        {profile?.address || 'No default address saved yet. Update your address in your Profile.'}
-                      </div>
-                      <div className="sd-addr-contact">
-                        <Phone size={13} color="#64748b" />
-                        <span>{profile?.phone || '+94 77 123 4567'}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {orders.length > 0 && (
-                    <div className="sd-card sd-locations-card">
-                      <h3 className="sd-card-heading">Recent Delivery Locations</h3>
-                      <div className="sd-locations-list">
-                        {Array.from(new Set(orders.map((o) => o.dropoffAddress).filter(Boolean)))
-                          .slice(0, 5)
-                          .map((addr, idx) => (
-                            <div key={idx} className="sd-location-item">
-                              <MapPin size={15} color="#2563eb" style={{ flexShrink: 0, marginTop: '2px' }} />
-                              <span>{addr}</span>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
+              <div className="sd-history-layout">
+                <DeliveriesTable
+                  key={activeTab}
+                  emptyIcon={historySearch ? 'search' : 'parcel'}
+                  orders={visibleOrders}
+                  emptyMessage={
+                    historySearch
+                      ? 'No deliveries match your search.'
+                      : activeTab === 'ALL'
+                        ? 'No deliveries yet. Book your first delivery to see it here.'
+                        : 'You have no deliveries at this step right now.'
+                  }
+                />
+              </div>
             </div>
           )}
         </div>
@@ -657,6 +320,29 @@ export default function CustomerBookingsPage() {
           background: #1d4ed8;
         }
 
+        /* Page heading under the top bar */
+        .sd-page-heading {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+          margin-bottom: 1.5rem;
+        }
+
+        .sd-page-heading-title {
+          font-size: 1.625rem;
+          font-weight: 800;
+          letter-spacing: -0.025em;
+          color: #0f172a;
+          margin: 0;
+        }
+
+        .sd-page-heading-sub {
+          font-size: 0.875rem;
+          color: #64748b;
+          font-weight: 500;
+          margin: 0;
+        }
+
         /* Main Body Canvas */
         .sd-fullpage-body {
           flex: 1;
@@ -681,10 +367,17 @@ export default function CustomerBookingsPage() {
         /* Tabs Section */
         .sd-tabs-section {
           margin-bottom: 1.5rem;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 1rem;
         }
 
         .sd-tabs-capsule {
           display: inline-flex;
+          flex-wrap: wrap;
+          max-width: 100%;
           align-items: center;
           background: #e2e8f0;
           padding: 4px;
@@ -699,7 +392,7 @@ export default function CustomerBookingsPage() {
           font-size: 0.78rem;
           font-weight: 700;
           letter-spacing: 0.04em;
-          padding: 0.55rem 1.25rem;
+          padding: 0.55rem 1rem;
           border-radius: 8px;
           cursor: pointer;
           transition: all 0.15s ease;
@@ -1072,7 +765,9 @@ export default function CustomerBookingsPage() {
         }
 
         .sd-search-bar {
-          padding: 0.85rem 1.25rem;
+          flex: 1 1 260px;
+          min-width: 0;
+          padding: 0.6rem 1rem;
           display: flex;
           align-items: center;
           gap: 0.75rem;

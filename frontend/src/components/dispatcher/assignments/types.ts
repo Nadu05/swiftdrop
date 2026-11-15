@@ -18,6 +18,7 @@ export interface AssignmentHistoryEntry {
 }
 
 export interface AssignmentRecord {
+  id?: number;
   assignmentId: string;
   orderId: string;
   trackingNumber: string;
@@ -51,6 +52,7 @@ export interface AssignmentSummaryMetrics {
 }
 
 export interface ReassignCourierPayload {
+  id?: number;
   assignmentId: string;
   orderId: string;
   currentCourierId: string;

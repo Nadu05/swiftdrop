@@ -18,7 +18,9 @@ import org.testcontainers.containers.RabbitMQContainer;
         "swiftdrop.security.enabled=true",
         "swiftdrop.security.jwt-secret=" + TestTokens.SECRET,
         "swiftdrop.security.service-api-key=" + TestTokens.SERVICE_KEY,
-        "swiftdrop.outbox.enabled=false"
+        "swiftdrop.outbox.enabled=false",
+        // No Organization service in tests; branch resolution has its own tests (OrderBranchIntegrationTest)
+        "swiftdrop.organization.branch-resolution-enabled=false"
 })
 public abstract class ApplicationIntegrationTest extends PostgresIntegrationTest {
 

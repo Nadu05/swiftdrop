@@ -2,6 +2,7 @@ import type {
   DeliveryHistoryRecord,
   DeliveryHistorySummaryMetrics,
 } from './types';
+import { getAssignments } from '../assignments/assignmentsApi';
 
 export const deliveryHistoryMockData: DeliveryHistoryRecord[] = [
   {
@@ -514,7 +515,56 @@ export async function getDeliveryHistory(): Promise<{
   deliveries: DeliveryHistoryRecord[];
   metrics: DeliveryHistorySummaryMetrics;
 }> {
-  await delay(200);
+  try {
+    const assignments = await getAssignments();
+    const completedAssignments = assignments.filter(
+      (a) => a.deliveryStatus === 'DELIVERED' || a.deliveryStatus === 'FAILED'
+    );
+    if (completedAssignments.length > 0) {
+      const liveHistory: DeliveryHistoryRecord[] = completedAssignments.map((a) => ({
+        id: a.assignmentId,
+        orderId: a.orderId,
+        trackingNumber: a.trackingNumber,
+        recipient: a.recipient,
+        merchant: {
+          name: a.merchantName,
+          phone: '+94 11 234 5678',
+        },
+        courier: {
+          id: a.courier.id,
+          name: a.courier.name,
+          code: a.courier.code,
+          vehiclePlate: 'WP BDF-8942',
+          phone: a.courier.phone,
+        },
+        status: a.deliveryStatus === 'DELIVERED' ? 'DELIVERED' : 'FAILED',
+        pod:
+          a.deliveryStatus === 'DELIVERED'
+            ? {
+                recipientName: a.recipient.name,
+                confirmationDetails: 'Package delivered and recorded.',
+                podReference: `POD-${a.trackingNumber}`,
+                podType: 'SIGNATURE',
+              }
+            : undefined,
+        completedAt: a.assignedDate,
+        deliveryAttempts: a.deliveryAttempts,
+        deliveryNotes: a.notes || 'Dispatch delivery fulfilled.',
+        parcel: {
+          category: 'Standard Package',
+          weight: '1.5 kg',
+        },
+        priority: a.priority,
+        timeline: [],
+      }));
+
+      const metrics = calculateHistoryMetrics(liveHistory);
+      return { deliveries: liveHistory, metrics };
+    }
+  } catch (err) {
+    console.warn('Could not fetch backend delivery history:', err);
+  }
+
   const metrics = calculateHistoryMetrics(deliveryHistoryMockData);
   return {
     deliveries: [...deliveryHistoryMockData],

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { inferSriLankanDistrict } from '@/lib/geocoding';
 import type {
   BranchCreateRequest,
   BranchResponse,
@@ -58,6 +59,13 @@ export const branchFormSchema = z.object({
     .min(2, 'City must be at least 2 characters')
     .max(255, 'City must be at most 255 characters'),
 
+  district: z
+    .string()
+    .trim()
+    .min(1, 'District is required')
+    .min(2, 'District must be at least 2 characters')
+    .max(100, 'District must be at most 100 characters'),
+
   phone: z
     .string()
     .trim()
@@ -108,6 +116,7 @@ export const DEFAULT_BRANCH_FORM_VALUES: BranchFormValues = {
   addressLine1: '',
   addressLine2: '',
   city: '',
+  district: 'Colombo',
   phone: '',
   email: '',
   latitude: 6.9271,
@@ -124,6 +133,11 @@ export function branchResponseToFormValues(branch: BranchResponse): BranchFormVa
     addressLine1: branch.addressLine1,
     addressLine2: branch.addressLine2 ?? '',
     city: branch.city,
+    district: inferSriLankanDistrict(
+      branch.city,
+      branch.district,
+      branch.addressLine2
+    ),
     phone: branch.phone,
     email: branch.email ?? '',
     latitude: branch.latitude,
@@ -145,6 +159,7 @@ export function toBranchCreatePayload(values: BranchFormValues): BranchCreateReq
     addressLine1: values.addressLine1.trim(),
     addressLine2: trimmedAddressLine2.length > 0 ? trimmedAddressLine2 : null,
     city: values.city.trim(),
+    district: values.district.trim(),
     phone: values.phone.trim(),
     email: trimmedEmail.length > 0 ? trimmedEmail : null,
     latitude: values.latitude,
@@ -169,6 +184,7 @@ export function toBranchUpdatePayload(values: BranchFormValues): BranchUpdateReq
     addressLine1: values.addressLine1.trim(),
     addressLine2: trimmedAddressLine2,
     city: values.city.trim(),
+    district: values.district.trim(),
     phone: values.phone.trim(),
     email: trimmedEmail.length > 0 ? trimmedEmail : null,
     latitude: values.latitude,

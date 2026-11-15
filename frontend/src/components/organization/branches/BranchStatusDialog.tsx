@@ -11,7 +11,7 @@ import {
   MapPin,
   Power,
 } from 'lucide-react';
-import { updateBranchStatus } from '@/api/services/organization.api';
+import { useUpdateBranchStatus } from '@/hooks/api/use-organization';
 import type { BranchResponse, BranchStatus } from '@/types/organization.types';
 import {
   Dialog,
@@ -42,12 +42,11 @@ export default function BranchStatusDialog({
   onClose,
   onStatusUpdated,
 }: BranchStatusDialogProps) {
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const updateStatusMutation = useUpdateBranchStatus();
   const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && branch) {
-      setIsSubmitting(false);
       setApiError(null);
     }
   }, [isOpen, branch]);
@@ -58,15 +57,17 @@ export default function BranchStatusDialog({
 
   const isCurrentlyActive = branch.status === 'ACTIVE';
   const targetStatus: BranchStatus = isCurrentlyActive ? 'INACTIVE' : 'ACTIVE';
+  const isSubmitting = updateStatusMutation.isPending;
 
   const handleConfirm = async () => {
     if (isSubmitting) return;
-
-    setIsSubmitting(true);
     setApiError(null);
 
     try {
-      const updated = await updateBranchStatus(branch.id, targetStatus);
+      const updated = await updateStatusMutation.mutateAsync({
+        id: branch.id,
+        status: targetStatus,
+      });
       onStatusUpdated(updated);
     } catch (err: unknown) {
       setApiError(
@@ -76,8 +77,6 @@ export default function BranchStatusDialog({
               isCurrentlyActive ? 'deactivate' : 'activate'
             } branch "${branch.name}".`
       );
-    } finally {
-      setIsSubmitting(false);
     }
   };
 

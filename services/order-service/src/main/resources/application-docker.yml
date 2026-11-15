@@ -1,0 +1,6 @@
+# Settings that only apply when the service runs INSIDE Docker (the compose files start it with
+# SPRING_PROFILES_ACTIVE=docker). Inside a container "localhost" is the container itself, so the Organization
+# service has to be reached by its compose service name.
+swiftdrop:
+  organization:
+    base-url: ${ORGANIZATION_SERVICE_URL:http://organization-service:8082}

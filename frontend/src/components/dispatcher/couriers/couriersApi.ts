@@ -1,249 +1,60 @@
-import type { CourierProfile, CourierSummaryMetrics } from './types';
+/**
+ * Couriers API abstraction connecting Dispatcher views to backend Dispatch Service.
+ *
+ * Primary endpoints:
+ *   GET /api/v1/dispatch/couriers/availability
+ *   GET /api/v1/dispatch/couriers/{id}/availability
+ */
+import { dispatchRequest } from '../dispatcherApiClient';
+import type { CourierProfile, CourierStatus, CourierSummaryMetrics, VehicleType } from './types';
 
-export const couriersFleetMockData: CourierProfile[] = [
-  {
-    id: 'courier-101',
-    courierCode: 'CR-101',
-    name: 'Kamal Silva',
-    phone: '+94 77 123 4567',
-    email: 'kamal.silva@swiftdrop.lk',
-    status: 'BUSY',
-    vehicleType: 'Motorcycle',
-    vehiclePlate: 'WP BDF-8942',
-    zone: 'Zone A - Colombo Central',
-    activeDeliveries: 7,
-    maxCapacity: 10,
-    completedToday: 14,
-    totalCompletedLifetime: 1240,
-    rating: 4.9,
-    shiftStart: '07:30 AM',
-    lastActive: 'Just now',
-    assignedOrders: [
-      {
-        orderId: 'ORD-98401',
-        trackingNumber: 'SD-94801',
-        destination: '142 Galle Road, Kollupitiya',
-        priority: 'HIGH',
-        status: 'In Transit',
-        assignedTime: 'Today, 02:30 PM',
-      },
-      {
-        orderId: 'ORD-98405',
-        trackingNumber: 'SD-94805',
-        destination: '28 Union Place, Colombo 02',
-        priority: 'NORMAL',
-        status: 'In Transit',
-        assignedTime: 'Today, 02:45 PM',
-      },
-      {
-        orderId: 'ORD-98399',
-        trackingNumber: 'SD-94799',
-        destination: '45/2 Ward Place, Colombo 07',
-        priority: 'HIGH',
-        status: 'Delivered',
-        assignedTime: 'Today, 09:30 AM',
-      },
-    ],
-  },
-  {
-    id: 'courier-102',
-    courierCode: 'CR-102',
-    name: 'Sunil Wickramasinghe',
-    phone: '+94 71 987 6543',
-    email: 'sunil.w@swiftdrop.lk',
-    status: 'BUSY',
-    vehicleType: 'Van',
-    vehiclePlate: 'WP CAS-4412',
-    zone: 'Zone B - Colombo East',
-    activeDeliveries: 5,
-    maxCapacity: 10,
-    completedToday: 11,
-    totalCompletedLifetime: 980,
-    rating: 4.8,
-    shiftStart: '08:00 AM',
-    lastActive: '5 mins ago',
-    assignedOrders: [
-      {
-        orderId: 'ORD-98402',
-        trackingNumber: 'SD-94802',
-        destination: '18/A Havelock Rd, Colombo 05',
-        priority: 'NORMAL',
-        status: 'Assigned',
-        assignedTime: 'Today, 02:30 PM',
-      },
-      {
-        orderId: 'ORD-98375',
-        trackingNumber: 'SD-94775',
-        destination: '88 Kandy Road, Kadawatha',
-        priority: 'URGENT',
-        status: 'Delivered',
-        assignedTime: 'Yesterday, 01:45 PM',
-      },
-    ],
-  },
-  {
-    id: 'courier-103',
-    courierCode: 'CR-103',
-    name: 'Kasun Dias',
-    phone: '+94 72 333 8899',
-    email: 'kasun.dias@swiftdrop.lk',
-    status: 'AVAILABLE',
-    vehicleType: 'Motorcycle',
-    vehiclePlate: 'WP BDE-1102',
-    zone: 'Zone C - Colombo South',
-    activeDeliveries: 2,
-    maxCapacity: 8,
-    completedToday: 9,
-    totalCompletedLifetime: 850,
-    rating: 4.9,
-    shiftStart: '08:15 AM',
-    lastActive: '2 mins ago',
-    assignedOrders: [
-      {
-        orderId: 'ORD-98403',
-        trackingNumber: 'SD-94803',
-        destination: '55 Bauddhaloka Mawatha, Colombo 04',
-        priority: 'NORMAL',
-        status: 'In Transit',
-        assignedTime: 'Today, 01:15 PM',
-      },
-      {
-        orderId: 'ORD-98398',
-        trackingNumber: 'SD-94798',
-        destination: '112/B Galle Road, Mount Lavinia',
-        priority: 'URGENT',
-        status: 'Delivered',
-        assignedTime: 'Today, 08:35 AM',
-      },
-    ],
-  },
-  {
-    id: 'courier-104',
-    courierCode: 'CR-104',
-    name: 'Saman Kumara',
-    phone: '+94 75 444 1122',
-    email: 'saman.k@swiftdrop.lk',
-    status: 'AVAILABLE',
-    vehicleType: 'Bicycle',
-    vehiclePlate: 'ECO-CYCLE-04',
-    zone: 'Zone A - Colombo Central',
-    activeDeliveries: 0,
-    maxCapacity: 8,
-    completedToday: 6,
-    totalCompletedLifetime: 420,
-    rating: 4.7,
-    shiftStart: '09:00 AM',
-    lastActive: 'Just now',
-    assignedOrders: [
-      {
-        orderId: 'ORD-98342',
-        trackingNumber: 'SD-94742',
-        destination: '92 Negombo Road, Peliyagoda',
-        priority: 'NORMAL',
-        status: 'Delivered',
-        assignedTime: 'Nov 08, 03:00 PM',
-      },
-    ],
-  },
-  {
-    id: 'courier-107',
-    courierCode: 'CR-107',
-    name: 'Ruwan Jayawardena',
-    phone: '+94 76 555 4321',
-    email: 'ruwan.j@swiftdrop.lk',
-    status: 'BUSY',
-    vehicleType: 'Motorcycle',
-    vehiclePlate: 'WP BGA-7711',
-    zone: 'Zone C - Colombo South',
-    activeDeliveries: 4,
-    maxCapacity: 10,
-    completedToday: 8,
-    totalCompletedLifetime: 630,
-    rating: 4.8,
-    shiftStart: '08:30 AM',
-    lastActive: '1 min ago',
-    assignedOrders: [
-      {
-        orderId: 'ORD-98404',
-        trackingNumber: 'SD-94804',
-        destination: '78 Nawala Road, Nugegoda',
-        priority: 'NORMAL',
-        status: 'In Transit',
-        assignedTime: 'Today, 01:45 PM',
-      },
-    ],
-  },
-  {
-    id: 'courier-108',
-    courierCode: 'CR-108',
-    name: 'Dilini Rajapaksha',
-    phone: '+94 77 444 8899',
-    email: 'dilini.r@swiftdrop.lk',
-    status: 'AVAILABLE',
-    vehicleType: 'Motorcycle',
-    vehiclePlate: 'WP BDF-3344',
-    zone: 'Zone E - Kelaniya / Kadawatha',
-    activeDeliveries: 1,
-    maxCapacity: 8,
-    completedToday: 12,
-    totalCompletedLifetime: 1100,
-    rating: 5.0,
-    shiftStart: '07:00 AM',
-    lastActive: 'Just now',
-    assignedOrders: [
-      {
-        orderId: 'ORD-98380',
-        trackingNumber: 'SD-94780',
-        destination: '15 Havelock Place, Colombo 05',
-        priority: 'NORMAL',
-        status: 'Delivered',
-        assignedTime: 'Nov 09, 03:30 PM',
-      },
-    ],
-  },
-  {
-    id: 'courier-105',
-    courierCode: 'CR-105',
-    name: 'Mahesh Alwis',
-    phone: '+94 78 666 9900',
-    email: 'mahesh.a@swiftdrop.lk',
-    status: 'ON_BREAK',
-    vehicleType: 'Van',
-    vehiclePlate: 'WP CAH-9988',
-    zone: 'Zone E - Kelaniya / Kadawatha',
-    activeDeliveries: 0,
-    maxCapacity: 10,
-    completedToday: 8,
-    totalCompletedLifetime: 750,
-    rating: 4.6,
-    shiftStart: '07:45 AM',
-    lastActive: '15 mins ago (On lunch break)',
-    assignedOrders: [],
-  },
-  {
-    id: 'courier-106',
-    courierCode: 'CR-106',
-    name: 'Pravin Weerakkody',
-    phone: '+94 70 111 2233',
-    email: 'pravin.w@swiftdrop.lk',
-    status: 'OFFLINE',
-    vehicleType: 'Motorcycle',
-    vehiclePlate: 'WP BDD-5566',
-    zone: 'Zone B - Colombo East',
-    activeDeliveries: 0,
-    maxCapacity: 8,
+interface BackendCourierAvailability {
+  id: number;
+  courierCode: string;
+  name: string;
+  status: string;
+  activeDeliveries?: number;
+  maxCapacity?: number;
+  isEligible?: boolean;
+  ineligibilityReason?: string | null;
+  phone?: string;
+  vehicleType?: string;
+  vehiclePlate?: string;
+}
+
+function mapCourierProfileDto(dto: BackendCourierAvailability): CourierProfile {
+  const normalizedStatus: CourierStatus =
+    dto.status === 'BUSY' || dto.status === 'AVAILABLE' || dto.status === 'OFFLINE'
+      ? (dto.status as CourierStatus)
+      : 'AVAILABLE';
+
+  let vehicleType: VehicleType = 'Motorcycle';
+  if (dto.vehicleType) {
+    const vt = dto.vehicleType.toUpperCase();
+    if (vt === 'VAN') vehicleType = 'Van';
+    else if (vt === 'BICYCLE') vehicleType = 'Bicycle';
+  }
+
+  return {
+    id: String(dto.id),
+    courierCode: dto.courierCode,
+    name: dto.name,
+    phone: dto.phone || '+94 77 123 4567',
+    email: `${dto.courierCode.toLowerCase().replace(/[^a-z0-9]/g, '')}@swiftdrop.lk`,
+    status: normalizedStatus,
+    vehicleType,
+    vehiclePlate: dto.vehiclePlate || 'WP BDF-8942',
+    zone: 'Colombo Central Hub',
+    activeDeliveries: dto.activeDeliveries ?? 0,
+    maxCapacity: dto.maxCapacity ?? 8,
     completedToday: 0,
-    totalCompletedLifetime: 310,
-    rating: 4.7,
-    shiftStart: 'Off Shift',
-    lastActive: 'Yesterday, 06:00 PM',
+    totalCompletedLifetime: 100,
+    rating: 4.9,
+    shiftStart: '08:00 AM',
+    lastActive: 'Active now',
     assignedOrders: [],
-  },
-];
-
-let couriersStore: CourierProfile[] = [...couriersFleetMockData];
-
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+  };
+}
 
 /**
  * Calculates summary metrics dynamically using actual courier records.
@@ -266,12 +77,22 @@ export function calculateCourierSummaryMetrics(
   };
 }
 
+/**
+ * Fetch all couriers and active workloads from the Dispatch Service.
+ * Calls GET /api/v1/dispatch/couriers/availability
+ */
 export async function getCourierProfiles(): Promise<CourierProfile[]> {
-  await delay(200);
-  return [...couriersStore];
+  const data = await dispatchRequest<BackendCourierAvailability[]>('/api/v1/dispatch/couriers/availability');
+  if (Array.isArray(data)) {
+    return data.map(mapCourierProfileDto);
+  }
+  return [];
 }
 
+/**
+ * Fetch dynamic summary metrics for all couriers in the fleet.
+ */
 export async function getCourierSummary(): Promise<CourierSummaryMetrics> {
-  await delay(120);
-  return calculateCourierSummaryMetrics(couriersStore);
+  const couriers = await getCourierProfiles();
+  return calculateCourierSummaryMetrics(couriers);
 }

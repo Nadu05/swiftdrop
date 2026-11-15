@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import {
@@ -9,10 +9,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import BranchForm from '@/components/organization/branches/BranchForm';
-import {
-  getBranchById,
-  updateBranch,
-} from '@/api/services/organization.api';
+import { useBranch, useUpdateBranch } from '@/hooks/api/use-organization';
 import {
   branchResponseToFormValues,
   toBranchUpdatePayload,
@@ -24,7 +21,7 @@ import type { BranchResponse } from '@/types/organization.types';
  * Edit Branch Page (/organization/branches/[id]/edit)
  * Member 04 — Organization Admin UI (Phase 2)
  *
- * Loads an existing branch via `GET /api/v1/organization/branches/{id}`
+ * Loads an existing branch via `GET /api/v1/organization/branches/{id}` using TanStack Query
  * and submits partial updates via `PATCH /api/v1/organization/branches/{id}`.
  */
 export default function EditBranchPage() {
@@ -35,38 +32,24 @@ export default function EditBranchPage() {
   const numericId = Number(rawId);
   const isValidBranchId = Number.isInteger(numericId) && numericId > 0;
 
-  const [branch, setBranch] = useState<BranchResponse | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const {
+    data: branch,
+    isLoading: isQueryLoading,
+    error: queryError,
+    refetch,
+  } = useBranch(numericId);
 
-  const fetchBranch = useCallback(async () => {
-    if (!isValidBranchId) {
-      setIsLoading(false);
-      setLoadError(`Invalid branch ID "${rawId}". Branch ID must be a positive integer.`);
-      return;
-    }
+  const updateMutation = useUpdateBranch();
 
-    setIsLoading(true);
-    setLoadError(null);
+  const isLoading = isValidBranchId && isQueryLoading;
 
-    try {
-      const data = await getBranchById(numericId);
-      setBranch(data);
-    } catch (err: unknown) {
-      setBranch(null);
-      setLoadError(
-        err instanceof Error
-          ? err.message
-          : `Unable to load branch #${numericId} from the Organization Service.`
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isValidBranchId, numericId, rawId]);
-
-  useEffect(() => {
-    fetchBranch();
-  }, [fetchBranch]);
+  const loadError = !isValidBranchId
+    ? `Invalid branch ID "${rawId}". Branch ID must be a positive integer.`
+    : queryError
+    ? queryError instanceof Error
+      ? queryError.message
+      : `Unable to load branch #${numericId} from the Organization Service.`
+    : null;
 
   const initialFormValues = useMemo(
     () => (branch ? branchResponseToFormValues(branch) : undefined),
@@ -77,7 +60,7 @@ export default function EditBranchPage() {
     values: BranchFormValues
   ): Promise<BranchResponse> => {
     const payload = toBranchUpdatePayload(values);
-    return updateBranch(numericId, payload);
+    return updateMutation.mutateAsync({ id: numericId, payload });
   };
 
   const handleCancel = () => {
@@ -89,6 +72,10 @@ export default function EditBranchPage() {
       `/organization/branches?updated=${encodeURIComponent(savedBranch.code)}`
     );
     router.refresh();
+  };
+
+  const fetchBranch = () => {
+    refetch();
   };
 
   return (

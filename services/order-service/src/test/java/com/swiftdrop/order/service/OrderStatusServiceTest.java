@@ -1,5 +1,6 @@
 package com.swiftdrop.order.service;
 
+import com.swiftdrop.order.branch.BranchResolver;
 import com.swiftdrop.order.dto.ReceiptResponse;
 import com.swiftdrop.order.dto.StatusChangeResponse;
 import com.swiftdrop.order.dto.TimelineResponse;
@@ -9,6 +10,7 @@ import com.swiftdrop.order.entity.enums.OrderStatus;
 import com.swiftdrop.order.entity.enums.ParcelSize;
 import com.swiftdrop.order.exception.BusinessRuleException;
 import com.swiftdrop.order.exception.ResourceNotFoundException;
+import com.swiftdrop.order.location.CityDirectory;
 import com.swiftdrop.order.messaging.OrderEventRecorder;
 import com.swiftdrop.order.pricing.PricingService;
 import com.swiftdrop.order.repository.DeliveryOrderRepository;
@@ -49,13 +51,16 @@ class OrderStatusServiceTest {
     @Mock private PricingService pricing;
     @Mock private TrackingNumberGenerator trackingNumbers;
     @Mock private OrderEventRecorder eventRecorder;
+    @Mock private CityDirectory cities;
+    @Mock private BranchResolver branches;
     @Mock private PlatformTransactionManager transactionManager;
 
     private OrderService service;
 
     @BeforeEach
     void setUp() {
-        service = new OrderService(orders, history, pricing, trackingNumbers, eventRecorder, transactionManager);
+        service = new OrderService(orders, history, pricing, trackingNumbers, eventRecorder, cities, branches,
+                transactionManager);
     }
 
     private static DeliveryOrder order(OrderStatus status) {

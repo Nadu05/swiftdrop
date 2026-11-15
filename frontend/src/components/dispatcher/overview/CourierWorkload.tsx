@@ -1,13 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowRight, ChevronRight, UserCheck, AlertCircle, UserMinus } from 'lucide-react';
-import {
-  courierWorkloadMock,
-  type CourierWorkloadItem,
-  type CourierWorkloadStatus,
-} from './mockData';
+import { getCourierProfiles } from '../couriers/couriersApi';
+import type { CourierProfile, CourierStatus } from '../couriers/types';
 
 // Configurable workload threshold logic
 function getWorkloadLevel(active: number): {
@@ -25,7 +22,7 @@ function getWorkloadLevel(active: number): {
 }
 
 const statusConfig: Record<
-  CourierWorkloadStatus,
+  CourierStatus,
   { label: string; bg: string; text: string; dot: string }
 > = {
   AVAILABLE: {
@@ -40,11 +37,17 @@ const statusConfig: Record<
     text: '#b45309',
     dot: '#f59e0b',
   },
-  OFFLINE: {
-    label: 'Offline',
+  ON_BREAK: {
+    label: 'On Break',
     bg: '#f8fafc',
     text: '#64748b',
     dot: '#94a3b8',
+  },
+  OFFLINE: {
+    label: 'Offline',
+    bg: '#f1f5f9',
+    text: '#475569',
+    dot: '#64748b',
   },
 };
 
@@ -57,7 +60,25 @@ function getInitials(name: string): string {
 }
 
 export default function CourierWorkload() {
-  const [couriers] = useState<CourierWorkloadItem[]>(courierWorkloadMock);
+  const [couriers, setCouriers] = useState<CourierProfile[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    getCourierProfiles()
+      .then((data) => {
+        if (isMounted) {
+          setCouriers(data);
+          setIsLoading(false);
+        }
+      })
+      .catch(() => {
+        if (isMounted) setIsLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const totalCouriers = couriers.length;
   const availableCouriers = couriers.filter((c) => c.status === 'AVAILABLE').length;
