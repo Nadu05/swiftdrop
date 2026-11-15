@@ -4,6 +4,7 @@ import com.swiftdrop.dispatch.dto.AssignmentHistoryResponse;
 import com.swiftdrop.dispatch.dto.AssignmentReassignRequest;
 import com.swiftdrop.dispatch.dto.AssignmentRequest;
 import com.swiftdrop.dispatch.dto.AssignmentResponse;
+import com.swiftdrop.dispatch.dto.OrderCourierResponse;
 import com.swiftdrop.dispatch.dto.AssignmentStatusUpdateRequest;
 import com.swiftdrop.dispatch.entity.enums.AssignmentStatus;
 import com.swiftdrop.dispatch.exception.AccessDeniedException;
@@ -64,6 +65,14 @@ public class AssignmentController {
 
         List<AssignmentResponse> responses = assignmentService.findAll(courierId, branchId, assignmentStatus, orderId);
         return ResponseEntity.ok(responses);
+    }
+
+    @GetMapping("/by-order/{orderId}/courier")
+    @Operation(summary = "Get the courier currently assigned to an order",
+               description = "Returns the courier's name, phone, vehicle and the assignment status for the order's "
+                       + "active assignment (ASSIGNED, ACCEPTED or IN_TRANSIT). 404 when the order has no active assignment.")
+    public ResponseEntity<OrderCourierResponse> findCourierForOrder(@PathVariable Long orderId) {
+        return ResponseEntity.ok(assignmentService.findActiveCourierForOrder(orderId));
     }
 
     @GetMapping("/my-assignments")

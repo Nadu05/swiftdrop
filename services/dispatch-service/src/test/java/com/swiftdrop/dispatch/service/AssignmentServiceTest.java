@@ -732,4 +732,55 @@ class AssignmentServiceTest {
         verify(outboxPublisherService, times(1))
                 .saveAndPublish(eq("dispatch.delivery.status.changed.v1"), any(com.swiftdrop.dispatch.event.DispatchEvent.class));
     }
+
+    // ==========================================
+    // Courier currently assigned to an order
+    // ==========================================
+
+    @Test
+    @DisplayName("Should return the active courier of an order with contact details")
+    void shouldReturnActiveCourierForOrder() {
+        sampleCourier.setVehiclePlate("WP BCD-1234");
+        sampleAssignment.setStatus(AssignmentStatus.ACCEPTED);
+        when(assignmentRepository.findActiveByOrderIdWithCourier(eq(101L), anyCollection()))
+                .thenReturn(java.util.List.of(sampleAssignment));
+
+        com.swiftdrop.dispatch.dto.OrderCourierResponse response = assignmentService.findActiveCourierForOrder(101L);
+
+        assertThat(response.getCourierId()).isEqualTo(5L);
+        assertThat(response.getName()).isEqualTo("Kamal Silva");
+        assertThat(response.getPhone()).isEqualTo("+94 77 123 4567");
+        assertThat(response.getVehicleType()).isEqualTo(VehicleType.MOTORCYCLE);
+        assertThat(response.getVehiclePlate()).isEqualTo("WP BCD-1234");
+        assertThat(response.getAssignmentStatus()).isEqualTo(AssignmentStatus.ACCEPTED);
+    }
+
+    @Test
+    @DisplayName("Should return the newest active assignment when an order has several")
+    void shouldReturnNewestActiveAssignment() {
+        Assignment newer = new Assignment();
+        newer.setCourier(targetCourier);
+        newer.setStatus(AssignmentStatus.ASSIGNED);
+        when(assignmentRepository.findActiveByOrderIdWithCourier(eq(101L), anyCollection()))
+                .thenReturn(java.util.List.of(newer, sampleAssignment));
+
+        assertThat(assignmentService.findActiveCourierForOrder(101L).getName()).isEqualTo("Nimal Perera");
+    }
+
+    @Test
+    @DisplayName("Should only look at ASSIGNED, ACCEPTED and IN_TRANSIT assignments and 404 when none")
+    void shouldOnlyConsiderActiveStatuses() {
+        when(assignmentRepository.findActiveByOrderIdWithCourier(eq(101L), anyCollection()))
+                .thenReturn(java.util.List.of());
+
+        assertThatThrownBy(() -> assignmentService.findActiveCourierForOrder(101L))
+                .isInstanceOf(com.swiftdrop.dispatch.exception.ResourceNotFoundException.class);
+
+        @SuppressWarnings("unchecked")
+        org.mockito.ArgumentCaptor<java.util.Collection<AssignmentStatus>> statuses =
+                org.mockito.ArgumentCaptor.forClass(java.util.Collection.class);
+        verify(assignmentRepository).findActiveByOrderIdWithCourier(eq(101L), statuses.capture());
+        assertThat(statuses.getValue()).containsExactlyInAnyOrder(
+                AssignmentStatus.ASSIGNED, AssignmentStatus.ACCEPTED, AssignmentStatus.IN_TRANSIT);
+    }
 }

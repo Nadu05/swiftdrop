@@ -6,6 +6,7 @@ import type {
   CreateOrderRequest,
   CreateOrderResponse,
   DeliveryOrder,
+  OrderCourier,
   PublicTrackingResponse
 } from '@/types/order.types';
 
@@ -331,6 +332,23 @@ export async function getOrderById(id: string | number): Promise<DeliveryOrder> 
       id: String(id),
       trackingNumber: idStr.startsWith('SD-') ? idStr : `SD-${idStr}`,
     };
+  }
+}
+
+/**
+ * Fetch the courier currently assigned to an order (name, phone, vehicle) from the Dispatch Service.
+ *
+ * Endpoint: GET /api/v1/dispatch/assignments/by-order/{orderId}/courier
+ *
+ * @returns the courier, or null when the order has no active assignment yet (HTTP 404) or the
+ *          Dispatch Service cannot be reached, so the page can show "not assigned yet".
+ */
+export async function getOrderCourier(orderId: string | number): Promise<OrderCourier | null> {
+  try {
+    const response = await apiClient.get<OrderCourier>(`/api/v1/dispatch/assignments/by-order/${orderId}/courier`);
+    return response.data?.name ? response.data : null;
+  } catch {
+    return null;
   }
 }
 

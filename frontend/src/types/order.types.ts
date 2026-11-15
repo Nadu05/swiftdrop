@@ -130,9 +130,24 @@ export interface DeliveryOrder {
   courierVehicle?: string;
   courierPhone?: string;
   branch?: string;
+  /** Id of the branch serving the order (name comes from the Organization Service). */
+  branchId?: number;
   distanceKm?: number;
   /** How the delivery fee was calculated; absent on records that do not carry it. */
   feeBreakdown?: FeeBreakdown;
+}
+
+/**
+ * The courier currently assigned to an order, from the Dispatch Service:
+ * GET /api/v1/dispatch/assignments/by-order/{orderId}/courier
+ */
+export interface OrderCourier {
+  courierId: number;
+  name: string;
+  phone: string;
+  vehicleType?: string;
+  vehiclePlate?: string;
+  assignmentStatus: string;
 }
 
 /**
@@ -163,4 +178,8 @@ export interface PublicTrackingResponse {
   courierPhone?: string;
   branch?: string;
   distanceKm?: number;
+  totalFee?: number;
+  senderName?: string;
+  recipientName?: string;
+  courierVehicle?: string;
 }

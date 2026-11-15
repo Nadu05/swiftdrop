@@ -463,4 +463,47 @@ class AssignmentControllerTest {
                 .andExpect(jsonPath("$.status", is(403)))
                 .andExpect(jsonPath("$.error", is("Forbidden")));
     }
+
+    // ==========================================
+    // Courier currently assigned to an order
+    // ==========================================
+
+    @Test
+    @DisplayName("Should return the courier assigned to an order at /api/v1/dispatch/assignments/by-order/{orderId}/courier")
+    void shouldReturnCourierForOrder() throws Exception {
+        when(assignmentService.findActiveCourierForOrder(15L)).thenReturn(
+                new com.swiftdrop.dispatch.dto.OrderCourierResponse(7L, "Sunil Silva", "+94 70 334 5566",
+                        com.swiftdrop.dispatch.entity.enums.VehicleType.MOTORCYCLE, "WP BCD-1234", AssignmentStatus.ACCEPTED));
+
+        mockMvc.perform(get("/api/v1/dispatch/assignments/by-order/15/courier"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.courierId", is(7)))
+                .andExpect(jsonPath("$.name", is("Sunil Silva")))
+                .andExpect(jsonPath("$.phone", is("+94 70 334 5566")))
+                .andExpect(jsonPath("$.vehicleType", is("MOTORCYCLE")))
+                .andExpect(jsonPath("$.vehiclePlate", is("WP BCD-1234")))
+                .andExpect(jsonPath("$.assignmentStatus", is("ACCEPTED")));
+    }
+
+    @Test
+    @DisplayName("Should support the gateway-stripped path /assignments/by-order/{orderId}/courier")
+    void shouldReturnCourierForOrderOnStrippedPath() throws Exception {
+        when(assignmentService.findActiveCourierForOrder(15L)).thenReturn(
+                new com.swiftdrop.dispatch.dto.OrderCourierResponse(7L, "Sunil Silva", "+94 70 334 5566",
+                        com.swiftdrop.dispatch.entity.enums.VehicleType.MOTORCYCLE, "WP BCD-1234", AssignmentStatus.ASSIGNED));
+
+        mockMvc.perform(get("/assignments/by-order/15/courier"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name", is("Sunil Silva")));
+    }
+
+    @Test
+    @DisplayName("Should return 404 when the order has no active courier assignment")
+    void shouldReturn404WhenOrderHasNoCourier() throws Exception {
+        when(assignmentService.findActiveCourierForOrder(99L))
+                .thenThrow(new ResourceNotFoundException("Active courier assignment for order", 99L));
+
+        mockMvc.perform(get("/api/v1/dispatch/assignments/by-order/99/courier"))
+                .andExpect(status().isNotFound());
+    }
 }
