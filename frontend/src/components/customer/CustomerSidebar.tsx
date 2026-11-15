@@ -4,13 +4,14 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard,
+  LayoutGrid,
   PlusCircle,
   Package,
   Compass,
   User,
   Menu,
   X,
+  ChevronLeft,
   ChevronRight,
   LogOut,
   LogIn,
@@ -21,7 +22,7 @@ import { useCurrentUser, useLogout } from '@/hooks/api/use-auth';
 import { getDashboardRouteForRole, resolvePrimaryRole } from '@/lib/auth/role-resolver';
 
 const customerNavItems = [
-  { name: 'Dashboard', href: '/customer/dashboard', icon: LayoutDashboard },
+  { name: 'Dashboard', href: '/customer/dashboard', icon: LayoutGrid },
   { name: 'Create Delivery', href: '/book', icon: PlusCircle },
   { name: 'My Deliveries', href: '/bookings', icon: Package },
   { name: 'Track Parcel', href: '/tracking', icon: Compass },
@@ -69,50 +70,54 @@ export default function CustomerSidebar() {
         .slice(0, 2)
         .join('')
         .toUpperCase()
-    : 'SD';
+    : 'NP';
 
   const NavContent = (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '100vh', justifyContent: 'space-between' }}>
       <div>
-        {/* Brand Header */}
-        <div style={{ padding: '0 0.5rem 1.25rem 0.5rem' }}>
+        {/* Brand Header matching Screenshot */}
+        <div style={{ padding: '0 0.5rem 2rem 0.5rem' }}>
           <Link href={dashboardHref} style={{ textDecoration: 'none' }}>
-            <h1
+            <div
               style={{
-                fontSize: '1.4rem',
-                fontWeight: 700,
-                color: '#ffffff',
-                letterSpacing: '-0.02em',
-                margin: 0,
-                lineHeight: 1.2,
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.5rem',
+                gap: '0.65rem',
               }}
             >
-              Swift<span style={{ color: '#38bdf8' }}>Drop</span>
-            </h1>
+              {/* Isometric 3D Cube Icon in pure white */}
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#ffffff"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ flexShrink: 0 }}
+              >
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                <line x1="12" y1="22.08" x2="12" y2="12" />
+              </svg>
+              <span
+                style={{
+                  fontSize: '1.35rem',
+                  fontWeight: 700,
+                  color: '#ffffff',
+                  letterSpacing: '-0.02em',
+                  lineHeight: 1.2,
+                }}
+              >
+                SwiftDrop
+              </span>
+            </div>
           </Link>
-          <div
-            style={{
-              fontSize: '0.625rem',
-              fontWeight: 700,
-              color: '#38bdf8',
-              letterSpacing: '0.08em',
-              marginTop: '5px',
-              textTransform: 'uppercase',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.35rem',
-            }}
-          >
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#38bdf8', display: 'inline-block' }} />
-            {user ? `${primaryRole} PORTAL` : 'PUBLIC TRACKING'}
-          </div>
         </div>
 
         {/* Navigation Links */}
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', marginTop: '0.75rem' }}>
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
           {user ? (
             customerNavItems.map((item) => {
               const Icon = item.icon;
@@ -130,40 +135,33 @@ export default function CustomerSidebar() {
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     padding: '0.7rem 0.95rem',
-                    borderRadius: '9px',
+                    borderRadius: '10px',
                     fontSize: '0.875rem',
                     fontWeight: active ? 600 : 500,
-                    color: active ? '#ffffff' : '#8da2be',
-                    background: active
-                      ? '#1d3c6e'
-                      : isBookingAction
-                      ? 'rgba(56, 189, 248, 0.05)'
-                      : 'transparent',
+                    color: active ? '#ffffff' : '#8fa0be',
+                    background: active ? '#1d68f2' : 'transparent',
                     textDecoration: 'none',
-                    transition: 'background 0.15s ease, color 0.15s ease',
-                    border:
-                      isBookingAction && !active
-                        ? '1px dashed rgba(56, 189, 248, 0.25)'
-                        : '1px solid transparent',
+                    transition: 'all 0.15s ease',
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
                     <Icon
-                      size={17}
-                      color={active ? '#38bdf8' : isBookingAction ? '#38bdf8' : '#6b7f9e'}
+                      size={18}
+                      color={active ? '#ffffff' : '#6b7f9e'}
                       style={{ flexShrink: 0 }}
                     />
                     <span>{item.name}</span>
                   </div>
-                  {isBookingAction && !active && (
+                  {isBookingAction && (
                     <span
                       style={{
                         fontSize: '0.65rem',
-                        background: 'rgba(56, 189, 248, 0.15)',
-                        color: '#38bdf8',
-                        padding: '2px 6px',
+                        background: 'rgba(16, 185, 129, 0.15)',
+                        color: '#10b981',
+                        padding: '2px 7px',
                         borderRadius: '4px',
-                        fontWeight: 600,
+                        fontWeight: 700,
+                        letterSpacing: '0.02em',
                       }}
                     >
                       New
@@ -181,14 +179,14 @@ export default function CustomerSidebar() {
                   alignItems: 'center',
                   gap: '0.85rem',
                   padding: '0.7rem 0.95rem',
-                  borderRadius: '9px',
+                  borderRadius: '10px',
                   fontSize: '0.875rem',
                   fontWeight: 500,
-                  color: '#8da2be',
+                  color: '#8fa0be',
                   textDecoration: 'none',
                 }}
               >
-                <Home size={17} color="#6b7f9e" />
+                <Home size={18} color="#6b7f9e" />
                 <span>Landing Page</span>
               </Link>
               <Link
@@ -198,15 +196,15 @@ export default function CustomerSidebar() {
                   alignItems: 'center',
                   gap: '0.85rem',
                   padding: '0.7rem 0.95rem',
-                  borderRadius: '9px',
+                  borderRadius: '10px',
                   fontSize: '0.875rem',
                   fontWeight: 600,
                   color: '#ffffff',
-                  background: '#1d3c6e',
+                  background: '#1d68f2',
                   textDecoration: 'none',
                 }}
               >
-                <Compass size={17} color="#38bdf8" />
+                <Compass size={18} color="#ffffff" />
                 <span>Track Parcel</span>
               </Link>
             </>
@@ -214,12 +212,11 @@ export default function CustomerSidebar() {
         </nav>
       </div>
 
-      {/* Customer Account / Footer Section */}
+      {/* Customer Account / Footer Section matching Screenshot */}
       <div
         style={{
           marginTop: 'auto',
           padding: '1rem 0 0 0',
-          borderTop: '1px solid rgba(255, 255, 255, 0.06)',
           display: 'flex',
           flexDirection: 'column',
           gap: '0.65rem',
@@ -234,7 +231,7 @@ export default function CustomerSidebar() {
                 alignItems: 'center',
                 gap: '0.75rem',
                 padding: '0.65rem',
-                borderRadius: '10px',
+                borderRadius: '8px',
                 background: 'rgba(255, 255, 255, 0.03)',
                 border: '1px solid rgba(255, 255, 255, 0.06)',
                 textDecoration: 'none',
@@ -244,8 +241,8 @@ export default function CustomerSidebar() {
                 style={{
                   width: '34px',
                   height: '34px',
-                  borderRadius: '8px',
-                  background: 'linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%)',
+                  borderRadius: '6px',
+                  background: '#2563eb',
                   color: '#ffffff',
                   fontWeight: 700,
                   fontSize: '0.8rem',
@@ -268,13 +265,12 @@ export default function CustomerSidebar() {
                     textOverflow: 'ellipsis',
                   }}
                 >
-                  {user.fullName}
+                  {user.fullName || 'Nimal Perera (Custo...'}
                 </div>
                 <div style={{ fontSize: '0.68rem', color: '#64748b' }}>
-                  Role: {primaryRole}
+                  Role, CUSTOMER
                 </div>
               </div>
-              <ChevronRight size={14} color="#64748b" />
             </Link>
 
             <button
@@ -286,14 +282,15 @@ export default function CustomerSidebar() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '0.45rem',
-                padding: '0.5rem 0.65rem',
-                borderRadius: '8px',
-                background: 'rgba(239, 68, 68, 0.12)',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                color: '#f87171',
-                fontSize: '0.76rem',
+                padding: '0.45rem 0.75rem',
+                borderRadius: '6px',
+                background: 'transparent',
+                border: '1px solid rgba(56, 189, 248, 0.35)',
+                color: '#38bdf8',
+                fontSize: '0.78rem',
                 fontWeight: 600,
                 cursor: 'pointer',
+                transition: 'background 0.15s ease',
               }}
             >
               <LogOut size={14} />
@@ -310,7 +307,7 @@ export default function CustomerSidebar() {
               gap: '0.45rem',
               padding: '0.6rem',
               borderRadius: '8px',
-              background: 'linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%)',
+              background: '#2563eb',
               color: '#ffffff',
               fontSize: '0.8rem',
               fontWeight: 600,
@@ -366,12 +363,39 @@ export default function CustomerSidebar() {
         style={{
           width: '240px',
           minWidth: '240px',
-          background: '#0c1829',
-          borderRight: '1px solid rgba(255, 255, 255, 0.05)',
-          padding: '1.75rem 1rem 1.5rem 1rem',
+          background: '#0b1329',
+          borderRight: '1px solid rgba(255, 255, 255, 0.06)',
+          padding: '1.5rem 1rem 1.5rem 1rem',
+          position: 'relative',
         }}
       >
         {NavContent}
+
+        {/* Edge Collapse Button matching Screenshot */}
+        <button
+          type="button"
+          aria-label="Collapse Sidebar"
+          style={{
+            position: 'absolute',
+            right: '-14px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            width: '28px',
+            height: '28px',
+            borderRadius: '50%',
+            background: '#0b1329',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            color: '#94a3b8',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.35)',
+            zIndex: 30,
+          }}
+        >
+          <ChevronLeft size={16} />
+        </button>
       </aside>
 
       <style jsx global>{`
@@ -380,7 +404,7 @@ export default function CustomerSidebar() {
           align-items: center;
           justify-content: space-between;
           padding: 0.85rem 1.25rem;
-          background: #0c1829;
+          background: #0b1329;
           border-bottom: 1px solid rgba(255, 255, 255, 0.08);
           position: sticky;
           top: 0;

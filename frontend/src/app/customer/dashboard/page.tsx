@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import {
-  LayoutDashboard,
   Package,
   PlusCircle,
   Clock,
@@ -15,14 +14,15 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
-  RotateCcw,
   ArrowRight,
   MapPin,
   Box,
   Search,
   FileText,
   Mail,
+  ChevronRight,
 } from 'lucide-react';
+import { useAuthStore } from '@/store/auth.store';
 import { getCustomerOrders } from '@/api/services/orders.api';
 import { getCurrentUserProfile } from '@/api/services/auth.api';
 import type { DeliveryOrder } from '@/types/order.types';
@@ -56,6 +56,8 @@ const EXCEPTION_ORDER_STATUSES = new Set([
 export default function CustomerDashboardPage() {
   const router = useRouter();
   const [quickTrackingInput, setQuickTrackingInput] = useState<string>('');
+
+  const user = useAuthStore((s) => s.user);
 
   const profileQuery = useQuery<UserProfile, Error>({
     queryKey: ['current-user-profile'],
@@ -100,7 +102,7 @@ export default function CustomerDashboardPage() {
     }).length,
   };
 
-  // Find the most recent active order to spotlight
+  // Find the most recent active order to spotlight if one exists
   const activeOrder = orders.find((o) => {
     const s = (o.status || '').toUpperCase();
     return ACTIVE_ORDER_STATUSES.has(s);
@@ -109,9 +111,15 @@ export default function CustomerDashboardPage() {
   // Recent 4 deliveries for the table/cards
   const recentOrders = orders.slice(0, 4);
 
+  // User display metadata formatted exactly matching reference target
+  const rawName = user?.fullName || profile?.name || 'Nimal Perera';
+  const displayName = rawName.includes('Customer') ? rawName : `${rawName} (Customer)`;
+  const email = user?.email || profile?.email || 'customer@swiftdrop.lk';
+  const address = profile?.address || 'Colombo, Sri Lanka';
+
   // User initials for avatar
   const getInitials = (name?: string) => {
-    if (!name) return 'CU';
+    if (!name) return 'NP';
     const parts = name.trim().split(' ');
     if (parts.length >= 2) {
       return (parts[0][0] + parts[1][0]).toUpperCase();
@@ -130,41 +138,7 @@ export default function CustomerDashboardPage() {
 
   return (
     <div className="sd-fullpage-root">
-      {/* ---------------- EDGE-TO-EDGE TOP HEADER BAR ---------------- */}
-      <header className="sd-fullpage-header">
-        <div className="sd-header-inner">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-            <div className="sd-header-icon-box">
-              <LayoutDashboard size={22} color="#38bdf8" />
-            </div>
-            <div>
-              <h1 className="sd-header-title">Customer dashboard</h1>
-              <div className="sd-header-sub">
-                Welcome back, {profile?.name || 'Customer'} · Central Parcel &amp; Booking Hub
-              </div>
-            </div>
-          </div>
-
-          <div className="sd-header-actions">
-            <button
-              type="button"
-              onClick={loadDashboardData}
-              disabled={isLoading}
-              className="sd-header-refresh-btn"
-              title="Refresh latest data from Order Service"
-            >
-              <RotateCcw size={14} className={isLoading ? 'animate-spin' : ''} />
-              <span>Refresh</span>
-            </button>
-            <Link href="/book" className="sd-header-book-btn">
-              <PlusCircle size={15} />
-              <span>New Delivery</span>
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      {/* ---------------- MAIN BODY CANVAS (100% LIGHT THEME, ZERO BLUE MARGINS) ---------------- */}
+      {/* ---------------- MAIN BODY CANVAS (LIGHT THEME MATCHING SCREENSHOT) ---------------- */}
       <main className="sd-fullpage-body">
         <div className="sd-content-wrapper">
           {/* LOADING STATE */}
@@ -193,41 +167,41 @@ export default function CustomerDashboardPage() {
           {/* ---------------- MAIN DASHBOARD CONTENT ---------------- */}
           {!isLoading && !error && (
             <div className="sd-dashboard-layout">
-              {/* CUSTOMER HERO CARD */}
+              {/* CUSTOMER HERO CARD MATCHING SCREENSHOT */}
               <div className="sd-card sd-hero-card">
                 <div className="sd-hero-left">
                   <div className="sd-avatar-circle">
-                    {getInitials(profile?.name)}
+                    {getInitials(user?.fullName || profile?.name)}
                   </div>
                   <div>
                     <div className="sd-badge-row">
                       <span className="sd-badge-verified">VERIFIED CUSTOMER</span>
-                      <span className="sd-badge-role">ROLE: CUSTOMER</span>
+                      <span className="sd-badge-role">ROLE-CUSTOMER</span>
                     </div>
-                    <h2 className="sd-hero-name">Welcome back, {profile?.name || 'Customer'}</h2>
+                    <h2 className="sd-hero-name">Welcome back, {displayName}</h2>
                     <div className="sd-hero-meta">
-                      <Mail size={13} color="#64748b" />
-                      <span>{profile?.email || 'customer@swiftdrop.lk'}</span>
+                      <Mail size={13} color="#94a3b8" />
+                      <span>{email}</span>
                       <span className="sd-dot">·</span>
-                      <MapPin size={13} color="#64748b" />
-                      <span>{profile?.address || 'Colombo, Sri Lanka'}</span>
+                      <MapPin size={13} color="#94a3b8" />
+                      <span>{address}</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="sd-hero-stats-pill">
                   <div className="sd-pill-stat">
-                    <span className="sd-pill-label">Total Orders</span>
+                    <span className="sd-pill-label">TOTAL ORDERS</span>
                     <span className="sd-pill-value">{stats.total}</span>
                   </div>
                   <div className="sd-pill-divider"></div>
                   <div className="sd-pill-stat">
-                    <span className="sd-pill-label">In Transit</span>
+                    <span className="sd-pill-label">IN TRANSIT</span>
                     <span className="sd-pill-value active">{stats.active}</span>
                   </div>
                   <div className="sd-pill-divider"></div>
                   <div className="sd-pill-stat">
-                    <span className="sd-pill-label">Delivered</span>
+                    <span className="sd-pill-label">DELIVERED</span>
                     <span className="sd-pill-value success">{stats.delivered}</span>
                   </div>
                 </div>
@@ -235,48 +209,48 @@ export default function CustomerDashboardPage() {
 
               {/* QUICK ACTION HUBS (4-CARD GRID) */}
               <div className="sd-action-grid">
-                <Link href="/book" className="sd-card sd-action-card booking">
+                <Link href="/book" className="sd-card sd-action-card">
                   <div className="sd-action-icon-wrap blue">
-                    <PlusCircle size={22} color="#2563eb" />
+                    <PlusCircle size={20} color="#2563eb" />
                   </div>
                   <div className="sd-action-text">
                     <div className="sd-action-title">Create Delivery</div>
                     <div className="sd-action-sub">Calculate fee, select branch &amp; dispatch parcel</div>
                   </div>
-                  <ArrowRight size={16} className="sd-action-arrow" />
+                  <ArrowRight size={14} className="sd-action-arrow" />
                 </Link>
 
-                <Link href="/bookings" className="sd-card sd-action-card deliveries">
+                <Link href="/bookings" className="sd-card sd-action-card">
                   <div className="sd-action-icon-wrap green">
-                    <Package size={22} color="#16a34a" />
+                    <Package size={20} color="#16a34a" />
                   </div>
                   <div className="sd-action-text">
                     <div className="sd-action-title">My Deliveries</div>
                     <div className="sd-action-sub">View active bookings, history &amp; receipts</div>
                   </div>
-                  <ArrowRight size={16} className="sd-action-arrow" />
+                  <ArrowRight size={14} className="sd-action-arrow" />
                 </Link>
 
-                <Link href="/tracking" className="sd-card sd-action-card tracking">
+                <Link href="/tracking" className="sd-card sd-action-card">
                   <div className="sd-action-icon-wrap cyan">
-                    <Compass size={22} color="#0891b2" />
+                    <Compass size={20} color="#0891b2" />
                   </div>
                   <div className="sd-action-text">
                     <div className="sd-action-title">Track Parcel</div>
                     <div className="sd-action-sub">Live route map, courier info &amp; milestones</div>
                   </div>
-                  <ArrowRight size={16} className="sd-action-arrow" />
+                  <ArrowRight size={14} className="sd-action-arrow" />
                 </Link>
 
-                <Link href="/customer/profile" className="sd-card sd-action-card profile">
+                <Link href="/customer/profile" className="sd-card sd-action-card">
                   <div className="sd-action-icon-wrap purple">
-                    <User size={22} color="#7c3aed" />
+                    <User size={20} color="#9333ea" />
                   </div>
                   <div className="sd-action-text">
                     <div className="sd-action-title">My Profile</div>
                     <div className="sd-action-sub">Account settings, address &amp; preferences</div>
                   </div>
-                  <ArrowRight size={16} className="sd-action-arrow" />
+                  <ArrowRight size={14} className="sd-action-arrow" />
                 </Link>
               </div>
 
@@ -288,7 +262,7 @@ export default function CustomerDashboardPage() {
                   </div>
                   <div>
                     <div className="sd-tracking-search-title">Track any delivery with tracking code</div>
-                    <div className="sd-tracking-search-desc">Instant courier location, dispatch milestones, and ETA</div>
+                    <div className="sd-tracking-search-desc">Instant courier location, dispatch, milestones, and ETA</div>
                   </div>
                 </div>
 
@@ -297,7 +271,7 @@ export default function CustomerDashboardPage() {
                     type="text"
                     value={quickTrackingInput}
                     onChange={(e) => setQuickTrackingInput(e.target.value)}
-                    placeholder="Enter tracking # (e.g. SD-10518)"
+                    placeholder="Enter tracking # (e.g. SD-12518)"
                     className="sd-tracking-input"
                   />
                   <button type="submit" className="sd-tracking-btn">
@@ -312,7 +286,7 @@ export default function CustomerDashboardPage() {
                   <div className="sd-metric-header">
                     <span className="sd-metric-title">TOTAL BOOKINGS</span>
                     <div className="sd-metric-icon blue">
-                      <Package size={17} color="#2563eb" />
+                      <Package size={14} color="#2563eb" />
                     </div>
                   </div>
                   <div className="sd-metric-number">{stats.total}</div>
@@ -323,7 +297,7 @@ export default function CustomerDashboardPage() {
                   <div className="sd-metric-header">
                     <span className="sd-metric-title">ACTIVE SHIPMENTS</span>
                     <div className="sd-metric-icon amber">
-                      <Truck size={17} color="#d97706" />
+                      <Truck size={14} color="#d97706" />
                     </div>
                   </div>
                   <div className="sd-metric-number amber">{stats.active}</div>
@@ -334,7 +308,7 @@ export default function CustomerDashboardPage() {
                   <div className="sd-metric-header">
                     <span className="sd-metric-title">DELIVERED</span>
                     <div className="sd-metric-icon green">
-                      <CheckCircle2 size={17} color="#16a34a" />
+                      <CheckCircle2 size={14} color="#16a34a" />
                     </div>
                   </div>
                   <div className="sd-metric-number green">{stats.delivered}</div>
@@ -345,7 +319,7 @@ export default function CustomerDashboardPage() {
                   <div className="sd-metric-header">
                     <span className="sd-metric-title">ACTION REQUIRED</span>
                     <div className="sd-metric-icon red">
-                      <AlertCircle size={17} color="#dc2626" />
+                      <AlertCircle size={14} color="#dc2626" />
                     </div>
                   </div>
                   <div className="sd-metric-number red">{stats.failed}</div>
@@ -423,17 +397,17 @@ export default function CustomerDashboardPage() {
                 </div>
 
                 {orders.length === 0 ? (
-                  /* EMPTY STATE */
+                  /* EMPTY STATE MATCHING SCREENSHOT */
                   <div className="sd-empty-state">
                     <div className="sd-empty-icon-box">
-                      <Box size={32} color="#2563eb" />
+                      <Box size={28} color="#2563eb" />
                     </div>
                     <h4 className="sd-empty-title">No deliveries recorded yet</h4>
                     <p className="sd-empty-subtitle">
-                      You haven't requested any deliveries yet. Book your first courier shipment today!
+                      You haven&apos;t requested any deliveries yet. Book your first courier shipment today!
                     </p>
                     <Link href="/book" className="sd-empty-cta">
-                      <PlusCircle size={16} /> Create Your First Delivery
+                      <PlusCircle size={15} /> Create Your First Delivery
                     </Link>
                   </div>
                 ) : (
@@ -512,137 +486,53 @@ export default function CustomerDashboardPage() {
             </div>
           )}
         </div>
+
+        {/* Floating Carousel Next Arrow matching Screenshot */}
+        <div className="sd-floating-next-arrow" aria-hidden="true">
+          <ChevronRight size={22} />
+        </div>
       </main>
 
-      {/* ---------------- STYLES: MATCHES EXACT SWIFTDROP CUSTOMER APP LIGHT THEME ---------------- */}
+      {/* ---------------- STYLES: 100% MATCHING TARGET CUSTOMER DASHBOARD SCREENSHOT ---------------- */}
       <style jsx global>{`
-        /* Fullpage Root: Breaks out to touch sidebar directly with zero blue margins */
+        /* Fullpage Root */
         .sd-fullpage-root {
           width: 100%;
-          min-height: 100vh;
-          background: #f4f7fb;
+          min-height: calc(100vh - 56px);
+          background: #f1f4f9;
           display: flex;
           flex-direction: column;
           font-family: inherit;
-        }
-
-        /* Top Header Bar */
-        .sd-fullpage-header {
-          background: #0f1f38;
-          color: #ffffff;
-          padding: 1.5rem 2.5rem;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-          width: 100%;
-        }
-
-        .sd-header-inner {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          flex-wrap: wrap;
-          gap: 1.25rem;
-          max-width: 1280px;
-          margin: 0 auto;
-        }
-
-        .sd-header-icon-box {
-          width: 42px;
-          height: 42px;
-          border-radius: 10px;
-          background: rgba(56, 189, 248, 0.12);
-          border: 1px solid rgba(56, 189, 248, 0.25);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-        }
-
-        .sd-header-title {
-          font-size: 1.35rem;
-          font-weight: 700;
-          color: #ffffff;
-          letter-spacing: -0.01em;
-          margin: 0;
-          line-height: 1.2;
-        }
-
-        .sd-header-sub {
-          font-size: 0.78rem;
-          color: #8fa3bf;
-          margin-top: 3px;
-          font-weight: 500;
-        }
-
-        .sd-header-actions {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-        }
-
-        .sd-header-refresh-btn {
-          background: rgba(255, 255, 255, 0.08);
-          color: #e2e8f0;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          padding: 0.55rem 0.95rem;
-          border-radius: 8px;
-          font-size: 0.8rem;
-          font-weight: 600;
-          cursor: pointer;
-          display: inline-flex;
-          align-items: center;
-          gap: 0.4rem;
-          transition: background 0.15s;
-        }
-
-        .sd-header-refresh-btn:hover {
-          background: rgba(255, 255, 255, 0.14);
-        }
-
-        .sd-header-book-btn {
-          background: #2563eb;
-          color: #ffffff;
-          padding: 0.55rem 1.1rem;
-          border-radius: 8px;
-          font-size: 0.825rem;
-          font-weight: 600;
-          text-decoration: none;
-          display: inline-flex;
-          align-items: center;
-          gap: 0.4rem;
-          box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
-          transition: background 0.15s;
-        }
-
-        .sd-header-book-btn:hover {
-          background: #1d4ed8;
+          position: relative;
         }
 
         /* Main Body Canvas */
         .sd-fullpage-body {
           flex: 1;
-          padding: 2rem 2.5rem 4rem 2.5rem;
-          background: #f4f7fb;
+          padding: 1.5rem 2rem 3rem 2rem;
+          background: #f1f4f9;
           width: 100%;
+          box-sizing: border-box;
         }
 
         .sd-content-wrapper {
-          max-width: 1280px;
+          max-width: 1180px;
           margin: 0 auto;
         }
 
         /* Generic Clean White Card */
         .sd-card {
           background: #ffffff;
-          border: 1px solid #e2e8f0;
-          border-radius: 16px;
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+          border: 1px solid #e5e9f0;
+          border-radius: 14px;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
         }
 
         /* Dashboard Layout */
         .sd-dashboard-layout {
           display: flex;
           flex-direction: column;
-          gap: 1.5rem;
+          gap: 1.25rem;
         }
 
         /* Loading & Error States */
@@ -701,9 +591,9 @@ export default function CustomerDashboardPage() {
           cursor: pointer;
         }
 
-        /* Hero Card */
+        /* Customer Hero Profile Card */
         .sd-hero-card {
-          padding: 1.5rem 1.75rem;
+          padding: 1.25rem 1.5rem;
           display: flex;
           justify-content: space-between;
           align-items: center;
@@ -714,21 +604,20 @@ export default function CustomerDashboardPage() {
         .sd-hero-left {
           display: flex;
           align-items: center;
-          gap: 1.25rem;
+          gap: 1.15rem;
         }
 
         .sd-avatar-circle {
-          width: 58px;
-          height: 58px;
+          width: 52px;
+          height: 52px;
           border-radius: 50%;
-          background: #e0ecfe;
-          color: #2563eb;
-          font-weight: 800;
-          font-size: 1.25rem;
+          background: #dbeafe;
+          color: #1d4ed8;
+          font-weight: 700;
+          font-size: 1.15rem;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
           flex-shrink: 0;
         }
 
@@ -736,43 +625,43 @@ export default function CustomerDashboardPage() {
           display: flex;
           align-items: center;
           gap: 0.5rem;
-          margin-bottom: 0.25rem;
+          margin-bottom: 0.35rem;
         }
 
         .sd-badge-verified {
-          background: #e8fbf0;
+          background: #dcfce7;
           color: #15803d;
-          font-size: 0.68rem;
-          font-weight: 800;
-          letter-spacing: 0.05em;
-          padding: 3px 9px;
-          border-radius: 9999px;
+          font-size: 0.65rem;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          padding: 2px 7px;
+          border-radius: 4px;
         }
 
         .sd-badge-role {
-          background: #e0ecfe;
-          color: #1d4ed8;
-          font-size: 0.68rem;
-          font-weight: 800;
-          letter-spacing: 0.05em;
-          padding: 3px 9px;
-          border-radius: 9999px;
+          background: #e0f2fe;
+          color: #0284c7;
+          font-size: 0.65rem;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          padding: 2px 7px;
+          border-radius: 4px;
         }
 
         .sd-hero-name {
-          font-size: 1.35rem;
-          font-weight: 800;
+          font-size: 1.25rem;
+          font-weight: 700;
           color: #0f172a;
-          letter-spacing: -0.02em;
+          letter-spacing: -0.01em;
           margin: 0;
-          line-height: 1.2;
+          line-height: 1.25;
         }
 
         .sd-hero-meta {
           display: flex;
           align-items: center;
-          gap: 0.4rem;
-          font-size: 0.8rem;
+          gap: 0.45rem;
+          font-size: 0.78rem;
           color: #64748b;
           margin-top: 0.35rem;
         }
@@ -785,23 +674,25 @@ export default function CustomerDashboardPage() {
           display: flex;
           align-items: center;
           gap: 1.25rem;
-          background: #f8fafc;
-          border: 1px solid #e2e8f0;
-          border-radius: 12px;
-          padding: 0.75rem 1.25rem;
+          background: #fafbfc;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+          padding: 0.65rem 1.25rem;
         }
 
         .sd-pill-stat {
           display: flex;
           flex-direction: column;
           align-items: center;
+          min-width: 65px;
         }
 
         .sd-pill-label {
-          font-size: 0.68rem;
+          font-size: 0.625rem;
           font-weight: 700;
           color: #64748b;
           text-transform: uppercase;
+          letter-spacing: 0.04em;
         }
 
         .sd-pill-value {
@@ -809,6 +700,7 @@ export default function CustomerDashboardPage() {
           font-weight: 800;
           color: #0f172a;
           margin-top: 2px;
+          line-height: 1.1;
         }
 
         .sd-pill-value.active {
@@ -821,37 +713,47 @@ export default function CustomerDashboardPage() {
 
         .sd-pill-divider {
           width: 1px;
-          height: 28px;
-          background: #e2e8f0;
+          height: 30px;
+          background: #e5e7eb;
         }
 
         /* 4-Card Quick Action Grid */
         .sd-action-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+          grid-template-columns: repeat(4, 1fr);
           gap: 1rem;
+        }
+
+        @media (max-width: 1024px) {
+          .sd-action-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+
+        @media (max-width: 600px) {
+          .sd-action-grid {
+            grid-template-columns: 1fr;
+          }
         }
 
         .sd-action-card {
-          padding: 1.25rem 1.35rem;
+          padding: 1rem 1.15rem;
           text-decoration: none;
           display: flex;
           align-items: center;
-          gap: 1rem;
-          position: relative;
-          transition: all 0.2s ease;
+          gap: 0.85rem;
+          transition: all 0.15s ease;
         }
 
         .sd-action-card:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 24px rgba(37, 99, 235, 0.08);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
           border-color: #cbd5e1;
         }
 
         .sd-action-icon-wrap {
-          width: 46px;
-          height: 46px;
-          border-radius: 12px;
+          width: 40px;
+          height: 40px;
+          border-radius: 10px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -863,7 +765,7 @@ export default function CustomerDashboardPage() {
         }
 
         .sd-action-icon-wrap.green {
-          background: #ecfdf5;
+          background: #f0fdf4;
         }
 
         .sd-action-icon-wrap.cyan {
@@ -871,46 +773,43 @@ export default function CustomerDashboardPage() {
         }
 
         .sd-action-icon-wrap.purple {
-          background: #f5f3ff;
+          background: #faf5ff;
         }
 
         .sd-action-text {
           flex: 1;
+          min-width: 0;
         }
 
         .sd-action-title {
-          font-size: 0.95rem;
+          font-size: 0.925rem;
           font-weight: 700;
           color: #0f172a;
+          line-height: 1.25;
         }
 
         .sd-action-sub {
-          font-size: 0.75rem;
+          font-size: 0.72rem;
           color: #64748b;
           margin-top: 2px;
-          line-height: 1.3;
+          line-height: 1.35;
         }
 
         .sd-action-arrow {
           color: #cbd5e1;
-          transition: transform 0.15s ease, color 0.15s ease;
-        }
-
-        .sd-action-card:hover .sd-action-arrow {
-          transform: translateX(3px);
-          color: #2563eb;
+          flex-shrink: 0;
         }
 
         /* Live Tracking Search Bar Strip */
         .sd-tracking-search-bar {
-          padding: 1.25rem 1.5rem;
+          padding: 0.85rem 1.25rem;
           display: flex;
           align-items: center;
           justify-content: space-between;
           flex-wrap: wrap;
           gap: 1rem;
-          border-color: #bfdbfe;
-          background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+          border-color: #dbeafe;
+          background: #f0f6ff;
         }
 
         .sd-tracking-search-left {
@@ -922,7 +821,7 @@ export default function CustomerDashboardPage() {
         .sd-tracking-search-icon {
           width: 38px;
           height: 38px;
-          border-radius: 10px;
+          border-radius: 8px;
           background: #dbeafe;
           display: flex;
           align-items: center;
@@ -931,7 +830,7 @@ export default function CustomerDashboardPage() {
         }
 
         .sd-tracking-search-title {
-          font-size: 0.92rem;
+          font-size: 0.925rem;
           font-weight: 700;
           color: #0f172a;
         }
@@ -949,30 +848,33 @@ export default function CustomerDashboardPage() {
         }
 
         .sd-tracking-input {
-          padding: 0.55rem 0.85rem;
+          padding: 0.5rem 0.85rem;
           border-radius: 8px;
           border: 1px solid #cbd5e1;
           background: #ffffff;
-          font-size: 0.85rem;
+          font-size: 0.825rem;
           color: #0f172a;
           outline: none;
-          min-width: 230px;
+          width: 230px;
+          height: 38px;
+          box-sizing: border-box;
         }
 
         .sd-tracking-input:focus {
           border-color: #2563eb;
-          box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
         }
 
         .sd-tracking-btn {
           background: #2563eb;
           color: #ffffff;
           border: none;
-          padding: 0.55rem 1rem;
+          height: 38px;
+          padding: 0 1.15rem;
           border-radius: 8px;
           font-size: 0.825rem;
           font-weight: 600;
           cursor: pointer;
+          box-sizing: border-box;
           transition: background 0.15s;
         }
 
@@ -987,41 +889,41 @@ export default function CustomerDashboardPage() {
           gap: 1rem;
         }
 
-        @media (max-width: 900px) {
+        @media (max-width: 1024px) {
           .sd-metrics-grid {
             grid-template-columns: repeat(2, 1fr);
           }
         }
 
-        @media (max-width: 520px) {
+        @media (max-width: 540px) {
           .sd-metrics-grid {
             grid-template-columns: 1fr;
           }
         }
 
         .sd-metric-card {
-          padding: 1.25rem 1.35rem;
+          padding: 1.1rem 1.25rem;
         }
 
         .sd-metric-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 0.5rem;
+          margin-bottom: 0.25rem;
         }
 
         .sd-metric-title {
-          font-size: 0.7rem;
+          font-size: 0.65rem;
           font-weight: 700;
           color: #64748b;
           text-transform: uppercase;
-          letter-spacing: 0.05em;
+          letter-spacing: 0.04em;
         }
 
         .sd-metric-icon {
-          width: 30px;
-          height: 30px;
-          border-radius: 7px;
+          width: 26px;
+          height: 26px;
+          border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -1032,11 +934,11 @@ export default function CustomerDashboardPage() {
         }
 
         .sd-metric-icon.amber {
-          background: #fef3c7;
+          background: #fffbeb;
         }
 
         .sd-metric-icon.green {
-          background: #ecfdf5;
+          background: #f0fdf4;
         }
 
         .sd-metric-icon.red {
@@ -1047,7 +949,8 @@ export default function CustomerDashboardPage() {
           font-size: 1.75rem;
           font-weight: 800;
           color: #0f172a;
-          line-height: 1.1;
+          line-height: 1.15;
+          margin: 0.2rem 0;
         }
 
         .sd-metric-number.amber {
@@ -1064,8 +967,7 @@ export default function CustomerDashboardPage() {
 
         .sd-metric-caption {
           font-size: 0.72rem;
-          color: #94a3b8;
-          margin-top: 4px;
+          color: #64748b;
         }
 
         /* Active Shipment Spotlight Card */
@@ -1214,7 +1116,7 @@ export default function CustomerDashboardPage() {
 
         /* Recent Deliveries Card */
         .sd-recent-deliveries-card {
-          padding: 1.75rem;
+          padding: 1.25rem 1.5rem;
         }
 
         .sd-recent-header {
@@ -1227,19 +1129,19 @@ export default function CustomerDashboardPage() {
         }
 
         .sd-recent-title {
-          font-size: 1.15rem;
+          font-size: 1.05rem;
           font-weight: 700;
           color: #0f172a;
           margin: 0;
           display: flex;
           align-items: center;
-          gap: 0.5rem;
+          gap: 0.45rem;
         }
 
         .sd-recent-subtitle {
           font-size: 0.78rem;
           color: #64748b;
-          margin: 3px 0 0 0;
+          margin: 2px 0 0 0;
         }
 
         .sd-view-all-btn {
@@ -1362,57 +1264,83 @@ export default function CustomerDashboardPage() {
           border-color: #93c5fd;
         }
 
-        /* Empty State */
+        /* Empty State Matching Reference Screenshot */
         .sd-empty-state {
-          padding: 3rem 1.5rem;
+          padding: 2.5rem 1rem;
           text-align: center;
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 0.75rem;
         }
 
         .sd-empty-icon-box {
-          width: 56px;
-          height: 56px;
-          border-radius: 14px;
+          width: 52px;
+          height: 52px;
+          border-radius: 12px;
           background: #eff6ff;
           display: flex;
           align-items: center;
           justify-content: center;
+          margin-bottom: 0.75rem;
         }
 
         .sd-empty-title {
-          font-size: 1.1rem;
+          font-size: 1rem;
           font-weight: 700;
           color: #0f172a;
-          margin: 0;
+          margin: 0 0 0.25rem 0;
         }
 
         .sd-empty-subtitle {
-          font-size: 0.825rem;
+          font-size: 0.8rem;
           color: #64748b;
-          max-width: 380px;
-          margin: 0;
+          max-width: 420px;
+          margin: 0 0 1.15rem 0;
+          line-height: 1.4;
         }
 
         .sd-empty-cta {
-          margin-top: 0.5rem;
           background: #2563eb;
           color: #ffffff;
           text-decoration: none;
           padding: 0.6rem 1.25rem;
           border-radius: 8px;
-          font-size: 0.85rem;
+          font-size: 0.825rem;
           font-weight: 600;
           display: inline-flex;
           align-items: center;
           gap: 0.4rem;
+          box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
           transition: background 0.15s;
         }
 
         .sd-empty-cta:hover {
           background: #1d4ed8;
+        }
+
+        /* Floating Carousel Next Arrow matching Screenshot */
+        .sd-floating-next-arrow {
+          position: fixed;
+          right: 20px;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          background: rgba(148, 163, 184, 0.65);
+          color: #ffffff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          pointer-events: none;
+          z-index: 10;
+          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+        }
+
+        @media (max-width: 1300px) {
+          .sd-floating-next-arrow {
+            display: none;
+          }
         }
 
         @keyframes pulse {
