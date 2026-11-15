@@ -70,7 +70,7 @@ app:
     access-token-expiry-ms: 900000 # 15 minutes
     refresh-token-expiry-ms: 604800000 # 7 days
   google:
-    client-id: ""
+    client-id: "demo-client-id"
   cookie:
     secure: false
     same-site: Lax

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useGoogleAuth, getApiErrorMessage } from '@/hooks/api/use-auth';
+import { Info, Sparkles, CheckCircle2 } from 'lucide-react';
 
 interface GoogleSignInButtonProps {
   mode: 'signin' | 'signup';
@@ -17,21 +18,25 @@ declare global {
 export default function GoogleSignInButton({ mode, onError }: GoogleSignInButtonProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isGisLoaded, setIsGisLoaded] = useState(false);
+  const [showConfigModal, setShowConfigModal] = useState(false);
   const googleMutation = useGoogleAuth();
 
   const mutateAsyncRef = useRef(googleMutation.mutateAsync);
   const onErrorRef = useRef(onError);
   const initializedClientIdRef = useRef<string | null>(null);
 
-  // Keep the latest callbacks without reinitializing Google.
   mutateAsyncRef.current = googleMutation.mutateAsync;
   onErrorRef.current = onError;
 
-  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+  // Read environment variable; fallback to 'demo-client-id' for local dev
+  const rawClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+  const isRealGoogleConfigured = !!rawClientId && rawClientId.includes('.apps.googleusercontent.com');
+  const isDemoMode = !isRealGoogleConfigured;
+  const effectiveClientId = isRealGoogleConfigured ? rawClientId : 'demo-client-id';
 
-  // Poll or detect when window.google is ready
+  // Poll or detect when window.google is ready (only needed when real Google OAuth is configured)
   useEffect(() => {
-    if (!clientId) {
+    if (!isRealGoogleConfigured) {
       return;
     }
 
@@ -49,28 +54,24 @@ export default function GoogleSignInButton({ mode, onError }: GoogleSignInButton
       if (checkGis()) {
         clearInterval(interval);
       }
-    }, 200);
+    }, 250);
 
     return () => clearInterval(interval);
-  }, [clientId]);
+  }, [isRealGoogleConfigured]);
 
-  // Initialize GIS and render Google's official secure button
+  // Initialize GIS and render Google's official secure button when real credentials exist
   useEffect(() => {
-    if (!isGisLoaded || !clientId || !containerRef.current) {
+    if (!isRealGoogleConfigured || !isGisLoaded || !containerRef.current) {
       return;
     }
 
     try {
-      // Initialize Google only once for this client ID.
-      if (initializedClientIdRef.current !== clientId) {
+      if (initializedClientIdRef.current !== effectiveClientId) {
         window.google.accounts.id.initialize({
-          client_id: clientId,
-
+          client_id: effectiveClientId,
           callback: async (response: { credential?: string }) => {
             if (!response?.credential) {
-              onErrorRef.current?.(
-                'Google did not return an authentication credential.'
-              );
+              onErrorRef.current?.('Google did not return an authentication credential.');
               return;
             }
 
@@ -82,101 +83,147 @@ export default function GoogleSignInButton({ mode, onError }: GoogleSignInButton
               onErrorRef.current?.(getApiErrorMessage(err));
             }
           },
-
           auto_select: false,
           cancel_on_tap_outside: true,
         });
 
-        initializedClientIdRef.current = clientId;
+        initializedClientIdRef.current = effectiveClientId;
       }
 
-      // Render the button separately from initialization.
       containerRef.current.innerHTML = '';
-
-      window.google.accounts.id.renderButton(
-        containerRef.current,
-        {
-          type: 'standard',
-          theme: 'filled_black',
-          size: 'large',
-          text: mode === 'signup' ? 'signup_with' : 'continue_with',
-          shape: 'rectangular',
-          logo_alignment: 'left',
-          width: 380,
-        }
-      );
-
+      window.google.accounts.id.renderButton(containerRef.current, {
+        type: 'standard',
+        theme: 'filled_black',
+        size: 'large',
+        text: mode === 'signup' ? 'signup_with' : 'continue_with',
+        shape: 'rectangular',
+        logo_alignment: 'left',
+        width: 380,
+      });
     } catch (err) {
       console.error('Failed to initialize Google Sign-In:', err);
     }
-  }, [isGisLoaded, clientId, mode]);
+  }, [isRealGoogleConfigured, isGisLoaded, effectiveClientId, mode]);
 
-  // Fallback click handler if user clicks the button before GIS iframe renders
-  const handleFallbackClick = () => {
-    if (!clientId) {
-      onError?.('Google OAuth is not configured. Missing NEXT_PUBLIC_GOOGLE_CLIENT_ID.');
-      return;
-    }
-
-    if (typeof window !== 'undefined' && window.google?.accounts?.id) {
-      try {
-        window.google.accounts.id.prompt((notification: any) => {
-          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-            console.warn('Google One Tap prompt skipped or not displayed:', notification.getNotDisplayedReason?.());
-          }
-        });
-      } catch (err) {
-        onError?.('Could not open Google Sign-In prompt. Please check popup permissions.');
-      }
-    } else {
-      onError?.('Google Sign-In is still loading. Please wait a moment.');
+  // Handle instant demo mode authentication
+  const handleDemoSignIn = async () => {
+    try {
+      await googleMutation.mutateAsync({
+        idToken: 'demo-google-token',
+      });
+    } catch (err) {
+      onError?.(getApiErrorMessage(err));
     }
   };
 
-  if (!clientId) {
-    return (
-      <button
-        type="button"
-        disabled
-        style={disabledButtonStyle}
-        title="NEXT_PUBLIC_GOOGLE_CLIENT_ID is not configured"
-      >
-        <GoogleIcon />
-        <span>Continue with Google (Config Required)</span>
-      </button>
-    );
-  }
+  const handleActionClick = () => {
+    if (isDemoMode) {
+      handleDemoSignIn();
+    } else if (typeof window !== 'undefined' && window.google?.accounts?.id) {
+      try {
+        window.google.accounts.id.prompt();
+      } catch (err) {
+        onError?.('Could not open Google prompt. Please allow popups.');
+      }
+    } else {
+      onError?.('Google Sign-In is initializing. Please try again in a few seconds.');
+    }
+  };
 
   return (
     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      {/* Container where GIS renders the official iframe button */}
-      <div
-        ref={containerRef}
-        style={{
-          width: '100%',
-          display: isGisLoaded ? 'flex' : 'none',
-          justifyContent: 'center',
-          minHeight: '44px',
-        }}
-      />
-
-      {/* Styled fallback button displayed while GIS script loads */}
-      {!isGisLoaded && (
-        <button
-          type="button"
-          onClick={handleFallbackClick}
-          disabled={googleMutation.isPending}
-          style={googleBtnStyle}
-        >
-          <GoogleIcon />
-          <span>{mode === 'signup' ? 'Sign up with Google' : 'Continue with Google'}</span>
-        </button>
+      {/* Real Google GIS Official Button */}
+      {isRealGoogleConfigured && (
+        <div
+          ref={containerRef}
+          style={{
+            width: '100%',
+            display: isGisLoaded ? 'flex' : 'none',
+            justifyContent: 'center',
+            minHeight: '44px',
+          }}
+        />
       )}
 
-      {googleMutation.isPending && (
-        <p style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#60a5fa' }}>
-          Authenticating with Google...
-        </p>
+      {/* Button for Demo Mode OR fallback while GIS is loading */}
+      {(!isRealGoogleConfigured || !isGisLoaded) && (
+        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+          <button
+            type="button"
+            onClick={handleActionClick}
+            disabled={googleMutation.isPending}
+            style={googleBtnStyle}
+            title={isDemoMode ? 'Click to sign in instantly with Demo Google Customer account' : 'Continue with Google'}
+          >
+            <GoogleIcon />
+            <span style={{ flex: 1, textAlign: 'center' }}>
+              {googleMutation.isPending
+                ? 'Authenticating with Google...'
+                : mode === 'signup'
+                ? 'Sign up with Google'
+                : 'Continue with Google'}
+            </span>
+            {isDemoMode && (
+              <span style={demoBadgeStyle}>
+                Demo
+              </span>
+            )}
+          </button>
+
+          {/* Configuration Hint & Helper */}
+          {isDemoMode && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 0.25rem' }}>
+              <span style={{ fontSize: '0.7rem', color: '#64748b' }}>
+                Instant Dev Mode: signs in as <b>google.user@swiftdrop.lk</b>
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowConfigModal(true)}
+                style={setupLinkStyle}
+              >
+                Production Setup
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Optional Setup Guide Modal */}
+      {showConfigModal && (
+        <div style={modalBackdropStyle} onClick={() => setShowConfigModal(false)}>
+          <div style={modalContentStyle} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+              <Sparkles size={20} color="#38bdf8" />
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#fff', margin: 0 }}>
+                Google OAuth Setup Guide
+              </h3>
+            </div>
+            <p style={{ fontSize: '0.8rem', color: '#94a3b8', lineHeight: 1.5, marginBottom: '1rem' }}>
+              For live production Google Sign-In with real Google accounts, configure your credentials:
+            </p>
+            <ol style={{ fontSize: '0.75rem', color: '#cbd5e1', paddingLeft: '1.25rem', lineHeight: 1.7, margin: 0 }}>
+              <li>Go to <b>Google Cloud Console</b> &rarr; <i>APIs &amp; Services</i> &rarr; <i>Credentials</i>.</li>
+              <li>Create an <b>OAuth 2.0 Client ID</b> (Application Type: <i>Web application</i>).</li>
+              <li>Add <code>http://localhost:3000</code> to <b>Authorized JavaScript origins</b>.</li>
+              <li>Add <code>http://localhost:3000/api/auth/callback/google</code> to <b>Authorized redirect URIs</b>.</li>
+              <li>Add to <code>frontend/.env.local</code>:
+                <pre style={codeBlockStyle}>NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-id.apps.googleusercontent.com</pre>
+              </li>
+              <li>Add to <code>services/identity-service/.../application.yml</code>:
+                <pre style={codeBlockStyle}>GOOGLE_CLIENT_ID=your-id.apps.googleusercontent.com</pre>
+              </li>
+            </ol>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.25rem' }}>
+              <button
+                type="button"
+                onClick={() => setShowConfigModal(false)}
+                style={closeBtnStyle}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -185,24 +232,87 @@ export default function GoogleSignInButton({ mode, onError }: GoogleSignInButton
 const googleBtnStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  justifyContent: 'center',
-  gap: '0.65rem',
+  justifyContent: 'space-between',
+  gap: '0.75rem',
   width: '100%',
-  padding: '0.7rem',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(59,130,246,0.2)',
+  padding: '0.65rem 1rem',
+  background: '#ffffff',
+  border: '1px solid #cbd5e1',
   borderRadius: '8px',
-  color: '#e2e8f0',
+  color: '#0f172a',
   fontSize: '0.875rem',
   fontWeight: 600,
   cursor: 'pointer',
-  transition: 'all 0.2s ease',
+  transition: 'all 0.15s ease-in-out',
+  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
 };
 
-const disabledButtonStyle: React.CSSProperties = {
-  ...googleBtnStyle,
-  opacity: 0.5,
-  cursor: 'not-allowed',
+const demoBadgeStyle: React.CSSProperties = {
+  background: '#e0f2fe',
+  color: '#0284c7',
+  fontSize: '0.65rem',
+  fontWeight: 700,
+  padding: '0.15rem 0.45rem',
+  borderRadius: '4px',
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
+};
+
+const setupLinkStyle: React.CSSProperties = {
+  background: 'none',
+  border: 'none',
+  padding: 0,
+  fontSize: '0.7rem',
+  color: '#38bdf8',
+  cursor: 'pointer',
+  textDecoration: 'underline',
+};
+
+const modalBackdropStyle: React.CSSProperties = {
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  background: 'rgba(0,0,0,0.7)',
+  backdropFilter: 'blur(4px)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  zIndex: 9999,
+  padding: '1rem',
+};
+
+const modalContentStyle: React.CSSProperties = {
+  background: '#0b1528',
+  border: '1px solid rgba(59,130,246,0.3)',
+  borderRadius: '12px',
+  padding: '1.5rem',
+  maxWidth: '520px',
+  width: '100%',
+  boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+};
+
+const codeBlockStyle: React.CSSProperties = {
+  background: '#060a14',
+  border: '1px solid #1e293b',
+  borderRadius: '4px',
+  padding: '0.35rem 0.5rem',
+  margin: '0.3rem 0',
+  color: '#38bdf8',
+  fontFamily: 'monospace',
+  fontSize: '0.7rem',
+};
+
+const closeBtnStyle: React.CSSProperties = {
+  background: '#2563eb',
+  border: 'none',
+  color: '#fff',
+  padding: '0.45rem 1rem',
+  borderRadius: '6px',
+  fontSize: '0.8rem',
+  fontWeight: 600,
+  cursor: 'pointer',
 };
 
 function GoogleIcon() {
@@ -215,4 +325,3 @@ function GoogleIcon() {
     </svg>
   );
 }
-
