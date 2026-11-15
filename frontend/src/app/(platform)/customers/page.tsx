@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import CustomerSummarySection from '@/components/admin/CustomerSummarySection';
 import { Target, ArrowLeft, RefreshCw } from 'lucide-react';
+import '@/app/customer/customer.css';
 
 /**
  * Administrator Customer Section

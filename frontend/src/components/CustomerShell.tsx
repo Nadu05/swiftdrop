@@ -1,5 +1,6 @@
 import React from 'react';
 import CustomerSidebar from '@/components/customer/CustomerSidebar';
+import '@/app/customer/customer.css';
 
 /**
  * CustomerShell layout wrapper

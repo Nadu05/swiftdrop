@@ -1,4 +1,5 @@
 import CustomerShell from '@/components/CustomerShell';
+import './customer.css';
 
 export default function CustomerLayout({
   children,
