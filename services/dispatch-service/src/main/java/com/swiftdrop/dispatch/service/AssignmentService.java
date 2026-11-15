@@ -10,8 +10,10 @@ import com.swiftdrop.dispatch.dto.AssignmentStatusUpdateRequest;
 import com.swiftdrop.dispatch.entity.Assignment;
 import com.swiftdrop.dispatch.entity.AssignmentHistory;
 import com.swiftdrop.dispatch.entity.Courier;
+import com.swiftdrop.dispatch.entity.DeliveryProof;
 import com.swiftdrop.dispatch.entity.enums.AssignmentStatus;
 import com.swiftdrop.dispatch.entity.enums.CourierStatus;
+import com.swiftdrop.dispatch.entity.enums.ProofOfDeliveryType;
 import com.swiftdrop.dispatch.event.CourierAssignedEventData;
 import com.swiftdrop.dispatch.event.CourierReassignedEventData;
 import com.swiftdrop.dispatch.event.DeliveryStatusChangedEventData;
@@ -205,6 +207,18 @@ public class AssignmentService {
         assignment.setAssignedBy(1L); // Default dispatcher ID; authentication integration pending
         assignment.setAssignmentCode(generateAssignmentCode());
 
+        assignment.setTrackingNumber(request.getTrackingNumber() != null ? request.getTrackingNumber() : "SD-" + orderId);
+        assignment.setRecipientName(request.getRecipientName() != null ? request.getRecipientName() : "Customer for Order #" + orderId);
+        assignment.setRecipientPhone(request.getRecipientPhone() != null ? request.getRecipientPhone() : "+94 77 000 0000");
+        assignment.setDeliveryAddress(request.getDeliveryAddress() != null ? request.getDeliveryAddress() : "Delivery Address");
+        assignment.setRecipientCity(request.getRecipientCity() != null ? request.getRecipientCity() : "Colombo");
+        assignment.setMerchantName(request.getMerchantName() != null ? request.getMerchantName() : "SwiftDrop Merchant");
+        assignment.setMerchantPhone(request.getMerchantPhone() != null ? request.getMerchantPhone() : "+94 11 234 5678");
+        assignment.setPriority(request.getPriority() != null ? request.getPriority() : "NORMAL");
+        assignment.setPackageCategory(request.getPackageCategory() != null ? request.getPackageCategory() : "Standard Parcel");
+        assignment.setPackageWeight(request.getPackageWeight() != null ? request.getPackageWeight() : "1.0 kg");
+        assignment.setDeliveryAttempts(1);
+
         Assignment savedAssignment;
         try {
             savedAssignment = assignmentRepository.saveAndFlush(assignment);
@@ -392,6 +406,47 @@ public class AssignmentService {
         // 4. Update assignment status
         assignment.setStatus(newStatus);
         assignment.setUpdatedAt(LocalDateTime.now());
+
+        if (newStatus == AssignmentStatus.DELIVERED) {
+            assignment.setCompletedAt(LocalDateTime.now());
+            if (request.getNotes() != null && !request.getNotes().isBlank()) {
+                assignment.setDeliveryNotes(request.getNotes());
+            }
+            String recipientName = request.getRecipientName() != null && !request.getRecipientName().isBlank()
+                    ? request.getRecipientName()
+                    : (assignment.getRecipientName() != null ? assignment.getRecipientName() : "Recipient");
+            ProofOfDeliveryType podType = request.getPodType() != null
+                    ? request.getPodType()
+                    : ProofOfDeliveryType.SIGNATURE;
+            String confirmationDetails = request.getConfirmationDetails() != null && !request.getConfirmationDetails().isBlank()
+                    ? request.getConfirmationDetails()
+                    : (request.getNotes() != null && !request.getNotes().isBlank() ? request.getNotes() : "Handed directly to recipient and electronic confirmation recorded.");
+            String podRef = request.getPodReference() != null && !request.getPodReference().isBlank()
+                    ? request.getPodReference()
+                    : "POD-" + (assignment.getTrackingNumber() != null ? assignment.getTrackingNumber() : "ORD-" + assignment.getOrderId()) + "-SIG";
+
+            DeliveryProof proof = new DeliveryProof(assignment, recipientName, podType, confirmationDetails, podRef, request.getPhotoUrl());
+            assignment.setDeliveryProof(proof);
+        } else if (newStatus == AssignmentStatus.FAILED) {
+            assignment.setCompletedAt(LocalDateTime.now());
+            String failureReason = request.getFailureReason() != null && !request.getFailureReason().isBlank()
+                    ? request.getFailureReason()
+                    : request.getNotes();
+            assignment.setFailureReason(failureReason);
+            if (request.getNotes() != null && !request.getNotes().isBlank()) {
+                assignment.setDeliveryNotes(request.getNotes());
+            }
+            int attempts = request.getDeliveryAttempts() != null && request.getDeliveryAttempts() > 0
+                    ? request.getDeliveryAttempts()
+                    : (assignment.getDeliveryAttempts() != null ? assignment.getDeliveryAttempts() + 1 : 1);
+            assignment.setDeliveryAttempts(attempts);
+        } else if (newStatus == AssignmentStatus.CANCELLED) {
+            assignment.setCompletedAt(LocalDateTime.now());
+            if (request.getNotes() != null && !request.getNotes().isBlank()) {
+                assignment.setDeliveryNotes(request.getNotes());
+            }
+        }
+
         Assignment updatedAssignment = assignmentRepository.saveAndFlush(assignment);
 
         // 5. Record status change in assignment history

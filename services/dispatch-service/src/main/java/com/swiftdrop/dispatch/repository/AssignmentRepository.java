@@ -79,4 +79,45 @@ public interface AssignmentRepository extends JpaRepository<Assignment, Long> {
         @Param("status") AssignmentStatus status,
         @Param("orderId") Long orderId
     );
+
+    @Query("""
+        SELECT a FROM Assignment a
+        JOIN FETCH a.courier c
+        LEFT JOIN FETCH a.deliveryProof p
+        WHERE a.status IN :statuses
+          AND (:courierId IS NULL OR c.id = :courierId)
+          AND (:branchId IS NULL OR a.branchId = :branchId)
+          AND (:specificStatus IS NULL OR a.status = :specificStatus)
+          AND (:priority IS NULL OR UPPER(a.priority) = UPPER(:priority))
+          AND (:searchTerm IS NULL OR
+               LOWER(a.assignmentCode) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR
+               LOWER(a.trackingNumber) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR
+               LOWER(a.recipientName) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR
+               CAST(a.orderId AS string) LIKE CONCAT('%', :searchTerm, '%'))
+        ORDER BY COALESCE(a.completedAt, a.updatedAt) DESC, a.id DESC
+        """)
+    List<Assignment> findDeliveryHistory(
+        @Param("statuses") Collection<AssignmentStatus> statuses,
+        @Param("courierId") Long courierId,
+        @Param("branchId") Long branchId,
+        @Param("specificStatus") AssignmentStatus specificStatus,
+        @Param("priority") String priority,
+        @Param("searchTerm") String searchTerm
+    );
+
+    @Query("""
+        SELECT a FROM Assignment a
+        JOIN FETCH a.courier c
+        LEFT JOIN FETCH a.deliveryProof p
+        WHERE a.id = :id
+        """)
+    Optional<Assignment> findHistoryDetailsById(@Param("id") Long id);
+
+    @Query("""
+        SELECT a FROM Assignment a
+        JOIN FETCH a.courier c
+        LEFT JOIN FETCH a.deliveryProof p
+        WHERE a.assignmentCode = :code
+        """)
+    Optional<Assignment> findHistoryDetailsByCode(@Param("code") String code);
 }
