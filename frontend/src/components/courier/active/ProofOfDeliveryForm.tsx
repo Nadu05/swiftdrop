@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { CheckCircle2, Loader2, Upload } from 'lucide-react';
+import { useUploadPodPhotoMutation } from '@/hooks/api/use-courier';
 import { podSubmissionSchema, type PodSubmissionFormValues } from '@/schema/dispatch.schema';
 import type { CourierJob, ProofOfDeliveryType } from '@/types/courier.types';
 
@@ -25,7 +26,8 @@ const REFERENCE_PLACEHOLDER: Record<ProofOfDeliveryType, string> = {
   PHOTO: 'Upload a photo above or enter a reference',
 };
 
-const MAX_PHOTO_BYTES = 3 * 1024 * 1024;
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+const PHOTO_TYPES = ['image/jpeg', 'image/png'];
 
 interface Props {
   job: CourierJob;
@@ -37,6 +39,8 @@ interface Props {
 /** Proof of delivery (OTP, signature or photo) for a delivery in transit. Validated with Zod. */
 export default function ProofOfDeliveryForm({ job, busy, submitting, onSubmit }: Props) {
   const [photoName, setPhotoName] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const uploadMutation = useUploadPodPhotoMutation();
   const form = useForm<PodSubmissionFormValues>({
     resolver: zodResolver(podSubmissionSchema),
     defaultValues: { type: 'OTP', receivedBy: job.recipient.name || '', reference: '', notes: '' },
@@ -47,24 +51,31 @@ export default function ProofOfDeliveryForm({ job, busy, submitting, onSubmit }:
 
   useEffect(() => {
     setPhotoName(null);
+    setPhotoError(null);
     form.reset({ type: 'OTP', receivedBy: job.recipient.name || '', reference: '', notes: '' });
   }, [job.assignmentId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
-    if (file.size > MAX_PHOTO_BYTES) {
-      form.setError('reference', { message: 'Photo must be 3 MB or smaller.' });
+    setPhotoError(null);
+    if (!PHOTO_TYPES.includes(file.type)) {
+      setPhotoError('Use a JPEG or PNG photo.');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        form.setValue('reference', reader.result, { shouldValidate: true });
-        setPhotoName(file.name);
-      }
-    };
-    reader.readAsDataURL(file);
+    if (file.size > MAX_PHOTO_BYTES) {
+      setPhotoError('Photo must be 5 MB or smaller.');
+      return;
+    }
+    try {
+      // The photo is stored by the backend; the form only keeps the returned reference.
+      const reference = await uploadMutation.mutateAsync({ id: job.assignmentId, file });
+      form.setValue('reference', reference, { shouldValidate: true });
+      setPhotoName(file.name);
+    } catch (err) {
+      setPhotoError(err instanceof Error ? err.message : 'The photo could not be uploaded. Try again.');
+    }
   };
 
   return (
@@ -113,10 +124,29 @@ export default function ProofOfDeliveryForm({ job, busy, submitting, onSubmit }:
       {podType === 'PHOTO' && (
         <div>
           <label className="cp-upload" htmlFor="pod-photo">
-            <Upload size={16} aria-hidden="true" />
-            <span>{photoName ? `Attached: ${photoName}` : 'Take or choose a photo (max 3 MB)'}</span>
+            {uploadMutation.isPending ? <Loader2 size={16} className="cp-spin" aria-hidden="true" /> : <Upload size={16} aria-hidden="true" />}
+            <span>
+              {uploadMutation.isPending
+                ? 'Uploading photo…'
+                : photoName
+                ? `Attached: ${photoName}`
+                : 'Take or choose a JPEG or PNG photo (max 5 MB)'}
+            </span>
           </label>
-          <input id="pod-photo" type="file" accept="image/*" capture="environment" onChange={handlePhoto} className="cp-sr-only" />
+          <input
+            id="pod-photo"
+            type="file"
+            accept="image/jpeg,image/png"
+            capture="environment"
+            disabled={uploadMutation.isPending}
+            onChange={handlePhoto}
+            className="cp-sr-only"
+          />
+          {photoError && (
+            <span role="alert" className="cp-error">
+              {photoError}
+            </span>
+          )}
         </div>
       )}
 
@@ -132,7 +162,7 @@ export default function ProofOfDeliveryForm({ job, busy, submitting, onSubmit }:
           placeholder={REFERENCE_PLACEHOLDER[podType]}
           aria-invalid={Boolean(errors.reference)}
           {...form.register('reference')}
-          value={reference?.startsWith('data:image/') ? photoName || 'Photo attached' : reference}
+          value={photoName ? `Photo: ${photoName}` : reference}
           onChange={(e) => {
             setPhotoName(null);
             form.setValue('reference', e.target.value, { shouldValidate: true });
@@ -148,7 +178,7 @@ export default function ProofOfDeliveryForm({ job, busy, submitting, onSubmit }:
         <textarea id="pod-notes" rows={2} className="cp-input" placeholder="e.g. Handed over at the main gate" {...form.register('notes')} />
       </div>
 
-      <button type="submit" className="cp-btn cp-btn--primary cp-btn--block" disabled={busy}>
+      <button type="submit" className="cp-btn cp-btn--primary cp-btn--block" disabled={busy || uploadMutation.isPending}>
         {submitting ? <Loader2 size={16} className="cp-spin" aria-hidden="true" /> : <CheckCircle2 size={16} aria-hidden="true" />}
         {submitting ? 'Completing…' : 'Confirm delivery'}
       </button>

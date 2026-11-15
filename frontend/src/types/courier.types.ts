@@ -18,6 +18,9 @@ export type CourierAvailabilityStatus = 'AVAILABLE' | 'BUSY' | 'ON_BREAK' | 'OFF
  */
 export type CourierJobStatus = 'ASSIGNED' | 'ACCEPTED' | 'IN_TRANSIT' | 'DELIVERED' | 'FAILED';
 
+/** Actions the backend allows on a job in its current state (drives which buttons are shown). */
+export type CourierAction = 'ACCEPT' | 'PICKUP' | 'DELIVER' | 'FAIL';
+
 export type CourierJobPriority = 'URGENT' | 'HIGH' | 'NORMAL';
 
 export type ProofOfDeliveryType = 'OTP' | 'SIGNATURE' | 'PHOTO';
@@ -42,6 +45,8 @@ export interface CourierProfile {
 
 export interface CourierAttemptRecord {
   attemptNumber: number;
+  /** SUCCESS or FAILED. */
+  outcome?: string;
   status?: string;
   reason?: string;
   failureReason?: string;
@@ -89,6 +94,21 @@ export interface CourierJob {
     reason: string;
     notes: string;
   };
+  allowedActions?: CourierAction[];
+}
+
+/** Today's numbers and workload for the dashboard. */
+export interface CourierSummary {
+  date: string;
+  totalAssigned: number;
+  pending: number;
+  inProgress: number;
+  completed: number;
+  failed: number;
+  activeWorkload: number;
+  maxConcurrent: number;
+  workloadPercent: number;
+  workloadLevel: 'LOW' | 'MEDIUM' | 'HIGH';
 }
 
 export interface ProofOfDeliveryInput {

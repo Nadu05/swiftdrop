@@ -1,7 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, CheckCircle2, Clock, Navigation, Package, User, Wallet } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Clock, Gauge, Package, TriangleAlert, User, Wallet } from 'lucide-react';
 import AssignedJobCard from '@/components/courier/AssignedJobCard';
 import AvailabilityToggle from '@/components/courier/AvailabilityToggle';
 import {
@@ -9,6 +10,7 @@ import {
   ErrorState,
   JobStatusBadge,
   LoadingState,
+  Notice,
   PageHeader,
   SectionHeader,
   StatCard,
@@ -16,14 +18,42 @@ import {
   formatLkr,
   formatTime,
 } from '@/components/courier/CourierUI';
-import { isActiveJob, isToday, useCourierData } from '@/hooks/api/use-courier';
+import {
+  isActiveJob,
+  isToday,
+  useCourierData,
+  useCourierSummary,
+  useFilteredCourierJobs,
+} from '@/hooks/api/use-courier';
+
+const STATUS_FILTERS = [
+  { value: 'ALL', label: 'All statuses' },
+  { value: 'PENDING', label: 'Pending (new or accepted)' },
+  { value: 'IN_TRANSIT', label: 'In transit' },
+  { value: 'DELIVERED', label: 'Delivered' },
+  { value: 'FAILED', label: 'Failed' },
+] as const;
+
+const todayIso = () => {
+  const d = new Date();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${month}-${day}`;
+};
 
 /**
- * Courier dashboard (/courier, /courier/dashboard): availability, today's numbers,
- * the task in progress, new assignments and today's finished work.
+ * Courier dashboard (/courier, /courier/dashboard): availability, today's counts and workload from the
+ * backend summary, the task in progress, new assignments and a deliveries list filtered by status and date.
  */
 export default function CourierDashboardPage() {
   const { profile, setProfile, jobs, replaceJob, loading, error, reload } = useCourierData();
+  const summaryQuery = useCourierSummary();
+  const [status, setStatus] = useState<string>('ALL');
+  const [from, setFrom] = useState<string>(todayIso());
+  const [to, setTo] = useState<string>(todayIso());
+
+  const dateRangeInvalid = Boolean(from && to && to < from);
+  const filtered = useFilteredCourierJobs({ status, from: from || undefined, to: to || undefined });
 
   if (loading && !profile) return <LoadingState text="Loading your dashboard…" />;
   if (error || !profile) {
@@ -31,13 +61,14 @@ export default function CourierDashboardPage() {
   }
 
   const online = profile.status !== 'OFFLINE';
+  const summary = summaryQuery.data;
   const activeJobs = jobs.filter(isActiveJob);
   const newJobs = jobs.filter((j) => j.status === 'ASSIGNED');
-  const pendingPickups = jobs.filter((j) => j.taskType === 'PICKUP' && (j.status === 'ASSIGNED' || isActiveJob(j)));
   const finishedToday = jobs.filter((j) => (j.status === 'DELIVERED' || j.status === 'FAILED') && isToday(j.completedAt));
   const deliveredToday = finishedToday.filter((j) => j.status === 'DELIVERED');
   const earningsToday = deliveredToday.reduce((sum, j) => sum + j.payoutLkr, 0);
   const current = activeJobs[0];
+  const level = summary?.workloadLevel ?? 'LOW';
 
   return (
     <div className="cp-page">
@@ -47,23 +78,66 @@ export default function CourierDashboardPage() {
         action={<AvailabilityToggle profile={profile} onChange={setProfile} />}
       />
 
+      {summaryQuery.isError && (
+        <Notice tone="error">
+          Today&apos;s numbers could not be loaded.{' '}
+          <button type="button" className="cp-link" onClick={() => summaryQuery.refetch()}>
+            Try again
+          </button>
+        </Notice>
+      )}
+
       <section className="cp-stats" aria-label="Today at a glance">
-        <StatCard label="New assignments" value={newJobs.length} hint="Waiting for you to accept" icon={<Package size={16} />} tone="warning" />
-        <StatCard label="Pending pickups" value={pendingPickups.length} hint="Sender and merchant pickups" icon={<Clock size={16} />} tone="brand" />
         <StatCard
-          label="In progress"
-          value={`${activeJobs.length} / ${profile.maxCapacity}`}
-          hint="Accepted or on the road"
-          icon={<Navigation size={16} />}
-          tone="info"
+          label="Assigned today"
+          value={summary ? summary.totalAssigned : '—'}
+          hint="Pending, on the road and finished today"
+          icon={<Package size={16} />}
+          tone="brand"
         />
         <StatCard
-          label="Delivered today"
-          value={deliveredToday.length}
-          hint={`${finishedToday.length - deliveredToday.length} failed · ${formatLkr(earningsToday)}`}
+          label="Pending"
+          value={summary ? summary.pending : '—'}
+          hint={`${newJobs.length} waiting for you to accept`}
+          icon={<Clock size={16} />}
+          tone="warning"
+        />
+        <StatCard
+          label="Completed"
+          value={summary ? summary.completed : '—'}
+          hint={formatLkr(earningsToday) + ' earned today'}
           icon={<CheckCircle2 size={16} />}
           tone="success"
         />
+        <StatCard
+          label="Failed"
+          value={summary ? summary.failed : '—'}
+          hint="Failed attempts reported today"
+          icon={<TriangleAlert size={16} />}
+          tone="error"
+        />
+      </section>
+
+      <section className="cp-card cp-card--stack" aria-labelledby="cp-workload">
+        <div className="cp-row cp-row--between">
+          <h2 id="cp-workload" className="cp-section__title">
+            <Gauge size={16} aria-hidden="true" /> Workload
+          </h2>
+          <span className={`cp-small ${level === 'HIGH' ? 'cp-text-error' : level === 'MEDIUM' ? 'cp-text-warning' : 'cp-muted'}`}>
+            {summary ? `${summary.activeWorkload} of ${summary.maxConcurrent} tasks · ${level.toLowerCase()}` : 'Loading…'}
+          </span>
+        </div>
+        <div
+          className={`cp-meter cp-meter--${level.toLowerCase()}`}
+          role="progressbar"
+          aria-label="Workload"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={summary?.workloadPercent ?? 0}
+        >
+          <div className="cp-meter__fill" style={{ width: `${summary?.workloadPercent ?? 0}%` }} />
+        </div>
+        {level === 'HIGH' && <p className="cp-small cp-text-error">You are near your task limit. Finish a task before taking more.</p>}
       </section>
 
       {current && (
@@ -105,24 +179,72 @@ export default function CourierDashboardPage() {
         )}
       </section>
 
-      <section className="cp-section" aria-labelledby="cp-finished">
-        <SectionHeader id="cp-finished" title="Finished today" subtitle="Delivered and failed tasks" link={{ href: '/courier/history', label: 'Job history' }} />
-        {finishedToday.length === 0 ? (
-          <EmptyState text="Nothing finished yet today." />
-        ) : (
-          <div className="cp-card cp-card--flush">
-            {finishedToday.map((job) => (
-              <div key={job.assignmentId} className="cp-list__row">
-                <span className="cp-list__id">{job.trackingNumber}</span>
-                <span className="cp-list__meta">
-                  {job.recipient.city} · {formatTime(job.completedAt)}
-                </span>
-                <JobStatusBadge status={job.status} />
-                <span className="cp-list__amount">{job.status === 'DELIVERED' ? formatLkr(job.payoutLkr) : 'No payout'}</span>
-              </div>
-            ))}
+      <section className="cp-section" aria-labelledby="cp-deliveries">
+        <SectionHeader id="cp-deliveries" title="My deliveries" subtitle="Filter by status and the date they were assigned" />
+        <div className="cp-card cp-card--stack">
+          <div className="cp-filters">
+            <div className="cp-filters__field">
+              <label className="cp-label" htmlFor="flt-status">
+                Status
+              </label>
+              <select id="flt-status" className="cp-input" value={status} onChange={(e) => setStatus(e.target.value)}>
+                {STATUS_FILTERS.map((f) => (
+                  <option key={f.value} value={f.value}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="cp-filters__field">
+              <label className="cp-label" htmlFor="flt-from">
+                From
+              </label>
+              <input id="flt-from" type="date" className="cp-input" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} />
+            </div>
+            <div className="cp-filters__field">
+              <label className="cp-label" htmlFor="flt-to">
+                To
+              </label>
+              <input id="flt-to" type="date" className="cp-input" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} />
+            </div>
+            <button
+              type="button"
+              className="cp-btn cp-btn--secondary"
+              onClick={() => {
+                setStatus('ALL');
+                setFrom('');
+                setTo('');
+              }}
+            >
+              Show all dates
+            </button>
           </div>
-        )}
+
+          {dateRangeInvalid ? (
+            <Notice tone="warning">The end date must not be before the start date.</Notice>
+          ) : filtered.isLoading ? (
+            <LoadingState text="Loading deliveries…" />
+          ) : filtered.isError ? (
+            <ErrorState
+              message={filtered.error instanceof Error ? filtered.error.message : 'Could not load your deliveries.'}
+              onRetry={() => filtered.refetch()}
+            />
+          ) : (filtered.data ?? []).length === 0 ? (
+            <EmptyState text="No deliveries match these filters." />
+          ) : (
+            <div className="cp-card cp-card--flush">
+              {(filtered.data ?? []).map((job) => (
+                <Link key={job.assignmentId} href={`/courier/deliveries/${encodeURIComponent(job.assignmentId)}`} className="cp-list__row">
+                  <span className="cp-list__id">{job.trackingNumber}</span>
+                  <span className="cp-list__meta">
+                    {job.recipient.name} · {job.recipient.city} · {formatTime(job.assignedAt)}
+                  </span>
+                  <JobStatusBadge status={job.status} />
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
       </section>
 
       <nav className="cp-grid-2" aria-label="More">

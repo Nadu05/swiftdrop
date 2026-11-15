@@ -4,8 +4,9 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, CheckCircle2, Loader2, MapPin, Phone, Store } from 'lucide-react';
 import { mapDeliveryJobDtoToCourierJob } from '@/api/services/courier.api';
-import { useAcceptCourierTaskMutation } from '@/hooks/api/use-courier';
+import { describeActionError, useAcceptCourierTaskMutation } from '@/hooks/api/use-courier';
 import type { CourierJob } from '@/types/courier.types';
+import { canDo } from './courierStatus';
 import {
   AttemptIndicator,
   JobStatusBadge,
@@ -34,7 +35,7 @@ export default function AssignedJobCard({ job, canAccept, onUpdated }: AssignedJ
       const dto = await acceptMutation.mutateAsync(job.assignmentId);
       onUpdated(mapDeliveryJobDtoToCourierJob(dto));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not accept this task.');
+      setError(describeActionError(err, 'Could not accept this task.'));
     }
   };
 
@@ -98,7 +99,7 @@ export default function AssignedJobCard({ job, canAccept, onUpdated }: AssignedJ
           <Link href={`/courier/active?job=${job.assignmentId}`} className="cp-btn cp-btn--secondary">
             Open task <ArrowRight size={15} aria-hidden="true" />
           </Link>
-          {job.status === 'ASSIGNED' && (
+          {canDo(job, 'ACCEPT') && (
             <button
               type="button"
               className="cp-btn cp-btn--primary"

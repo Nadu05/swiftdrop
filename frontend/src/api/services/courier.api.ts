@@ -1,10 +1,18 @@
-import { dispatchApi, type CourierProfileDto, type DeliveryJobDto } from '@/api/services/dispatch.api';
+import {
+  dispatchApi,
+  type CourierJobFilters,
+  type CourierProfileDto,
+  type CourierSummaryDto,
+  type DeliveryJobDto,
+} from '@/api/services/dispatch.api';
 import type {
+  CourierAction,
   CourierAvailabilityStatus,
   CourierJob,
   CourierJobPriority,
   CourierJobStatus,
   CourierProfile,
+  CourierSummary,
   FailedDeliveryInput,
   ProofOfDeliveryInput,
   ProofOfDeliveryType,
@@ -126,6 +134,29 @@ export function mapDeliveryJobDtoToCourierJob(dto: DeliveryJobDto): CourierJob {
           notes: dto.failure.notes || '',
         }
       : undefined,
+    allowedActions: (dto.allowedActions ?? []).filter(isCourierAction),
+  };
+}
+
+const COURIER_ACTIONS: CourierAction[] = ['ACCEPT', 'PICKUP', 'DELIVER', 'FAIL'];
+
+function isCourierAction(value: string): value is CourierAction {
+  return (COURIER_ACTIONS as string[]).includes(value);
+}
+
+export function mapCourierSummaryDto(dto: CourierSummaryDto): CourierSummary {
+  const level = dto.workloadLevel === 'HIGH' || dto.workloadLevel === 'MEDIUM' ? dto.workloadLevel : 'LOW';
+  return {
+    date: dto.date,
+    totalAssigned: dto.totalAssigned ?? 0,
+    pending: dto.pending ?? 0,
+    inProgress: dto.inProgress ?? 0,
+    completed: dto.completed ?? 0,
+    failed: dto.failed ?? 0,
+    activeWorkload: dto.activeWorkload ?? 0,
+    maxConcurrent: dto.maxConcurrent ?? 1,
+    workloadPercent: dto.workloadPercent ?? 0,
+    workloadLevel: level,
   };
 }
 
@@ -145,9 +176,21 @@ export async function setMyAvailability(
   return mapCourierProfileDto(dto);
 }
 
-export async function getMyJobs(): Promise<CourierJob[]> {
-  const list = await dispatchApi.getMyAssignments();
+export async function getMyJobs(filters?: CourierJobFilters): Promise<CourierJob[]> {
+  const list = await dispatchApi.getMyAssignments(filters);
   return list.map(mapDeliveryJobDtoToCourierJob);
+}
+
+export async function getMySummary(date?: string): Promise<CourierSummary> {
+  return mapCourierSummaryDto(await dispatchApi.getMyCourierSummary(date));
+}
+
+export async function getMyJob(assignmentId: string): Promise<CourierJob> {
+  return mapDeliveryJobDtoToCourierJob(await dispatchApi.getMyAssignmentDetail(assignmentId));
+}
+
+export async function uploadPodPhoto(assignmentId: string, file: File): Promise<string> {
+  return dispatchApi.uploadMyPodPhoto(assignmentId, file);
 }
 
 export async function acceptJob(assignmentId: string): Promise<CourierJob> {
