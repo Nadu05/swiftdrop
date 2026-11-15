@@ -14,7 +14,6 @@ import {
   History,
   LayoutDashboard,
   LogOut,
-  MapPinned,
   PackageSearch,
   Settings,
   Store,
@@ -66,7 +65,6 @@ export const DISPATCHER_NAV_SECTIONS: readonly NavSection[] = [
     title: 'Administration',
     items: [
       { label: 'User Management', href: '/dispatcher/users', icon: UserCog },
-      { label: 'Delivery Zones & Pricing', href: '/dispatcher/zones-pricing', icon: MapPinned },
     ],
   },
   {
@@ -96,9 +94,6 @@ const ALL_HREFS: readonly string[] = [
  */
 function getActiveHref(pathname: string | null): string | null {
   if (!pathname) return null;
-  if (pathname === '/dispatcher/zones' || pathname.startsWith('/dispatcher/zones/')) {
-    return '/dispatcher/zones-pricing';
-  }
 
   let match: string | null = null;
   for (const href of ALL_HREFS) {
@@ -180,12 +175,32 @@ function DispatcherSidebar({ id, isOpen, onClose, onNavigate, onLogout }: Dispat
             aria-label="SwiftDrop Dispatch Management – go to overview"
             onClick={onNavigate}
           >
-            <span className="dispatcher-sidebar__logo" aria-hidden="true">
-              <Box size={20} />
+            <span
+              className="dispatcher-sidebar__logo"
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '10px',
+                background: 'linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%)',
+                boxShadow: '0 0 16px rgba(59, 130, 246, 0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              aria-hidden="true"
+            >
+              <Box size={20} color="#ffffff" strokeWidth={2.4} />
             </span>
             <span className="dispatcher-sidebar__brand-text">
-              <span className="dispatcher-sidebar__brand-name">SwiftDrop</span>
-              <span className="dispatcher-sidebar__brand-subtitle">DELIVERY NETWORK</span>
+              <span className="dispatcher-sidebar__brand-name">
+                Swift<span style={{ color: '#38bdf8' }}>Drop</span>
+              </span>
+              <span
+                className="dispatcher-sidebar__brand-subtitle"
+                style={{ color: '#38bdf8', fontWeight: 700 }}
+              >
+                DISPATCH PORTAL
+              </span>
             </span>
           </Link>
 
