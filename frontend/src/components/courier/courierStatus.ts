@@ -65,3 +65,22 @@ export function resolveStatus(map: Record<string, StatusStyle>, value: string | 
 
 /** Delivery-attempt rule: three attempts, then the job goes to dispatcher exception review. */
 export const DEFAULT_MAX_ATTEMPTS = 3;
+
+/**
+ * True when the courier may run the action on this job. The backend sends the permitted actions;
+ * when it sends none (older response) the rule is derived from the status so the UI still works.
+ */
+export function canDo(
+  job: { status: string; allowedActions?: string[]; taskType?: string },
+  action: 'ACCEPT' | 'PICKUP' | 'DELIVER' | 'FAIL'
+): boolean {
+  if (job.allowedActions && job.allowedActions.length > 0) return job.allowedActions.includes(action);
+  switch (action) {
+    case 'ACCEPT':
+      return job.status === 'ASSIGNED';
+    case 'PICKUP':
+      return job.status === 'ACCEPTED';
+    default:
+      return job.status === 'IN_TRANSIT' && job.taskType !== 'PICKUP';
+  }
+}

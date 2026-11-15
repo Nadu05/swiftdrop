@@ -363,3 +363,23 @@ textarea.cp-input { min-height: auto; resize: vertical; }
 @keyframes cp-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 .cp-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
 .cp-parcel-list { margin-top: 0.5rem; list-style: none; padding: 0; }
+
+/* ---------- Confirmation dialog ---------- */
+.cp-modal__backdrop {
+  position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
+  padding: 1rem; background: rgba(15, 23, 42, 0.55);
+}
+.cp-modal {
+  width: 100%; max-width: 440px; display: flex; flex-direction: column; gap: 0.85rem;
+  padding: 1.25rem; border-radius: var(--sd-radius-lg);
+  background: var(--sd-surface, #ffffff); border: 1px solid var(--sd-brand-border);
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.25);
+}
+
+/* ---------- Workload meter & filters ---------- */
+.cp-meter { height: 8px; border-radius: 999px; background: var(--sd-brand-border); overflow: hidden; }
+.cp-meter__fill { height: 100%; border-radius: 999px; background: var(--sd-success-text); transition: width 0.3s ease; }
+.cp-meter--medium .cp-meter__fill { background: var(--sd-warning-text); }
+.cp-meter--high .cp-meter__fill { background: var(--sd-danger-text); }
+.cp-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.75rem; }
+.cp-filters__field { display: flex; flex-direction: column; gap: 0.25rem; min-width: 150px; }
