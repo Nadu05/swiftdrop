@@ -11,7 +11,7 @@ spring:
   application:
     name: notification-service
   datasource:
-    url: jdbc:postgresql://localhost:5432/swiftdrop_notification
+    url: jdbc:postgresql://localhost:5437/swiftdrop_notification
     username: postgres
     password: postgrespassword
     driver-class-name: org.postgresql.Driver
@@ -32,7 +32,7 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
     validate-on-migrate: false
-    url: jdbc:postgresql://localhost:5432/swiftdrop_notification
+    url: jdbc:postgresql://localhost:5437/swiftdrop_notification
     user: postgres
     password: postgrespassword
   rabbitmq:
