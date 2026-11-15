@@ -27,12 +27,12 @@ export interface CourierProfile {
   courierCode: string;
   name: string;
   phone: string;
-  email: string;
+  email?: string; // not provided by dispatch-service yet
   vehicleType: 'Motorcycle' | 'Van' | 'Bicycle';
   vehiclePlate: string;
   branchName: string;
-  zone: string;
-  rating: number;
+  zone?: string; // not provided by dispatch-service yet
+  rating?: number; // not provided by dispatch-service yet
   maxCapacity: number;
   status: CourierAvailabilityStatus;
 }
@@ -56,8 +56,8 @@ export interface CourierJob {
     weightKg: number;
     handlingNotes?: string;
   };
-  distanceKm: number;
-  payoutLkr: number;
+  distanceKm?: number; // not provided by dispatch-service yet
+  payoutLkr: number | null; // null when no payout was set for the job
   assignedAt: string; // ISO
   pickedUpAt?: string; // ISO
   completedAt?: string; // ISO, set when DELIVERED or FAILED
@@ -92,3 +92,41 @@ export const FAILED_DELIVERY_REASONS = [
   'Area not accessible',
   'Parcel damaged',
 ] as const;
+
+/* --------------------------------------------------------------------------
+   Wire DTOs returned by dispatch-service (/api/v1/dispatch/couriers/me/**).
+   Kept separate from the view models above (agent.frontend.md §8);
+   api/services/courier.api.ts maps one to the other.
+   -------------------------------------------------------------------------- */
+
+export interface CourierProfileDto {
+  id: number;
+  courierCode: string;
+  name: string;
+  phone: string;
+  status: CourierAvailabilityStatus;
+  vehicleType: 'MOTORCYCLE' | 'VAN' | 'BICYCLE';
+  vehiclePlate: string | null;
+  branchId: number;
+  maxCapacity: number;
+  activeDeliveries: number;
+}
+
+/** Backend also has REASSIGNED / CANCELLED, which it never returns to the courier. */
+export interface CourierJobDto {
+  assignmentId: number;
+  assignmentCode: string;
+  orderId: number;
+  trackingNumber: string | null;
+  status: CourierJobStatus;
+  priority: string | null;
+  pickup: { name: string | null; phone: string | null; address: string | null; city: string | null } | null;
+  recipient: { name: string | null; phone: string | null; address: string | null; city: string | null } | null;
+  parcel: { packageType: string | null; weightKg: number | null; handlingNotes: string | null } | null;
+  payoutAmount: number | null;
+  assignedAt: string;
+  pickedUpAt: string | null;
+  completedAt: string | null;
+  proofOfDelivery: { type: ProofOfDeliveryType; receivedBy: string; reference: string } | null;
+  failure: { reason: string; notes: string } | null;
+}
