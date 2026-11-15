@@ -1,12 +1,17 @@
 'use client';
 
 import { useCallback, useMemo } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   mapCourierProfileDto,
   mapDeliveryJobDtoToCourierJob,
 } from '@/api/services/courier.api';
-import { type CourierProfileDto, type DeliveryJobDto } from '@/api/services/dispatch.api';
+import {
+  dispatchApi,
+  type CourierProfileDto,
+  type DeliveryJobDto,
+  type DepartManifestRequest,
+} from '@/api/services/dispatch.api';
 import {
   dispatchQueryKeys,
   useAcceptCourierTaskMutation,
@@ -117,6 +122,30 @@ export function useCourierData() {
     error,
     reload,
   };
+}
+
+const myTransfersKey = [...dispatchQueryKeys.all, 'courier', 'my-transfers'] as const;
+
+/**
+ * Inter-branch transfer manifests assigned to the signed-in courier. dispatch-service scopes
+ * GET /transfers/manifests to the courier's own manifests when the caller is a courier.
+ */
+export function useMyTransferManifests(refetchInterval: number | false = 30_000) {
+  return useQuery({
+    queryKey: myTransfersKey,
+    queryFn: () => dispatchApi.listTransferManifests(),
+    refetchInterval,
+  });
+}
+
+/** The assigned courier confirms the transfer left the origin branch (ASSIGNED -> IN_TRANSIT). */
+export function useDepartTransferMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ manifestId, payload }: { manifestId: string | number; payload?: DepartManifestRequest }) =>
+      dispatchApi.departTransferManifest(manifestId, payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: dispatchQueryKeys.all }),
+  });
 }
 
 export {

@@ -1,22 +1,30 @@
 import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 import { CourierGuard } from '@/components/auth/RoleGuard';
-import CourierSidebar from '@/components/courier/CourierSidebar';
+import CourierSidebar, { CourierBottomNav } from '@/components/courier/CourierSidebar';
 import { DashboardTopBar } from '@/components/dashboard/DashboardTopBar';
+import './courier-portal.css';
+
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 
 export const metadata: Metadata = {
   title: 'Courier Portal — SwiftDrop',
 };
 
-/** Same frame as the platform pages: dark sidebar + top navigation bar + main content area. */
+/**
+ * Courier portal frame (SwiftDrop light theme): navy sidebar on desktop, bottom tab bar on mobile,
+ * light top bar with breadcrumbs, and the page content.
+ */
 export default function CourierLayout({ children }: { children: React.ReactNode }) {
   return (
     <CourierGuard>
-      <div className="app-container">
+      <div className={`cp sd-theme-light ${inter.variable}`}>
         <CourierSidebar />
-        <div className="flex-1 flex flex-col min-w-0">
-          <DashboardTopBar portalLabel="Courier Field Portal" theme="dark" />
-          <main className="main-content flex-1">{children}</main>
+        <div className="cp-main">
+          <DashboardTopBar portalLabel="Courier Portal" theme="light" />
+          <main className="cp-content">{children}</main>
         </div>
+        <CourierBottomNav />
       </div>
     </CourierGuard>
   );
