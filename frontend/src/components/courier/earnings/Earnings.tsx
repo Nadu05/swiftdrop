@@ -44,7 +44,8 @@ export default function Earnings() {
               <li key={job.assignmentId} className="courier-list__row">
                 <span className="courier-list__id">{job.trackingNumber}</span>
                 <span className="courier-list__meta">
-                  {job.merchantName} → {job.recipient.city} · {job.distanceKm} km
+                  {job.merchantName} → {job.recipient.city}
+                  {job.distanceKm != null && ` · ${job.distanceKm} km`}
                 </span>
                 <span className="courier-hint">{formatDateTime(job.completedAt)}</span>
                 <span className="courier-list__amount courier-list__amount--paid">{formatLkr(job.payoutLkr)}</span>

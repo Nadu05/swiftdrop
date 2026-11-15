@@ -213,7 +213,7 @@ export async function mockCompleteDelivery(assignmentId: string, pod: ProofOfDel
 export async function mockReportFailure(assignmentId: string, input: FailedDeliveryInput): Promise<CourierJob> {
   await delay();
   const status = findJob(assignmentId).status;
-  if (status !== 'ACCEPTED' && status !== 'IN_TRANSIT') throw new Error('Only active jobs can be marked as failed.');
+  if (status !== 'IN_TRANSIT') throw new Error('Only parcels you have picked up can be marked as failed.');
   const job = updateJob(assignmentId, {
     status: 'FAILED',
     payoutLkr: 0,

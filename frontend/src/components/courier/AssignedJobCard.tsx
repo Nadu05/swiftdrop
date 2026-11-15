@@ -45,7 +45,7 @@ export default function AssignedJobCard({ job, canAccept }: { job: CourierJob; c
 
       <div className="courier-job__footer">
         <span className="courier-job__meta">
-          {job.parcel.category} · {job.parcel.weightKg} kg · {job.distanceKm} km ·{' '}
+          {job.parcel.category} · {job.parcel.weightKg} kg ·{job.distanceKm != null && ` ${job.distanceKm} km ·`}{' '}
           <span className="courier-payout">{formatLkr(job.payoutLkr)} payout</span> · assigned {formatTime(job.assignedAt)}
         </span>
 

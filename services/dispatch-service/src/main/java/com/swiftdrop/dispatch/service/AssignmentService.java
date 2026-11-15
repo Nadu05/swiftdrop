@@ -5,6 +5,7 @@ import com.swiftdrop.dispatch.dto.AssignmentHistoryResponse;
 import com.swiftdrop.dispatch.dto.AssignmentReassignRequest;
 import com.swiftdrop.dispatch.dto.AssignmentRequest;
 import com.swiftdrop.dispatch.dto.AssignmentResponse;
+import com.swiftdrop.dispatch.dto.OrderCourierResponse;
 import com.swiftdrop.dispatch.dto.AssignmentStatusUpdateRequest;
 import com.swiftdrop.dispatch.entity.Assignment;
 import com.swiftdrop.dispatch.entity.AssignmentHistory;
@@ -109,6 +110,21 @@ public class AssignmentService {
         Assignment assignment = assignmentRepository.findByIdWithCourier(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Assignment", id));
         return toResponse(assignment, assignment.getCourier());
+    }
+
+    /**
+     * The courier currently assigned to an order (status ASSIGNED, ACCEPTED or IN_TRANSIT), newest assignment
+     * first. Reassigned, cancelled, failed and delivered assignments are ignored, so after a reassignment the
+     * new courier is returned.
+     *
+     * @throws ResourceNotFoundException when the order has no active assignment
+     */
+    @Transactional(readOnly = true)
+    public OrderCourierResponse findActiveCourierForOrder(Long orderId) {
+        return assignmentRepository.findActiveByOrderIdWithCourier(orderId, ACTIVE_ASSIGNMENT_STATUSES).stream()
+                .findFirst()
+                .map(OrderCourierResponse::of)
+                .orElseThrow(() -> new ResourceNotFoundException("Active courier assignment for order", orderId));
     }
 
     /**
