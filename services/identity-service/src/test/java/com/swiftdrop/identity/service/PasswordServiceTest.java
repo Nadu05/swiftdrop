@@ -68,8 +68,11 @@ class PasswordServiceTest {
     }
 
     @Test
-    @DisplayName("Should change password successfully when current password matches")
+    @DisplayName("Should change password successfully and clear mustChangePassword and temporaryPassword")
     void shouldChangePasswordSuccessfully() {
+        testUser.setMustChangePassword(true);
+        testUser.setTemporaryPassword("OldPass123!");
+
         ChangePasswordRequest req =
                 new ChangePasswordRequest("OldPass123!", "NewPass123!", "NewPass123!");
 
@@ -82,6 +85,8 @@ class PasswordServiceTest {
 
         assertThat(testUser.getPasswordHash()).isEqualTo("$2a$10$newHashedPassword123");
         assertThat(testUser.getPasswordChangedAt()).isNotNull();
+        assertThat(testUser.isMustChangePassword()).isFalse();
+        assertThat(testUser.getTemporaryPassword()).isNull();
         verify(refreshTokenRepository).revokeAllByUser(testUser);
         verify(userRepository).save(testUser);
     }

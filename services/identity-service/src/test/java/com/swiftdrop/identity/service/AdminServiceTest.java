@@ -228,5 +228,143 @@ class AdminServiceTest {
         assertThat(stats.getSuspendedUsers()).isEqualTo(3L);
         assertThat(stats.getUsersByRole()).containsKey("ADMIN");
     }
+
+    @Test
+    @DisplayName("provisionBranchManager - Creates BRANCH_MANAGER with policy-compliant temporary password")
+    void provisionBranchManagerSuccess() {
+        Role branchManagerRole = new Role(RoleName.BRANCH_MANAGER);
+        branchManagerRole.setRoleId(6L);
+
+        ProvisionBranchManagerRequest req = new ProvisionBranchManagerRequest(
+                42L, "  Colombo@SwiftDrop.lk ", "Colombo Branch Manager", null);
+
+        when(userRepository.existsByEmail("colombo@swiftdrop.lk")).thenReturn(false);
+        when(userRepository.findFirstByBranchIdAndRoles_RoleName(42L, RoleName.BRANCH_MANAGER))
+                .thenReturn(Optional.empty());
+        when(roleRepository.findByRoleName(RoleName.BRANCH_MANAGER)).thenReturn(Optional.of(branchManagerRole));
+        when(passwordEncoder.encode(anyString())).thenAnswer(inv -> "encoded:" + inv.getArgument(0));
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> {
+            User u = inv.getArgument(0);
+            u.setUserId(UUID.randomUUID());
+            return u;
+        });
+
+        BranchManagerCredentialsResponse res = adminService.provisionBranchManager(req);
+
+        assertThat(res.getBranchId()).isEqualTo(42L);
+        assertThat(res.getEmail()).isEqualTo("colombo@swiftdrop.lk");
+        assertThat(res.isMustChangePassword()).isTrue();
+        assertThat(res.getTemporaryPassword())
+                .isNotNull()
+                .matches("^(?=.*[A-Z])(?=.*[0-9])(?=.*[^a-zA-Z0-9]).{8,}$");
+
+        verify(passwordEncoder).encode(res.getTemporaryPassword());
+        verify(userRepository).save(argThat(u ->
+                u.hasRole(RoleName.BRANCH_MANAGER)
+                        && Long.valueOf(42L).equals(u.getBranchId())
+                        && u.isMustChangePassword()
+                        && res.getTemporaryPassword().equals(u.getTemporaryPassword())
+                        && u.isEmailVerified()
+                        && u.getAccountStatus() == AccountStatus.ACTIVE
+        ));
+    }
+
+    @Test
+    @DisplayName("provisionBranchManager - Duplicate email throws DuplicateEmailException")
+    void provisionBranchManagerDuplicateEmail() {
+        ProvisionBranchManagerRequest req = new ProvisionBranchManagerRequest(
+                42L, "existing@swiftdrop.lk", null, null);
+
+        when(userRepository.existsByEmail("existing@swiftdrop.lk")).thenReturn(true);
+
+        assertThatThrownBy(() -> adminService.provisionBranchManager(req))
+                .isInstanceOf(DuplicateEmailException.class);
+
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("getBranchManagerCredentials - Returns active temporary password when mustChangePassword is true")
+    void getBranchManagerCredentialsActiveTemp() {
+        User bm = new User();
+        bm.setUserId(UUID.randomUUID());
+        bm.setBranchId(42L);
+        bm.setEmail("colombo@swiftdrop.lk");
+        bm.setMustChangePassword(true);
+        bm.setTemporaryPassword("TempPass123!");
+
+        when(userRepository.findFirstByBranchIdAndRoles_RoleName(42L, RoleName.BRANCH_MANAGER))
+                .thenReturn(Optional.of(bm));
+
+        BranchManagerCredentialsResponse res = adminService.getBranchManagerCredentials(42L);
+
+        assertThat(res.getBranchId()).isEqualTo(42L);
+        assertThat(res.getEmail()).isEqualTo("colombo@swiftdrop.lk");
+        assertThat(res.isMustChangePassword()).isTrue();
+        assertThat(res.getTemporaryPassword()).isEqualTo("TempPass123!");
+    }
+
+    @Test
+    @DisplayName("getBranchManagerCredentials - Returns null temporaryPassword when password already changed")
+    void getBranchManagerCredentialsChanged() {
+        User bm = new User();
+        bm.setUserId(UUID.randomUUID());
+        bm.setBranchId(42L);
+        bm.setEmail("colombo@swiftdrop.lk");
+        bm.setMustChangePassword(false);
+        bm.setTemporaryPassword(null);
+        bm.setPasswordChangedAt(LocalDateTime.now());
+
+        when(userRepository.findFirstByBranchIdAndRoles_RoleName(42L, RoleName.BRANCH_MANAGER))
+                .thenReturn(Optional.of(bm));
+
+        BranchManagerCredentialsResponse res = adminService.getBranchManagerCredentials(42L);
+
+        assertThat(res.isMustChangePassword()).isFalse();
+        assertThat(res.getTemporaryPassword()).isNull();
+        assertThat(res.getPasswordChangedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("getBranchManagerCredentials - Throws ResourceNotFoundException when branch has no manager")
+    void getBranchManagerCredentialsNotFound() {
+        when(userRepository.findFirstByBranchIdAndRoles_RoleName(99L, RoleName.BRANCH_MANAGER))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> adminService.getBranchManagerCredentials(99L))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("resetBranchManagerCredentials - Generates new temp password, sets mustChangePassword=true, revokes tokens")
+    void resetBranchManagerCredentialsSuccess() {
+        User bm = new User();
+        bm.setUserId(UUID.randomUUID());
+        bm.setBranchId(42L);
+        bm.setEmail("colombo@swiftdrop.lk");
+        bm.setPasswordHash("old-hash");
+        bm.setMustChangePassword(false);
+        bm.setTemporaryPassword(null);
+
+        when(userRepository.findFirstByBranchIdAndRoles_RoleName(42L, RoleName.BRANCH_MANAGER))
+                .thenReturn(Optional.of(bm));
+        when(passwordEncoder.encode(anyString())).thenAnswer(inv -> "encoded:" + inv.getArgument(0));
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        BranchManagerCredentialsResponse res = adminService.resetBranchManagerCredentials(42L, "admin@swiftdrop.io");
+
+        assertThat(res.getBranchId()).isEqualTo(42L);
+        assertThat(res.getEmail()).isEqualTo("colombo@swiftdrop.lk");
+        assertThat(res.isMustChangePassword()).isTrue();
+        assertThat(res.getTemporaryPassword())
+                .isNotNull()
+                .matches("^(?=.*[A-Z])(?=.*[0-9])(?=.*[^a-zA-Z0-9]).{8,}$");
+
+        assertThat(bm.getPasswordHash()).isEqualTo("encoded:" + res.getTemporaryPassword());
+        assertThat(bm.isMustChangePassword()).isTrue();
+        assertThat(bm.getTemporaryPassword()).isEqualTo(res.getTemporaryPassword());
+        verify(refreshTokenRepository).revokeAllByUser(bm);
+        verify(userRepository).save(bm);
+    }
 }
 

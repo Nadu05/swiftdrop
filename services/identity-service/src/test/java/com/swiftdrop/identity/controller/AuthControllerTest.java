@@ -170,7 +170,39 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value("jane@example.com"));
+                .andExpect(jsonPath("$.email").value("jane@example.com"))
+                .andExpect(jsonPath("$.mustChangePassword").value(false));
+    }
+
+    @Test
+    @DisplayName("POST /auth/login - Exposes mustChangePassword=true when temporary password is active")
+    void loginReturnsMustChangePasswordTrue() throws Exception {
+        LoginRequest req = new LoginRequest();
+        req.setEmail("branch@swiftdrop.lk");
+        req.setPassword("TempPass123!");
+
+        AuthResponse authRes = new AuthResponse(
+                UUID.randomUUID(),
+                "Branch Manager",
+                "branch@swiftdrop.lk",
+                null,
+                List.of("BRANCH_MANAGER"),
+                "ACTIVE",
+                true,
+                LocalDateTime.now()
+        );
+        authRes.setBranchId(42L);
+        authRes.setMustChangePassword(true);
+
+        when(authService.login(any(), any())).thenReturn(authRes);
+
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("branch@swiftdrop.lk"))
+                .andExpect(jsonPath("$.branchId").value(42))
+                .andExpect(jsonPath("$.mustChangePassword").value(true));
     }
 
     @Test

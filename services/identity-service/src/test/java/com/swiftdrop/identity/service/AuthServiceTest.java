@@ -380,6 +380,31 @@ class AuthServiceTest {
         assertThat(res.getFullName()).isEqualTo("John Doe");
         assertThat(res.getRoles()).contains("CUSTOMER");
         assertThat(res.getAccountStatus()).isEqualTo("ACTIVE");
+        assertThat(res.isMustChangePassword()).isFalse();
+    }
+
+    @Test
+    @DisplayName("Should expose mustChangePassword=true on login and getCurrentUser")
+    void shouldExposeMustChangePasswordOnLoginAndMe() {
+        testUser.setMustChangePassword(true);
+        testUser.setTemporaryPassword("TempPass123!");
+
+        LoginRequest loginReq = new LoginRequest();
+        loginReq.setEmail("john.doe@example.com");
+        loginReq.setPassword("TempPass123!");
+
+        when(userRepository.findByEmail("john.doe@example.com")).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.matches("TempPass123!", testUser.getPasswordHash())).thenReturn(true);
+        when(jwtService.generateAccessToken(any(), any())).thenReturn("access-jwt");
+        when(jwtService.generateRawRefreshToken()).thenReturn("raw-refresh");
+        when(jwtService.getAccessTokenExpiryMs()).thenReturn(900_000L);
+        when(jwtService.getRefreshTokenExpiryMs()).thenReturn(604_800_000L);
+
+        AuthResponse loginRes = authService.login(loginReq, response);
+        AuthResponse meRes = authService.getCurrentUser("john.doe@example.com");
+
+        assertThat(loginRes.isMustChangePassword()).isTrue();
+        assertThat(meRes.isMustChangePassword()).isTrue();
     }
 }
 

@@ -20,6 +20,7 @@ public class AuthResponse {
     private LocalDateTime createdAt;
     private Long branchId;
     private String organizationId;
+    private boolean mustChangePassword;
 
     // --- Constructor ---
 
@@ -73,5 +74,8 @@ public class AuthResponse {
 
     public String getOrganizationId() { return organizationId; }
     public void setOrganizationId(String organizationId) { this.organizationId = organizationId; }
+
+    public boolean isMustChangePassword() { return mustChangePassword; }
+    public void setMustChangePassword(boolean mustChangePassword) { this.mustChangePassword = mustChangePassword; }
 }
 

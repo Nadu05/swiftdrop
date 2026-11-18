@@ -72,6 +72,12 @@ public class User {
     @Column(name = "organization_id", length = 100)
     private String organizationId;
 
+    @Column(name = "must_change_password", nullable = false)
+    private boolean mustChangePassword = false;
+
+    @Column(name = "temporary_password", length = 255)
+    private String temporaryPassword;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
@@ -154,5 +160,11 @@ public class User {
 
     public String getOrganizationId() { return organizationId; }
     public void setOrganizationId(String organizationId) { this.organizationId = organizationId; }
+
+    public boolean isMustChangePassword() { return mustChangePassword; }
+    public void setMustChangePassword(boolean mustChangePassword) { this.mustChangePassword = mustChangePassword; }
+
+    public String getTemporaryPassword() { return temporaryPassword; }
+    public void setTemporaryPassword(String temporaryPassword) { this.temporaryPassword = temporaryPassword; }
 }
 

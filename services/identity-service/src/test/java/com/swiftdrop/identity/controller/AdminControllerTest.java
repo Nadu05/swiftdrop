@@ -214,5 +214,88 @@ class AdminControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.roles[0]").value("CUSTOMER"));
     }
+
+    @Test
+    @DisplayName("POST /api/v1/admin/branch-managers/provision - Success returns 201")
+    @WithMockUser(roles = "ADMIN")
+    void provisionBranchManagerSuccess() throws Exception {
+        ProvisionBranchManagerRequest req = new ProvisionBranchManagerRequest(
+                42L, "colombo@swiftdrop.lk", "Colombo Manager", null);
+        BranchManagerCredentialsResponse res = new BranchManagerCredentialsResponse(
+                UUID.randomUUID(), 42L, "colombo@swiftdrop.lk", true, "TempPass123!", null);
+
+        when(adminService.provisionBranchManager(any(ProvisionBranchManagerRequest.class)))
+                .thenReturn(res);
+
+        mockMvc.perform(post("/api/v1/admin/branch-managers/provision")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.branchId").value(42))
+                .andExpect(jsonPath("$.email").value("colombo@swiftdrop.lk"))
+                .andExpect(jsonPath("$.mustChangePassword").value(true))
+                .andExpect(jsonPath("$.temporaryPassword").value("TempPass123!"));
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/admin/branch-managers/provision - Duplicate email returns 409 Conflict")
+    @WithMockUser(roles = "HEAD_OFFICE_ADMIN")
+    void provisionBranchManagerDuplicateEmail() throws Exception {
+        ProvisionBranchManagerRequest req = new ProvisionBranchManagerRequest(
+                42L, "existing@swiftdrop.lk", null, null);
+
+        when(adminService.provisionBranchManager(any(ProvisionBranchManagerRequest.class)))
+                .thenThrow(new com.swiftdrop.identity.exception.DuplicateEmailException("existing@swiftdrop.lk"));
+
+        mockMvc.perform(post("/api/v1/admin/branch-managers/provision")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/admin/branch-managers/{branchId}/credentials - Success")
+    @WithMockUser(roles = "ADMIN")
+    void getBranchManagerCredentialsSuccess() throws Exception {
+        BranchManagerCredentialsResponse res = new BranchManagerCredentialsResponse(
+                UUID.randomUUID(), 42L, "colombo@swiftdrop.lk", false, null, LocalDateTime.now());
+
+        when(adminService.getBranchManagerCredentials(42L)).thenReturn(res);
+
+        mockMvc.perform(get("/api/v1/admin/branch-managers/42/credentials"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.branchId").value(42))
+                .andExpect(jsonPath("$.email").value("colombo@swiftdrop.lk"))
+                .andExpect(jsonPath("$.mustChangePassword").value(false))
+                .andExpect(jsonPath("$.temporaryPassword").isEmpty());
+    }
+
+    @Test
+    @DisplayName("GET /api/v1/admin/branch-managers/{branchId}/credentials - Not found returns 404")
+    @WithMockUser(roles = "HEAD_OFFICE_ADMIN")
+    void getBranchManagerCredentialsNotFound() throws Exception {
+        when(adminService.getBranchManagerCredentials(99L))
+                .thenThrow(new com.swiftdrop.identity.exception.ResourceNotFoundException("Branch manager not found for branch: 99"));
+
+        mockMvc.perform(get("/api/v1/admin/branch-managers/99/credentials"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/admin/branch-managers/{branchId}/credentials/reset - Success")
+    @WithMockUser(username = "admin@swiftdrop.io", roles = "ADMIN")
+    void resetBranchManagerCredentialsSuccess() throws Exception {
+        BranchManagerCredentialsResponse res = new BranchManagerCredentialsResponse(
+                UUID.randomUUID(), 42L, "colombo@swiftdrop.lk", true, "NewTemp99!", null);
+
+        when(adminService.resetBranchManagerCredentials(eq(42L), any())).thenReturn(res);
+
+        mockMvc.perform(post("/api/v1/admin/branch-managers/42/credentials/reset"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.branchId").value(42))
+                .andExpect(jsonPath("$.email").value("colombo@swiftdrop.lk"))
+                .andExpect(jsonPath("$.mustChangePassword").value(true))
+                .andExpect(jsonPath("$.temporaryPassword").value("NewTemp99!"));
+    }
 }
 

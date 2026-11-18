@@ -376,6 +376,7 @@ public class AuthService {
         );
         authResponse.setBranchId(user.getBranchId());
         authResponse.setOrganizationId(user.getOrganizationId());
+        authResponse.setMustChangePassword(user.isMustChangePassword());
         return authResponse;
     }
 

@@ -161,5 +161,36 @@ public class AdminController {
         String adminEmail = auth != null ? auth.getName() : "system";
         return ResponseEntity.ok(adminService.removeRole(userId, roleId, adminEmail));
     }
+
+    // -----------------------------------------------------------------------
+    // Branch Manager Credential Provisioning & Management
+    // -----------------------------------------------------------------------
+
+    @PostMapping("/branch-managers/provision")
+    @Operation(summary = "Provision a BRANCH_MANAGER account for a branch with a temporary password")
+    public ResponseEntity<BranchManagerCredentialsResponse> provisionBranchManager(
+            @Valid @RequestBody ProvisionBranchManagerRequest request
+    ) {
+        BranchManagerCredentialsResponse created = adminService.provisionBranchManager(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    @GetMapping("/branch-managers/{branchId}/credentials")
+    @Operation(summary = "Get Branch Manager credential status by branch ID")
+    public ResponseEntity<BranchManagerCredentialsResponse> getBranchManagerCredentials(
+            @PathVariable Long branchId
+    ) {
+        return ResponseEntity.ok(adminService.getBranchManagerCredentials(branchId));
+    }
+
+    @PostMapping("/branch-managers/{branchId}/credentials/reset")
+    @Operation(summary = "Reset Branch Manager credentials by branch ID and generate a new temporary password")
+    public ResponseEntity<BranchManagerCredentialsResponse> resetBranchManagerCredentials(
+            @PathVariable Long branchId,
+            Authentication auth
+    ) {
+        String adminEmail = auth != null ? auth.getName() : "system";
+        return ResponseEntity.ok(adminService.resetBranchManagerCredentials(branchId, adminEmail));
+    }
 }
 

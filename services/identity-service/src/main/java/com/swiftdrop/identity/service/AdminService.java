@@ -2,6 +2,7 @@ package com.swiftdrop.identity.service;
 
 import com.swiftdrop.identity.dto.*;
 import com.swiftdrop.identity.entity.*;
+import com.swiftdrop.identity.exception.BranchManagerAlreadyExistsException;
 import com.swiftdrop.identity.exception.DuplicateEmailException;
 import com.swiftdrop.identity.exception.ResourceNotFoundException;
 import com.swiftdrop.identity.repository.RefreshTokenRepository;
@@ -18,6 +19,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -26,6 +28,12 @@ import java.util.*;
 public class AdminService {
 
     private static final Logger log = LoggerFactory.getLogger(AdminService.class);
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final String UPPER = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    private static final String LOWER = "abcdefghijkmnopqrstuvwxyz";
+    private static final String DIGITS = "23456789";
+    private static final String SPECIAL = "!@#$%^&*-_=+";
+    private static final String ALL_PASSWORD_CHARS = UPPER + LOWER + DIGITS + SPECIAL;
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -304,6 +312,110 @@ public class AdminService {
                 pendingVerificationUsers,
                 usersByRole
         );
+    }
+
+    // -----------------------------------------------------------------------
+    // Branch Manager Credential Provisioning & Management
+    // -----------------------------------------------------------------------
+
+    public BranchManagerCredentialsResponse provisionBranchManager(ProvisionBranchManagerRequest request) {
+        String email = request.getEmail().trim().toLowerCase();
+        if (userRepository.existsByEmail(email)) {
+            throw new DuplicateEmailException(email);
+        }
+
+        if (userRepository.findFirstByBranchIdAndRoles_RoleName(request.getBranchId(), RoleName.BRANCH_MANAGER)
+                .isPresent()) {
+            throw new BranchManagerAlreadyExistsException(request.getBranchId());
+        }
+
+        Role branchManagerRole = roleRepository.findByRoleName(RoleName.BRANCH_MANAGER)
+                .orElseThrow(() -> new ResourceNotFoundException("Role not found: BRANCH_MANAGER"));
+
+        String temporaryPassword = generateTemporaryPassword();
+
+        User user = new User();
+        String fullName = request.getFullName() != null && !request.getFullName().isBlank()
+                ? request.getFullName().trim()
+                : "Branch Manager";
+        user.setFullName(fullName);
+        user.setEmail(email);
+        user.setPasswordHash(passwordEncoder.encode(temporaryPassword));
+        user.setAccountStatus(AccountStatus.ACTIVE);
+        user.setAuthProvider(AuthProvider.LOCAL);
+        user.setEmailVerified(true);
+        user.setEmailVerifiedAt(LocalDateTime.now());
+        user.setRoles(new HashSet<>(Set.of(branchManagerRole)));
+        user.setBranchId(request.getBranchId());
+        user.setOrganizationId(request.getOrganizationId() != null && !request.getOrganizationId().isBlank()
+                ? request.getOrganizationId().trim()
+                : null);
+        user.setMustChangePassword(true);
+        user.setTemporaryPassword(temporaryPassword);
+
+        User saved = userRepository.save(user);
+        log.info("Provisioned BRANCH_MANAGER account '{}' for branch {}", saved.getEmail(), saved.getBranchId());
+        return toBranchManagerCredentialsResponse(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public BranchManagerCredentialsResponse getBranchManagerCredentials(Long branchId) {
+        User branchManager = findBranchManagerOrThrow(branchId);
+        return toBranchManagerCredentialsResponse(branchManager);
+    }
+
+    public BranchManagerCredentialsResponse resetBranchManagerCredentials(Long branchId, String adminEmail) {
+        User branchManager = findBranchManagerOrThrow(branchId);
+
+        String temporaryPassword = generateTemporaryPassword();
+        branchManager.setPasswordHash(passwordEncoder.encode(temporaryPassword));
+        branchManager.setMustChangePassword(true);
+        branchManager.setTemporaryPassword(temporaryPassword);
+
+        refreshTokenRepository.revokeAllByUser(branchManager);
+        User saved = userRepository.save(branchManager);
+
+        log.info("Admin '{}' reset temporary credentials for BRANCH_MANAGER '{}' (branch {})",
+                adminEmail, saved.getEmail(), branchId);
+        return toBranchManagerCredentialsResponse(saved);
+    }
+
+    private User findBranchManagerOrThrow(Long branchId) {
+        return userRepository.findFirstByBranchIdAndRoles_RoleName(branchId, RoleName.BRANCH_MANAGER)
+                .orElseThrow(() -> new ResourceNotFoundException("Branch manager not found for branch: " + branchId));
+    }
+
+    private BranchManagerCredentialsResponse toBranchManagerCredentialsResponse(User user) {
+        String activeTempPassword = user.isMustChangePassword() ? user.getTemporaryPassword() : null;
+        return new BranchManagerCredentialsResponse(
+                user.getUserId(),
+                user.getBranchId(),
+                user.getEmail(),
+                user.isMustChangePassword(),
+                activeTempPassword,
+                user.getPasswordChangedAt()
+        );
+    }
+
+    /**
+     * Generates a 12-character policy-compliant random temporary password
+     * containing at least one uppercase letter, lowercase letter, digit, and special character.
+     */
+    private String generateTemporaryPassword() {
+        List<Character> chars = new ArrayList<>(12);
+        chars.add(UPPER.charAt(SECURE_RANDOM.nextInt(UPPER.length())));
+        chars.add(LOWER.charAt(SECURE_RANDOM.nextInt(LOWER.length())));
+        chars.add(DIGITS.charAt(SECURE_RANDOM.nextInt(DIGITS.length())));
+        chars.add(SPECIAL.charAt(SECURE_RANDOM.nextInt(SPECIAL.length())));
+        for (int i = 4; i < 12; i++) {
+            chars.add(ALL_PASSWORD_CHARS.charAt(SECURE_RANDOM.nextInt(ALL_PASSWORD_CHARS.length())));
+        }
+        Collections.shuffle(chars, SECURE_RANDOM);
+        StringBuilder sb = new StringBuilder(12);
+        for (char c : chars) {
+            sb.append(c);
+        }
+        return sb.toString();
     }
 
     // -----------------------------------------------------------------------

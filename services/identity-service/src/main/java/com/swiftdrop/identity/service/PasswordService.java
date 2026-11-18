@@ -73,6 +73,8 @@ public class PasswordService {
         // Hash new password and update
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         user.setPasswordChangedAt(LocalDateTime.now());
+        user.setMustChangePassword(false);
+        user.setTemporaryPassword(null);
         userRepository.save(user);
 
         // Revoke all existing refresh tokens for security
@@ -144,6 +146,8 @@ public class PasswordService {
 
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         user.setPasswordChangedAt(LocalDateTime.now());
+        user.setMustChangePassword(false);
+        user.setTemporaryPassword(null);
         userRepository.save(user);
 
         // Revoke all refresh tokens on password reset

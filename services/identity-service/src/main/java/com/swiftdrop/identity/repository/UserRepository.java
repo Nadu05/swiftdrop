@@ -34,4 +34,6 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
 
     @Query("SELECT u FROM User u JOIN u.roles r WHERE r.roleId = :roleId")
     Page<User> findByRoleId(@Param("roleId") Long roleId, Pageable pageable);
+
+    Optional<User> findFirstByBranchIdAndRoles_RoleName(Long branchId, RoleName roleName);
 }
