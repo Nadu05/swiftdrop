@@ -4,6 +4,7 @@ import com.swiftdrop.organization.dto.BranchCreateRequest;
 import com.swiftdrop.organization.dto.BranchResponse;
 import com.swiftdrop.organization.dto.BranchUpdateRequest;
 import com.swiftdrop.organization.entity.Branch;
+import com.swiftdrop.organization.entity.BranchPostalArea;
 import com.swiftdrop.organization.entity.District;
 import com.swiftdrop.organization.entity.PostalArea;
 import com.swiftdrop.organization.entity.Province;
@@ -231,18 +232,41 @@ class BranchServiceTest {
     }
 
     @Test
-    @DisplayName("Should activate an inactive branch")
+    @DisplayName("Should activate an inactive branch when it has at least one active postal area")
     void shouldActivateBranch() {
         sampleBranch.setStatus(BranchStatus.INACTIVE);
         BranchUpdateRequest request = new BranchUpdateRequest();
         request.setStatus("ACTIVE");
 
+        BranchPostalArea activeAssignment = new BranchPostalArea();
+        activeAssignment.setBranch(sampleBranch);
+        activeAssignment.setPostalArea(samplePostalArea);
+        activeAssignment.setActive(true);
+
         when(repository.findById(1L)).thenReturn(Optional.of(sampleBranch));
+        when(branchPostalAreaRepository.findByBranchIdAndIsActiveTrue(1L)).thenReturn(List.of(activeAssignment));
         when(repository.save(any(Branch.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         BranchResponse response = service.update(1L, request);
 
         assertThat(response.getStatus()).isEqualTo("ACTIVE");
+    }
+
+    @Test
+    @DisplayName("Should reject activating a branch with zero active postal areas")
+    void shouldRejectActivatingBranchWithZeroActivePostalAreas() {
+        sampleBranch.setStatus(BranchStatus.INACTIVE);
+        BranchUpdateRequest request = new BranchUpdateRequest();
+        request.setStatus("ACTIVE");
+
+        when(repository.findById(1L)).thenReturn(Optional.of(sampleBranch));
+        when(branchPostalAreaRepository.findByBranchIdAndIsActiveTrue(1L)).thenReturn(List.of());
+
+        assertThatThrownBy(() -> service.update(1L, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("An ACTIVE branch must have at least one assigned Postal Area");
+
+        verify(repository, never()).save(any(Branch.class));
     }
 
     @Test
