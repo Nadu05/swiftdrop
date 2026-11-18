@@ -1,6 +1,11 @@
 package com.swiftdrop.organization.service;
 
+import com.swiftdrop.organization.client.IdentityBranchManagerCredentialsDto;
+import com.swiftdrop.organization.client.IdentityServiceClient;
+import com.swiftdrop.organization.client.NotificationBranchCredentialsResultDto;
+import com.swiftdrop.organization.client.NotificationServiceClient;
 import com.swiftdrop.organization.dto.BranchCreateRequest;
+import com.swiftdrop.organization.dto.BranchCredentialsResponse;
 import com.swiftdrop.organization.dto.BranchPostalAreaResponse;
 import com.swiftdrop.organization.dto.BranchPostalAreasUpdateRequest;
 import com.swiftdrop.organization.dto.BranchResponse;
@@ -13,6 +18,7 @@ import com.swiftdrop.organization.entity.DsDivision;
 import com.swiftdrop.organization.entity.PostalArea;
 import com.swiftdrop.organization.entity.Province;
 import com.swiftdrop.organization.entity.enums.BranchStatus;
+import com.swiftdrop.organization.entity.enums.CredentialEmailStatus;
 import com.swiftdrop.organization.exception.DuplicateResourceException;
 import com.swiftdrop.organization.exception.ResourceNotFoundException;
 import com.swiftdrop.organization.repository.BranchPostalAreaRepository;
@@ -22,6 +28,8 @@ import com.swiftdrop.organization.repository.DsDivisionRepository;
 import com.swiftdrop.organization.repository.PostalAreaRepository;
 import com.swiftdrop.organization.repository.ProvinceRepository;
 import com.swiftdrop.organization.security.OrganizationUserPrincipal;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -32,6 +40,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -49,12 +58,17 @@ import java.util.stream.Collectors;
 @Transactional
 public class BranchService {
 
+    private static final Logger log = LoggerFactory.getLogger(BranchService.class);
+    private static final int MAX_EMAIL_ERROR_LENGTH = 500;
+
     private final BranchRepository repository;
     private final ProvinceRepository provinceRepository;
     private final DistrictRepository districtRepository;
     private final DsDivisionRepository dsDivisionRepository;
     private final PostalAreaRepository postalAreaRepository;
     private final BranchPostalAreaRepository branchPostalAreaRepository;
+    private final IdentityServiceClient identityServiceClient;
+    private final NotificationServiceClient notificationServiceClient;
 
     public BranchService(
             BranchRepository repository,
@@ -62,7 +76,9 @@ public class BranchService {
             DistrictRepository districtRepository,
             DsDivisionRepository dsDivisionRepository,
             PostalAreaRepository postalAreaRepository,
-            BranchPostalAreaRepository branchPostalAreaRepository
+            BranchPostalAreaRepository branchPostalAreaRepository,
+            IdentityServiceClient identityServiceClient,
+            NotificationServiceClient notificationServiceClient
     ) {
         this.repository = repository;
         this.provinceRepository = provinceRepository;
@@ -70,6 +86,8 @@ public class BranchService {
         this.dsDivisionRepository = dsDivisionRepository;
         this.postalAreaRepository = postalAreaRepository;
         this.branchPostalAreaRepository = branchPostalAreaRepository;
+        this.identityServiceClient = identityServiceClient;
+        this.notificationServiceClient = notificationServiceClient;
     }
 
     /**
@@ -153,6 +171,18 @@ public class BranchService {
             branchPostalAreaRepository.saveAll(assignments);
         }
 
+        // Provision BRANCH_MANAGER in identity-service; any failure rolls back branch & postal areas.
+        savedBranch.setCredentialEmailStatus(CredentialEmailStatus.PENDING);
+        IdentityBranchManagerCredentialsDto credentials = identityServiceClient.provisionBranchManager(
+                savedBranch.getId(),
+                savedBranch.getEmail(),
+                savedBranch.getName() + " Manager",
+                null
+        );
+
+        // Send credential email asynchronously/resiliently; mail failures never roll back branch creation.
+        sendAndRecordCredentialEmail(savedBranch, credentials.email(), credentials.temporaryPassword());
+
         return toResponse(savedBranch, assignedDtos);
     }
 
@@ -186,6 +216,78 @@ public class BranchService {
         Branch branch = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Branch", id));
         return toResponse(branch);
+    }
+
+    /**
+     * Retrieve Branch Manager credential status and credential email delivery status for a branch.
+     */
+    @Transactional(readOnly = true)
+    public BranchCredentialsResponse getCredentials(Long id) {
+        Branch branch = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Branch", id));
+        Optional<IdentityBranchManagerCredentialsDto> credentials =
+                identityServiceClient.getBranchManagerCredentials(id);
+        return toCredentialsResponse(branch, credentials.orElse(null));
+    }
+
+    /**
+     * Resend the active temporary password to the branch's current contact email.
+     */
+    public BranchCredentialsResponse resendCredentials(Long id) {
+        Branch branch = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Branch", id));
+        if (branch.getEmail() == null || branch.getEmail().isBlank()) {
+            throw new IllegalArgumentException("Branch email is required to send credentials");
+        }
+        IdentityBranchManagerCredentialsDto credentials = identityServiceClient.getBranchManagerCredentials(id)
+                .orElseThrow(() -> new IllegalStateException(
+                        "No Branch Manager account exists for this branch. Provision one first."));
+
+        if (!credentials.mustChangePassword()
+                || credentials.temporaryPassword() == null
+                || credentials.temporaryPassword().isBlank()) {
+            throw new IllegalStateException(
+                    "Branch Manager has already changed their password. Use Reset Credentials to issue a new temporary password.");
+        }
+
+        sendAndRecordCredentialEmail(branch, credentials.email(), credentials.temporaryPassword());
+        return toCredentialsResponse(branch, credentials);
+    }
+
+    /**
+     * Reset the Branch Manager's password to a new temporary password and email it to the branch email.
+     */
+    public BranchCredentialsResponse resetCredentials(Long id) {
+        Branch branch = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Branch", id));
+        if (branch.getEmail() == null || branch.getEmail().isBlank()) {
+            throw new IllegalArgumentException("Branch email is required to send credentials");
+        }
+        IdentityBranchManagerCredentialsDto credentials =
+                identityServiceClient.resetBranchManagerCredentials(id);
+        sendAndRecordCredentialEmail(branch, credentials.email(), credentials.temporaryPassword());
+        return toCredentialsResponse(branch, credentials);
+    }
+
+    /**
+     * Provision a Branch Manager account for a legacy branch and email the generated credentials.
+     */
+    public BranchCredentialsResponse provisionCredentials(Long id) {
+        Branch branch = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Branch", id));
+        if (branch.getEmail() == null || branch.getEmail().isBlank()) {
+            throw new IllegalArgumentException(
+                    "Branch email is required to provision a Branch Manager account");
+        }
+        branch.setCredentialEmailStatus(CredentialEmailStatus.PENDING);
+        IdentityBranchManagerCredentialsDto credentials = identityServiceClient.provisionBranchManager(
+                branch.getId(),
+                branch.getEmail(),
+                branch.getName() + " Manager",
+                null
+        );
+        sendAndRecordCredentialEmail(branch, credentials.email(), credentials.temporaryPassword());
+        return toCredentialsResponse(branch, credentials);
     }
 
     /**
@@ -372,7 +474,80 @@ public class BranchService {
         response.setDsDivisionId(branch.getDsDivision() != null ? branch.getDsDivision().getId() : null);
         response.setPostalCode(branch.getPostalCode());
         response.setAssignedPostalAreas(assignedPostalAreas);
+        response.setCredentialEmailStatus(
+                branch.getCredentialEmailStatus() != null ? branch.getCredentialEmailStatus().name() : null);
+        response.setCredentialEmailSentAt(branch.getCredentialEmailSentAt());
+        response.setCredentialEmailError(branch.getCredentialEmailError());
         return response;
+    }
+
+    private void sendAndRecordCredentialEmail(Branch branch, String loginEmail, String temporaryPassword) {
+        try {
+            NotificationBranchCredentialsResultDto result = notificationServiceClient.sendBranchCredentials(
+                    branch.getEmail(),
+                    branch.getName(),
+                    branch.getCode(),
+                    loginEmail,
+                    temporaryPassword
+            );
+            if ("FAILED".equalsIgnoreCase(result.status())) {
+                branch.setCredentialEmailStatus(CredentialEmailStatus.FAILED);
+                branch.setCredentialEmailError(truncateError(result.errorMessage()));
+            } else {
+                branch.setCredentialEmailStatus(CredentialEmailStatus.SENT);
+                branch.setCredentialEmailSentAt(
+                        result.sentAt() != null ? result.sentAt() : LocalDateTime.now());
+                branch.setCredentialEmailError(null);
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to deliver credential email for branchId={}: {}", branch.getId(), ex.getMessage());
+            branch.setCredentialEmailStatus(CredentialEmailStatus.FAILED);
+            branch.setCredentialEmailError(truncateError(ex.getMessage()));
+        }
+        repository.save(branch);
+    }
+
+    private BranchCredentialsResponse toCredentialsResponse(
+            Branch branch,
+            IdentityBranchManagerCredentialsDto credentials) {
+        String emailStatus = branch.getCredentialEmailStatus() != null
+                ? branch.getCredentialEmailStatus().name()
+                : null;
+        if (credentials == null) {
+            return new BranchCredentialsResponse(
+                    branch.getId(),
+                    false,
+                    null,
+                    null,
+                    false,
+                    null,
+                    null,
+                    emailStatus,
+                    branch.getCredentialEmailSentAt(),
+                    branch.getCredentialEmailError()
+            );
+        }
+        return new BranchCredentialsResponse(
+                branch.getId(),
+                true,
+                credentials.userId(),
+                credentials.email(),
+                credentials.mustChangePassword(),
+                credentials.temporaryPassword(),
+                credentials.passwordChangedAt(),
+                emailStatus,
+                branch.getCredentialEmailSentAt(),
+                branch.getCredentialEmailError()
+        );
+    }
+
+    private String truncateError(String message) {
+        if (message == null || message.isBlank()) {
+            return "Failed to send credential email";
+        }
+        return message.length() <= MAX_EMAIL_ERROR_LENGTH
+                ? message
+                : message.substring(0, MAX_EMAIL_ERROR_LENGTH);
     }
 
     private Map<Long, PostalArea> validateAndLoadPostalAreas(Set<Long> postalAreaIds) {

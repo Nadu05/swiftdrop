@@ -1,6 +1,7 @@
 package com.swiftdrop.organization.entity;
 
 import com.swiftdrop.organization.entity.enums.BranchStatus;
+import com.swiftdrop.organization.entity.enums.CredentialEmailStatus;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -62,6 +63,16 @@ public class Branch {
 
     @Column(name = "postal_code", length = 5)
     private String postalCode;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "credential_email_status", length = 20)
+    private CredentialEmailStatus credentialEmailStatus;
+
+    @Column(name = "credential_email_sent_at")
+    private LocalDateTime credentialEmailSentAt;
+
+    @Column(name = "credential_email_error", length = 500)
+    private String credentialEmailError;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -128,6 +139,15 @@ public class Branch {
 
     public String getPostalCode() { return postalCode; }
     public void setPostalCode(String postalCode) { this.postalCode = postalCode; }
+
+    public CredentialEmailStatus getCredentialEmailStatus() { return credentialEmailStatus; }
+    public void setCredentialEmailStatus(CredentialEmailStatus credentialEmailStatus) { this.credentialEmailStatus = credentialEmailStatus; }
+
+    public LocalDateTime getCredentialEmailSentAt() { return credentialEmailSentAt; }
+    public void setCredentialEmailSentAt(LocalDateTime credentialEmailSentAt) { this.credentialEmailSentAt = credentialEmailSentAt; }
+
+    public String getCredentialEmailError() { return credentialEmailError; }
+    public void setCredentialEmailError(String credentialEmailError) { this.credentialEmailError = credentialEmailError; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

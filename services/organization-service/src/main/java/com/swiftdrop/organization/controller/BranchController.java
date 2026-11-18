@@ -1,6 +1,7 @@
 package com.swiftdrop.organization.controller;
 
 import com.swiftdrop.organization.dto.BranchCreateRequest;
+import com.swiftdrop.organization.dto.BranchCredentialsResponse;
 import com.swiftdrop.organization.dto.BranchPostalAreaResponse;
 import com.swiftdrop.organization.dto.BranchPostalAreasUpdateRequest;
 import com.swiftdrop.organization.dto.BranchResponse;
@@ -76,6 +77,34 @@ public class BranchController {
     @Operation(summary = "Get a branch by ID")
     public ResponseEntity<BranchResponse> findById(@PathVariable Long id) {
         return ResponseEntity.ok(branchService.findById(id));
+    }
+
+    @GetMapping("/{id}/credentials")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HEAD_OFFICE_ADMIN')")
+    @Operation(summary = "Get Branch Manager credential status and email delivery status for a branch")
+    public ResponseEntity<BranchCredentialsResponse> getCredentials(@PathVariable Long id) {
+        return ResponseEntity.ok(branchService.getCredentials(id));
+    }
+
+    @PostMapping("/{id}/credentials/resend")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HEAD_OFFICE_ADMIN')")
+    @Operation(summary = "Resend active Branch Manager temporary credentials to the branch email")
+    public ResponseEntity<BranchCredentialsResponse> resendCredentials(@PathVariable Long id) {
+        return ResponseEntity.ok(branchService.resendCredentials(id));
+    }
+
+    @PostMapping("/{id}/credentials/reset")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HEAD_OFFICE_ADMIN')")
+    @Operation(summary = "Reset Branch Manager password and email the new temporary credentials")
+    public ResponseEntity<BranchCredentialsResponse> resetCredentials(@PathVariable Long id) {
+        return ResponseEntity.ok(branchService.resetCredentials(id));
+    }
+
+    @PostMapping("/{id}/credentials/provision")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HEAD_OFFICE_ADMIN')")
+    @Operation(summary = "Provision a Branch Manager account for a legacy branch and email credentials")
+    public ResponseEntity<BranchCredentialsResponse> provisionCredentials(@PathVariable Long id) {
+        return ResponseEntity.ok(branchService.provisionCredentials(id));
     }
 
     @GetMapping("/{id}/postal-areas")

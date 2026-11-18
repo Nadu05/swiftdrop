@@ -67,3 +67,9 @@ logging:
 app:
   jwt:
     secret: Y2hhbmdlLW1lLWluLXByb2R1Y3Rpb24tYW5kLXVzZS1hLXN0cm9uZy1zZWNyZXQtaGVyZS0xMjM0NTY3ODk=
+
+swiftdrop:
+  identity-service:
+    base-url: ${IDENTITY_SERVICE_URL:http://localhost:8081}
+  notification-service:
+    base-url: ${NOTIFICATION_SERVICE_URL:http://localhost:8085}

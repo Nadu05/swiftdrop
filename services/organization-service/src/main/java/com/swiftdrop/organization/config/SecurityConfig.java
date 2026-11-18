@@ -100,6 +100,19 @@ public class SecurityConfig {
                         // Branch creation: Head Office Admin only
                         .requestMatchers(HttpMethod.POST, "/branches", "/api/v1/branches")
                         .hasAnyRole("ADMIN", "HEAD_OFFICE_ADMIN")
+                        // Branch Manager credential management: Head Office Admin only
+                        .requestMatchers(HttpMethod.GET,
+                                "/branches/*/credentials",
+                                "/api/v1/branches/*/credentials"
+                        ).hasAnyRole("ADMIN", "HEAD_OFFICE_ADMIN")
+                        .requestMatchers(HttpMethod.POST,
+                                "/branches/*/credentials/resend",
+                                "/branches/*/credentials/reset",
+                                "/branches/*/credentials/provision",
+                                "/api/v1/branches/*/credentials/resend",
+                                "/api/v1/branches/*/credentials/reset",
+                                "/api/v1/branches/*/credentials/provision"
+                        ).hasAnyRole("ADMIN", "HEAD_OFFICE_ADMIN")
                         // Branch updates: Head Office Admin or Branch Manager (branch ownership verified in controller/service)
                         .requestMatchers(HttpMethod.PATCH, "/branches/*", "/api/v1/branches/*")
                         .hasAnyRole("ADMIN", "HEAD_OFFICE_ADMIN", "BRANCH_MANAGER")

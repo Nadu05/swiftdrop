@@ -13,6 +13,18 @@ public interface BranchPostalAreaRepository extends JpaRepository<BranchPostalAr
 
     List<BranchPostalArea> findByBranchIdAndIsActiveTrue(Long branchId);
 
+    @Query("""
+            SELECT bpa FROM BranchPostalArea bpa
+            JOIN FETCH bpa.postalArea pa
+            JOIN FETCH pa.province
+            JOIN FETCH pa.district
+            LEFT JOIN FETCH pa.dsDivision
+            WHERE bpa.branch.id = :branchId
+              AND bpa.isActive = true
+            ORDER BY pa.postalCode ASC
+            """)
+    List<BranchPostalArea> findActiveByBranchIdWithDetails(@Param("branchId") Long branchId);
+
     Optional<BranchPostalArea> findByPostalAreaIdAndIsActiveTrue(Long postalAreaId);
 
     @Query("""

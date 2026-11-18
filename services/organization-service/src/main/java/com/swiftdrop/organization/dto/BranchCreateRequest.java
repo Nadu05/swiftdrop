@@ -33,6 +33,7 @@ public class BranchCreateRequest {
     @Size(max = 50, message = "Phone must be at most 50 characters")
     private String phone;
 
+    @NotBlank(message = "Branch email is required")
     @Email(message = "Email must be a valid email address")
     @Size(max = 255, message = "Email must be at most 255 characters")
     private String email;

@@ -25,6 +25,9 @@ public class BranchResponse {
     private Long dsDivisionId;
     private String postalCode;
     private List<PostalAreaDto> assignedPostalAreas;
+    private String credentialEmailStatus;
+    private LocalDateTime credentialEmailSentAt;
+    private String credentialEmailError;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -97,6 +100,15 @@ public class BranchResponse {
 
     public List<PostalAreaDto> getAssignedPostalAreas() { return assignedPostalAreas; }
     public void setAssignedPostalAreas(List<PostalAreaDto> assignedPostalAreas) { this.assignedPostalAreas = assignedPostalAreas; }
+
+    public String getCredentialEmailStatus() { return credentialEmailStatus; }
+    public void setCredentialEmailStatus(String credentialEmailStatus) { this.credentialEmailStatus = credentialEmailStatus; }
+
+    public LocalDateTime getCredentialEmailSentAt() { return credentialEmailSentAt; }
+    public void setCredentialEmailSentAt(LocalDateTime credentialEmailSentAt) { this.credentialEmailSentAt = credentialEmailSentAt; }
+
+    public String getCredentialEmailError() { return credentialEmailError; }
+    public void setCredentialEmailError(String credentialEmailError) { this.credentialEmailError = credentialEmailError; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
