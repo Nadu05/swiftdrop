@@ -3,6 +3,7 @@
 import React from 'react';
 import CustomerSidebar from '@/components/customer/CustomerSidebar';
 import { DashboardTopBar } from '@/components/dashboard/DashboardTopBar';
+import '@/app/customer/customer.css';
 
 /**
  * CustomerShell layout wrapper
@@ -23,7 +24,7 @@ export default function CustomerShell({
     <div className="customer-app-shell">
       <CustomerSidebar />
       <div className="flex-1 flex flex-col min-w-0">
-        <DashboardTopBar portalLabel="Customer Portal" theme="dark" />
+        <DashboardTopBar portalLabel="Customer Portal" theme="light" />
         <main className="main-content customer-main-content flex-1">
           {children}
         </main>
