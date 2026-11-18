@@ -56,8 +56,9 @@ export function RoleGuard({ allowedRoles, portalName, children }: RoleGuardProps
   const userRoles = (activeUser?.roles || []).map(normalizeRoleName);
   const expandedAllowed = expandAllowedRoles(allowedRoles);
   const accountActive = isAccountActive(activeUser?.accountStatus);
+  const mustChangePassword = Boolean(activeUser?.mustChangePassword);
   const isAuthorized =
-    accountActive && expandedAllowed.some((role) => userRoles.includes(role));
+    accountActive && !mustChangePassword && expandedAllowed.some((role) => userRoles.includes(role));
 
   useEffect(() => {
     if (!isLoading && (isError || !activeUser)) {
@@ -67,8 +68,11 @@ export function RoleGuard({ allowedRoles, portalName, children }: RoleGuardProps
       router.replace(
         `/login?error=account_${activeUser.accountStatus.toLowerCase()}`
       );
+    } else if (!isLoading && activeUser && mustChangePassword) {
+      const callback = pathname ? `?callbackUrl=${encodeURIComponent(pathname)}` : '';
+      router.replace(`/change-password${callback}`);
     }
-  }, [isLoading, isError, activeUser, accountActive, pathname, router]);
+  }, [isLoading, isError, activeUser, accountActive, mustChangePassword, pathname, router]);
 
   if (isLoading && !activeUser) {
     return (
@@ -96,6 +100,28 @@ export function RoleGuard({ allowedRoles, portalName, children }: RoleGuardProps
               className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700"
             >
               Go to Login
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (mustChangePassword) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 px-4">
+        <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-xl p-6 text-center shadow-lg">
+          <Loader2 className="h-10 w-10 text-blue-500 mx-auto mb-3 animate-spin" />
+          <h2 className="text-lg font-bold text-white">Password Change Required</h2>
+          <p className="text-sm text-slate-400 mt-1.5">
+            Redirecting you to set a new personal password before accessing {portalName}.
+          </p>
+          <div className="mt-4">
+            <Link
+              href="/change-password"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700"
+            >
+              Change Password
             </Link>
           </div>
         </div>
