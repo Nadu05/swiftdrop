@@ -7,11 +7,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
+import java.time.Duration;
 import java.util.Map;
 
 @Component
@@ -24,11 +26,18 @@ public class RestNotificationServiceClient implements NotificationServiceClient 
     @Autowired
     public RestNotificationServiceClient(
             @Value("${swiftdrop.notification-service.base-url:http://localhost:8085}") String baseUrl) {
-        this(RestClient.builder(), baseUrl);
+        this(defaultBuilder(), baseUrl);
     }
 
     public RestNotificationServiceClient(RestClient.Builder builder, String baseUrl) {
         this.restClient = builder.baseUrl(baseUrl).build();
+    }
+
+    private static RestClient.Builder defaultBuilder() {
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(Duration.ofSeconds(5));
+        requestFactory.setReadTimeout(Duration.ofSeconds(10));
+        return RestClient.builder().requestFactory(requestFactory);
     }
 
     @Override
@@ -67,7 +76,7 @@ public class RestNotificationServiceClient implements NotificationServiceClient 
         } catch (ResourceAccessException | RestClientResponseException ex) {
             log.warn("Notification Service branch credential email failed for branchCode={}: {}", branchCode, ex.getMessage());
             throw new ExternalServiceException(
-                    "Unable to send Branch Manager credential email via Notification Service: " + ex.getMessage(),
+                    "Notification service unavailable. Unable to send Branch Manager credential email.",
                     ex
             );
         }

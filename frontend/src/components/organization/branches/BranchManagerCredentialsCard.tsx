@@ -140,51 +140,46 @@ export default function BranchManagerCredentialsCard({
     }
   };
 
-  const handleProvision = async () => {
+  const runCredentialAction = async (
+    mutate: () => Promise<BranchCredentialsResponse>,
+    successLabel: string,
+    fallbackError: string,
+    options?: { hidePassword?: boolean }
+  ) => {
     setActionMessage(null);
     setActionError(null);
+    if (options?.hidePassword) {
+      setShowPassword(false);
+    }
     try {
-      const updated = await provisionMutation.mutateAsync();
-      handleActionResult(updated, 'Branch Manager account provisioned.');
+      const updated = await mutate();
+      handleActionResult(updated, successLabel);
     } catch (err: unknown) {
-      setActionError(
-        err instanceof Error
-          ? err.message
-          : 'Failed to provision Branch Manager credentials.'
-      );
+      setActionError(err instanceof Error ? err.message : fallbackError);
     }
   };
 
-  const handleResend = async () => {
-    setActionMessage(null);
-    setActionError(null);
-    try {
-      const updated = await resendMutation.mutateAsync();
-      handleActionResult(updated, 'Credentials resent.');
-    } catch (err: unknown) {
-      setActionError(
-        err instanceof Error
-          ? err.message
-          : 'Failed to resend Branch Manager credentials.'
-      );
-    }
-  };
+  const handleProvision = () =>
+    runCredentialAction(
+      () => provisionMutation.mutateAsync(),
+      'Branch Manager account provisioned.',
+      'Failed to provision Branch Manager credentials.'
+    );
 
-  const handleReset = async () => {
-    setActionMessage(null);
-    setActionError(null);
-    setShowPassword(false);
-    try {
-      const updated = await resetMutation.mutateAsync();
-      handleActionResult(updated, 'Temporary password reset.');
-    } catch (err: unknown) {
-      setActionError(
-        err instanceof Error
-          ? err.message
-          : 'Failed to reset Branch Manager credentials.'
-      );
-    }
-  };
+  const handleResend = () =>
+    runCredentialAction(
+      () => resendMutation.mutateAsync(),
+      'Credentials resent.',
+      'Failed to resend Branch Manager credentials.'
+    );
+
+  const handleReset = () =>
+    runCredentialAction(
+      () => resetMutation.mutateAsync(),
+      'Temporary password reset.',
+      'Failed to reset Branch Manager credentials.',
+      { hidePassword: true }
+    );
 
   const hasBranchEmail = Boolean(branch.email && branch.email.trim().length > 0);
 

@@ -4,7 +4,7 @@
 
 **Blocked by:** 03: Orchestrated Branch Creation & Credential Management APIs (organization-service)
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] `branchFormSchema` and `BranchForm` require `email` in `create` mode (optional/contact-only in `edit` mode)
 - [ ] Creating a branch redirects to `/organization/branches/[id]` so the System Admin immediately sees the credentials and email status

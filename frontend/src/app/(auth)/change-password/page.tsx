@@ -1,8 +1,8 @@
 'use client';
 
-import React, { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useForm, type UseFormRegisterReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { changePasswordSchema, type ChangePasswordFormValues } from '@/schema/user.schema';
 import { useCurrentUser, useLogout, getApiErrorMessage } from '@/hooks/api/use-auth';
@@ -21,6 +21,67 @@ import {
   ShieldCheck,
   LogOut,
 } from 'lucide-react';
+
+const cardClassName =
+  'w-full max-w-[460px] rounded-2xl border border-blue-500/25 bg-gray-900/90 p-9 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-md';
+
+interface PasswordFieldProps {
+  id: string;
+  label: string;
+  autoComplete: string;
+  placeholder: string;
+  show: boolean;
+  onToggleShow: () => void;
+  toggleLabel: string;
+  errorMessage?: string;
+  registration: UseFormRegisterReturn;
+}
+
+function PasswordField({
+  id,
+  label,
+  autoComplete,
+  placeholder,
+  show,
+  onToggleShow,
+  toggleLabel,
+  errorMessage,
+  registration,
+}: PasswordFieldProps) {
+  return (
+    <div>
+      <label
+        htmlFor={id}
+        className="mb-1.5 block text-xs font-semibold text-slate-300"
+      >
+        {label}
+      </label>
+      <div className="relative">
+        <input
+          id={id}
+          type={show ? 'text' : 'password'}
+          autoComplete={autoComplete}
+          {...registration}
+          placeholder={placeholder}
+          className={`w-full rounded-lg border bg-slate-900/75 py-2.5 pl-3.5 pr-10 text-sm text-slate-50 outline-none transition-colors focus:border-blue-500 ${
+            errorMessage ? 'border-red-500' : 'border-slate-400/25'
+          }`}
+        />
+        <button
+          type="button"
+          onClick={onToggleShow}
+          aria-label={toggleLabel}
+          className="absolute right-2.5 top-1/2 flex -translate-y-1/2 cursor-pointer items-center justify-center rounded p-1 text-slate-400 hover:text-slate-200"
+        >
+          {show ? <EyeOff size={16} /> : <Eye size={16} />}
+        </button>
+      </div>
+      {errorMessage && (
+        <p className="mt-1.5 text-xs text-red-400">{errorMessage}</p>
+      )}
+    </div>
+  );
+}
 
 function ChangePasswordCard() {
   const router = useRouter();
@@ -99,38 +160,28 @@ function ChangePasswordCard() {
 
   if (isLoading && !activeUser) {
     return (
-      <div style={cardStyle}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem', padding: '2rem 0' }}>
-          <Loader2 size={28} color="#3b82f6" className="animate-spin" />
-          <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>Verifying session...</p>
+      <div className={cardClassName}>
+        <div className="flex flex-col items-center gap-3 py-8">
+          <Loader2 size={28} className="animate-spin text-blue-500" />
+          <p className="text-sm text-slate-400">Verifying session...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={cardStyle}>
+    <div className={cardClassName}>
       {/* Brand */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.75rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div
-            style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Box size={22} color="#fff" />
+      <div className="mb-7 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-gradient-to-br from-blue-500 to-indigo-500">
+            <Box size={22} className="text-white" />
           </div>
           <div>
-            <h1 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff' }}>
-              Swift<span style={{ color: '#60a5fa' }}>Drop</span>
+            <h1 className="text-xl font-extrabold text-white">
+              Swift<span className="text-blue-400">Drop</span>
             </h1>
-            <p style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Delivery Platform</p>
+            <p className="text-[0.7rem] text-slate-400">Delivery Platform</p>
           </div>
         </div>
 
@@ -138,19 +189,7 @@ function ChangePasswordCard() {
           type="button"
           onClick={() => logoutMutation.mutate()}
           disabled={logoutMutation.isPending}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.35rem',
-            padding: '0.4rem 0.75rem',
-            borderRadius: '8px',
-            border: '1px solid rgba(148, 163, 184, 0.25)',
-            background: 'rgba(15, 23, 42, 0.6)',
-            color: '#cbd5e1',
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-          }}
+          className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-400/25 bg-slate-900/60 px-3 py-1.5 text-xs font-semibold text-slate-300 transition-colors hover:bg-slate-800/80 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <LogOut size={13} />
           Sign out
@@ -158,34 +197,21 @@ function ChangePasswordCard() {
       </div>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-        <KeyRound size={20} color="#60a5fa" />
-        <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: '#fff' }}>
+      <div className="mb-2 flex items-center gap-2">
+        <KeyRound size={20} className="text-blue-400" />
+        <h2 className="text-[1.4rem] font-bold text-white">
           Set Your Personal Password
         </h2>
       </div>
-      <p style={{ color: '#94a3b8', marginBottom: '1.25rem', fontSize: '0.875rem', lineHeight: 1.5 }}>
+      <p className="mb-5 text-sm leading-relaxed text-slate-400">
         You signed in with a temporary password. For your account security, please choose a new personal password before accessing your portal.
       </p>
 
       {/* Notice Banner */}
-      <div
-        style={{
-          background: 'rgba(59, 130, 246, 0.12)',
-          border: '1px solid rgba(59, 130, 246, 0.35)',
-          borderRadius: '8px',
-          padding: '0.75rem 1rem',
-          color: '#93c5fd',
-          fontSize: '0.8rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          marginBottom: '1.25rem',
-        }}
-      >
-        <ShieldCheck size={16} style={{ flexShrink: 0 }} />
+      <div className="mb-5 flex items-center gap-2 rounded-lg border border-blue-500/35 bg-blue-500/12 px-4 py-3 text-xs text-blue-300">
+        <ShieldCheck size={16} className="shrink-0" />
         <span>
-          Signed in as <strong style={{ color: '#fff' }}>{activeUser?.email}</strong>
+          Signed in as <strong className="text-white">{activeUser?.email}</strong>
         </span>
       </div>
 
@@ -193,134 +219,76 @@ function ChangePasswordCard() {
       {apiError && (
         <div
           role="alert"
-          style={{
-            background: 'rgba(239,68,68,0.12)',
-            border: '1px solid rgba(239,68,68,0.4)',
-            borderRadius: '8px',
-            padding: '0.75rem 1rem',
-            color: '#f87171',
-            fontSize: '0.875rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            marginBottom: '1.25rem',
-          }}
+          className="mb-5 flex items-center gap-2 rounded-lg border border-red-500/40 bg-red-500/12 px-4 py-3 text-sm text-red-400"
         >
-          <AlertCircle size={16} style={{ flexShrink: 0 }} />
+          <AlertCircle size={16} className="shrink-0" />
           <span>{apiError}</span>
         </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1.15rem' }}>
-        {/* Current / Temporary Password */}
-        <div>
-          <label htmlFor="currentPassword" style={labelStyle}>
-            Temporary / Current Password
-          </label>
-          <div style={{ position: 'relative' }}>
-            <input
-              id="currentPassword"
-              type={showCurrent ? 'text' : 'password'}
-              autoComplete="current-password"
-              {...register('currentPassword')}
-              placeholder="Enter your temporary password"
-              style={inputStyle(!!errors.currentPassword)}
-            />
-            <button
-              type="button"
-              onClick={() => setShowCurrent(!showCurrent)}
-              aria-label={showCurrent ? 'Hide current password' : 'Show current password'}
-              style={toggleBtnStyle}
-            >
-              {showCurrent ? <EyeOff size={16} color="#94a3b8" /> : <Eye size={16} color="#94a3b8" />}
-            </button>
-          </div>
-          {errors.currentPassword && <p style={errorStyle}>{errors.currentPassword.message}</p>}
-        </div>
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4.5">
+        <PasswordField
+          id="currentPassword"
+          label="Temporary / Current Password"
+          autoComplete="current-password"
+          placeholder="Enter your temporary password"
+          show={showCurrent}
+          onToggleShow={() => setShowCurrent((prev) => !prev)}
+          toggleLabel={showCurrent ? 'Hide current password' : 'Show current password'}
+          errorMessage={errors.currentPassword?.message}
+          registration={register('currentPassword')}
+        />
 
-        {/* New Password */}
         <div>
-          <label htmlFor="newPassword" style={labelStyle}>
-            New Personal Password
-          </label>
-          <div style={{ position: 'relative' }}>
-            <input
-              id="newPassword"
-              type={showNew ? 'text' : 'password'}
-              autoComplete="new-password"
-              {...register('newPassword')}
-              placeholder="Enter new personal password"
-              style={inputStyle(!!errors.newPassword)}
-            />
-            <button
-              type="button"
-              onClick={() => setShowNew(!showNew)}
-              aria-label={showNew ? 'Hide new password' : 'Show new password'}
-              style={toggleBtnStyle}
-            >
-              {showNew ? <EyeOff size={16} color="#94a3b8" /> : <Eye size={16} color="#94a3b8" />}
-            </button>
-          </div>
-          {errors.newPassword && <p style={errorStyle}>{errors.newPassword.message}</p>}
+          <PasswordField
+            id="newPassword"
+            label="New Personal Password"
+            autoComplete="new-password"
+            placeholder="Enter new personal password"
+            show={showNew}
+            onToggleShow={() => setShowNew((prev) => !prev)}
+            toggleLabel={showNew ? 'Hide new password' : 'Show new password'}
+            errorMessage={errors.newPassword?.message}
+            registration={register('newPassword')}
+          />
 
           {/* Policy Checklist */}
-          <div style={{ marginTop: '0.65rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+          <div className="mt-2.5 flex flex-col gap-1">
             {rules.map((rule) => (
-              <div key={rule.label} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem' }}>
-                {rule.valid ? <Check size={13} color="#10b981" /> : <X size={13} color="#64748b" />}
-                <span style={{ color: rule.valid ? '#10b981' : '#64748b' }}>{rule.label}</span>
+              <div key={rule.label} className="flex items-center gap-1.5 text-xs">
+                {rule.valid ? (
+                  <Check size={13} className="text-emerald-500" />
+                ) : (
+                  <X size={13} className="text-slate-500" />
+                )}
+                <span className={rule.valid ? 'text-emerald-500' : 'text-slate-500'}>
+                  {rule.label}
+                </span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Confirm New Password */}
-        <div>
-          <label htmlFor="confirmPassword" style={labelStyle}>
-            Confirm New Password
-          </label>
-          <div style={{ position: 'relative' }}>
-            <input
-              id="confirmPassword"
-              type={showConfirm ? 'text' : 'password'}
-              autoComplete="new-password"
-              {...register('confirmPassword')}
-              placeholder="Confirm new personal password"
-              style={inputStyle(!!errors.confirmPassword)}
-            />
-            <button
-              type="button"
-              onClick={() => setShowConfirm(!showConfirm)}
-              aria-label={showConfirm ? 'Hide confirm password' : 'Show confirm password'}
-              style={toggleBtnStyle}
-            >
-              {showConfirm ? <EyeOff size={16} color="#94a3b8" /> : <Eye size={16} color="#94a3b8" />}
-            </button>
-          </div>
-          {errors.confirmPassword && <p style={errorStyle}>{errors.confirmPassword.message}</p>}
-        </div>
+        <PasswordField
+          id="confirmPassword"
+          label="Confirm New Password"
+          autoComplete="new-password"
+          placeholder="Confirm new personal password"
+          show={showConfirm}
+          onToggleShow={() => setShowConfirm((prev) => !prev)}
+          toggleLabel={showConfirm ? 'Hide confirm password' : 'Show confirm password'}
+          errorMessage={errors.confirmPassword?.message}
+          registration={register('confirmPassword')}
+        />
 
         <button
           type="submit"
           disabled={isPending}
-          style={{
-            marginTop: '0.25rem',
-            width: '100%',
-            padding: '0.8rem 1rem',
-            borderRadius: '10px',
-            border: 'none',
-            background: isPending
-              ? 'rgba(59, 130, 246, 0.5)'
-              : 'linear-gradient(135deg, #2563eb 0%, #4f46e5 100%)',
-            color: '#fff',
-            fontSize: '0.925rem',
-            fontWeight: 700,
-            cursor: isPending ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.5rem',
-          }}
+          className={`mt-1 flex w-full items-center justify-center gap-2 rounded-[10px] px-4 py-3 text-[0.925rem] font-bold text-white transition-opacity ${
+            isPending
+              ? 'cursor-not-allowed bg-blue-500/50'
+              : 'cursor-pointer bg-gradient-to-br from-blue-600 to-indigo-600 hover:opacity-95'
+          }`}
         >
           {isPending ? (
             <>
@@ -338,21 +306,12 @@ function ChangePasswordCard() {
 
 export default function ChangePasswordPage() {
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '1.5rem',
-        background: 'radial-gradient(circle at top, #1e293b 0%, #0f172a 55%, #020617 100%)',
-      }}
-    >
+    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,#1e293b_0%,#0f172a_55%,#020617_100%)] p-6">
       <Suspense
         fallback={
-          <div style={cardStyle}>
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem 0' }}>
-              <Loader2 size={28} color="#3b82f6" className="animate-spin" />
+          <div className={cardClassName}>
+            <div className="flex justify-center py-8">
+              <Loader2 size={28} className="animate-spin text-blue-500" />
             </div>
           </div>
         }
@@ -362,53 +321,3 @@ export default function ChangePasswordPage() {
     </div>
   );
 }
-
-const cardStyle: React.CSSProperties = {
-  width: '100%',
-  maxWidth: '460px',
-  background: 'rgba(17, 24, 39, 0.88)',
-  backdropFilter: 'blur(16px)',
-  border: '1px solid rgba(59, 130, 246, 0.25)',
-  borderRadius: '16px',
-  padding: '2.25rem',
-  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.45)',
-};
-
-const labelStyle: React.CSSProperties = {
-  display: 'block',
-  fontSize: '0.8rem',
-  fontWeight: 600,
-  color: '#cbd5e1',
-  marginBottom: '0.45rem',
-};
-
-const inputStyle = (hasError: boolean): React.CSSProperties => ({
-  width: '100%',
-  padding: '0.7rem 2.5rem 0.7rem 0.85rem',
-  borderRadius: '8px',
-  background: 'rgba(15, 23, 42, 0.75)',
-  border: `1px solid ${hasError ? '#ef4444' : 'rgba(148, 163, 184, 0.25)'}`,
-  color: '#f8fafc',
-  fontSize: '0.875rem',
-  outline: 'none',
-});
-
-const toggleBtnStyle: React.CSSProperties = {
-  position: 'absolute',
-  right: '0.7rem',
-  top: '50%',
-  transform: 'translateY(-50%)',
-  background: 'transparent',
-  border: 'none',
-  cursor: 'pointer',
-  padding: '0.2rem',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-};
-
-const errorStyle: React.CSSProperties = {
-  color: '#f87171',
-  fontSize: '0.75rem',
-  marginTop: '0.35rem',
-};

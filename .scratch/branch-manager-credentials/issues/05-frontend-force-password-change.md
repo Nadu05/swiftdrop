@@ -4,7 +4,7 @@
 
 **Blocked by:** 01: Temporary Branch Manager Credentials & Password Change (identity-service)
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] Login flow reads `mustChangePassword` from the auth response and redirects/prompts the user to change their temporary password before accessing the dashboard
 - [ ] Password change form validates policy requirements, calls `identity-service` change-password endpoint, and completes login into the branch portal

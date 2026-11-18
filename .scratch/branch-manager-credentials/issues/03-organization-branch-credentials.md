@@ -4,7 +4,7 @@
 
 **Blocked by:** 01: Temporary Branch Manager Credentials & Password Change (identity-service), 02: SMTP Credential Email Delivery (notification-service & Local Dev)
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] `BranchCreateRequest` requires `@NotBlank @Email` for `email`
 - [ ] `BranchService.create` synchronously calls `identity-service` to provision the `BRANCH_MANAGER` user; duplicate-email or identity failures abort branch creation cleanly without leaving an orphan branch

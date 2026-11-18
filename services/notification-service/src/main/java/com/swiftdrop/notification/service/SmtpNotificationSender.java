@@ -52,7 +52,14 @@ public class SmtpNotificationSender implements NotificationSenderPort {
                     notification.getNotificationType(),
                     recipient.trim());
         } catch (MailException ex) {
-            throw new NotificationDeliveryException("Failed to send email to " + recipient.trim() + ": " + ex.getMessage(), ex);
+            log.error("[corr={}] Failed to send SMTP email [{}] type={} to={}: {}",
+                    notification.getCorrelationId(),
+                    notification.getNotificationCode(),
+                    notification.getNotificationType(),
+                    recipient.trim(),
+                    ex.getMessage(),
+                    ex);
+            throw new NotificationDeliveryException("Email delivery failed due to mail server error", ex);
         }
     }
 }

@@ -10,12 +10,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -32,7 +34,7 @@ public class RestIdentityServiceClient implements IdentityServiceClient {
     public RestIdentityServiceClient(
             @Value("${swiftdrop.identity-service.base-url:http://localhost:8081}") String baseUrl,
             ObjectMapper objectMapper) {
-        this(RestClient.builder(), baseUrl, objectMapper);
+        this(defaultBuilder(), baseUrl, objectMapper);
     }
 
     public RestIdentityServiceClient(
@@ -41,6 +43,13 @@ public class RestIdentityServiceClient implements IdentityServiceClient {
             ObjectMapper objectMapper) {
         this.restClient = builder.baseUrl(baseUrl).build();
         this.objectMapper = objectMapper;
+    }
+
+    private static RestClient.Builder defaultBuilder() {
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(Duration.ofSeconds(5));
+        requestFactory.setReadTimeout(Duration.ofSeconds(10));
+        return RestClient.builder().requestFactory(requestFactory);
     }
 
     @Override

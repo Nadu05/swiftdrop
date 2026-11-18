@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] `notification-service` includes `spring-boot-starter-mail` and an email `NotificationSenderPort` implementation using `JavaMailSender` when mail is enabled, keeping `LoggingNotificationSender` fallback when disabled
 - [ ] Expose an internal/API endpoint (and/or domain event handler) to send Branch Manager login credentials (recipient email, branch name/code, login email, temporary password) and report `SENT` or `FAILED` outcome

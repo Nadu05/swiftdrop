@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] `User` entity and Flyway migration track `mustChangePassword` and a retrievable temporary initial password field (stored only while `mustChangePassword` is `true`)
 - [ ] Provisioning endpoint creates a `BRANCH_MANAGER` user for a given `branchId` and `email` with a generated temporary password, returning `409 Conflict` if the email already exists

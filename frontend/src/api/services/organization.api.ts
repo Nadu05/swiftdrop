@@ -75,15 +75,29 @@ export class OrganizationApiError extends Error {
   }
 }
 
+interface AxiosLikeError {
+  code?: string;
+  response?: {
+    status?: number;
+    data?: {
+      message?: string;
+      fieldErrors?: Record<string, string>;
+    };
+  };
+}
+
 /**
  * Maps an Axios error from the API Gateway / Organization Service into an `OrganizationApiError`.
  */
 function buildOrganizationApiError(
-  error: any,
+  error: unknown,
   fallbackMessage: string
 ): OrganizationApiError {
-  const status: number | undefined = error?.response?.status;
-  const data = error?.response?.data;
+  const axiosError = (
+    typeof error === 'object' && error !== null ? error : {}
+  ) as AxiosLikeError;
+  const status: number | undefined = axiosError.response?.status;
+  const data = axiosError.response?.data;
 
   // 1. 409 Conflict — e.g. DuplicateResourceException ("Branch with code '...' already exists" or "Postal Area '...' is already actively assigned...")
   if (status === 409) {
@@ -162,13 +176,24 @@ function buildOrganizationApiError(
   }
 
   // 7. Network / Gateway unreachable
-  if (error?.code === 'ECONNABORTED' || !error?.response) {
+  if (axiosError.code === 'ECONNABORTED' || !axiosError.response) {
     return new OrganizationApiError(
       'Unable to reach the API Gateway or Organization Service at http://localhost:8080. Verify that the backend services are running.'
     );
   }
 
   return new OrganizationApiError(fallbackMessage, { status });
+}
+
+async function withOrganizationApiError<T>(
+  operation: () => Promise<T>,
+  fallbackMessage: string
+): Promise<T> {
+  try {
+    return await operation();
+  } catch (error: unknown) {
+    throw buildOrganizationApiError(error, fallbackMessage);
+  }
 }
 
 /**
@@ -291,17 +316,12 @@ export async function updateBranchStatus(
 export async function getBranchCredentials(
   id: number
 ): Promise<BranchCredentialsResponse> {
-  try {
+  return withOrganizationApiError(async () => {
     const response = await apiClient.get<BranchCredentialsResponse>(
       `${BRANCHES_BASE_PATH}/${id}/credentials`
     );
     return response.data;
-  } catch (error: any) {
-    throw buildOrganizationApiError(
-      error,
-      `Unable to load Branch Manager credentials for branch #${id}.`
-    );
-  }
+  }, `Unable to load Branch Manager credentials for branch #${id}.`);
 }
 
 /**
@@ -313,17 +333,12 @@ export async function getBranchCredentials(
 export async function resendBranchCredentials(
   id: number
 ): Promise<BranchCredentialsResponse> {
-  try {
+  return withOrganizationApiError(async () => {
     const response = await apiClient.post<BranchCredentialsResponse>(
       `${BRANCHES_BASE_PATH}/${id}/credentials/resend`
     );
     return response.data;
-  } catch (error: any) {
-    throw buildOrganizationApiError(
-      error,
-      `Unable to resend Branch Manager credentials for branch #${id}.`
-    );
-  }
+  }, `Unable to resend Branch Manager credentials for branch #${id}.`);
 }
 
 /**
@@ -335,17 +350,12 @@ export async function resendBranchCredentials(
 export async function resetBranchCredentials(
   id: number
 ): Promise<BranchCredentialsResponse> {
-  try {
+  return withOrganizationApiError(async () => {
     const response = await apiClient.post<BranchCredentialsResponse>(
       `${BRANCHES_BASE_PATH}/${id}/credentials/reset`
     );
     return response.data;
-  } catch (error: any) {
-    throw buildOrganizationApiError(
-      error,
-      `Unable to reset Branch Manager credentials for branch #${id}.`
-    );
-  }
+  }, `Unable to reset Branch Manager credentials for branch #${id}.`);
 }
 
 /**
@@ -357,17 +367,12 @@ export async function resetBranchCredentials(
 export async function provisionBranchCredentials(
   id: number
 ): Promise<BranchCredentialsResponse> {
-  try {
+  return withOrganizationApiError(async () => {
     const response = await apiClient.post<BranchCredentialsResponse>(
       `${BRANCHES_BASE_PATH}/${id}/credentials/provision`
     );
     return response.data;
-  } catch (error: any) {
-    throw buildOrganizationApiError(
-      error,
-      `Unable to provision Branch Manager credentials for branch #${id}.`
-    );
-  }
+  }, `Unable to provision Branch Manager credentials for branch #${id}.`);
 }
 
 /**
