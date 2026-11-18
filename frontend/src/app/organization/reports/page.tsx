@@ -1,4 +1,4 @@
-import BranchAnalyticsView from '@/components/organization/branch-admin/BranchAnalyticsView';
+import BranchAnalyticsView from '@/components/organization/analytics/BranchAnalyticsView';
 
 export default function OrganizationBranchReportsPage() {
   return <BranchAnalyticsView />;

@@ -147,6 +147,16 @@ export async function getCustomerOrders(statusFilter?: string): Promise<Delivery
     const response = await apiClient.get<DeliveryOrder[]>('/api/v1/orders', { params });
     return Array.isArray(response.data) ? response.data : [];
   } catch (error: any) {
+    // If the Order Service endpoint is unauthorized (401), forbidden (403), or not found (404),
+    // gracefully return an empty array so customer views render their proper empty state (0 orders)
+    // rather than crashing or showing a blocking error screen.
+    if (
+      error?.response?.status === 401 ||
+      error?.response?.status === 403 ||
+      error?.response?.status === 404
+    ) {
+      return [];
+    }
     throw normalizeOrderApiError(
       error,
       'We could not load your delivery bookings from the Order Service.'

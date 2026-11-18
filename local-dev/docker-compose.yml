@@ -23,7 +23,7 @@ services:
       - swiftdrop_postgres_data:/var/lib/postgresql/data
       - ./init-scripts:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d postgres" ]
       interval: 5s
       timeout: 5s
       retries: 15
@@ -57,12 +57,12 @@ services:
       RABBITMQ_DEFAULT_USER: swiftdrop
       RABBITMQ_DEFAULT_PASS: password123
     ports:
-      - "5672:5672"     # AMQP protocol
-      - "15672:15672"   # RabbitMQ Web Management Console
+      - "5672:5672" # AMQP protocol
+      - "15672:15672" # RabbitMQ Web Management Console
     volumes:
       - swiftdrop_rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 10
