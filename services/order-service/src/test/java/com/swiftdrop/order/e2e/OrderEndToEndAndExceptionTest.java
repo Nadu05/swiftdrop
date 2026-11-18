@@ -43,7 +43,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -108,12 +108,14 @@ class OrderEndToEndAndExceptionTest {
     @Test
     void happyPathQuotePrepaidOrderInvalidPaymentThenConfirmedEmitsOrderedOutboxEventsAndSupportsTracking() {
         MDC.put(CorrelationIdHolder.MDC_KEY, "corr-order-e2e-1");
-        when(organizationServiceClient.resolveRoute(anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+        when(organizationServiceClient.resolveRoute(anyString(), anyString()))
                 .thenReturn(validRoute());
 
         OrderQuoteRequest quoteReq = new OrderQuoteRequest();
         quoteReq.setPickupAddress("120 Galle Road, Colombo 03");
+        quoteReq.setPickupPostalCode("00300");
         quoteReq.setDropoffAddress("45 Peradeniya Road, Kandy");
+        quoteReq.setDropoffPostalCode("20000");
         quoteReq.setParcelSize("MEDIUM");
         quoteReq.setWeightKg(new BigDecimal("2.5"));
         OrderQuoteResponse quote = orderService.generateQuote(quoteReq);
@@ -162,20 +164,20 @@ class OrderEndToEndAndExceptionTest {
     void exceptionScenarios_NoCoverageServiceDownAndBrokerDownPersistOutboxForRetry() {
         // Exception #1: Invalid branch coverage
         doThrow(new InvalidBranchCoverageException("No active origin branch covers location", "PICKUP"))
-                .when(organizationServiceClient).resolveRoute(anyDouble(), anyDouble(), anyDouble(), anyDouble());
+                .when(organizationServiceClient).resolveRoute(anyString(), anyString());
         assertThatThrownBy(() -> orderService.createOrder(buildOrderRequest("COD", new BigDecimal("1500.00")), customer))
                 .isInstanceOf(InvalidBranchCoverageException.class);
         assertThat(orderRepository.count()).isZero();
 
         // Exception #11a: Organization Service unavailable
         doThrow(new ExternalServiceUnavailableException("Organization Service unavailable"))
-                .when(organizationServiceClient).resolveRoute(anyDouble(), anyDouble(), anyDouble(), anyDouble());
+                .when(organizationServiceClient).resolveRoute(anyString(), anyString());
         assertThatThrownBy(() -> orderService.createOrder(buildOrderRequest("COD", new BigDecimal("1500.00")), customer))
                 .isInstanceOf(ExternalServiceUnavailableException.class);
 
         // Exception #11b: RabbitMQ broker down -> COD order saves atomically with outbox PENDING for retry
         doReturn(validRoute())
-                .when(organizationServiceClient).resolveRoute(anyDouble(), anyDouble(), anyDouble(), anyDouble());
+                .when(organizationServiceClient).resolveRoute(anyString(), anyString());
         doThrow(new AmqpConnectException(new ConnectException("Connection refused: rabbitmq:5672")))
                 .when(rabbitTemplate)
                 .convertAndSend(anyString(), anyString(), any(Object.class), any(MessagePostProcessor.class));
@@ -258,10 +260,12 @@ class OrderEndToEndAndExceptionTest {
         req.setPickupContactPhone("+94771112222");
         req.setPickupContactEmail("kasun@swiftdrop.lk");
         req.setPickupAddress("120 Galle Road, Colombo 03");
+        req.setPickupPostalCode("00300");
         req.setDropoffContactName("Amaya Fernando");
         req.setDropoffContactPhone("+94773334444");
         req.setDropoffContactEmail("amaya@swiftdrop.lk");
         req.setDropoffAddress("45 Peradeniya Road, Kandy");
+        req.setDropoffPostalCode("20000");
         req.setParcelDescription("Roasted coffee beans");
         req.setParcelSize("MEDIUM");
         req.setWeightKg(new BigDecimal("2.5"));

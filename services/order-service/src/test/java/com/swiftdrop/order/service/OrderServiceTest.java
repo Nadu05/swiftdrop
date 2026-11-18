@@ -22,7 +22,8 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -83,7 +84,7 @@ class OrderServiceTest {
 
     @Test
     void generateQuote_ResolvesBothBranchesAndReturnsProvisionalBreakdown() {
-        when(organizationServiceClient.resolveRoute(anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+        when(organizationServiceClient.resolveRoute(anyString(), anyString()))
                 .thenReturn(mockRouteResolution());
         when(quoteRepository.save(any(PricingQuote.class))).thenAnswer(inv -> {
             PricingQuote q = inv.getArgument(0);
@@ -93,12 +94,15 @@ class OrderServiceTest {
 
         OrderQuoteRequest request = new OrderQuoteRequest();
         request.setPickupAddress("120 Galle Road, Colombo 03");
+        request.setPickupPostalCode("00300");
         request.setDropoffAddress("45 Peradeniya Road, Kandy");
+        request.setDropoffPostalCode("20000");
         request.setParcelSize("MEDIUM");
         request.setWeightKg(new BigDecimal("3.0"));
 
         OrderQuoteResponse response = orderService.generateQuote(request);
 
+        verify(organizationServiceClient).resolveRoute("00300", "20000");
         assertThat(response.getQuoteReference()).startsWith("QT-");
         assertThat(response.isProvisionalPricing()).isTrue();
         assertThat(response.getOriginBranch().getBranchCode()).isEqualTo("CMB-CENTRAL");
@@ -109,7 +113,7 @@ class OrderServiceTest {
 
     @Test
     void createOrder_PrepaidWithoutVerifiedTransactionRef_RemainsPendingPaymentAndNeverFalselyMarkedPaid() {
-        when(organizationServiceClient.resolveRoute(anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+        when(organizationServiceClient.resolveRoute(anyString(), anyString()))
                 .thenReturn(mockRouteResolution());
         when(trackingNumberGenerator.generateUniqueTrackingNumber()).thenReturn("SD-91001");
         when(orderRepository.save(any(DeliveryOrder.class))).thenAnswer(inv -> {
@@ -122,9 +126,11 @@ class OrderServiceTest {
         request.setPickupContactName("Kasun Silva");
         request.setPickupContactPhone("+94 77 111 2222");
         request.setPickupAddress("120 Galle Road, Colombo 03");
+        request.setPickupPostalCode("00300");
         request.setDropoffContactName("Nimal Perera");
         request.setDropoffContactPhone("+94 77 333 4444");
         request.setDropoffAddress("45 Peradeniya Road, Kandy");
+        request.setDropoffPostalCode("20000");
         request.setParcelDescription("Standard parcel");
         request.setParcelSize("SMALL");
         request.setWeightKg(new BigDecimal("1.0"));
@@ -137,7 +143,14 @@ class OrderServiceTest {
 
         DeliveryOrderResponse response = orderService.createOrder(request, customer);
 
+        verify(organizationServiceClient).resolveRoute("00300", "20000");
         assertThat(response.getTrackingNumber()).isEqualTo("SD-91001");
+        assertThat(response.getOriginBranchId()).isEqualTo(1L);
+        assertThat(response.getOriginBranchCode()).isEqualTo("CMB-CENTRAL");
+        assertThat(response.getOriginBranchName()).isEqualTo("Colombo Central Hub");
+        assertThat(response.getDestinationBranchId()).isEqualTo(2L);
+        assertThat(response.getDestinationBranchCode()).isEqualTo("KDY-MAIN");
+        assertThat(response.getDestinationBranchName()).isEqualTo("Kandy Regional Hub");
         assertThat(response.getPaymentMethod()).isEqualTo("PREPAID");
         assertThat(response.getPaymentStatus()).isEqualTo("PENDING_PAYMENT");
         assertThat(response.getStatus()).isEqualTo("CREATED");
@@ -147,7 +160,7 @@ class OrderServiceTest {
 
     @Test
     void createOrder_MerchantCodWithBranchDropoff_SeparatesCodAmountFromDeliveryFeeAndAssociatesMerchantOrg() {
-        when(organizationServiceClient.resolveRoute(anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+        when(organizationServiceClient.resolveRoute(anyString(), anyString()))
                 .thenReturn(mockRouteResolution());
         when(trackingNumberGenerator.generateUniqueTrackingNumber()).thenReturn("SD-91002");
         when(orderRepository.save(any(DeliveryOrder.class))).thenAnswer(inv -> {
@@ -160,9 +173,11 @@ class OrderServiceTest {
         request.setPickupContactName("Apex Retail Store");
         request.setPickupContactPhone("+94 11 234 5678");
         request.setPickupAddress("50 Duplication Road, Colombo 04");
+        request.setPickupPostalCode("00400");
         request.setDropoffContactName("Amali Fernando");
         request.setDropoffContactPhone("+94 71 987 6543");
         request.setDropoffAddress("18 Dalada Veediya, Kandy");
+        request.setDropoffPostalCode("20000");
         request.setParcelDescription("Retail order #9002");
         request.setParcelSize("LARGE");
         request.setWeightKg(new BigDecimal("4.0"));
@@ -188,7 +203,7 @@ class OrderServiceTest {
 
     @Test
     void getOrderByIdOrTracking_EnforcesCustomerAndMerchantOwnershipBoundaries() {
-        when(organizationServiceClient.resolveRoute(anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+        when(organizationServiceClient.resolveRoute(anyString(), anyString()))
                 .thenReturn(mockRouteResolution());
         when(trackingNumberGenerator.generateUniqueTrackingNumber()).thenReturn("SD-91003");
 
@@ -204,9 +219,11 @@ class OrderServiceTest {
         request.setPickupContactName("Kasun Silva");
         request.setPickupContactPhone("+94 77 111 2222");
         request.setPickupAddress("120 Galle Road, Colombo 03");
+        request.setPickupPostalCode("00300");
         request.setDropoffContactName("Nimal Perera");
         request.setDropoffContactPhone("+94 77 333 4444");
         request.setDropoffAddress("45 Peradeniya Road, Kandy");
+        request.setDropoffPostalCode("20000");
         request.setParcelDescription("Books");
         request.setParcelSize("SMALL");
         request.setWeightKg(new BigDecimal("1.0"));
@@ -278,7 +295,7 @@ class OrderServiceTest {
 
     @Test
     void getPublicTracking_RedactsStreetAddressesAndRecipientNames() {
-        when(organizationServiceClient.resolveRoute(anyDouble(), anyDouble(), anyDouble(), anyDouble()))
+        when(organizationServiceClient.resolveRoute(anyString(), anyString()))
                 .thenReturn(mockRouteResolution());
         when(trackingNumberGenerator.generateUniqueTrackingNumber()).thenReturn("SD-91004");
 
@@ -294,9 +311,11 @@ class OrderServiceTest {
         request.setPickupContactName("Kasun Silva");
         request.setPickupContactPhone("+94 77 111 2222");
         request.setPickupAddress("120 Galle Road, Colombo 03");
+        request.setPickupPostalCode("00300");
         request.setDropoffContactName("Nimal Perera");
         request.setDropoffContactPhone("+94 77 333 4444");
         request.setDropoffAddress("45 Peradeniya Road, Kandy");
+        request.setDropoffPostalCode("20000");
         request.setParcelDescription("Gift Box");
         request.setParcelSize("SMALL");
         request.setWeightKg(new BigDecimal("1.0"));

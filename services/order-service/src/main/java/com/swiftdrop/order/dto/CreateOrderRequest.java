@@ -4,6 +4,7 @@ import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 
 import java.math.BigDecimal;
 
@@ -24,6 +25,9 @@ public class CreateOrderRequest {
     private String pickupAddress;
 
     private String pickupCity;
+
+    @NotBlank(message = "Pickup postal code is required")
+    @Pattern(regexp = "^\\d{5}$", message = "Pickup postal code must be a 5-digit code")
     private String pickupPostalCode;
 
     @DecimalMin(value = "-90.0", message = "Pickup latitude must be >= -90")
@@ -46,6 +50,9 @@ public class CreateOrderRequest {
     private String dropoffAddress;
 
     private String dropoffCity;
+
+    @NotBlank(message = "Dropoff postal code is required")
+    @Pattern(regexp = "^\\d{5}$", message = "Dropoff postal code must be a 5-digit code")
     private String dropoffPostalCode;
 
     @DecimalMin(value = "-90.0", message = "Destination latitude must be >= -90")

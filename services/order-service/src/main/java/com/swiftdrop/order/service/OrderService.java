@@ -77,10 +77,8 @@ public class OrderService {
         );
 
         RouteBranchResolutionDto routeResolution = organizationServiceClient.resolveRoute(
-                pickupCoords.latitude(),
-                pickupCoords.longitude(),
-                destCoords.latitude(),
-                destCoords.longitude()
+                request.getPickupPostalCode(),
+                request.getDropoffPostalCode()
         );
 
         double effectiveDistanceKm = computeEffectiveRouteDistanceKm(
@@ -162,10 +160,8 @@ public class OrderService {
         );
 
         RouteBranchResolutionDto routeResolution = organizationServiceClient.resolveRoute(
-                pickupCoords.latitude(),
-                pickupCoords.longitude(),
-                destCoords.latitude(),
-                destCoords.longitude()
+                request.getPickupPostalCode(),
+                request.getDropoffPostalCode()
         );
 
         double effectiveDistanceKm = computeEffectiveRouteDistanceKm(
@@ -228,7 +224,7 @@ public class OrderService {
         DeliveryAddress pickupDetails = new DeliveryAddress(
                 request.getPickupAddress().trim(),
                 request.getPickupCity() != null ? request.getPickupCity().trim() : extractCityHint(request.getPickupAddress()),
-                request.getPickupPostalCode(),
+                request.getPickupPostalCode() != null ? request.getPickupPostalCode().trim() : null,
                 pickupCoords.latitude(),
                 pickupCoords.longitude(),
                 request.getPickupContactName().trim(),
@@ -240,7 +236,7 @@ public class OrderService {
         DeliveryAddress dropoffDetails = new DeliveryAddress(
                 request.getDropoffAddress().trim(),
                 request.getDropoffCity() != null ? request.getDropoffCity().trim() : extractCityHint(request.getDropoffAddress()),
-                request.getDropoffPostalCode(),
+                request.getDropoffPostalCode() != null ? request.getDropoffPostalCode().trim() : null,
                 destCoords.latitude(),
                 destCoords.longitude(),
                 request.getDropoffContactName().trim(),

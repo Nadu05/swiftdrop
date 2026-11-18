@@ -70,7 +70,9 @@ class OrderControllerTest {
         String payload = """
                 {
                   "pickupAddress": "120 Galle Road, Colombo 03",
+                  "pickupPostalCode": "00300",
                   "dropoffAddress": "45 Peradeniya Road, Kandy",
+                  "dropoffPostalCode": "20000",
                   "parcelSize": "MEDIUM",
                   "weightKg": 2.5
                 }
@@ -96,7 +98,9 @@ class OrderControllerTest {
         String payload = """
                 {
                   "pickupAddress": "120 Galle Road, Colombo 03",
+                  "pickupPostalCode": "00300",
                   "dropoffAddress": "Unsupported Remote Island",
+                  "dropoffPostalCode": "40000",
                   "parcelSize": "SMALL",
                   "weightKg": 1.0
                 }
@@ -205,9 +209,11 @@ class OrderControllerTest {
                   "pickupContactName": "Kasun Silva",
                   "pickupContactPhone": "+94 77 111 2222",
                   "pickupAddress": "120 Galle Road, Colombo 03",
+                  "pickupPostalCode": "00300",
                   "dropoffContactName": "Nimal Perera",
                   "dropoffContactPhone": "+94 77 333 4444",
                   "dropoffAddress": "45 Peradeniya Road, Kandy",
+                  "dropoffPostalCode": "20000",
                   "parcelDescription": "Documents",
                   "parcelSize": "SMALL",
                   "weightKg": 1.0,
@@ -225,5 +231,22 @@ class OrderControllerTest {
                 .andExpect(jsonPath("$.status").value("CONFIRMED"))
                 .andExpect(jsonPath("$.deliveryFee").value(1450.00))
                 .andExpect(jsonPath("$.codAmount").value(5000.00));
+    }
+
+    @Test
+    void generateQuote_WhenPostalCodeMissing_Returns400BadRequest() throws Exception {
+        String payload = """
+                {
+                  "pickupAddress": "120 Galle Road, Colombo 03",
+                  "dropoffAddress": "45 Peradeniya Road, Kandy",
+                  "parcelSize": "MEDIUM",
+                  "weightKg": 2.5
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/orders/quote")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isBadRequest());
     }
 }

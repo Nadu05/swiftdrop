@@ -14,6 +14,7 @@ import org.springframework.web.client.RestClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServiceUnavailable;
@@ -33,38 +34,35 @@ class RestOrganizationServiceClientTest {
     }
 
     @Test
-    void resolveRoute_ValidOriginAndDestinationCoverage_ReturnsBothBranches() {
+    void resolveRoute_ValidOriginAndDestinationPostalCodes_ReturnsBothBranches() {
         String responseJson = """
                 {
                   "originBranch": {
                     "branchId": 1,
                     "branchCode": "CMB-CENTRAL",
                     "branchName": "Colombo Central Hub",
-                    "city": "Colombo",
-                    "distanceKm": 1.4,
-                    "serviceRadiusKm": 25.0,
+                    "distanceKm": 0.0,
                     "eligible": true
                   },
                   "destinationBranch": {
                     "branchId": 2,
                     "branchCode": "KDY-MAIN",
                     "branchName": "Kandy Regional Hub",
-                    "city": "Kandy",
-                    "distanceKm": 2.1,
-                    "serviceRadiusKm": 20.0,
+                    "distanceKm": 0.0,
                     "eligible": true
                   },
-                  "interBranchStraightLineDistanceKm": 94.8,
-                  "pickupToDestinationStraightLineDistanceKm": 95.3,
+                  "interBranchDistanceKm": 94.8,
                   "sameBranch": false
                 }
                 """;
 
         mockServer.expect(requestTo("http://organization-service:8082/api/v1/branches/resolve-route"))
                 .andExpect(method(HttpMethod.POST))
+                .andExpect(jsonPath("$.pickupPostalCode").value("00100"))
+                .andExpect(jsonPath("$.dropoffPostalCode").value("20000"))
                 .andRespond(withSuccess(responseJson, MediaType.APPLICATION_JSON));
 
-        RouteBranchResolutionDto result = client.resolveRoute(6.9271, 79.8612, 7.2906, 80.6337);
+        RouteBranchResolutionDto result = client.resolveRoute("00100", "20000");
 
         assertThat(result.getOriginBranch().getBranchId()).isEqualTo(1L);
         assertThat(result.getOriginBranch().getBranchCode()).isEqualTo("CMB-CENTRAL");
@@ -81,7 +79,7 @@ class RestOrganizationServiceClientTest {
                   "status": 422,
                   "error": "Unprocessable Entity",
                   "locationType": "DESTINATION",
-                  "message": "Destination location (9.6615, 80.0255) is outside the active service area of nearest branch Kandy Regional Hub"
+                  "message": "Destination postal code '40000' is not covered by any active branch"
                 }
                 """;
 
@@ -91,12 +89,12 @@ class RestOrganizationServiceClientTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .body(errorJson));
 
-        assertThatThrownBy(() -> client.resolveRoute(6.9271, 79.8612, 9.6615, 80.0255))
+        assertThatThrownBy(() -> client.resolveRoute("00100", "40000"))
                 .isInstanceOf(InvalidBranchCoverageException.class)
                 .satisfies(ex -> {
                     InvalidBranchCoverageException coverageEx = (InvalidBranchCoverageException) ex;
                     assertThat(coverageEx.getLocationType()).isEqualTo("DESTINATION");
-                    assertThat(coverageEx.getMessage()).contains("outside the active service area");
+                    assertThat(coverageEx.getMessage()).contains("40000");
                 });
 
         mockServer.verify();
@@ -108,11 +106,10 @@ class RestOrganizationServiceClientTest {
                 .andExpect(method(HttpMethod.POST))
                 .andRespond(withServiceUnavailable());
 
-        assertThatThrownBy(() -> client.resolveRoute(6.9271, 79.8612, 7.2906, 80.6337))
+        assertThatThrownBy(() -> client.resolveRoute("00100", "20000"))
                 .isInstanceOf(ExternalServiceUnavailableException.class)
                 .hasMessageContaining("Unable to verify branch coverage with Organization Service");
 
         mockServer.verify();
     }
 }
-

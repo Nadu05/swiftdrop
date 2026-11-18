@@ -44,16 +44,12 @@ public class RestOrganizationServiceClient implements OrganizationServiceClient 
 
     @Override
     public RouteBranchResolutionDto resolveRoute(
-            double pickupLatitude,
-            double pickupLongitude,
-            double destinationLatitude,
-            double destinationLongitude) {
+            String pickupPostalCode,
+            String dropoffPostalCode) {
 
         Map<String, Object> payload = Map.of(
-                "pickupLatitude", pickupLatitude,
-                "pickupLongitude", pickupLongitude,
-                "destinationLatitude", destinationLatitude,
-                "destinationLongitude", destinationLongitude
+                "pickupPostalCode", pickupPostalCode != null ? pickupPostalCode.trim() : "",
+                "dropoffPostalCode", dropoffPostalCode != null ? dropoffPostalCode.trim() : ""
         );
 
         try {
@@ -71,20 +67,20 @@ public class RestOrganizationServiceClient implements OrganizationServiceClient 
             }
             if (!response.getOriginBranch().isEligible()) {
                 throw new InvalidBranchCoverageException(
-                        "Origin branch is not eligible to accept orders at the specified pickup coordinates",
+                        "Origin branch is not eligible to accept orders for the specified pickup postal code",
                         "PICKUP"
                 );
             }
             if (!response.getDestinationBranch().isEligible()) {
                 throw new InvalidBranchCoverageException(
-                        "Destination branch is not eligible to accept orders at the specified destination coordinates",
+                        "Destination branch is not eligible to accept orders for the specified destination postal code",
                         "DESTINATION"
                 );
             }
             return response;
 
         } catch (HttpClientErrorException.UnprocessableEntity ex) {
-            String message = "The requested location is outside active branch service area coverage";
+            String message = "The requested postal code is outside active branch coverage";
             String locationType = "PICKUP";
             try {
                 JsonNode node = objectMapper.readTree(ex.getResponseBodyAsString());
@@ -100,7 +96,7 @@ public class RestOrganizationServiceClient implements OrganizationServiceClient 
             throw new InvalidBranchCoverageException(message, locationType);
 
         } catch (HttpClientErrorException.BadRequest ex) {
-            throw new IllegalArgumentException("Invalid coordinates supplied for branch resolution: " + ex.getMessage());
+            throw new IllegalArgumentException("Invalid postal codes supplied for branch resolution: " + ex.getMessage());
 
         } catch (ResourceAccessException | RestClientResponseException ex) {
             log.error("Organization Service branch resolution request failed: {}", ex.getMessage());
