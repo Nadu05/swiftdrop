@@ -39,3 +39,9 @@ _Avoid_: Zip code, service zone
 **Branch Coverage**:
 The exclusive set of active Postal Areas assigned to an operational SwiftDrop branch for pickup and destination routing; a Postal Area may be actively covered by at most one operational branch at a time.
 _Avoid_: Radius zone, service area
+
+### Branch Administration & Access
+
+**Branch Manager**:
+The single branch-level administrative user role (`BRANCH_MANAGER`) responsible for managing a SwiftDrop branch's operations; one Branch Manager account is provisioned per branch using the branch's email address.
+_Avoid_: Branch Admin, Branch Supervisor
