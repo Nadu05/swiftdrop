@@ -48,9 +48,11 @@ export interface BranchResolutionInfo {
  */
 export interface OrderQuoteRequest {
   pickupAddress: string;
+  pickupPostalCode: string;
   pickupLatitude?: number;
   pickupLongitude?: number;
   dropoffAddress: string;
+  dropoffPostalCode: string;
   destinationLatitude?: number;
   destinationLongitude?: number;
   weightKg: number;
@@ -91,7 +93,7 @@ export interface CreateOrderRequest {
   paymentConfirmationToken?: string;
   pickupAddress: string;
   pickupCity?: string;
-  pickupPostalCode?: string;
+  pickupPostalCode: string;
   pickupLatitude?: number;
   pickupLongitude?: number;
   pickupContactName: string;
@@ -99,7 +101,7 @@ export interface CreateOrderRequest {
   pickupContactEmail?: string;
   dropoffAddress: string;
   dropoffCity?: string;
-  dropoffPostalCode?: string;
+  dropoffPostalCode: string;
   destinationLatitude?: number;
   destinationLongitude?: number;
   dropoffContactName: string;

@@ -26,7 +26,37 @@ import {
 import { getOrderQuote, createOrder, OrderApiError } from '@/api/services/orders.api';
 import { getCurrentUserProfile } from '@/api/services/auth.api';
 import { useBookingStore } from '@/store/booking.store';
+import { useAuthStore } from '@/store/auth.store';
+import PostalAreaCombobox from '@/components/booking/PostalAreaCombobox';
 import type { ParcelSize, PickupMethod, PaymentMethod } from '@/types/order.types';
+import type { PostalAreaDto } from '@/types/organization.types';
+
+const POSTAL_CODE_REGEX = /^\d{5}$/;
+
+function getCoverageErrorDetails(
+  locationType: string | undefined,
+  pickupPostalCode: string,
+  dropoffPostalCode: string
+): { title: string; guidance: string } {
+  const normalized = locationType?.toUpperCase();
+  if (normalized === 'PICKUP') {
+    return {
+      title: 'Pickup Postal Area Outside Branch Coverage',
+      guidance: `Pickup postal code ${pickupPostalCode} is not currently assigned to an active SwiftDrop branch. Please select another pickup Postal Area to continue.`,
+    };
+  }
+  if (normalized === 'DESTINATION') {
+    return {
+      title: 'Destination Postal Area Outside Branch Coverage',
+      guidance: `Destination postal code ${dropoffPostalCode} is not currently assigned to an active SwiftDrop branch. Please select another destination Postal Area to continue.`,
+    };
+  }
+  return {
+    title: 'Route Outside Active Branch Coverage',
+    guidance:
+      'Either the pickup or destination Postal Area is not currently assigned to an active SwiftDrop branch. Please verify both Postal Areas.',
+  };
+}
 
 const bookingSchema = z
   .object({
@@ -34,6 +64,10 @@ const bookingSchema = z
       .string()
       .trim()
       .min(5, 'Please enter a valid pickup address (at least 5 characters)'),
+    pickupPostalCode: z
+      .string()
+      .trim()
+      .regex(POSTAL_CODE_REGEX, 'Please select a valid 5-digit pickup postal code'),
     pickupContactName: z
       .string()
       .trim()
@@ -46,6 +80,10 @@ const bookingSchema = z
       .string()
       .trim()
       .min(5, 'Please enter a valid destination address (at least 5 characters)'),
+    dropoffPostalCode: z
+      .string()
+      .trim()
+      .regex(POSTAL_CODE_REGEX, 'Please select a valid 5-digit destination postal code'),
     dropoffContactName: z
       .string()
       .trim()
@@ -99,10 +137,16 @@ export default function RequestDeliveryPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { step, setStep, resetBookingUi } = useBookingStore();
+  const { user, activeRole } = useAuthStore();
+
+  const [selectedPickupArea, setSelectedPickupArea] = useState<PostalAreaDto | null>(null);
+  const [selectedDropoffArea, setSelectedDropoffArea] = useState<PostalAreaDto | null>(null);
 
   const [debouncedQuoteInputs, setDebouncedQuoteInputs] = useState<{
     pickupAddress: string;
+    pickupPostalCode: string;
     dropoffAddress: string;
+    dropoffPostalCode: string;
     parcelSize: ParcelSize;
     weightKg: number;
   } | null>(null);
@@ -118,9 +162,11 @@ export default function RequestDeliveryPage() {
     resolver: zodResolver(bookingSchema),
     defaultValues: {
       pickupAddress: '',
+      pickupPostalCode: '',
       pickupContactName: '',
       pickupContactPhone: '',
       dropoffAddress: '',
+      dropoffPostalCode: '',
       dropoffContactName: '',
       dropoffContactPhone: '',
       parcelDescription: '',
@@ -167,11 +213,21 @@ export default function RequestDeliveryPage() {
   // Debounce quote inputs for live quotation calculation from POST /api/v1/orders/quote
   useEffect(() => {
     const pickup = watchedValues.pickupAddress?.trim() || '';
+    const pickupPostal = watchedValues.pickupPostalCode?.trim() || '';
     const dropoff = watchedValues.dropoffAddress?.trim() || '';
+    const dropoffPostal = watchedValues.dropoffPostalCode?.trim() || '';
     const weight = Number(watchedValues.weightKg);
     const size = watchedValues.parcelSize;
 
-    if (pickup.length < 5 || dropoff.length < 5 || !weight || weight <= 0 || isNaN(weight)) {
+    if (
+      pickup.length < 5 ||
+      dropoff.length < 5 ||
+      !POSTAL_CODE_REGEX.test(pickupPostal) ||
+      !POSTAL_CODE_REGEX.test(dropoffPostal) ||
+      !weight ||
+      weight <= 0 ||
+      isNaN(weight)
+    ) {
       setDebouncedQuoteInputs(null);
       return;
     }
@@ -179,7 +235,9 @@ export default function RequestDeliveryPage() {
     const timer = setTimeout(() => {
       setDebouncedQuoteInputs({
         pickupAddress: pickup,
+        pickupPostalCode: pickupPostal,
         dropoffAddress: dropoff,
+        dropoffPostalCode: dropoffPostal,
         parcelSize: size,
         weightKg: weight,
       });
@@ -188,7 +246,9 @@ export default function RequestDeliveryPage() {
     return () => clearTimeout(timer);
   }, [
     watchedValues.pickupAddress,
+    watchedValues.pickupPostalCode,
     watchedValues.dropoffAddress,
+    watchedValues.dropoffPostalCode,
     watchedValues.parcelSize,
     watchedValues.weightKg,
   ]);
@@ -214,11 +274,15 @@ export default function RequestDeliveryPage() {
 
   const quoteError = quoteErrorRaw as OrderApiError | null;
 
+  const isMerchantBooking = activeRole === 'MERCHANT';
+
   // Order creation mutation (POST /api/v1/orders)
   const createOrderMutation = useMutation({
     mutationFn: (values: BookingFormValues) =>
       createOrder({
-        orderSourceType: 'CUSTOMER',
+        orderSourceType: isMerchantBooking ? 'MERCHANT' : 'CUSTOMER',
+        merchantOrganizationId:
+          isMerchantBooking && user?.organizationId ? String(user.organizationId) : undefined,
         pickupMethod: values.pickupMethod as PickupMethod,
         paymentMethod: values.paymentMethod as PaymentMethod,
         codAmount: values.paymentMethod === 'COD' ? Number(values.codAmount) : 0,
@@ -228,9 +292,13 @@ export default function RequestDeliveryPage() {
             ? values.paymentConfirmationToken.trim()
             : undefined,
         pickupAddress: values.pickupAddress.trim(),
+        pickupPostalCode: values.pickupPostalCode.trim(),
+        pickupCity: selectedPickupArea?.areaName,
         pickupContactName: values.pickupContactName.trim(),
         pickupContactPhone: values.pickupContactPhone.trim(),
         dropoffAddress: values.dropoffAddress.trim(),
+        dropoffPostalCode: values.dropoffPostalCode.trim(),
+        dropoffCity: selectedDropoffArea?.areaName,
         dropoffContactName: values.dropoffContactName.trim(),
         dropoffContactPhone: values.dropoffContactPhone.trim(),
         parcelDescription: values.parcelDescription.trim(),
@@ -260,7 +328,14 @@ export default function RequestDeliveryPage() {
 
   const submitError = createOrderMutation.error as OrderApiError | null;
 
+  // Clear stale submission errors when postal codes change
+  useEffect(() => {
+    createOrderMutation.reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchedValues.pickupPostalCode, watchedValues.dropoffPostalCode]);
+
   const handleContinueToReview = async () => {
+    createOrderMutation.reset();
     const valid = await trigger();
     if (!valid) return;
 
@@ -273,6 +348,27 @@ export default function RequestDeliveryPage() {
     setStep(2);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  const pickupCoverageUnsupported =
+    quoteError?.status === 422 && quoteError.locationType?.toUpperCase() === 'PICKUP';
+  const destinationCoverageUnsupported =
+    quoteError?.status === 422 && quoteError.locationType?.toUpperCase() === 'DESTINATION';
+  const quoteCoverageDetails =
+    quoteError?.status === 422
+      ? getCoverageErrorDetails(
+          quoteError.locationType,
+          watchedValues.pickupPostalCode,
+          watchedValues.dropoffPostalCode
+        )
+      : null;
+  const submitCoverageDetails =
+    submitError?.status === 422
+      ? getCoverageErrorDetails(
+          submitError.locationType,
+          watchedValues.pickupPostalCode,
+          watchedValues.dropoffPostalCode
+        )
+      : null;
 
   const onConfirmSubmit = (values: BookingFormValues) => {
     createOrderMutation.mutate(values);
@@ -289,7 +385,7 @@ export default function RequestDeliveryPage() {
               if (step === 2) {
                 setStep(1);
               } else {
-                router.push('/customer/dashboard');
+                router.push(isMerchantBooking ? '/merchant/dashboard' : '/customer/dashboard');
               }
             }}
             className="sd-back-btn"
@@ -348,28 +444,46 @@ export default function RequestDeliveryPage() {
                       <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                         <button
                           type="button"
-                          onClick={() =>
+                          onClick={() => {
                             setValue('pickupAddress', '120 Galle Road, Colombo 03', {
                               shouldValidate: true,
-                            })
-                          }
+                            });
+                            setValue('pickupPostalCode', '00300', { shouldValidate: true });
+                            setSelectedPickupArea(null);
+                          }}
                           className="sd-location-btn"
                         >
-                          Colombo 03 Hub Area ↗
+                          Colombo 03 (00300) ↗
                         </button>
                         <button
                           type="button"
-                          onClick={() =>
+                          onClick={() => {
                             setValue('pickupAddress', '45 Nawala Road, Rajagiriya', {
                               shouldValidate: true,
-                            })
-                          }
+                            });
+                            setValue('pickupPostalCode', '10107', { shouldValidate: true });
+                            setSelectedPickupArea(null);
+                          }}
                           className="sd-location-btn"
                         >
-                          Rajagiriya Area ↗
+                          Rajagiriya (10107) ↗
                         </button>
                       </div>
                     </div>
+
+                    <PostalAreaCombobox
+                      id="pickupPostalCode"
+                      label="Pickup Postal Area / postal code *"
+                      value={watchedValues.pickupPostalCode}
+                      selectedArea={selectedPickupArea}
+                      onSelect={(area) => {
+                        setSelectedPickupArea(area);
+                        setValue('pickupPostalCode', area ? area.postalCode : '', {
+                          shouldValidate: true,
+                        });
+                      }}
+                      error={errors.pickupPostalCode?.message}
+                    />
 
                     <div className="sd-two-col-fields">
                       <div className="sd-field-group">
@@ -430,28 +544,46 @@ export default function RequestDeliveryPage() {
                       <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                         <button
                           type="button"
-                          onClick={() =>
+                          onClick={() => {
                             setValue('dropoffAddress', '45 Peradeniya Road, Kandy', {
                               shouldValidate: true,
-                            })
-                          }
+                            });
+                            setValue('dropoffPostalCode', '20000', { shouldValidate: true });
+                            setSelectedDropoffArea(null);
+                          }}
                           className="sd-location-btn"
                         >
-                          Kandy City ↗
+                          Kandy City (20000) ↗
                         </button>
                         <button
                           type="button"
-                          onClick={() =>
+                          onClick={() => {
                             setValue('dropoffAddress', '18 Wakwella Road, Galle', {
                               shouldValidate: true,
-                            })
-                          }
+                            });
+                            setValue('dropoffPostalCode', '80000', { shouldValidate: true });
+                            setSelectedDropoffArea(null);
+                          }}
                           className="sd-location-btn"
                         >
-                          Galle Fort Area ↗
+                          Galle Fort (80000) ↗
                         </button>
                       </div>
                     </div>
+
+                    <PostalAreaCombobox
+                      id="dropoffPostalCode"
+                      label="Destination Postal Area / postal code *"
+                      value={watchedValues.dropoffPostalCode}
+                      selectedArea={selectedDropoffArea}
+                      onSelect={(area) => {
+                        setSelectedDropoffArea(area);
+                        setValue('dropoffPostalCode', area ? area.postalCode : '', {
+                          shouldValidate: true,
+                        });
+                      }}
+                      error={errors.dropoffPostalCode?.message}
+                    />
 
                     <div className="sd-two-col-fields">
                       <div className="sd-field-group">
@@ -700,48 +832,65 @@ export default function RequestDeliveryPage() {
                       Authoritative Route &amp; Branch Resolution
                     </div>
                     <div className="sd-branch-sub">
-                      Resolved live from Organization Service (`POST /api/v1/orders/quote`).
+                      Resolved live by postal code from Organization Service (<code>POST /api/v1/orders/quote</code>).
                     </div>
 
-                    {/* Quotation Error Alert (e.g. 422 No Branch Coverage) */}
+                    {/* Quotation Error Alert (e.g. 422 Outside Active Branch Coverage) */}
                     {quoteError && (
-                      <div className="sd-screenshot-error" style={{ marginBottom: '0.75rem' }}>
+                      <div role="alert" className="sd-screenshot-error" style={{ marginBottom: '0.75rem' }}>
                         <AlertCircle size={18} color="#e11d48" style={{ flexShrink: 0, marginTop: '2px' }} />
                         <div>
                           <div style={{ fontWeight: 700 }}>
-                            {quoteError.status === 422
-                              ? `No Branch Coverage (${quoteError.locationType || 'ROUTE'})`
-                              : 'Quotation Error'}
+                            {quoteCoverageDetails ? quoteCoverageDetails.title : 'Quotation Error'}
                           </div>
                           <div>{quoteError.message}</div>
+                          {quoteCoverageDetails && (
+                            <div style={{ marginTop: '0.35rem', fontSize: '0.78rem' }}>
+                              {quoteCoverageDetails.guidance}
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
 
                     {/* Resolved Origin & Destination Branch Cards */}
                     <div className="sd-branch-list">
-                      <div className={`sd-branch-card ${quote?.originBranch ? 'selected' : ''}`}>
+                      <div
+                        className={`sd-branch-card ${quote?.originBranch ? 'selected' : ''}`}
+                        style={
+                          pickupCoverageUnsupported
+                            ? { borderColor: '#ef4444', background: '#fef2f2' }
+                            : undefined
+                        }
+                      >
                         <div className="sd-branch-left">
-                          <div className={`sd-branch-icon ${quote?.originBranch ? 'selected' : ''}`}>
+                          <div
+                            className={`sd-branch-icon ${quote?.originBranch ? 'selected' : ''}`}
+                            style={
+                              pickupCoverageUnsupported
+                                ? { background: '#fee2e2', color: '#dc2626' }
+                                : undefined
+                            }
+                          >
                             <Building2 size={18} />
                           </div>
                           <div>
-                            <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#2563eb', textTransform: 'uppercase' }}>
+                            <div style={{ fontSize: '0.7rem', fontWeight: 700, color: pickupCoverageUnsupported ? '#dc2626' : '#2563eb', textTransform: 'uppercase' }}>
                               Origin Pickup Branch
                             </div>
                             <div className="sd-branch-name">
                               {isLoadingQuote
-                                ? 'Resolving nearest origin branch...'
-                                : quote?.originBranch?.branchName || 'Enter pickup address to resolve'}
+                                ? 'Resolving origin branch by postal code...'
+                                : pickupCoverageUnsupported
+                                  ? 'Outside active Branch Coverage'
+                                  : quote?.originBranch?.branchName || 'Select pickup Postal Area to resolve'}
                             </div>
                             <div className="sd-branch-addr">
                               {quote?.originBranch
-                                ? `Code: ${quote.originBranch.branchCode}${
-                                    quote.originBranch.distanceKm !== undefined
-                                      ? ` · ${quote.originBranch.distanceKm} km from pickup`
-                                      : ''
-                                  }`
-                                : 'Validated against active branch service radius'}
+                                ? `Code: ${quote.originBranch.branchCode} · Postal Code ${watchedValues.pickupPostalCode}`
+                                : pickupCoverageUnsupported
+                                  ? `Postal code ${watchedValues.pickupPostalCode} has no active branch coverage`
+                                  : 'Validated against active Branch Coverage'}
                             </div>
                           </div>
                         </div>
@@ -752,28 +901,42 @@ export default function RequestDeliveryPage() {
                         )}
                       </div>
 
-                      <div className={`sd-branch-card ${quote?.destinationBranch ? 'selected' : ''}`}>
+                      <div
+                        className={`sd-branch-card ${quote?.destinationBranch ? 'selected' : ''}`}
+                        style={
+                          destinationCoverageUnsupported
+                            ? { borderColor: '#ef4444', background: '#fef2f2' }
+                            : undefined
+                        }
+                      >
                         <div className="sd-branch-left">
-                          <div className={`sd-branch-icon ${quote?.destinationBranch ? 'selected' : ''}`}>
+                          <div
+                            className={`sd-branch-icon ${quote?.destinationBranch ? 'selected' : ''}`}
+                            style={
+                              destinationCoverageUnsupported
+                                ? { background: '#fee2e2', color: '#dc2626' }
+                                : undefined
+                            }
+                          >
                             <Building2 size={18} />
                           </div>
                           <div>
-                            <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#16a34a', textTransform: 'uppercase' }}>
+                            <div style={{ fontSize: '0.7rem', fontWeight: 700, color: destinationCoverageUnsupported ? '#dc2626' : '#16a34a', textTransform: 'uppercase' }}>
                               Destination Delivery Branch
                             </div>
                             <div className="sd-branch-name">
                               {isLoadingQuote
-                                ? 'Resolving nearest destination branch...'
-                                : quote?.destinationBranch?.branchName || 'Enter destination address to resolve'}
+                                ? 'Resolving destination branch by postal code...'
+                                : destinationCoverageUnsupported
+                                  ? 'Outside active Branch Coverage'
+                                  : quote?.destinationBranch?.branchName || 'Select destination Postal Area to resolve'}
                             </div>
                             <div className="sd-branch-addr">
                               {quote?.destinationBranch
-                                ? `Code: ${quote.destinationBranch.branchCode}${
-                                    quote.destinationBranch.distanceKm !== undefined
-                                      ? ` · ${quote.destinationBranch.distanceKm} km from recipient`
-                                      : ''
-                                  }`
-                                : 'Validated against active branch service radius'}
+                                ? `Code: ${quote.destinationBranch.branchCode} · Postal Code ${watchedValues.dropoffPostalCode}`
+                                : destinationCoverageUnsupported
+                                  ? `Postal code ${watchedValues.dropoffPostalCode} has no active branch coverage`
+                                  : 'Validated against active Branch Coverage'}
                             </div>
                           </div>
                         </div>
@@ -886,7 +1049,7 @@ export default function RequestDeliveryPage() {
                     <button
                       type="button"
                       onClick={handleContinueToReview}
-                      disabled={isLoadingQuote || Boolean(quoteError)}
+                      disabled={isLoadingQuote || Boolean(quoteError) || !quote}
                       className="sd-submit-btn"
                     >
                       Continue to review →
@@ -908,17 +1071,22 @@ export default function RequestDeliveryPage() {
 
                 {/* Submission Error Alert (401, 422, 400, 503) */}
                 {submitError && (
-                  <div className="sd-screenshot-error">
+                  <div role="alert" className="sd-screenshot-error">
                     <AlertCircle size={18} color="#e11d48" style={{ flexShrink: 0, marginTop: '2px' }} />
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 700, marginBottom: '2px' }}>
                         {submitError.status === 401
                           ? 'Authentication Required'
-                          : submitError.status === 422
-                          ? 'Branch Coverage Validation Failed'
-                          : 'Order Creation Failed'}
+                          : submitCoverageDetails
+                            ? submitCoverageDetails.title
+                            : 'Order Creation Failed'}
                       </div>
                       <div>{submitError.message}</div>
+                      {submitCoverageDetails && (
+                        <div style={{ marginTop: '0.45rem', fontSize: '0.78rem' }}>
+                          {submitCoverageDetails.guidance} Go back to Step 1 to select a covered Postal Area.
+                        </div>
+                      )}
                       {submitError.status === 401 && (
                         <div style={{ marginTop: '0.5rem' }}>
                           <Link
@@ -952,14 +1120,14 @@ export default function RequestDeliveryPage() {
                       <span className="sd-review-label">Sender &amp; Pickup:</span>
                       <span className="sd-review-value">
                         {watchedValues.pickupContactName} ({watchedValues.pickupContactPhone}) ·{' '}
-                        {watchedValues.pickupAddress}
+                        {watchedValues.pickupAddress} ({watchedValues.pickupPostalCode})
                       </span>
                     </div>
                     <div className="sd-review-row">
                       <span className="sd-review-label">Recipient &amp; Destination:</span>
                       <span className="sd-review-value">
                         {watchedValues.dropoffContactName} ({watchedValues.dropoffContactPhone}) ·{' '}
-                        {watchedValues.dropoffAddress}
+                        {watchedValues.dropoffAddress} ({watchedValues.dropoffPostalCode})
                       </span>
                     </div>
                     <div className="sd-review-row">
@@ -1033,7 +1201,7 @@ export default function RequestDeliveryPage() {
 
                     <button
                       type="submit"
-                      disabled={createOrderMutation.isPending}
+                      disabled={createOrderMutation.isPending || submitError?.status === 422}
                       className="sd-submit-btn"
                       style={{
                         display: 'flex',
@@ -1053,7 +1221,10 @@ export default function RequestDeliveryPage() {
 
                     <button
                       type="button"
-                      onClick={() => setStep(1)}
+                      onClick={() => {
+                        createOrderMutation.reset();
+                        setStep(1);
+                      }}
                       disabled={createOrderMutation.isPending}
                       className="sd-secondary-btn"
                     >
