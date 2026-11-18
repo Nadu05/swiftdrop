@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   AlertCircle,
@@ -10,11 +10,13 @@ import {
   CheckCircle2,
   Loader2,
   MapPin,
+  MapPinned,
   Phone,
   RotateCcw,
   Save,
 } from 'lucide-react';
 import BranchFormSection from './BranchFormSection';
+import PostalAreaPicker from './PostalAreaPicker';
 import SearchableSelect from './SearchableSelect';
 import {
   branchFormSchema,
@@ -31,6 +33,7 @@ import type {
   BranchResponse,
   DistrictDto,
   DsDivisionDto,
+  PostalAreaDto,
   ProvinceDto,
 } from '@/types/organization.types';
 
@@ -53,6 +56,7 @@ const VALID_FORM_FIELDS: readonly (keyof BranchFormValues)[] = [
   'email',
   'latitude',
   'longitude',
+  'postalCode',
 ];
 
 export default function BranchForm({
@@ -77,9 +81,12 @@ export default function BranchForm({
   const [loadingDistricts, setLoadingDistricts] = useState<boolean>(false);
   const [loadingDsDivisions, setLoadingDsDivisions] = useState<boolean>(false);
   const [locationLoadError, setLocationLoadError] = useState<string | null>(null);
+  const [selectedPostalAreas, setSelectedPostalAreas] = useState<PostalAreaDto[]>([]);
+  const [postalAreaError, setPostalAreaError] = useState<string | null>(null);
 
   const {
     register,
+    control,
     handleSubmit,
     reset,
     setError,
@@ -90,6 +97,8 @@ export default function BranchForm({
     mode: 'onTouched',
     defaultValues: initialValues,
   });
+
+  const physicalPostalCode = useWatch({ control, name: 'postalCode' });
 
   useEffect(() => {
     let cancelled = false;
@@ -193,6 +202,9 @@ export default function BranchForm({
     setSelectedProvinceId(provinceId);
     setSelectedDistrictId(null);
     setSelectedDsDivisionId(null);
+    setValue('provinceId', provinceId, { shouldDirty: true });
+    setValue('districtId', null, { shouldDirty: true });
+    setValue('dsDivisionId', null, { shouldDirty: true });
     const province = provinces.find((p) => p.id === provinceId);
     if (province) {
       applyCoordinates(province.latitude, province.longitude);
@@ -202,6 +214,8 @@ export default function BranchForm({
   const handleDistrictChange = (districtId: number | null) => {
     setSelectedDistrictId(districtId);
     setSelectedDsDivisionId(null);
+    setValue('districtId', districtId, { shouldDirty: true });
+    setValue('dsDivisionId', null, { shouldDirty: true });
     const district = districts.find((d) => d.id === districtId);
     if (district) {
       applyCoordinates(district.latitude, district.longitude);
@@ -210,9 +224,22 @@ export default function BranchForm({
 
   const handleDsDivisionChange = (dsDivisionId: number | null) => {
     setSelectedDsDivisionId(dsDivisionId);
+    setValue('dsDivisionId', dsDivisionId, { shouldDirty: true });
     const ds = dsDivisions.find((item) => item.id === dsDivisionId);
     if (ds) {
       applyCoordinates(ds.latitude, ds.longitude);
+    }
+  };
+
+  const handlePostalAreasChange = (areas: PostalAreaDto[]) => {
+    setSelectedPostalAreas(areas);
+    setValue(
+      'postalAreaIds',
+      areas.map((a) => a.id),
+      { shouldDirty: true }
+    );
+    if (areas.length > 0) {
+      setPostalAreaError(null);
     }
   };
 
@@ -225,9 +252,21 @@ export default function BranchForm({
     setSubmitError(null);
     setIsConflictError(false);
     setSavedBranch(null);
+    setPostalAreaError(null);
+
+    if (mode === 'create' && selectedPostalAreas.length === 0) {
+      setPostalAreaError('Select at least one Postal Area for this active branch.');
+      return;
+    }
 
     try {
-      const response = await onSubmit(values);
+      const response = await onSubmit({
+        ...values,
+        provinceId: selectedProvinceId,
+        districtId: selectedDistrictId,
+        dsDivisionId: selectedDsDivisionId,
+        postalAreaIds: selectedPostalAreas.map((a) => a.id),
+      });
       setSavedBranch(response);
       if (mode === 'edit') {
         setTimeout(() => {
@@ -267,6 +306,8 @@ export default function BranchForm({
     setSelectedProvinceId(null);
     setSelectedDistrictId(null);
     setSelectedDsDivisionId(null);
+    setSelectedPostalAreas([]);
+    setPostalAreaError(null);
     reset(initialValues);
   };
 
@@ -337,7 +378,9 @@ export default function BranchForm({
             <div className="org-form-alert__text">
               <strong className="org-form-alert__title">
                 {isConflictError
-                  ? 'Duplicate Branch Code Conflict (HTTP 409)'
+                  ? submitError.toLowerCase().includes('postal area')
+                    ? 'Postal Area Coverage Conflict (HTTP 409)'
+                    : 'Duplicate Branch Code Conflict (HTTP 409)'
                   : mode === 'create'
                   ? 'Unable to Create Branch'
                   : 'Unable to Save Branch Changes'}
@@ -555,7 +598,7 @@ export default function BranchForm({
           </p>
         )}
 
-        <div className="org-form-grid org-form-grid--3" style={{ marginTop: '1rem' }}>
+        <div className="org-form-grid org-form-grid--2" style={{ marginTop: '1rem' }}>
           {/* City */}
           <div className="org-form-field">
             <label htmlFor="branch-city" className="org-form-label">
@@ -582,6 +625,40 @@ export default function BranchForm({
               </p>
             )}
           </div>
+
+          {/* Physical Postal Code */}
+          <div className="org-form-field">
+            <label htmlFor="branch-postal-code" className="org-form-label">
+              <span>Physical Postal Code</span>
+              <span className="org-form-optional">(Optional)</span>
+            </label>
+            <input
+              id="branch-postal-code"
+              type="text"
+              maxLength={5}
+              className={`org-form-input org-form-input--mono${
+                errors.postalCode ? ' org-form-input--error' : ''
+              }`}
+              placeholder="e.g. 00100"
+              disabled={isDisabled}
+              aria-invalid={Boolean(errors.postalCode)}
+              aria-describedby={
+                errors.postalCode ? 'branch-postal-code-error' : 'branch-postal-code-hint'
+              }
+              {...register('postalCode')}
+            />
+            <span id="branch-postal-code-hint" className="org-form-hint">
+              5-digit Sri Lankan postal code; auto-suggests matching coverage below.
+            </span>
+            {errors.postalCode && (
+              <p id="branch-postal-code-error" className="org-form-error" role="alert">
+                {errors.postalCode.message}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="org-form-grid org-form-grid--2" style={{ marginTop: '1rem' }}>
 
           {/* Latitude */}
           <div className="org-form-field">
@@ -648,6 +725,25 @@ export default function BranchForm({
           </div>
         </div>
       </BranchFormSection>
+
+      {/* SECTION 2B: Assigned Postal Areas (Create Mode) */}
+      {mode === 'create' && (
+        <BranchFormSection
+          id="org-section-postal-areas"
+          title="Assigned Postal Areas"
+          description="Exclusive Branch Coverage: select all Sri Lankan Postal Areas served by this branch. Active branches require at least one Postal Area."
+          icon={MapPinned}
+        >
+          <PostalAreaPicker
+            provinces={provinces}
+            physicalPostalCode={physicalPostalCode}
+            selectedAreas={selectedPostalAreas}
+            onChange={handlePostalAreasChange}
+            disabled={isDisabled}
+            error={postalAreaError}
+          />
+        </BranchFormSection>
+      )}
 
       {/* SECTION 3: Contact Information */}
       <BranchFormSection

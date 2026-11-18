@@ -48,6 +48,21 @@ public class Branch {
     @Column(nullable = false, length = 20)
     private BranchStatus status = BranchStatus.ACTIVE;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "province_id")
+    private Province province;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "district_id")
+    private District district;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ds_division_id")
+    private DsDivision dsDivision;
+
+    @Column(name = "postal_code", length = 5)
+    private String postalCode;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -101,6 +116,18 @@ public class Branch {
 
     public BranchStatus getStatus() { return status; }
     public void setStatus(BranchStatus status) { this.status = status; }
+
+    public Province getProvince() { return province; }
+    public void setProvince(Province province) { this.province = province; }
+
+    public District getDistrict() { return district; }
+    public void setDistrict(District district) { this.district = district; }
+
+    public DsDivision getDsDivision() { return dsDivision; }
+    public void setDsDivision(DsDivision dsDivision) { this.dsDivision = dsDivision; }
+
+    public String getPostalCode() { return postalCode; }
+    public void setPostalCode(String postalCode) { this.postalCode = postalCode; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

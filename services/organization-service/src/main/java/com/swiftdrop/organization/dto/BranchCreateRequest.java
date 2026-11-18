@@ -1,6 +1,8 @@
 package com.swiftdrop.organization.dto;
 
+import com.swiftdrop.organization.entity.enums.BranchStatus;
 import jakarta.validation.constraints.*;
+import java.util.List;
 
 /**
  * Request DTO for creating a new branch.
@@ -45,6 +47,19 @@ public class BranchCreateRequest {
     @DecimalMax(value = "180.0", message = "Longitude must be between -180 and 180")
     private Double longitude;
 
+    private Long provinceId;
+
+    private Long districtId;
+
+    private Long dsDivisionId;
+
+    @Pattern(regexp = "^$|^[0-9]{5}$", message = "Postal code must be a 5-digit Sri Lankan postal code")
+    private String postalCode;
+
+    private BranchStatus status;
+
+    private List<Long> postalAreaIds;
+
     public BranchCreateRequest() {}
 
     public BranchCreateRequest(String code, String name, String addressLine1, String addressLine2,
@@ -88,5 +103,23 @@ public class BranchCreateRequest {
 
     public Double getLongitude() { return longitude; }
     public void setLongitude(Double longitude) { this.longitude = longitude; }
+
+    public Long getProvinceId() { return provinceId; }
+    public void setProvinceId(Long provinceId) { this.provinceId = provinceId; }
+
+    public Long getDistrictId() { return districtId; }
+    public void setDistrictId(Long districtId) { this.districtId = districtId; }
+
+    public Long getDsDivisionId() { return dsDivisionId; }
+    public void setDsDivisionId(Long dsDivisionId) { this.dsDivisionId = dsDivisionId; }
+
+    public String getPostalCode() { return postalCode; }
+    public void setPostalCode(String postalCode) { this.postalCode = postalCode; }
+
+    public BranchStatus getStatus() { return status; }
+    public void setStatus(BranchStatus status) { this.status = status; }
+
+    public List<Long> getPostalAreaIds() { return postalAreaIds; }
+    public void setPostalAreaIds(List<Long> postalAreaIds) { this.postalAreaIds = postalAreaIds; }
 }
 

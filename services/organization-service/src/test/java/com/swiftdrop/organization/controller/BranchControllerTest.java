@@ -319,5 +319,75 @@ class BranchControllerTest {
                         .content(objectMapper.writeValueAsString(updateRequest)))
                 .andExpect(status().isForbidden());
     }
+
+    @Test
+    @WithMockUser(roles = "BRANCH_MANAGER")
+    @DisplayName("POST /branches and /api/v1/branches should return 403 Forbidden for BRANCH_MANAGER")
+    void shouldReturn403WhenBranchManagerCreatesBranch() throws Exception {
+        BranchCreateRequest request = new BranchCreateRequest(
+                "BR-MGR-01", "Manager Branch", "123 Main St", null, "Colombo", "+94112345678", null, 6.9271, 79.8612
+        );
+        request.setPostalAreaIds(List.of(1L));
+
+        mockMvc.perform(post("/branches")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/v1/branches")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "HEAD_OFFICE_ADMIN")
+    @DisplayName("POST /branches and /api/v1/branches should return 400 when ACTIVE branch has zero postal areas")
+    void shouldReturn400WhenActiveBranchHasZeroPostalAreas() throws Exception {
+        BranchCreateRequest request = new BranchCreateRequest(
+                "BR-EMPTY", "Empty Branch", "123 Main St", null, "Colombo", "+94112345678", null, 6.9271, 79.8612
+        );
+        request.setPostalAreaIds(List.of());
+
+        when(branchService.create(any(BranchCreateRequest.class)))
+                .thenThrow(new IllegalArgumentException("An ACTIVE branch must have at least one assigned Postal Area"));
+
+        mockMvc.perform(post("/branches")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("An ACTIVE branch must have at least one assigned Postal Area"));
+
+        mockMvc.perform(post("/api/v1/branches")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("An ACTIVE branch must have at least one assigned Postal Area"));
+    }
+
+    @Test
+    @WithMockUser(roles = "HEAD_OFFICE_ADMIN")
+    @DisplayName("POST /branches and /api/v1/branches should return 409 Conflict when postal area is already assigned")
+    void shouldReturn409WhenPostalAreaAlreadyAssigned() throws Exception {
+        BranchCreateRequest request = new BranchCreateRequest(
+                "BR-CONF", "Conflict Branch", "123 Main St", null, "Colombo", "+94112345678", null, 6.9271, 79.8612
+        );
+        request.setPostalAreaIds(List.of(10L));
+
+        when(branchService.create(any(BranchCreateRequest.class)))
+                .thenThrow(new DuplicateResourceException("Postal Area '00100' (Colombo 01 - Fort) is already actively assigned to branch 'Colombo Central' (BR-COL-001)"));
+
+        mockMvc.perform(post("/branches")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Postal Area '00100' (Colombo 01 - Fort) is already actively assigned to branch 'Colombo Central' (BR-COL-001)"));
+
+        mockMvc.perform(post("/api/v1/branches")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Postal Area '00100' (Colombo 01 - Fort) is already actively assigned to branch 'Colombo Central' (BR-COL-001)"));
+    }
 }
 

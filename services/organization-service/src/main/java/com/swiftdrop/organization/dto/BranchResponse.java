@@ -1,6 +1,7 @@
 package com.swiftdrop.organization.dto;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * Response DTO for branch data exposed to API consumers.
@@ -19,6 +20,11 @@ public class BranchResponse {
     private Double latitude;
     private Double longitude;
     private String status;
+    private Long provinceId;
+    private Long districtId;
+    private Long dsDivisionId;
+    private String postalCode;
+    private List<PostalAreaDto> assignedPostalAreas;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -76,6 +82,21 @@ public class BranchResponse {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public Long getProvinceId() { return provinceId; }
+    public void setProvinceId(Long provinceId) { this.provinceId = provinceId; }
+
+    public Long getDistrictId() { return districtId; }
+    public void setDistrictId(Long districtId) { this.districtId = districtId; }
+
+    public Long getDsDivisionId() { return dsDivisionId; }
+    public void setDsDivisionId(Long dsDivisionId) { this.dsDivisionId = dsDivisionId; }
+
+    public String getPostalCode() { return postalCode; }
+    public void setPostalCode(String postalCode) { this.postalCode = postalCode; }
+
+    public List<PostalAreaDto> getAssignedPostalAreas() { return assignedPostalAreas; }
+    public void setAssignedPostalAreas(List<PostalAreaDto> assignedPostalAreas) { this.assignedPostalAreas = assignedPostalAreas; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

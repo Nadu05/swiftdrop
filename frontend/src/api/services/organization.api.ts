@@ -84,15 +84,16 @@ function buildOrganizationApiError(
   const status: number | undefined = error?.response?.status;
   const data = error?.response?.data;
 
-  // 1. 409 Conflict — e.g. DuplicateResourceException ("Branch with code '...' already exists")
+  // 1. 409 Conflict — e.g. DuplicateResourceException ("Branch with code '...' already exists" or "Postal Area '...' is already actively assigned...")
   if (status === 409) {
     const conflictMsg =
       data?.message ||
-      'A branch with this branch code already exists. Please enter a unique branch code.';
+      'A conflict occurred while saving the branch. Please check branch code and postal area assignments.';
+    const isPostalAreaConflict = conflictMsg.toLowerCase().includes('postal area');
     return new OrganizationApiError(conflictMsg, {
       status: 409,
       isConflict: true,
-      fieldErrors: { code: conflictMsg },
+      fieldErrors: isPostalAreaConflict ? undefined : { code: conflictMsg },
     });
   }
 

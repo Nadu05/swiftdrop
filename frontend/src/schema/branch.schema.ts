@@ -95,6 +95,17 @@ export const branchFormSchema = z.object({
     })
     .min(-180, 'Longitude must be between -180 and 180')
     .max(180, 'Longitude must be between -180 and 180'),
+
+  provinceId: z.number().nullable().optional(),
+  districtId: z.number().nullable().optional(),
+  dsDivisionId: z.number().nullable().optional(),
+  postalCode: z
+    .string()
+    .trim()
+    .regex(/^$|^[0-9]{5}$/, 'Postal code must be a 5-digit Sri Lankan postal code')
+    .optional()
+    .or(z.literal('')),
+  postalAreaIds: z.array(z.number()).optional(),
 });
 
 export type BranchFormValues = z.infer<typeof branchFormSchema>;
@@ -112,6 +123,11 @@ export const DEFAULT_BRANCH_FORM_VALUES: BranchFormValues = {
   email: '',
   latitude: 6.9271,
   longitude: 79.8612,
+  provinceId: null,
+  districtId: null,
+  dsDivisionId: null,
+  postalCode: '',
+  postalAreaIds: [],
 };
 
 /**
@@ -128,6 +144,11 @@ export function branchResponseToFormValues(branch: BranchResponse): BranchFormVa
     email: branch.email ?? '',
     latitude: branch.latitude,
     longitude: branch.longitude,
+    provinceId: branch.provinceId ?? null,
+    districtId: branch.districtId ?? null,
+    dsDivisionId: branch.dsDivisionId ?? null,
+    postalCode: branch.postalCode ?? '',
+    postalAreaIds: branch.assignedPostalAreas?.map((a) => a.id) ?? [],
   };
 }
 
@@ -138,6 +159,7 @@ export function branchResponseToFormValues(branch: BranchResponse): BranchFormVa
 export function toBranchCreatePayload(values: BranchFormValues): BranchCreateRequest {
   const trimmedAddressLine2 = values.addressLine2?.trim() || '';
   const trimmedEmail = values.email?.trim() || '';
+  const trimmedPostalCode = values.postalCode?.trim() || '';
 
   return {
     code: values.code.trim().toUpperCase(),
@@ -149,6 +171,11 @@ export function toBranchCreatePayload(values: BranchFormValues): BranchCreateReq
     email: trimmedEmail.length > 0 ? trimmedEmail : null,
     latitude: values.latitude,
     longitude: values.longitude,
+    provinceId: values.provinceId ?? null,
+    districtId: values.districtId ?? null,
+    dsDivisionId: values.dsDivisionId ?? null,
+    postalCode: trimmedPostalCode.length > 0 ? trimmedPostalCode : null,
+    postalAreaIds: values.postalAreaIds ?? [],
   };
 }
 

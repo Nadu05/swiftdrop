@@ -4,10 +4,18 @@ import com.swiftdrop.organization.dto.BranchCreateRequest;
 import com.swiftdrop.organization.dto.BranchResponse;
 import com.swiftdrop.organization.dto.BranchUpdateRequest;
 import com.swiftdrop.organization.entity.Branch;
+import com.swiftdrop.organization.entity.District;
+import com.swiftdrop.organization.entity.PostalArea;
+import com.swiftdrop.organization.entity.Province;
 import com.swiftdrop.organization.entity.enums.BranchStatus;
 import com.swiftdrop.organization.exception.DuplicateResourceException;
 import com.swiftdrop.organization.exception.ResourceNotFoundException;
+import com.swiftdrop.organization.repository.BranchPostalAreaRepository;
 import com.swiftdrop.organization.repository.BranchRepository;
+import com.swiftdrop.organization.repository.DistrictRepository;
+import com.swiftdrop.organization.repository.DsDivisionRepository;
+import com.swiftdrop.organization.repository.PostalAreaRepository;
+import com.swiftdrop.organization.repository.ProvinceRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,10 +39,26 @@ class BranchServiceTest {
     @Mock
     private BranchRepository repository;
 
+    @Mock
+    private ProvinceRepository provinceRepository;
+
+    @Mock
+    private DistrictRepository districtRepository;
+
+    @Mock
+    private DsDivisionRepository dsDivisionRepository;
+
+    @Mock
+    private PostalAreaRepository postalAreaRepository;
+
+    @Mock
+    private BranchPostalAreaRepository branchPostalAreaRepository;
+
     @InjectMocks
     private BranchService service;
 
     private Branch sampleBranch;
+    private PostalArea samplePostalArea;
 
     @BeforeEach
     void setUp() {
@@ -52,6 +76,23 @@ class BranchServiceTest {
         sampleBranch.setStatus(BranchStatus.ACTIVE);
         sampleBranch.setCreatedAt(LocalDateTime.now());
         sampleBranch.setUpdatedAt(LocalDateTime.now());
+
+        Province province = new Province();
+        province.setId(1L);
+        province.setName("Western");
+
+        District district = new District();
+        district.setId(10L);
+        district.setName("Colombo");
+        district.setProvince(province);
+
+        samplePostalArea = new PostalArea();
+        samplePostalArea.setId(100L);
+        samplePostalArea.setPostalCode("00100");
+        samplePostalArea.setAreaName("Colombo 01 - Fort");
+        samplePostalArea.setProvince(province);
+        samplePostalArea.setDistrict(district);
+        samplePostalArea.setActive(true);
     }
 
     @Test
@@ -68,9 +109,12 @@ class BranchServiceTest {
                 6.9271,
                 79.8612
         );
+        request.setPostalAreaIds(List.of(100L));
 
         when(repository.existsByCode("BR-COL-001")).thenReturn(false);
         when(repository.save(any(Branch.class))).thenReturn(sampleBranch);
+        when(postalAreaRepository.findAllById(any())).thenReturn(List.of(samplePostalArea));
+        when(branchPostalAreaRepository.findActiveByPostalAreaIdIn(any())).thenReturn(List.of());
 
         BranchResponse response = service.create(request);
 

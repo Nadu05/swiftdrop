@@ -45,6 +45,11 @@ export interface BranchResponse {
   latitude: number;
   longitude: number;
   status: BranchStatus;
+  provinceId?: number | null;
+  districtId?: number | null;
+  dsDivisionId?: number | null;
+  postalCode?: string | null;
+  assignedPostalAreas?: PostalAreaDto[] | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -62,6 +67,11 @@ export interface BranchCreateRequest {
   email?: string | null;
   latitude: number;
   longitude: number;
+  provinceId?: number | null;
+  districtId?: number | null;
+  dsDivisionId?: number | null;
+  postalCode?: string | null;
+  postalAreaIds?: number[];
 }
 
 /**
