@@ -277,3 +277,59 @@ export interface MerchantApprovalSummaryResponse {
   totalSubmissions: number;
 }
 
+export interface ProvinceDto {
+  id: number;
+  code: string;
+  name: string;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+export interface DistrictDto {
+  id: number;
+  code: string;
+  name: string;
+  provinceId: number;
+  provinceName: string;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+export interface DsDivisionDto {
+  id: number;
+  code: string;
+  name: string;
+  districtId: number;
+  districtName: string;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+export interface GnDivisionDto {
+  id: number;
+  code: string;
+  name: string;
+  dsDivisionId: number;
+  dsDivisionName: string;
+  postalCode: string | null;
+  postalAreaId: number | null;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+export interface PostalAreaDto {
+  id: number;
+  postalCode: string;
+  areaName: string;
+  provinceId: number;
+  provinceName: string;
+  districtId: number;
+  districtName: string;
+  dsDivisionId: number | null;
+  dsDivisionName: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  isActive: boolean;
+}
+
+

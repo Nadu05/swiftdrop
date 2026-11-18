@@ -1,0 +1,21 @@
+{
+  "import_version": "2026.11.1",
+  "generated_at": "2026-11-18T19:09:34.488055+00:00",
+  "summary": {
+    "imported": {
+      "provinces": 9,
+      "districts": 25,
+      "ds_divisions": 33,
+      "gn_divisions": 16,
+      "postal_areas": 42
+    },
+    "rejected": {
+      "postal_areas": 0
+    },
+    "conflicts": {
+      "postal_areas": 0
+    }
+  },
+  "rejected": [],
+  "conflicts": []
+}

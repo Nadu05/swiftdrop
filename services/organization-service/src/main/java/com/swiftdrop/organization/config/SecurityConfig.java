@@ -91,7 +91,9 @@ public class SecurityConfig {
                                 "/service-areas",
                                 "/service-areas/*",
                                 "/api/v1/service-areas",
-                                "/api/v1/service-areas/*"
+                                "/api/v1/service-areas/*",
+                                "/locations/**",
+                                "/api/v1/locations/**"
                         ).permitAll()
                         // Branch creation: Head Office Admin only
                         .requestMatchers(HttpMethod.POST, "/branches", "/api/v1/branches")

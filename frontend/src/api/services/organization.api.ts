@@ -7,12 +7,17 @@ import type {
   BranchStatus,
   BranchSummaryMetrics,
   BranchUpdateRequest,
+  DistrictDto,
+  DsDivisionDto,
+  GnDivisionDto,
   MerchantApplicationApproveRequest,
   MerchantApplicationCreateRequest,
   MerchantApplicationRejectRequest,
   MerchantApplicationResponse,
   MerchantApprovalSummaryResponse,
   OrganizationDashboardMetrics,
+  PostalAreaDto,
+  ProvinceDto,
   RouteBranchResolutionRequest,
   RouteBranchResolutionResponse,
   ServiceAreaResponse,
@@ -37,6 +42,7 @@ const SERVICE_AREAS_BASE_PATH = '/api/v1/organization/service-areas';
 const BRANCH_RESOLUTION_PATH = '/api/v1/organization/branches/resolve';
 const ROUTE_BRANCH_RESOLUTION_PATH = '/api/v1/organization/branches/resolve-route';
 const MERCHANT_APPLICATIONS_BASE_PATH = '/api/v1/organization/merchants/applications';
+const LOCATIONS_BASE_PATH = '/api/v1/organization/locations';
 
 /**
  * Structured error thrown by Organization API functions so UI views and forms can
@@ -615,9 +621,73 @@ export function calculateOrganizationDashboardMetrics(
   };
 }
 
+export async function getProvinces(): Promise<ProvinceDto[]> {
+  try {
+    const response = await apiClient.get<ProvinceDto[]>(`${LOCATIONS_BASE_PATH}/provinces`);
+    return response.data;
+  } catch (error) {
+    throw buildOrganizationApiError(error, 'Failed to load Sri Lankan provinces.');
+  }
+}
+
+export async function getDistricts(provinceId?: number): Promise<DistrictDto[]> {
+  try {
+    const response = await apiClient.get<DistrictDto[]>(`${LOCATIONS_BASE_PATH}/districts`, {
+      params: provinceId != null ? { provinceId } : undefined,
+    });
+    return response.data;
+  } catch (error) {
+    throw buildOrganizationApiError(error, 'Failed to load districts.');
+  }
+}
+
+export async function getDsDivisions(districtId?: number): Promise<DsDivisionDto[]> {
+  try {
+    const response = await apiClient.get<DsDivisionDto[]>(`${LOCATIONS_BASE_PATH}/ds-divisions`, {
+      params: districtId != null ? { districtId } : undefined,
+    });
+    return response.data;
+  } catch (error) {
+    throw buildOrganizationApiError(error, 'Failed to load DS divisions.');
+  }
+}
+
+export async function getGnDivisions(dsDivisionId?: number): Promise<GnDivisionDto[]> {
+  try {
+    const response = await apiClient.get<GnDivisionDto[]>(`${LOCATIONS_BASE_PATH}/gn-divisions`, {
+      params: dsDivisionId != null ? { dsDivisionId } : undefined,
+    });
+    return response.data;
+  } catch (error) {
+    throw buildOrganizationApiError(error, 'Failed to load GN divisions.');
+  }
+}
+
+export async function searchPostalAreas(params?: {
+  provinceId?: number;
+  districtId?: number;
+  dsDivisionId?: number;
+  gnDivisionId?: number;
+  search?: string;
+}): Promise<PostalAreaDto[]> {
+  try {
+    const response = await apiClient.get<PostalAreaDto[]>(`${LOCATIONS_BASE_PATH}/postal-areas`, {
+      params,
+    });
+    return response.data;
+  } catch (error) {
+    throw buildOrganizationApiError(error, 'Failed to search postal areas.');
+  }
+}
+
 export const organizationApi = {
   getBranches,
   createBranch,
   updateBranch,
   getBranchById,
+  getProvinces,
+  getDistricts,
+  getDsDivisions,
+  getGnDivisions,
+  searchPostalAreas,
 };

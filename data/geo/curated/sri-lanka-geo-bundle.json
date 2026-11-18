@@ -1,0 +1,1148 @@
+{
+  "import_version": "2026.11.1",
+  "generated_at": "2026-11-18T19:09:34.488055+00:00",
+  "provinces": [
+    {
+      "code": "WP",
+      "name": "Western",
+      "latitude": 6.9271,
+      "longitude": 79.8612
+    },
+    {
+      "code": "CP",
+      "name": "Central",
+      "latitude": 7.2906,
+      "longitude": 80.6337
+    },
+    {
+      "code": "SP",
+      "name": "Southern",
+      "latitude": 6.0535,
+      "longitude": 80.221
+    },
+    {
+      "code": "NP",
+      "name": "Northern",
+      "latitude": 9.6615,
+      "longitude": 80.0255
+    },
+    {
+      "code": "EP",
+      "name": "Eastern",
+      "latitude": 7.717,
+      "longitude": 81.7
+    },
+    {
+      "code": "NWP",
+      "name": "North Western",
+      "latitude": 7.4863,
+      "longitude": 80.3623
+    },
+    {
+      "code": "NCP",
+      "name": "North Central",
+      "latitude": 8.3114,
+      "longitude": 80.4037
+    },
+    {
+      "code": "UP",
+      "name": "Uva",
+      "latitude": 6.9934,
+      "longitude": 81.055
+    },
+    {
+      "code": "SGP",
+      "name": "Sabaragamuwa",
+      "latitude": 6.6828,
+      "longitude": 80.3992
+    }
+  ],
+  "districts": [
+    {
+      "code": "COL",
+      "province_code": "WP",
+      "name": "Colombo",
+      "latitude": 6.9271,
+      "longitude": 79.8612
+    },
+    {
+      "code": "GAM",
+      "province_code": "WP",
+      "name": "Gampaha",
+      "latitude": 7.084,
+      "longitude": 80.0098
+    },
+    {
+      "code": "KAL",
+      "province_code": "WP",
+      "name": "Kalutara",
+      "latitude": 6.5854,
+      "longitude": 79.9607
+    },
+    {
+      "code": "KAN",
+      "province_code": "CP",
+      "name": "Kandy",
+      "latitude": 7.2906,
+      "longitude": 80.6337
+    },
+    {
+      "code": "MAT",
+      "province_code": "CP",
+      "name": "Matale",
+      "latitude": 7.4675,
+      "longitude": 80.6234
+    },
+    {
+      "code": "NUE",
+      "province_code": "CP",
+      "name": "Nuwara Eliya",
+      "latitude": 6.9497,
+      "longitude": 80.7891
+    },
+    {
+      "code": "GAL",
+      "province_code": "SP",
+      "name": "Galle",
+      "latitude": 6.0535,
+      "longitude": 80.221
+    },
+    {
+      "code": "MTR",
+      "province_code": "SP",
+      "name": "Matara",
+      "latitude": 5.9549,
+      "longitude": 80.555
+    },
+    {
+      "code": "HAM",
+      "province_code": "SP",
+      "name": "Hambantota",
+      "latitude": 6.1429,
+      "longitude": 81.1212
+    },
+    {
+      "code": "JAF",
+      "province_code": "NP",
+      "name": "Jaffna",
+      "latitude": 9.6615,
+      "longitude": 80.0255
+    },
+    {
+      "code": "KIL",
+      "province_code": "NP",
+      "name": "Kilinochchi",
+      "latitude": 9.3803,
+      "longitude": 80.377
+    },
+    {
+      "code": "MAN",
+      "province_code": "NP",
+      "name": "Mannar",
+      "latitude": 8.981,
+      "longitude": 79.9044
+    },
+    {
+      "code": "MUL",
+      "province_code": "NP",
+      "name": "Mullaitivu",
+      "latitude": 9.2671,
+      "longitude": 80.8142
+    },
+    {
+      "code": "VAV",
+      "province_code": "NP",
+      "name": "Vavuniya",
+      "latitude": 8.7514,
+      "longitude": 80.4971
+    },
+    {
+      "code": "BAT",
+      "province_code": "EP",
+      "name": "Batticaloa",
+      "latitude": 7.731,
+      "longitude": 81.6747
+    },
+    {
+      "code": "AMP",
+      "province_code": "EP",
+      "name": "Ampara",
+      "latitude": 7.2975,
+      "longitude": 81.682
+    },
+    {
+      "code": "TRI",
+      "province_code": "EP",
+      "name": "Trincomalee",
+      "latitude": 8.5874,
+      "longitude": 81.2152
+    },
+    {
+      "code": "KUR",
+      "province_code": "NWP",
+      "name": "Kurunegala",
+      "latitude": 7.4863,
+      "longitude": 80.3623
+    },
+    {
+      "code": "PUT",
+      "province_code": "NWP",
+      "name": "Puttalam",
+      "latitude": 8.0408,
+      "longitude": 79.8394
+    },
+    {
+      "code": "ANU",
+      "province_code": "NCP",
+      "name": "Anuradhapura",
+      "latitude": 8.3114,
+      "longitude": 80.4037
+    },
+    {
+      "code": "POL",
+      "province_code": "NCP",
+      "name": "Polonnaruwa",
+      "latitude": 7.9403,
+      "longitude": 81.0188
+    },
+    {
+      "code": "BAD",
+      "province_code": "UP",
+      "name": "Badulla",
+      "latitude": 6.9934,
+      "longitude": 81.055
+    },
+    {
+      "code": "MON",
+      "province_code": "UP",
+      "name": "Monaragala",
+      "latitude": 6.8728,
+      "longitude": 81.3507
+    },
+    {
+      "code": "RAT",
+      "province_code": "SGP",
+      "name": "Ratnapura",
+      "latitude": 6.6828,
+      "longitude": 80.3992
+    },
+    {
+      "code": "KEG",
+      "province_code": "SGP",
+      "name": "Kegalle",
+      "latitude": 7.2513,
+      "longitude": 80.3464
+    }
+  ],
+  "ds_divisions": [
+    {
+      "code": "DS-COL-01",
+      "district_code": "COL",
+      "name": "Colombo",
+      "latitude": 6.9344,
+      "longitude": 79.8428
+    },
+    {
+      "code": "DS-COL-02",
+      "district_code": "COL",
+      "name": "Thimbirigasyaya",
+      "latitude": 6.8905,
+      "longitude": 79.8636
+    },
+    {
+      "code": "DS-COL-03",
+      "district_code": "COL",
+      "name": "Dehiwala",
+      "latitude": 6.8511,
+      "longitude": 79.8659
+    },
+    {
+      "code": "DS-COL-04",
+      "district_code": "COL",
+      "name": "Maharagama",
+      "latitude": 6.848,
+      "longitude": 79.9265
+    },
+    {
+      "code": "DS-COL-05",
+      "district_code": "COL",
+      "name": "Kaduwela",
+      "latitude": 6.9357,
+      "longitude": 79.9843
+    },
+    {
+      "code": "DS-GAM-01",
+      "district_code": "GAM",
+      "name": "Negombo",
+      "latitude": 7.2008,
+      "longitude": 79.8737
+    },
+    {
+      "code": "DS-GAM-02",
+      "district_code": "GAM",
+      "name": "Gampaha",
+      "latitude": 7.084,
+      "longitude": 80.0098
+    },
+    {
+      "code": "DS-GAM-03",
+      "district_code": "GAM",
+      "name": "Kelaniya",
+      "latitude": 6.9553,
+      "longitude": 79.922
+    },
+    {
+      "code": "DS-KAL-01",
+      "district_code": "KAL",
+      "name": "Kalutara",
+      "latitude": 6.5854,
+      "longitude": 79.9607
+    },
+    {
+      "code": "DS-KAL-02",
+      "district_code": "KAL",
+      "name": "Panadura",
+      "latitude": 6.7133,
+      "longitude": 79.9026
+    },
+    {
+      "code": "DS-KAN-01",
+      "district_code": "KAN",
+      "name": "Kandy Four Gravets & Gangawata Korale",
+      "latitude": 7.2906,
+      "longitude": 80.6337
+    },
+    {
+      "code": "DS-KAN-02",
+      "district_code": "KAN",
+      "name": "Peradeniya",
+      "latitude": 7.2589,
+      "longitude": 80.5975
+    },
+    {
+      "code": "DS-MAT-01",
+      "district_code": "MAT",
+      "name": "Matale",
+      "latitude": 7.4675,
+      "longitude": 80.6234
+    },
+    {
+      "code": "DS-NUE-01",
+      "district_code": "NUE",
+      "name": "Nuwara Eliya",
+      "latitude": 6.9497,
+      "longitude": 80.7891
+    },
+    {
+      "code": "DS-GAL-01",
+      "district_code": "GAL",
+      "name": "Galle Four Gravets",
+      "latitude": 6.0535,
+      "longitude": 80.221
+    },
+    {
+      "code": "DS-MTR-01",
+      "district_code": "MTR",
+      "name": "Matara Four Gravets",
+      "latitude": 5.9549,
+      "longitude": 80.555
+    },
+    {
+      "code": "DS-HAM-01",
+      "district_code": "HAM",
+      "name": "Hambantota",
+      "latitude": 6.1429,
+      "longitude": 81.1212
+    },
+    {
+      "code": "DS-JAF-01",
+      "district_code": "JAF",
+      "name": "Jaffna",
+      "latitude": 9.6615,
+      "longitude": 80.0255
+    },
+    {
+      "code": "DS-KIL-01",
+      "district_code": "KIL",
+      "name": "Karachchi",
+      "latitude": 9.3803,
+      "longitude": 80.377
+    },
+    {
+      "code": "DS-MAN-01",
+      "district_code": "MAN",
+      "name": "Mannar Town",
+      "latitude": 8.981,
+      "longitude": 79.9044
+    },
+    {
+      "code": "DS-MUL-01",
+      "district_code": "MUL",
+      "name": "Maritimepattu",
+      "latitude": 9.2671,
+      "longitude": 80.8142
+    },
+    {
+      "code": "DS-VAV-01",
+      "district_code": "VAV",
+      "name": "Vavuniya",
+      "latitude": 8.7514,
+      "longitude": 80.4971
+    },
+    {
+      "code": "DS-BAT-01",
+      "district_code": "BAT",
+      "name": "Manmunai North",
+      "latitude": 7.731,
+      "longitude": 81.6747
+    },
+    {
+      "code": "DS-AMP-01",
+      "district_code": "AMP",
+      "name": "Ampara",
+      "latitude": 7.2975,
+      "longitude": 81.682
+    },
+    {
+      "code": "DS-TRI-01",
+      "district_code": "TRI",
+      "name": "Trincomalee Town & Gravets",
+      "latitude": 8.5874,
+      "longitude": 81.2152
+    },
+    {
+      "code": "DS-KUR-01",
+      "district_code": "KUR",
+      "name": "Kurunegala",
+      "latitude": 7.4863,
+      "longitude": 80.3623
+    },
+    {
+      "code": "DS-PUT-01",
+      "district_code": "PUT",
+      "name": "Puttalam",
+      "latitude": 8.0408,
+      "longitude": 79.8394
+    },
+    {
+      "code": "DS-ANU-01",
+      "district_code": "ANU",
+      "name": "Nuwaragam Palatha East",
+      "latitude": 8.3114,
+      "longitude": 80.4037
+    },
+    {
+      "code": "DS-POL-01",
+      "district_code": "POL",
+      "name": "Thamankaduwa",
+      "latitude": 7.9403,
+      "longitude": 81.0188
+    },
+    {
+      "code": "DS-BAD-01",
+      "district_code": "BAD",
+      "name": "Badulla",
+      "latitude": 6.9934,
+      "longitude": 81.055
+    },
+    {
+      "code": "DS-MON-01",
+      "district_code": "MON",
+      "name": "Monaragala",
+      "latitude": 6.8728,
+      "longitude": 81.3507
+    },
+    {
+      "code": "DS-RAT-01",
+      "district_code": "RAT",
+      "name": "Ratnapura",
+      "latitude": 6.6828,
+      "longitude": 80.3992
+    },
+    {
+      "code": "DS-KEG-01",
+      "district_code": "KEG",
+      "name": "Kegalle",
+      "latitude": 7.2513,
+      "longitude": 80.3464
+    }
+  ],
+  "gn_divisions": [
+    {
+      "code": "GN-COL-001",
+      "ds_division_code": "DS-COL-01",
+      "name": "Fort",
+      "postal_code": "00100",
+      "latitude": 6.9344,
+      "longitude": 79.8428
+    },
+    {
+      "code": "GN-COL-002",
+      "ds_division_code": "DS-COL-01",
+      "name": "Pettah",
+      "postal_code": "01100",
+      "latitude": 6.9367,
+      "longitude": 79.8505
+    },
+    {
+      "code": "GN-COL-003",
+      "ds_division_code": "DS-COL-01",
+      "name": "Kollupitiya",
+      "postal_code": "00300",
+      "latitude": 6.911,
+      "longitude": 79.85
+    },
+    {
+      "code": "GN-COL-004",
+      "ds_division_code": "DS-COL-02",
+      "name": "Bambalapitiya",
+      "postal_code": "00400",
+      "latitude": 6.8935,
+      "longitude": 79.8554
+    },
+    {
+      "code": "GN-COL-005",
+      "ds_division_code": "DS-COL-02",
+      "name": "Narahenpita",
+      "postal_code": "00500",
+      "latitude": 6.8905,
+      "longitude": 79.878
+    },
+    {
+      "code": "GN-COL-006",
+      "ds_division_code": "DS-COL-02",
+      "name": "Wellawatte",
+      "postal_code": "00600",
+      "latitude": 6.8741,
+      "longitude": 79.861
+    },
+    {
+      "code": "GN-COL-007",
+      "ds_division_code": "DS-COL-03",
+      "name": "Dehiwala",
+      "postal_code": "10350",
+      "latitude": 6.8511,
+      "longitude": 79.8659
+    },
+    {
+      "code": "GN-COL-008",
+      "ds_division_code": "DS-COL-04",
+      "name": "Maharagama",
+      "postal_code": "10280",
+      "latitude": 6.848,
+      "longitude": 79.9265
+    },
+    {
+      "code": "GN-COL-009",
+      "ds_division_code": "DS-COL-05",
+      "name": "Kaduwela",
+      "postal_code": "10640",
+      "latitude": 6.9357,
+      "longitude": 79.9843
+    },
+    {
+      "code": "GN-GAM-001",
+      "ds_division_code": "DS-GAM-01",
+      "name": "Negombo",
+      "postal_code": "11500",
+      "latitude": 7.2008,
+      "longitude": 79.8737
+    },
+    {
+      "code": "GN-GAM-002",
+      "ds_division_code": "DS-GAM-02",
+      "name": "Gampaha",
+      "postal_code": "11000",
+      "latitude": 7.084,
+      "longitude": 80.0098
+    },
+    {
+      "code": "GN-GAM-003",
+      "ds_division_code": "DS-GAM-03",
+      "name": "Kelaniya",
+      "postal_code": "11600",
+      "latitude": 6.9553,
+      "longitude": 79.922
+    },
+    {
+      "code": "GN-KAN-001",
+      "ds_division_code": "DS-KAN-01",
+      "name": "Kandy City",
+      "postal_code": "20000",
+      "latitude": 7.2906,
+      "longitude": 80.6337
+    },
+    {
+      "code": "GN-KAN-002",
+      "ds_division_code": "DS-KAN-02",
+      "name": "Peradeniya",
+      "postal_code": "20400",
+      "latitude": 7.2589,
+      "longitude": 80.5975
+    },
+    {
+      "code": "GN-GAL-001",
+      "ds_division_code": "DS-GAL-01",
+      "name": "Galle Fort",
+      "postal_code": "80000",
+      "latitude": 6.0535,
+      "longitude": 80.221
+    },
+    {
+      "code": "GN-JAF-001",
+      "ds_division_code": "DS-JAF-01",
+      "name": "Jaffna Town",
+      "postal_code": "40000",
+      "latitude": 9.6615,
+      "longitude": 80.0255
+    }
+  ],
+  "postal_areas": [
+    {
+      "postal_code": "00100",
+      "area_name": "Colombo 01 - Fort",
+      "province_code": "WP",
+      "district_code": "COL",
+      "ds_division_code": "DS-COL-01",
+      "latitude": 6.9344,
+      "longitude": 79.8428,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "00200",
+      "area_name": "Colombo 02 - Slave Island",
+      "province_code": "WP",
+      "district_code": "COL",
+      "ds_division_code": "DS-COL-01",
+      "latitude": 6.9244,
+      "longitude": 79.8492,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "00300",
+      "area_name": "Colombo 03 - Kollupitiya",
+      "province_code": "WP",
+      "district_code": "COL",
+      "ds_division_code": "DS-COL-01",
+      "latitude": 6.911,
+      "longitude": 79.85,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "00400",
+      "area_name": "Colombo 04 - Bambalapitiya",
+      "province_code": "WP",
+      "district_code": "COL",
+      "ds_division_code": "DS-COL-02",
+      "latitude": 6.8935,
+      "longitude": 79.8554,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "00500",
+      "area_name": "Colombo 05 - Narahenpita",
+      "province_code": "WP",
+      "district_code": "COL",
+      "ds_division_code": "DS-COL-02",
+      "latitude": 6.8905,
+      "longitude": 79.878,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "00600",
+      "area_name": "Colombo 06 - Wellawatte",
+      "province_code": "WP",
+      "district_code": "COL",
+      "ds_division_code": "DS-COL-02",
+      "latitude": 6.8741,
+      "longitude": 79.861,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "00700",
+      "area_name": "Colombo 07 - Cinnamon Gardens",
+      "province_code": "WP",
+      "district_code": "COL",
+      "ds_division_code": "DS-COL-02",
+      "latitude": 6.9061,
+      "longitude": 79.8636,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "00800",
+      "area_name": "Colombo 08 - Borella",
+      "province_code": "WP",
+      "district_code": "COL",
+      "ds_division_code": "DS-COL-02",
+      "latitude": 6.9147,
+      "longitude": 79.8778,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "00900",
+      "area_name": "Colombo 09 - Dematagoda",
+      "province_code": "WP",
+      "district_code": "COL",
+      "ds_division_code": "DS-COL-01",
+      "latitude": 6.9367,
+      "longitude": 79.878,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "01000",
+      "area_name": "Colombo 10 - Maradana",
+      "province_code": "WP",
+      "district_code": "COL",
+      "ds_division_code": "DS-COL-01",
+      "latitude": 6.9293,
+      "longitude": 79.8664,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "01100",
+      "area_name": "Colombo 11 - Pettah",
+      "province_code": "WP",
+      "district_code": "COL",
+      "ds_division_code": "DS-COL-01",
+      "latitude": 6.9367,
+      "longitude": 79.8505,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "10280",
+      "area_name": "Maharagama",
+      "province_code": "WP",
+      "district_code": "COL",
+      "ds_division_code": "DS-COL-04",
+      "latitude": 6.848,
+      "longitude": 79.9265,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "10350",
+      "area_name": "Dehiwala",
+      "province_code": "WP",
+      "district_code": "COL",
+      "ds_division_code": "DS-COL-03",
+      "latitude": 6.8511,
+      "longitude": 79.8659,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "10640",
+      "area_name": "Kaduwela",
+      "province_code": "WP",
+      "district_code": "COL",
+      "ds_division_code": "DS-COL-05",
+      "latitude": 6.9357,
+      "longitude": 79.9843,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "11000",
+      "area_name": "Gampaha",
+      "province_code": "WP",
+      "district_code": "GAM",
+      "ds_division_code": "DS-GAM-02",
+      "latitude": 7.084,
+      "longitude": 80.0098,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "11500",
+      "area_name": "Negombo",
+      "province_code": "WP",
+      "district_code": "GAM",
+      "ds_division_code": "DS-GAM-01",
+      "latitude": 7.2008,
+      "longitude": 79.8737,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "11600",
+      "area_name": "Kelaniya",
+      "province_code": "WP",
+      "district_code": "GAM",
+      "ds_division_code": "DS-GAM-03",
+      "latitude": 6.9553,
+      "longitude": 79.922,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "12000",
+      "area_name": "Kalutara",
+      "province_code": "WP",
+      "district_code": "KAL",
+      "ds_division_code": "DS-KAL-01",
+      "latitude": 6.5854,
+      "longitude": 79.9607,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "12500",
+      "area_name": "Panadura",
+      "province_code": "WP",
+      "district_code": "KAL",
+      "ds_division_code": "DS-KAL-02",
+      "latitude": 6.7133,
+      "longitude": 79.9026,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "20000",
+      "area_name": "Kandy",
+      "province_code": "CP",
+      "district_code": "KAN",
+      "ds_division_code": "DS-KAN-01",
+      "latitude": 7.2906,
+      "longitude": 80.6337,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "20400",
+      "area_name": "Peradeniya",
+      "province_code": "CP",
+      "district_code": "KAN",
+      "ds_division_code": "DS-KAN-02",
+      "latitude": 7.2589,
+      "longitude": 80.5975,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "21000",
+      "area_name": "Matale",
+      "province_code": "CP",
+      "district_code": "MAT",
+      "ds_division_code": "DS-MAT-01",
+      "latitude": 7.4675,
+      "longitude": 80.6234,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "22200",
+      "area_name": "Nuwara Eliya",
+      "province_code": "CP",
+      "district_code": "NUE",
+      "ds_division_code": "DS-NUE-01",
+      "latitude": 6.9497,
+      "longitude": 80.7891,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "30000",
+      "area_name": "Batticaloa",
+      "province_code": "EP",
+      "district_code": "BAT",
+      "ds_division_code": "DS-BAT-01",
+      "latitude": 7.731,
+      "longitude": 81.6747,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "31000",
+      "area_name": "Trincomalee",
+      "province_code": "EP",
+      "district_code": "TRI",
+      "ds_division_code": "DS-TRI-01",
+      "latitude": 8.5874,
+      "longitude": 81.2152,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "32000",
+      "area_name": "Ampara",
+      "province_code": "EP",
+      "district_code": "AMP",
+      "ds_division_code": "DS-AMP-01",
+      "latitude": 7.2975,
+      "longitude": 81.682,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "40000",
+      "area_name": "Jaffna",
+      "province_code": "NP",
+      "district_code": "JAF",
+      "ds_division_code": "DS-JAF-01",
+      "latitude": 9.6615,
+      "longitude": 80.0255,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "41000",
+      "area_name": "Mannar",
+      "province_code": "NP",
+      "district_code": "MAN",
+      "ds_division_code": "DS-MAN-01",
+      "latitude": 8.981,
+      "longitude": 79.9044,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "42000",
+      "area_name": "Mullaitivu",
+      "province_code": "NP",
+      "district_code": "MUL",
+      "ds_division_code": "DS-MUL-01",
+      "latitude": 9.2671,
+      "longitude": 80.8142,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "43000",
+      "area_name": "Vavuniya",
+      "province_code": "NP",
+      "district_code": "VAV",
+      "ds_division_code": "DS-VAV-01",
+      "latitude": 8.7514,
+      "longitude": 80.4971,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "44000",
+      "area_name": "Kilinochchi",
+      "province_code": "NP",
+      "district_code": "KIL",
+      "ds_division_code": "DS-KIL-01",
+      "latitude": 9.3803,
+      "longitude": 80.377,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "50000",
+      "area_name": "Anuradhapura",
+      "province_code": "NCP",
+      "district_code": "ANU",
+      "ds_division_code": "DS-ANU-01",
+      "latitude": 8.3114,
+      "longitude": 80.4037,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "51000",
+      "area_name": "Polonnaruwa",
+      "province_code": "NCP",
+      "district_code": "POL",
+      "ds_division_code": "DS-POL-01",
+      "latitude": 7.9403,
+      "longitude": 81.0188,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "60000",
+      "area_name": "Kurunegala",
+      "province_code": "NWP",
+      "district_code": "KUR",
+      "ds_division_code": "DS-KUR-01",
+      "latitude": 7.4863,
+      "longitude": 80.3623,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "61300",
+      "area_name": "Puttalam",
+      "province_code": "NWP",
+      "district_code": "PUT",
+      "ds_division_code": "DS-PUT-01",
+      "latitude": 8.0408,
+      "longitude": 79.8394,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "70000",
+      "area_name": "Ratnapura",
+      "province_code": "SGP",
+      "district_code": "RAT",
+      "ds_division_code": "DS-RAT-01",
+      "latitude": 6.6828,
+      "longitude": 80.3992,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "71000",
+      "area_name": "Kegalle",
+      "province_code": "SGP",
+      "district_code": "KEG",
+      "ds_division_code": "DS-KEG-01",
+      "latitude": 7.2513,
+      "longitude": 80.3464,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "80000",
+      "area_name": "Galle",
+      "province_code": "SP",
+      "district_code": "GAL",
+      "ds_division_code": "DS-GAL-01",
+      "latitude": 6.0535,
+      "longitude": 80.221,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "81000",
+      "area_name": "Matara",
+      "province_code": "SP",
+      "district_code": "MTR",
+      "ds_division_code": "DS-MTR-01",
+      "latitude": 5.9549,
+      "longitude": 80.555,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "82000",
+      "area_name": "Hambantota",
+      "province_code": "SP",
+      "district_code": "HAM",
+      "ds_division_code": "DS-HAM-01",
+      "latitude": 6.1429,
+      "longitude": 81.1212,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "90000",
+      "area_name": "Badulla",
+      "province_code": "UP",
+      "district_code": "BAD",
+      "ds_division_code": "DS-BAD-01",
+      "latitude": 6.9934,
+      "longitude": 81.055,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    },
+    {
+      "postal_code": "91000",
+      "area_name": "Monaragala",
+      "province_code": "UP",
+      "district_code": "MON",
+      "ds_division_code": "DS-MON-01",
+      "latitude": 6.8728,
+      "longitude": 81.3507,
+      "is_active": true,
+      "source_name": "slwdc/Postal-Codes",
+      "source_reference": "SriLankaPost-2026",
+      "import_version": "2026.11.1"
+    }
+  ]
+}

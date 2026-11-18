@@ -1,0 +1,43 @@
+postal_code,area_name,province_code,district_code,ds_division_code,latitude,longitude,source_name,source_reference
+00100,Colombo 01 - Fort,WP,COL,DS-COL-01,6.9344,79.8428,slwdc/Postal-Codes,SriLankaPost-2026
+00200,Colombo 02 - Slave Island,WP,COL,DS-COL-01,6.9244,79.8492,slwdc/Postal-Codes,SriLankaPost-2026
+00300,Colombo 03 - Kollupitiya,WP,COL,DS-COL-01,6.9110,79.8500,slwdc/Postal-Codes,SriLankaPost-2026
+00400,Colombo 04 - Bambalapitiya,WP,COL,DS-COL-02,6.8935,79.8554,slwdc/Postal-Codes,SriLankaPost-2026
+00500,Colombo 05 - Narahenpita,WP,COL,DS-COL-02,6.8905,79.8780,slwdc/Postal-Codes,SriLankaPost-2026
+00600,Colombo 06 - Wellawatte,WP,COL,DS-COL-02,6.8741,79.8610,slwdc/Postal-Codes,SriLankaPost-2026
+00700,Colombo 07 - Cinnamon Gardens,WP,COL,DS-COL-02,6.9061,79.8636,slwdc/Postal-Codes,SriLankaPost-2026
+00800,Colombo 08 - Borella,WP,COL,DS-COL-02,6.9147,79.8778,slwdc/Postal-Codes,SriLankaPost-2026
+00900,Colombo 09 - Dematagoda,WP,COL,DS-COL-01,6.9367,79.8780,slwdc/Postal-Codes,SriLankaPost-2026
+01000,Colombo 10 - Maradana,WP,COL,DS-COL-01,6.9293,79.8664,slwdc/Postal-Codes,SriLankaPost-2026
+01100,Colombo 11 - Pettah,WP,COL,DS-COL-01,6.9367,79.8505,slwdc/Postal-Codes,SriLankaPost-2026
+10280,Maharagama,WP,COL,DS-COL-04,6.8480,79.9265,slwdc/Postal-Codes,SriLankaPost-2026
+10350,Dehiwala,WP,COL,DS-COL-03,6.8511,79.8659,slwdc/Postal-Codes,SriLankaPost-2026
+10640,Kaduwela,WP,COL,DS-COL-05,6.9357,79.9843,slwdc/Postal-Codes,SriLankaPost-2026
+11000,Gampaha,WP,GAM,DS-GAM-02,7.0840,80.0098,slwdc/Postal-Codes,SriLankaPost-2026
+11500,Negombo,WP,GAM,DS-GAM-01,7.2008,79.8737,slwdc/Postal-Codes,SriLankaPost-2026
+11600,Kelaniya,WP,GAM,DS-GAM-03,6.9553,79.9220,slwdc/Postal-Codes,SriLankaPost-2026
+12000,Kalutara,WP,KAL,DS-KAL-01,6.5854,79.9607,slwdc/Postal-Codes,SriLankaPost-2026
+12500,Panadura,WP,KAL,DS-KAL-02,6.7133,79.9026,slwdc/Postal-Codes,SriLankaPost-2026
+20000,Kandy,CP,KAN,DS-KAN-01,7.2906,80.6337,slwdc/Postal-Codes,SriLankaPost-2026
+20400,Peradeniya,CP,KAN,DS-KAN-02,7.2589,80.5975,slwdc/Postal-Codes,SriLankaPost-2026
+21000,Matale,CP,MAT,DS-MAT-01,7.4675,80.6234,slwdc/Postal-Codes,SriLankaPost-2026
+22200,Nuwara Eliya,CP,NUE,DS-NUE-01,6.9497,80.7891,slwdc/Postal-Codes,SriLankaPost-2026
+30000,Batticaloa,EP,BAT,DS-BAT-01,7.7310,81.6747,slwdc/Postal-Codes,SriLankaPost-2026
+31000,Trincomalee,EP,TRI,DS-TRI-01,8.5874,81.2152,slwdc/Postal-Codes,SriLankaPost-2026
+32000,Ampara,EP,AMP,DS-AMP-01,7.2975,81.6820,slwdc/Postal-Codes,SriLankaPost-2026
+40000,Jaffna,NP,JAF,DS-JAF-01,9.6615,80.0255,slwdc/Postal-Codes,SriLankaPost-2026
+41000,Mannar,NP,MAN,DS-MAN-01,8.9810,79.9044,slwdc/Postal-Codes,SriLankaPost-2026
+42000,Mullaitivu,NP,MUL,DS-MUL-01,9.2671,80.8142,slwdc/Postal-Codes,SriLankaPost-2026
+43000,Vavuniya,NP,VAV,DS-VAV-01,8.7514,80.4971,slwdc/Postal-Codes,SriLankaPost-2026
+44000,Kilinochchi,NP,KIL,DS-KIL-01,9.3803,80.3770,slwdc/Postal-Codes,SriLankaPost-2026
+50000,Anuradhapura,NCP,ANU,DS-ANU-01,8.3114,80.4037,slwdc/Postal-Codes,SriLankaPost-2026
+51000,Polonnaruwa,NCP,POL,DS-POL-01,7.9403,81.0188,slwdc/Postal-Codes,SriLankaPost-2026
+60000,Kurunegala,NWP,KUR,DS-KUR-01,7.4863,80.3623,slwdc/Postal-Codes,SriLankaPost-2026
+61300,Puttalam,NWP,PUT,DS-PUT-01,8.0408,79.8394,slwdc/Postal-Codes,SriLankaPost-2026
+70000,Ratnapura,SGP,RAT,DS-RAT-01,6.6828,80.3992,slwdc/Postal-Codes,SriLankaPost-2026
+71000,Kegalle,SGP,KEG,DS-KEG-01,7.2513,80.3464,slwdc/Postal-Codes,SriLankaPost-2026
+80000,Galle,SP,GAL,DS-GAL-01,6.0535,80.2210,slwdc/Postal-Codes,SriLankaPost-2026
+81000,Matara,SP,MTR,DS-MTR-01,5.9549,80.5550,slwdc/Postal-Codes,SriLankaPost-2026
+82000,Hambantota,SP,HAM,DS-HAM-01,6.1429,81.1212,slwdc/Postal-Codes,SriLankaPost-2026
+90000,Badulla,UP,BAD,DS-BAD-01,6.9934,81.0550,slwdc/Postal-Codes,SriLankaPost-2026
+91000,Monaragala,UP,MON,DS-MON-01,6.8728,81.3507,slwdc/Postal-Codes,SriLankaPost-2026

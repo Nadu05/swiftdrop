@@ -15,13 +15,24 @@ import {
   Save,
 } from 'lucide-react';
 import BranchFormSection from './BranchFormSection';
+import SearchableSelect from './SearchableSelect';
 import {
   branchFormSchema,
   DEFAULT_BRANCH_FORM_VALUES,
   type BranchFormValues,
 } from '@/schema/branch.schema';
-import { OrganizationApiError } from '@/api/services/organization.api';
-import type { BranchResponse } from '@/types/organization.types';
+import {
+  getDistricts,
+  getDsDivisions,
+  getProvinces,
+  OrganizationApiError,
+} from '@/api/services/organization.api';
+import type {
+  BranchResponse,
+  DistrictDto,
+  DsDivisionDto,
+  ProvinceDto,
+} from '@/types/organization.types';
 
 export interface BranchFormProps {
   mode: 'create' | 'edit';
@@ -56,17 +67,154 @@ export default function BranchForm({
   const [isConflictError, setIsConflictError] = useState<boolean>(false);
   const [savedBranch, setSavedBranch] = useState<BranchResponse | null>(null);
 
+  const [provinces, setProvinces] = useState<ProvinceDto[]>([]);
+  const [districts, setDistricts] = useState<DistrictDto[]>([]);
+  const [dsDivisions, setDsDivisions] = useState<DsDivisionDto[]>([]);
+  const [selectedProvinceId, setSelectedProvinceId] = useState<number | null>(null);
+  const [selectedDistrictId, setSelectedDistrictId] = useState<number | null>(null);
+  const [selectedDsDivisionId, setSelectedDsDivisionId] = useState<number | null>(null);
+  const [loadingProvinces, setLoadingProvinces] = useState<boolean>(false);
+  const [loadingDistricts, setLoadingDistricts] = useState<boolean>(false);
+  const [loadingDsDivisions, setLoadingDsDivisions] = useState<boolean>(false);
+  const [locationLoadError, setLocationLoadError] = useState<string | null>(null);
+
   const {
     register,
     handleSubmit,
     reset,
     setError,
+    setValue,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<BranchFormValues>({
     resolver: zodResolver(branchFormSchema),
     mode: 'onTouched',
     defaultValues: initialValues,
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingProvinces(true);
+    setLocationLoadError(null);
+    getProvinces()
+      .then((data) => {
+        if (!cancelled) {
+          setProvinces(data);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setLocationLoadError(
+            err instanceof Error ? err.message : 'Unable to load Sri Lankan provinces.'
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoadingProvinces(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (selectedProvinceId === null) {
+      setDistricts([]);
+      return;
+    }
+    let cancelled = false;
+    setLoadingDistricts(true);
+    setLocationLoadError(null);
+    getDistricts(selectedProvinceId)
+      .then((data) => {
+        if (!cancelled) {
+          setDistricts(data);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setLocationLoadError(
+            err instanceof Error ? err.message : 'Unable to load districts for selected province.'
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoadingDistricts(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedProvinceId]);
+
+  useEffect(() => {
+    if (selectedDistrictId === null) {
+      setDsDivisions([]);
+      return;
+    }
+    let cancelled = false;
+    setLoadingDsDivisions(true);
+    setLocationLoadError(null);
+    getDsDivisions(selectedDistrictId)
+      .then((data) => {
+        if (!cancelled) {
+          setDsDivisions(data);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setLocationLoadError(
+            err instanceof Error
+              ? err.message
+              : 'Unable to load DS divisions for selected district.'
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoadingDsDivisions(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedDistrictId]);
+
+  const applyCoordinates = (lat: number | null | undefined, lng: number | null | undefined) => {
+    if (lat != null && lng != null) {
+      setValue('latitude', lat, { shouldDirty: true, shouldValidate: true });
+      setValue('longitude', lng, { shouldDirty: true, shouldValidate: true });
+    }
+  };
+
+  const handleProvinceChange = (provinceId: number | null) => {
+    setSelectedProvinceId(provinceId);
+    setSelectedDistrictId(null);
+    setSelectedDsDivisionId(null);
+    const province = provinces.find((p) => p.id === provinceId);
+    if (province) {
+      applyCoordinates(province.latitude, province.longitude);
+    }
+  };
+
+  const handleDistrictChange = (districtId: number | null) => {
+    setSelectedDistrictId(districtId);
+    setSelectedDsDivisionId(null);
+    const district = districts.find((d) => d.id === districtId);
+    if (district) {
+      applyCoordinates(district.latitude, district.longitude);
+    }
+  };
+
+  const handleDsDivisionChange = (dsDivisionId: number | null) => {
+    setSelectedDsDivisionId(dsDivisionId);
+    const ds = dsDivisions.find((item) => item.id === dsDivisionId);
+    if (ds) {
+      applyCoordinates(ds.latitude, ds.longitude);
+    }
+  };
 
   // Sync form values when initialValues load asynchronously on Edit page
   useEffect(() => {
@@ -116,6 +264,9 @@ export default function BranchForm({
   const handleReset = () => {
     setSubmitError(null);
     setIsConflictError(false);
+    setSelectedProvinceId(null);
+    setSelectedDistrictId(null);
+    setSelectedDsDivisionId(null);
     reset(initialValues);
   };
 
@@ -350,7 +501,61 @@ export default function BranchForm({
           </div>
         </div>
 
-        <div className="org-form-grid org-form-grid--3">
+        <div className="org-form-grid org-form-grid--3" style={{ marginTop: '1rem' }}>
+          <SearchableSelect
+            id="branch-province"
+            label="Province"
+            placeholder="Search province..."
+            options={provinces.map((p) => ({ value: p.id, label: p.name, sublabel: p.code }))}
+            value={selectedProvinceId}
+            onChange={handleProvinceChange}
+            disabled={isDisabled}
+            loading={loadingProvinces}
+            hint="Select a Sri Lankan province to filter districts."
+          />
+
+          <SearchableSelect
+            id="branch-district"
+            label="District"
+            placeholder={
+              selectedProvinceId === null ? 'Select province first...' : 'Search district...'
+            }
+            options={districts.map((d) => ({ value: d.id, label: d.name, sublabel: d.code }))}
+            value={selectedDistrictId}
+            onChange={handleDistrictChange}
+            disabled={isDisabled || selectedProvinceId === null}
+            loading={loadingDistricts}
+            hint="Selecting a district auto-populates coordinates."
+          />
+
+          <SearchableSelect
+            id="branch-ds-division"
+            label="DS Division"
+            placeholder={
+              selectedDistrictId === null
+                ? 'Select district first...'
+                : 'Search DS division...'
+            }
+            options={dsDivisions.map((ds) => ({
+              value: ds.id,
+              label: ds.name,
+              sublabel: ds.code,
+            }))}
+            value={selectedDsDivisionId}
+            onChange={handleDsDivisionChange}
+            disabled={isDisabled || selectedDistrictId === null}
+            loading={loadingDsDivisions}
+            hint="Refines coordinates; latitude & longitude remain editable."
+          />
+        </div>
+
+        {locationLoadError && (
+          <p className="org-form-error" role="alert" style={{ marginTop: '0.5rem' }}>
+            {locationLoadError}
+          </p>
+        )}
+
+        <div className="org-form-grid org-form-grid--3" style={{ marginTop: '1rem' }}>
           {/* City */}
           <div className="org-form-field">
             <label htmlFor="branch-city" className="org-form-label">
