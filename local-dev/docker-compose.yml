@@ -4,7 +4,7 @@ name: swiftdrop-local-infra
 
 # =============================================================================
 # SwiftDrop Local Developer Infrastructure
-# Services: PostgreSQL 17 + pgAdmin 4 + RabbitMQ 3 Management
+# Services: PostgreSQL 17 + pgAdmin 4 + RabbitMQ 3 Management + Mailpit SMTP
 # Zero-Config Setup: Run 'docker compose -f local-dev/docker-compose.yml up -d'
 # =============================================================================
 
@@ -67,6 +67,16 @@ services:
       timeout: 5s
       retries: 10
       start_period: 15s
+    networks:
+      - swiftdrop-network
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: swiftdrop-mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025" # SMTP server
+      - "8025:8025" # Mailpit Web UI
     networks:
       - swiftdrop-network
 

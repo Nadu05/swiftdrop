@@ -1,5 +1,7 @@
 package com.swiftdrop.notification.service;
 
+import com.swiftdrop.notification.dto.BranchCredentialsNotificationRequest;
+import com.swiftdrop.notification.dto.BranchCredentialsNotificationResponse;
 import com.swiftdrop.notification.dto.NotificationDto;
 import com.swiftdrop.notification.entity.NotificationEntity;
 import com.swiftdrop.notification.entity.NotificationOrderContact;
@@ -15,6 +17,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import org.springframework.security.access.AccessDeniedException;
 import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -189,6 +192,73 @@ class NotificationServiceTest {
         assertThat(retried).hasSize(1);
         assertThat(retried.get(0).status()).isEqualTo(NotificationEntity.STATUS_SENT);
         assertThat(retried.get(0).attemptCount()).isEqualTo(2);
+    }
+
+    @Test
+    void sendBranchCredentials_AsAdmin_SendsEmailAndReturnsSentStatus() {
+        BranchCredentialsNotificationRequest request = new BranchCredentialsNotificationRequest(
+                "kandy@swiftdrop.lk",
+                "Kandy Hub",
+                "KDY",
+                "kandy@swiftdrop.lk",
+                "TempPass#123"
+        );
+        NotificationUserPrincipal admin = new NotificationUserPrincipal("admin-1", "admin@swiftdrop.lk", List.of("ADMIN"));
+
+        BranchCredentialsNotificationResponse response = notificationService.sendBranchCredentials(request, admin);
+
+        assertThat(response.status()).isEqualTo(NotificationEntity.STATUS_SENT);
+        assertThat(response.errorMessage()).isNull();
+        assertThat(response.sentAt()).isNotNull();
+        assertThat(response.notificationCode()).startsWith("NTF-");
+
+        verify(senderPort).send(argThat(n ->
+                "kandy@swiftdrop.lk".equals(n.getRecipientEmail())
+                        && "BRANCH_MANAGER_CREDENTIALS".equals(n.getNotificationType())
+                        && n.getTitle().contains("Kandy Hub")
+                        && n.getTitle().contains("KDY")
+                        && n.getMessage().contains("kandy@swiftdrop.lk")
+                        && n.getMessage().contains("TempPass#123")
+        ));
+    }
+
+    @Test
+    void sendBranchCredentials_WhenSenderFails_RecordsFailedAndReturnsFailedStatus() {
+        BranchCredentialsNotificationRequest request = new BranchCredentialsNotificationRequest(
+                "kandy@swiftdrop.lk",
+                "Kandy Hub",
+                "KDY",
+                "kandy@swiftdrop.lk",
+                "TempPass#123"
+        );
+        NotificationUserPrincipal internal = new NotificationUserPrincipal("svc-org", "internal@swiftdrop.lk", List.of("INTERNAL_SERVICE"));
+        doThrow(new NotificationDeliveryException("SMTP connection refused")).when(senderPort).send(any());
+
+        BranchCredentialsNotificationResponse response = notificationService.sendBranchCredentials(request, internal);
+
+        assertThat(response.status()).isEqualTo(NotificationEntity.STATUS_FAILED);
+        assertThat(response.errorMessage()).contains("SMTP connection refused");
+        assertThat(response.sentAt()).isNull();
+        verify(notificationRepository).save(argThat(n ->
+                NotificationEntity.STATUS_FAILED.equals(n.getStatus())
+                        && "SMTP connection refused".equals(n.getErrorMessage())
+        ));
+    }
+
+    @Test
+    void sendBranchCredentials_AsNonGlobalAdmin_ThrowsAccessDenied() {
+        BranchCredentialsNotificationRequest request = new BranchCredentialsNotificationRequest(
+                "kandy@swiftdrop.lk",
+                "Kandy Hub",
+                "KDY",
+                "kandy@swiftdrop.lk",
+                "TempPass#123"
+        );
+        NotificationUserPrincipal manager = new NotificationUserPrincipal("mgr-1", "mgr@swiftdrop.lk", List.of("BRANCH_MANAGER"));
+
+        assertThatThrownBy(() -> notificationService.sendBranchCredentials(request, manager))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(senderPort, never()).send(any());
     }
 }
 

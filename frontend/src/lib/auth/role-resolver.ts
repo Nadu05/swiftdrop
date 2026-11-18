@@ -77,6 +77,7 @@ export function toAuthUser(data: AuthResponse): AuthUser {
     organizationId: data.organizationId ?? null,
     emailVerified: data.emailVerified,
     emailVerifiedAt: data.emailVerifiedAt ?? null,
+    mustChangePassword: Boolean(data.mustChangePassword),
     createdAt: data.createdAt,
   };
 }
@@ -258,7 +259,7 @@ export function canUserAccessPath(
  * - Otherwise, return the user's canonical role dashboard route.
  */
 export function resolvePostAuthRedirect(
-  user: Pick<AuthUser, 'roles' | 'accountStatus'>,
+  user: Pick<AuthUser, 'roles' | 'accountStatus' | 'mustChangePassword'>,
   callbackUrl?: string | null,
   preferredRole?: string | null
 ): string {
@@ -266,16 +267,23 @@ export function resolvePostAuthRedirect(
     return `/login?error=account_${user.accountStatus.toLowerCase()}`;
   }
 
-  if (
-    callbackUrl &&
-    callbackUrl.startsWith('/') &&
-    !callbackUrl.startsWith('//') &&
+  const hasSafeCallback =
+    Boolean(callbackUrl) &&
+    callbackUrl!.startsWith('/') &&
+    !callbackUrl!.startsWith('//') &&
     callbackUrl !== '/' &&
-    !callbackUrl.startsWith('/login') &&
-    !callbackUrl.startsWith('/register') &&
-    canUserAccessPath(callbackUrl, user)
-  ) {
-    return callbackUrl;
+    !callbackUrl!.startsWith('/login') &&
+    !callbackUrl!.startsWith('/register') &&
+    !callbackUrl!.startsWith('/change-password');
+
+  if (user.mustChangePassword) {
+    return hasSafeCallback
+      ? `/change-password?callbackUrl=${encodeURIComponent(callbackUrl!)}`
+      : '/change-password';
+  }
+
+  if (hasSafeCallback && canUserAccessPath(callbackUrl!, user)) {
+    return callbackUrl!;
   }
 
   return resolveDashboardRoute(user, preferredRole);

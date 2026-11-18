@@ -1,6 +1,8 @@
 package com.swiftdrop.notification.controller;
 
 import com.swiftdrop.notification.config.SecurityConfig;
+import com.swiftdrop.notification.dto.BranchCredentialsNotificationRequest;
+import com.swiftdrop.notification.dto.BranchCredentialsNotificationResponse;
 import com.swiftdrop.notification.dto.NotificationDto;
 import com.swiftdrop.notification.dto.PublicTrackingNotificationDto;
 import com.swiftdrop.notification.security.NotificationJwtAuthenticationFilter;
@@ -12,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -118,6 +121,63 @@ class NotificationControllerTest {
         mockMvc.perform(patch("/api/v1/notifications/NTF-100001/read").with(authentication(auth("usr-1", "CUSTOMER"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.notificationCode").value("NTF-100001"));
+    }
+
+    @Test
+    void sendBranchCredentials_AsAdmin_ReturnsSentResponse() throws Exception {
+        when(notificationService.sendBranchCredentials(any(BranchCredentialsNotificationRequest.class), any()))
+                .thenReturn(new BranchCredentialsNotificationResponse("NTF-200001", "SENT", null, LocalDateTime.now()));
+
+        String body = """
+                {
+                  "recipientEmail": "kandy@swiftdrop.lk",
+                  "branchName": "Kandy Hub",
+                  "branchCode": "KDY",
+                  "loginEmail": "kandy@swiftdrop.lk",
+                  "temporaryPassword": "TempPass#123"
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/notifications/branch-credentials")
+                        .with(authentication(auth("admin-1", "ADMIN")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.notificationCode").value("NTF-200001"))
+                .andExpect(jsonPath("$.status").value("SENT"));
+    }
+
+    @Test
+    void sendBranchCredentials_AsCustomer_Returns403() throws Exception {
+        when(notificationService.sendBranchCredentials(any(BranchCredentialsNotificationRequest.class), any()))
+                .thenThrow(new AccessDeniedException("Only ADMIN, HEAD_OFFICE_ADMIN, or INTERNAL_SERVICE can send branch credentials"));
+
+        String body = """
+                {
+                  "recipientEmail": "kandy@swiftdrop.lk",
+                  "branchName": "Kandy Hub",
+                  "branchCode": "KDY",
+                  "loginEmail": "kandy@swiftdrop.lk",
+                  "temporaryPassword": "TempPass#123"
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/notifications/branch-credentials")
+                        .with(authentication(auth("usr-1", "CUSTOMER")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(403));
+    }
+
+    @Test
+    void sendBranchCredentials_WithMissingFields_Returns400() throws Exception {
+        mockMvc.perform(post("/api/v1/notifications/branch-credentials")
+                        .with(authentication(auth("admin-1", "HEAD_OFFICE_ADMIN")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"recipientEmail\":\"not-an-email\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Validation Failed"));
     }
 }
 

@@ -1,11 +1,14 @@
 package com.swiftdrop.notification.controller;
 
+import com.swiftdrop.notification.dto.BranchCredentialsNotificationRequest;
+import com.swiftdrop.notification.dto.BranchCredentialsNotificationResponse;
 import com.swiftdrop.notification.dto.NotificationDto;
 import com.swiftdrop.notification.dto.PublicTrackingNotificationDto;
 import com.swiftdrop.notification.security.NotificationUserPrincipal;
 import com.swiftdrop.notification.service.NotificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -60,6 +63,14 @@ public class NotificationController {
     public ResponseEntity<List<NotificationDto>> retryFailed(
             @AuthenticationPrincipal NotificationUserPrincipal principal) {
         return ResponseEntity.ok(notificationService.retryFailedNotifications(principal));
+    }
+
+    @PostMapping("/branch-credentials")
+    @Operation(summary = "Send Branch Manager temporary login credentials email (ADMIN, HEAD_OFFICE_ADMIN, or INTERNAL_SERVICE)")
+    public ResponseEntity<BranchCredentialsNotificationResponse> sendBranchCredentials(
+            @Valid @RequestBody BranchCredentialsNotificationRequest request,
+            @AuthenticationPrincipal NotificationUserPrincipal principal) {
+        return ResponseEntity.ok(notificationService.sendBranchCredentials(request, principal));
     }
 }
 

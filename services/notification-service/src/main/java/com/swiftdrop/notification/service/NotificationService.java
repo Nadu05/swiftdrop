@@ -1,6 +1,8 @@
 package com.swiftdrop.notification.service;
 
 import com.swiftdrop.notification.config.CorrelationIdHolder;
+import com.swiftdrop.notification.dto.BranchCredentialsNotificationRequest;
+import com.swiftdrop.notification.dto.BranchCredentialsNotificationResponse;
 import com.swiftdrop.notification.dto.NotificationDto;
 import com.swiftdrop.notification.dto.PublicTrackingNotificationDto;
 import com.swiftdrop.notification.entity.NotificationEntity;
@@ -230,6 +232,63 @@ public class NotificationService {
             retried.add(toDto(deliverAndSave(entity)));
         }
         return retried;
+    }
+
+    public BranchCredentialsNotificationResponse sendBranchCredentials(
+            BranchCredentialsNotificationRequest request,
+            NotificationUserPrincipal principal) {
+        if (principal == null || !principal.isGlobalAdmin()) {
+            throw new AccessDeniedException("Only ADMIN, HEAD_OFFICE_ADMIN, or INTERNAL_SERVICE can send branch credentials");
+        }
+
+        String branchName = request.branchName().trim();
+        String branchCode = request.branchCode().trim();
+        String recipientEmail = request.recipientEmail().trim();
+        String loginEmail = request.loginEmail().trim();
+
+        NotificationEntity entity = new NotificationEntity();
+        entity.setNotificationCode(nextNotificationCode());
+        entity.setEventId("branch-cred-" + UUID.randomUUID());
+        entity.setEventType("BranchCredentialsIssued");
+        entity.setNotificationType("BRANCH_MANAGER_CREDENTIALS");
+        entity.setChannel("EMAIL");
+        entity.setRecipientEmail(recipientEmail);
+        entity.setRecipientName(branchName + " Branch Manager");
+        entity.setTitle("SwiftDrop Branch Manager Credentials - " + branchName + " (" + branchCode + ")");
+        entity.setMessage(String.format(
+                "Your SwiftDrop Branch Manager account for %s (%s) is ready.%n%n"
+                        + "Login Email: %s%n"
+                        + "Temporary Password: %s%n%n"
+                        + "Please sign in and change your password immediately.",
+                branchName, branchCode, loginEmail, request.temporaryPassword()
+        ));
+        entity.setCorrelationId(CorrelationIdHolder.currentOrNew());
+        entity.setStatus(NotificationEntity.STATUS_PENDING);
+        entity.setAttemptCount(1);
+
+        try {
+            senderPort.send(entity);
+            entity.setStatus(NotificationEntity.STATUS_SENT);
+            entity.setSentAt(LocalDateTime.now());
+            entity.setErrorMessage(null);
+            notificationRepository.save(entity);
+            return new BranchCredentialsNotificationResponse(
+                    entity.getNotificationCode(),
+                    NotificationEntity.STATUS_SENT,
+                    null,
+                    entity.getSentAt()
+            );
+        } catch (RuntimeException ex) {
+            entity.setStatus(NotificationEntity.STATUS_FAILED);
+            entity.setErrorMessage(truncate(ex.getMessage(), 950));
+            notificationRepository.save(entity);
+            return new BranchCredentialsNotificationResponse(
+                    entity.getNotificationCode(),
+                    NotificationEntity.STATUS_FAILED,
+                    entity.getErrorMessage(),
+                    null
+            );
+        }
     }
 
     private NotificationEntity deliverAndSave(NotificationEntity entity) {

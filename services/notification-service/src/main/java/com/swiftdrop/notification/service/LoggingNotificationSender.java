@@ -3,6 +3,7 @@ package com.swiftdrop.notification.service;
 import com.swiftdrop.notification.entity.NotificationEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Component;
  * when an external SMTP/SMS gateway is not configured.
  */
 @Component
+@ConditionalOnProperty(prefix = "app.mail", name = "enabled", havingValue = "false", matchIfMissing = true)
 public class LoggingNotificationSender implements NotificationSenderPort {
 
     private static final Logger log = LoggerFactory.getLogger(LoggingNotificationSender.class);

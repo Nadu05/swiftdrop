@@ -15,17 +15,27 @@ import type {
   ResetPasswordPayload,
   VerifyEmailPayload,
 } from '@/types/user.types';
+import type { AuthUser } from '@/types/auth.types';
+import { useAuthStore } from '@/store/auth.store';
+import { AUTH_QUERY_KEY } from './use-auth';
 import { USER_PROFILE_KEY, ACCOUNT_DETAILS_KEY, EMAIL_VERIFY_KEY } from './use-user';
 
 /**
  * Hook to change password.
+ * Clears `mustChangePassword` in client auth state on success.
  */
 export function useChangePassword() {
   const queryClient = useQueryClient();
+  const clearMustChangePassword = useAuthStore((s) => s.clearMustChangePassword);
 
   return useMutation({
     mutationFn: (payload: ChangePasswordPayload) => changePassword(payload),
     onSuccess: () => {
+      clearMustChangePassword();
+      queryClient.setQueryData<AuthUser | undefined>(AUTH_QUERY_KEY, (old) =>
+        old ? { ...old, mustChangePassword: false } : old
+      );
+      queryClient.invalidateQueries({ queryKey: AUTH_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: ACCOUNT_DETAILS_KEY });
       queryClient.invalidateQueries({ queryKey: USER_PROFILE_KEY });
     },

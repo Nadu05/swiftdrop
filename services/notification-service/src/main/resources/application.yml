@@ -41,6 +41,17 @@ spring:
     username: swiftdrop
     password: password123
     connection-timeout: 10000
+  mail:
+    host: ${SPRING_MAIL_HOST:localhost}
+    port: ${SPRING_MAIL_PORT:1025}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SPRING_MAIL_SMTP_AUTH:false}
+          starttls:
+            enable: ${SPRING_MAIL_SMTP_STARTTLS:false}
 
 management:
   endpoints:
@@ -67,3 +78,6 @@ logging:
 app:
   jwt:
     secret: Y2hhbmdlLW1lLWluLXByb2R1Y3Rpb24tYW5kLXVzZS1hLXN0cm9uZy1zZWNyZXQtaGVyZS0xMjM0NTY3ODk=
+  mail:
+    enabled: ${SPRING_MAIL_ENABLED:false}
+    from: ${SPRING_MAIL_FROM:noreply@swiftdrop.lk}

@@ -21,6 +21,9 @@ interface AuthState {
   /** Mark the auth state as initialized (used on app load after /me check). */
   setInitialized: () => void;
 
+  /** Clear the forced password-change flag after a successful password change. */
+  clearMustChangePassword: () => void;
+
   /** Clear authenticated state (called after logout). */
   clearAuth: () => void;
 }
@@ -62,5 +65,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   setInitialized: () => set({ isInitialized: true }),
+  clearMustChangePassword: () => {
+    const user = get().user;
+    if (user) {
+      set({ user: { ...user, mustChangePassword: false } });
+    }
+  },
   clearAuth: () => set({ user: null, activeRole: null }),
 }));

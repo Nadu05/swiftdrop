@@ -25,6 +25,7 @@ export interface AuthResponse {
   organizationId?: string | null;
   emailVerified?: boolean;
   emailVerifiedAt?: string | null;
+  mustChangePassword?: boolean;
   createdAt: string;
 }
 
@@ -63,6 +64,7 @@ export interface AuthUser {
   organizationId?: string | null;
   emailVerified?: boolean;
   emailVerifiedAt?: string | null;
+  mustChangePassword?: boolean;
   createdAt?: string;
 }
 
