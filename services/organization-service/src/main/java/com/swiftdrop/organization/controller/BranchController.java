@@ -1,6 +1,8 @@
 package com.swiftdrop.organization.controller;
 
 import com.swiftdrop.organization.dto.BranchCreateRequest;
+import com.swiftdrop.organization.dto.BranchPostalAreaResponse;
+import com.swiftdrop.organization.dto.BranchPostalAreasUpdateRequest;
 import com.swiftdrop.organization.dto.BranchResponse;
 import com.swiftdrop.organization.dto.BranchUpdateRequest;
 import com.swiftdrop.organization.dto.ServiceAreaResponse;
@@ -74,6 +76,21 @@ public class BranchController {
     @Operation(summary = "Get a branch by ID")
     public ResponseEntity<BranchResponse> findById(@PathVariable Long id) {
         return ResponseEntity.ok(branchService.findById(id));
+    }
+
+    @GetMapping("/{id}/postal-areas")
+    @Operation(summary = "Get active assigned Postal Areas for a branch")
+    public ResponseEntity<List<BranchPostalAreaResponse>> getPostalAreas(@PathVariable Long id) {
+        return ResponseEntity.ok(branchService.getAssignedPostalAreas(id));
+    }
+
+    @PutMapping("/{id}/postal-areas")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HEAD_OFFICE_ADMIN')")
+    @Operation(summary = "Replace active assigned Postal Areas for a branch")
+    public ResponseEntity<List<BranchPostalAreaResponse>> updatePostalAreas(
+            @PathVariable Long id,
+            @Valid @RequestBody BranchPostalAreasUpdateRequest request) {
+        return ResponseEntity.ok(branchService.updatePostalAreas(id, request));
     }
 
     @PatchMapping("/{id}")

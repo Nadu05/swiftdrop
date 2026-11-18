@@ -1,35 +1,24 @@
 package com.swiftdrop.organization.dto;
 
-import jakarta.validation.constraints.DecimalMax;
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 
 /**
- * Request payload for resolving the nearest eligible branch for a parcel pickup location.
+ * Request payload for resolving the active branch covering a parcel pickup postal code.
  */
 public class BranchResolutionRequest {
 
-    @NotNull(message = "Latitude is required")
-    @DecimalMin(value = "-90.0", message = "Latitude must be between -90 and 90")
-    @DecimalMax(value = "90.0", message = "Latitude must be between -90 and 90")
-    private Double latitude;
-
-    @NotNull(message = "Longitude is required")
-    @DecimalMin(value = "-180.0", message = "Longitude must be between -180 and 180")
-    @DecimalMax(value = "180.0", message = "Longitude must be between -180 and 180")
-    private Double longitude;
+    @NotBlank(message = "Postal code is required")
+    @Pattern(regexp = "^\\d{5}$", message = "Postal code must be a 5-digit code")
+    private String postalCode;
 
     public BranchResolutionRequest() {}
 
-    public BranchResolutionRequest(Double latitude, Double longitude) {
-        this.latitude = latitude;
-        this.longitude = longitude;
+    public BranchResolutionRequest(String postalCode) {
+        this.postalCode = postalCode;
     }
 
-    public Double getLatitude() { return latitude; }
-    public void setLatitude(Double latitude) { this.latitude = latitude; }
-
-    public Double getLongitude() { return longitude; }
-    public void setLongitude(Double longitude) { this.longitude = longitude; }
+    public String getPostalCode() { return postalCode; }
+    public void setPostalCode(String postalCode) { this.postalCode = postalCode; }
 }
 

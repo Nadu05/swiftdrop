@@ -85,9 +85,11 @@ public class SecurityConfig {
                                 "/branches",
                                 "/branches/*",
                                 "/branches/*/service-areas",
+                                "/branches/*/postal-areas",
                                 "/api/v1/branches",
                                 "/api/v1/branches/*",
                                 "/api/v1/branches/*/service-areas",
+                                "/api/v1/branches/*/postal-areas",
                                 "/service-areas",
                                 "/service-areas/*",
                                 "/api/v1/service-areas",
@@ -101,6 +103,9 @@ public class SecurityConfig {
                         // Branch updates: Head Office Admin or Branch Manager (branch ownership verified in controller/service)
                         .requestMatchers(HttpMethod.PATCH, "/branches/*", "/api/v1/branches/*")
                         .hasAnyRole("ADMIN", "HEAD_OFFICE_ADMIN", "BRANCH_MANAGER")
+                        // Branch postal area coverage sync: Head Office Admin only
+                        .requestMatchers(HttpMethod.PUT, "/branches/*/postal-areas", "/api/v1/branches/*/postal-areas")
+                        .hasAnyRole("ADMIN", "HEAD_OFFICE_ADMIN")
                         // Service area mutations: Head Office Admin only
                         .requestMatchers(HttpMethod.POST, "/service-areas", "/api/v1/service-areas")
                         .hasAnyRole("ADMIN", "HEAD_OFFICE_ADMIN")

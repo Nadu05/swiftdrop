@@ -1,55 +1,32 @@
 package com.swiftdrop.organization.dto;
 
-import jakarta.validation.constraints.DecimalMax;
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 
 /**
  * Request payload for resolving both origin (pickup) and destination (delivery) branches
- * in a single operation.
+ * by postal code in a single operation.
  */
 public class RouteBranchResolutionRequest {
 
-    @NotNull(message = "Pickup latitude is required")
-    @DecimalMin(value = "-90.0", message = "Pickup latitude must be between -90 and 90")
-    @DecimalMax(value = "90.0", message = "Pickup latitude must be between -90 and 90")
-    private Double pickupLatitude;
+    @NotBlank(message = "Pickup postal code is required")
+    @Pattern(regexp = "^\\d{5}$", message = "Pickup postal code must be a 5-digit code")
+    private String pickupPostalCode;
 
-    @NotNull(message = "Pickup longitude is required")
-    @DecimalMin(value = "-180.0", message = "Pickup longitude must be between -180 and 180")
-    @DecimalMax(value = "180.0", message = "Pickup longitude must be between -180 and 180")
-    private Double pickupLongitude;
-
-    @NotNull(message = "Destination latitude is required")
-    @DecimalMin(value = "-90.0", message = "Destination latitude must be between -90 and 90")
-    @DecimalMax(value = "90.0", message = "Destination latitude must be between -90 and 90")
-    private Double destinationLatitude;
-
-    @NotNull(message = "Destination longitude is required")
-    @DecimalMin(value = "-180.0", message = "Destination longitude must be between -180 and 180")
-    @DecimalMax(value = "180.0", message = "Destination longitude must be between -180 and 180")
-    private Double destinationLongitude;
+    @NotBlank(message = "Dropoff postal code is required")
+    @Pattern(regexp = "^\\d{5}$", message = "Dropoff postal code must be a 5-digit code")
+    private String dropoffPostalCode;
 
     public RouteBranchResolutionRequest() {}
 
-    public RouteBranchResolutionRequest(Double pickupLatitude, Double pickupLongitude,
-                                        Double destinationLatitude, Double destinationLongitude) {
-        this.pickupLatitude = pickupLatitude;
-        this.pickupLongitude = pickupLongitude;
-        this.destinationLatitude = destinationLatitude;
-        this.destinationLongitude = destinationLongitude;
+    public RouteBranchResolutionRequest(String pickupPostalCode, String dropoffPostalCode) {
+        this.pickupPostalCode = pickupPostalCode;
+        this.dropoffPostalCode = dropoffPostalCode;
     }
 
-    public Double getPickupLatitude() { return pickupLatitude; }
-    public void setPickupLatitude(Double pickupLatitude) { this.pickupLatitude = pickupLatitude; }
+    public String getPickupPostalCode() { return pickupPostalCode; }
+    public void setPickupPostalCode(String pickupPostalCode) { this.pickupPostalCode = pickupPostalCode; }
 
-    public Double getPickupLongitude() { return pickupLongitude; }
-    public void setPickupLongitude(Double pickupLongitude) { this.pickupLongitude = pickupLongitude; }
-
-    public Double getDestinationLatitude() { return destinationLatitude; }
-    public void setDestinationLatitude(Double destinationLatitude) { this.destinationLatitude = destinationLatitude; }
-
-    public Double getDestinationLongitude() { return destinationLongitude; }
-    public void setDestinationLongitude(Double destinationLongitude) { this.destinationLongitude = destinationLongitude; }
+    public String getDropoffPostalCode() { return dropoffPostalCode; }
+    public void setDropoffPostalCode(String dropoffPostalCode) { this.dropoffPostalCode = dropoffPostalCode; }
 }
-

@@ -39,11 +39,11 @@ class BranchResolutionControllerTest {
     private BranchResolutionService resolutionService;
 
     @Test
-    @DisplayName("POST /branches/resolve should return 200 OK when nearest branch is resolved")
+    @DisplayName("POST /branches/resolve should return 200 OK when postal code is covered")
     void shouldReturn200OnSuccessfulResolution() throws Exception {
-        BranchResolutionRequest request = new BranchResolutionRequest(6.9271, 79.8612);
+        BranchResolutionRequest request = new BranchResolutionRequest("00100");
         BranchResolutionResponse response = new BranchResolutionResponse(
-                1L, "BR-COL-001", "Colombo Central Branch", 2.35, true
+                1L, "BR-COL-001", "Colombo Central Branch", 0.0, true
         );
 
         when(resolutionService.resolveNearestBranch(any(BranchResolutionRequest.class)))
@@ -56,16 +56,15 @@ class BranchResolutionControllerTest {
                 .andExpect(jsonPath("$.branchId").value(1L))
                 .andExpect(jsonPath("$.branchCode").value("BR-COL-001"))
                 .andExpect(jsonPath("$.branchName").value("Colombo Central Branch"))
-                .andExpect(jsonPath("$.distanceKm").value(2.35))
                 .andExpect(jsonPath("$.eligible").value(true));
     }
 
     @Test
     @DisplayName("POST /api/v1/branches/resolve should also work via dual mapping")
     void shouldSupportDirectRouteOnResolve() throws Exception {
-        BranchResolutionRequest request = new BranchResolutionRequest(6.9271, 79.8612);
+        BranchResolutionRequest request = new BranchResolutionRequest("00100");
         BranchResolutionResponse response = new BranchResolutionResponse(
-                1L, "BR-COL-001", "Colombo Central Branch", 2.35, true
+                1L, "BR-COL-001", "Colombo Central Branch", 0.0, true
         );
 
         when(resolutionService.resolveNearestBranch(any(BranchResolutionRequest.class)))
@@ -79,8 +78,8 @@ class BranchResolutionControllerTest {
     }
 
     @Test
-    @DisplayName("POST /branches/resolve should return 400 Bad Request when coordinates are missing")
-    void shouldReturn400WhenCoordinatesMissing() throws Exception {
+    @DisplayName("POST /branches/resolve should return 400 Bad Request when postalCode is missing")
+    void shouldReturn400WhenPostalCodeMissing() throws Exception {
         BranchResolutionRequest emptyRequest = new BranchResolutionRequest();
 
         mockMvc.perform(post("/branches/resolve")
@@ -88,56 +87,46 @@ class BranchResolutionControllerTest {
                         .content(objectMapper.writeValueAsString(emptyRequest)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Validation Failed"))
-                .andExpect(jsonPath("$.fieldErrors.latitude").exists())
-                .andExpect(jsonPath("$.fieldErrors.longitude").exists());
+                .andExpect(jsonPath("$.fieldErrors.postalCode").exists());
     }
 
     @Test
-    @DisplayName("POST /branches/resolve should return 400 Bad Request when coordinates are out of valid range")
-    void shouldReturn400WhenCoordinatesOutOfRange() throws Exception {
-        BranchResolutionRequest invalidRequest = new BranchResolutionRequest(95.0, 190.0);
+    @DisplayName("POST /branches/resolve should return 400 Bad Request when postalCode is not 5 digits")
+    void shouldReturn400WhenPostalCodeInvalidFormat() throws Exception {
+        BranchResolutionRequest invalidRequest = new BranchResolutionRequest("123");
 
         mockMvc.perform(post("/branches/resolve")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidRequest)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.fieldErrors.latitude").exists())
-                .andExpect(jsonPath("$.fieldErrors.longitude").exists());
+                .andExpect(jsonPath("$.fieldErrors.postalCode").exists());
     }
 
     @Test
-    @DisplayName("POST /branches/resolve should return 422 Unprocessable Entity when location is unsupported")
-    void shouldReturn422WhenUnsupportedLocation() throws Exception {
-        BranchResolutionRequest request = new BranchResolutionRequest(7.2906, 80.6337);
+    @DisplayName("POST /branches/resolve should return 422 Unprocessable Entity when postal code is unsupported")
+    void shouldReturn422WhenUnsupportedPostalCode() throws Exception {
+        BranchResolutionRequest request = new BranchResolutionRequest("40000");
 
         when(resolutionService.resolveNearestBranch(any(BranchResolutionRequest.class)))
-                .thenThrow(new UnsupportedServiceAreaException(7.2906, 80.6337));
+                .thenThrow(new UnsupportedServiceAreaException("PICKUP", "40000"));
 
         mockMvc.perform(post("/branches/resolve")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.status").value(422))
-                .andExpect(jsonPath("$.locationType").value("PICKUP"))
-                .andExpect(jsonPath("$.message").value(
-                        "Pickup location (latitude: 7.290600, longitude: 80.633700) is not supported by any active branch service area"));
+                .andExpect(jsonPath("$.locationType").value("PICKUP"));
     }
 
     @Test
     @DisplayName("POST /branches/resolve-route should return 200 OK with origin and destination branches")
-    void shouldResolveDualCoordinateRoute() throws Exception {
-        RouteBranchResolutionRequest request = new RouteBranchResolutionRequest(
-                6.9271, 79.8612,
-                6.8511, 79.8653
-        );
-        BranchResolutionResponse origin = new BranchResolutionResponse(
-                1L, "BR-COL-001", "Colombo Central Branch", 0.5, true
-        );
-        BranchResolutionResponse destination = new BranchResolutionResponse(
-                2L, "BR-DEH-002", "Dehiwala Branch", 1.2, true
-        );
+    void shouldReturn200OnRouteResolution() throws Exception {
+        RouteBranchResolutionRequest request = new RouteBranchResolutionRequest("00100", "20000");
         RouteBranchResolutionResponse response = new RouteBranchResolutionResponse(
-                origin, destination, false, 8.46
+                new BranchResolutionResponse(1L, "BR-COL-001", "Colombo Central Branch", 0.0, true),
+                new BranchResolutionResponse(2L, "BR-KAN-001", "Kandy City Branch", 0.0, true),
+                false,
+                94.42
         );
 
         when(resolutionService.resolveRoute(any(RouteBranchResolutionRequest.class)))
@@ -147,47 +136,37 @@ class BranchResolutionControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.originBranch.branchId").value(1L))
                 .andExpect(jsonPath("$.originBranch.branchCode").value("BR-COL-001"))
-                .andExpect(jsonPath("$.destinationBranch.branchId").value(2L))
-                .andExpect(jsonPath("$.destinationBranch.branchCode").value("BR-DEH-002"))
+                .andExpect(jsonPath("$.destinationBranch.branchCode").value("BR-KAN-001"))
                 .andExpect(jsonPath("$.sameBranch").value(false))
-                .andExpect(jsonPath("$.interBranchDistanceKm").value(8.46));
+                .andExpect(jsonPath("$.interBranchDistanceKm").value(94.42));
     }
 
     @Test
-    @DisplayName("POST /branches/resolve-route should return 422 with locationType DESTINATION when destination is outside coverage")
-    void shouldReturn422WhenDestinationUnsupported() throws Exception {
-        RouteBranchResolutionRequest request = new RouteBranchResolutionRequest(
-                6.9271, 79.8612,
-                9.6615, 80.0255
-        );
+    @DisplayName("POST /branches/resolve-route should return 422 with locationType DESTINATION when dropoff postal code is uncovered")
+    void shouldReturn422WithDestinationLocationTypeWhenDropoffUncovered() throws Exception {
+        RouteBranchResolutionRequest request = new RouteBranchResolutionRequest("00100", "40000");
 
         when(resolutionService.resolveRoute(any(RouteBranchResolutionRequest.class)))
-                .thenThrow(new UnsupportedServiceAreaException("DESTINATION", 9.6615, 80.0255));
+                .thenThrow(new UnsupportedServiceAreaException("DESTINATION", "40000"));
 
         mockMvc.perform(post("/branches/resolve-route")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.status").value(422))
-                .andExpect(jsonPath("$.locationType").value("DESTINATION"))
-                .andExpect(jsonPath("$.message").value(
-                        "Destination location (latitude: 9.661500, longitude: 80.025500) is not supported by any active branch service area"));
+                .andExpect(jsonPath("$.locationType").value("DESTINATION"));
     }
 
     @Test
-    @DisplayName("POST /branches/resolve-route should return 400 when destination coordinates are missing")
-    void shouldReturn400WhenRouteCoordinatesMissing() throws Exception {
-        RouteBranchResolutionRequest invalidRequest = new RouteBranchResolutionRequest(
-                6.9271, 79.8612, null, null
-        );
+    @DisplayName("POST /branches/resolve-route should return 400 when dropoffPostalCode is missing")
+    void shouldReturn400WhenDropoffPostalCodeMissing() throws Exception {
+        RouteBranchResolutionRequest invalidRequest = new RouteBranchResolutionRequest("00100", null);
 
         mockMvc.perform(post("/branches/resolve-route")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(invalidRequest)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.fieldErrors.destinationLatitude").exists())
-                .andExpect(jsonPath("$.fieldErrors.destinationLongitude").exists());
+                .andExpect(jsonPath("$.fieldErrors.dropoffPostalCode").exists());
     }
 }

@@ -5,91 +5,65 @@ import com.swiftdrop.organization.dto.BranchResolutionResponse;
 import com.swiftdrop.organization.dto.RouteBranchResolutionRequest;
 import com.swiftdrop.organization.dto.RouteBranchResolutionResponse;
 import com.swiftdrop.organization.entity.Branch;
-import com.swiftdrop.organization.entity.ServiceArea;
-import com.swiftdrop.organization.entity.enums.BranchStatus;
-import com.swiftdrop.organization.entity.enums.ServiceAreaStatus;
+import com.swiftdrop.organization.entity.BranchPostalArea;
+import com.swiftdrop.organization.entity.PostalArea;
 import com.swiftdrop.organization.exception.UnsupportedServiceAreaException;
-import com.swiftdrop.organization.repository.ServiceAreaRepository;
+import com.swiftdrop.organization.repository.BranchPostalAreaRepository;
 import com.swiftdrop.organization.util.HaversineDistanceCalculator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.*;
+import java.util.Objects;
 
 /**
- * Service responsible for automatically determining the nearest eligible branch
- * for parcel pickup and destination locations.
+ * Service responsible for deterministic postal-code-first Branch Coverage resolution.
  *
- * <p>Two distinct geographic calculations are performed:
- * <ol>
- *   <li><strong>Service-area eligibility:</strong> Distance between target location and service-area center
- *       must be &le; {@code maxRadiusKm} and both the service area and owning branch must be {@code ACTIVE}.</li>
- *   <li><strong>Nearest branch selection:</strong> Among active branches with at least one covering service area,
- *       the branch closest to the target location (using the branch's own coordinates) is selected.</li>
- * </ol>
- * </p>
+ * <p>Resolves active branches strictly from {@code postal_areas} and active
+ * {@code branch_postal_areas} assignments belonging to {@code ACTIVE} branches.
+ * Never falls back to legacy Haversine {@code service_areas}.</p>
  */
 @Service
 @Transactional(readOnly = true)
 public class BranchResolutionService {
 
-    private final ServiceAreaRepository serviceAreaRepository;
+    private final BranchPostalAreaRepository branchPostalAreaRepository;
 
-    public BranchResolutionService(ServiceAreaRepository serviceAreaRepository) {
-        this.serviceAreaRepository = serviceAreaRepository;
+    public BranchResolutionService(BranchPostalAreaRepository branchPostalAreaRepository) {
+        this.branchPostalAreaRepository = branchPostalAreaRepository;
     }
 
     /**
-     * Resolves the nearest eligible active branch for given pickup coordinates.
+     * Resolves the active branch covering the given pickup postal code.
      *
-     * @param request coordinate payload (latitude, longitude)
-     * @return selected branch details with calculated distance in km
-     * @throws UnsupportedServiceAreaException if no active service area covers the location
+     * @param request postal code payload
+     * @return covering active branch details
+     * @throws UnsupportedServiceAreaException if the postal code is unknown, inactive, or unassigned
      */
     public BranchResolutionResponse resolveNearestBranch(BranchResolutionRequest request) {
-        List<ServiceArea> activeServiceAreas = serviceAreaRepository
-                .findActiveServiceAreasForActiveBranches(ServiceAreaStatus.ACTIVE, BranchStatus.ACTIVE);
-
-        ResolvedBranchResult resolved = resolveCoordinate(
-                request.getLatitude(),
-                request.getLongitude(),
-                "PICKUP",
-                activeServiceAreas
-        );
-        return resolved.response();
+        return resolveByPostalCode(request.getPostalCode(), "PICKUP").response();
     }
 
     /**
-     * Resolves both the nearest eligible origin branch (for pickup coordinates) and
-     * destination branch (for delivery coordinates) in a single operation.
+     * Resolves both the active origin branch (for {@code pickupPostalCode}) and
+     * destination branch (for {@code dropoffPostalCode}) in a single operation.
      *
-     * @param request pickup and destination coordinates
-     * @return structured origin and destination branch information
-     * @throws UnsupportedServiceAreaException if either pickup or destination is outside active service areas
+     * @param request pickup and dropoff postal codes
+     * @return structured origin and destination branch information with {@code interBranchDistanceKm}
+     * @throws UnsupportedServiceAreaException if either postal code is unknown, inactive, or unassigned
      */
     public RouteBranchResolutionResponse resolveRoute(RouteBranchResolutionRequest request) {
-        List<ServiceArea> activeServiceAreas = serviceAreaRepository
-                .findActiveServiceAreasForActiveBranches(ServiceAreaStatus.ACTIVE, BranchStatus.ACTIVE);
-
-        ResolvedBranchResult origin = resolveCoordinate(
-                request.getPickupLatitude(),
-                request.getPickupLongitude(),
-                "PICKUP",
-                activeServiceAreas
-        );
-
-        ResolvedBranchResult destination = resolveCoordinate(
-                request.getDestinationLatitude(),
-                request.getDestinationLongitude(),
-                "DESTINATION",
-                activeServiceAreas
-        );
+        ResolvedBranchResult origin = resolveByPostalCode(request.getPickupPostalCode(), "PICKUP");
+        ResolvedBranchResult destination = resolveByPostalCode(request.getDropoffPostalCode(), "DESTINATION");
 
         boolean sameBranch = Objects.equals(origin.branch().getId(), destination.branch().getId());
         double interBranchDistanceKm = 0.0;
-        if (!sameBranch) {
+        if (!sameBranch
+                && origin.branch().getLatitude() != null
+                && origin.branch().getLongitude() != null
+                && destination.branch().getLatitude() != null
+                && destination.branch().getLongitude() != null) {
             double rawInterBranch = HaversineDistanceCalculator.calculateDistance(
                     origin.branch().getLatitude(),
                     origin.branch().getLongitude(),
@@ -107,69 +81,38 @@ public class BranchResolutionService {
         );
     }
 
-    private ResolvedBranchResult resolveCoordinate(
-            double targetLat,
-            double targetLng,
-            String locationType,
-            List<ServiceArea> activeServiceAreas) {
+    private ResolvedBranchResult resolveByPostalCode(String rawPostalCode, String locationType) {
+        String postalCode = rawPostalCode != null ? rawPostalCode.trim() : "";
+        BranchPostalArea assignment = branchPostalAreaRepository
+                .findActiveByPostalCodeAndActiveBranch(postalCode)
+                .orElseThrow(() -> new UnsupportedServiceAreaException(locationType, postalCode));
 
-        Map<Long, Branch> eligibleBranches = new HashMap<>();
+        Branch branch = assignment.getBranch();
+        PostalArea postalArea = assignment.getPostalArea();
 
-        for (ServiceArea area : activeServiceAreas) {
-            if (area.getStatus() != ServiceAreaStatus.ACTIVE) {
-                continue;
-            }
-            Branch branch = area.getBranch();
-            if (branch == null || branch.getStatus() != BranchStatus.ACTIVE) {
-                continue;
-            }
-
-            double distanceToCenter = HaversineDistanceCalculator.calculateDistance(
-                    targetLat, targetLng,
-                    area.getCenterLatitude(), area.getCenterLongitude()
-            );
-
-            if (distanceToCenter <= area.getMaxRadiusKm().doubleValue()) {
-                eligibleBranches.putIfAbsent(branch.getId(), branch);
-            }
+        double distanceKm = 0.0;
+        if (postalArea != null
+                && postalArea.getLatitude() != null
+                && postalArea.getLongitude() != null
+                && branch.getLatitude() != null
+                && branch.getLongitude() != null) {
+            distanceKm = roundToTwoDecimals(HaversineDistanceCalculator.calculateDistance(
+                    postalArea.getLatitude(),
+                    postalArea.getLongitude(),
+                    branch.getLatitude(),
+                    branch.getLongitude()
+            ));
         }
 
-        if (eligibleBranches.isEmpty()) {
-            throw new UnsupportedServiceAreaException(locationType, targetLat, targetLng);
-        }
-
-        Branch bestBranch = null;
-        double minDistance = Double.MAX_VALUE;
-
-        List<Branch> candidates = new ArrayList<>(eligibleBranches.values());
-        candidates.sort(Comparator.comparing(Branch::getId));
-
-        for (Branch branch : candidates) {
-            double branchDistance = HaversineDistanceCalculator.calculateDistance(
-                    targetLat, targetLng,
-                    branch.getLatitude(), branch.getLongitude()
-            );
-
-            if (branchDistance < minDistance) {
-                minDistance = branchDistance;
-                bestBranch = branch;
-            } else if (Double.compare(branchDistance, minDistance) == 0 && bestBranch != null) {
-                if (branch.getId() < bestBranch.getId()) {
-                    bestBranch = branch;
-                }
-            }
-        }
-
-        double roundedDistance = roundToTwoDecimals(minDistance);
         BranchResolutionResponse response = new BranchResolutionResponse(
-                bestBranch.getId(),
-                bestBranch.getCode(),
-                bestBranch.getName(),
-                roundedDistance,
+                branch.getId(),
+                branch.getCode(),
+                branch.getName(),
+                distanceKm,
                 true
         );
 
-        return new ResolvedBranchResult(bestBranch, response);
+        return new ResolvedBranchResult(branch, response);
     }
 
     private double roundToTwoDecimals(double value) {

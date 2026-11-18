@@ -389,5 +389,116 @@ class BranchControllerTest {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value("Postal Area '00100' (Colombo 01 - Fort) is already actively assigned to branch 'Colombo Central' (BR-COL-001)"));
     }
+
+    @Test
+    @DisplayName("GET /branches/{id}/postal-areas and /api/v1/branches/{id}/postal-areas should return active assigned Postal Areas")
+    void shouldReturnActiveAssignedPostalAreas() throws Exception {
+        com.swiftdrop.organization.dto.BranchPostalAreaResponse area = new com.swiftdrop.organization.dto.BranchPostalAreaResponse(
+                100L,
+                10L,
+                "00100",
+                "Colombo 01 - Fort",
+                1L,
+                "Western",
+                2L,
+                "Colombo",
+                3L,
+                "Colombo",
+                6.9344,
+                79.8428,
+                true,
+                LocalDateTime.of(2026, 11, 19, 1, 0),
+                "admin@swiftdrop.lk"
+        );
+
+        when(branchService.getAssignedPostalAreas(1L)).thenReturn(List.of(area));
+
+        mockMvc.perform(get("/branches/1/postal-areas"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(100L))
+                .andExpect(jsonPath("$[0].postalAreaId").value(10L))
+                .andExpect(jsonPath("$[0].postalCode").value("00100"))
+                .andExpect(jsonPath("$[0].areaName").value("Colombo 01 - Fort"))
+                .andExpect(jsonPath("$[0].districtName").value("Colombo"))
+                .andExpect(jsonPath("$[0].provinceName").value("Western"))
+                .andExpect(jsonPath("$[0].assignedBy").value("admin@swiftdrop.lk"))
+                .andExpect(jsonPath("$[0].isActive").value(true));
+
+        mockMvc.perform(get("/api/v1/branches/1/postal-areas"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].postalCode").value("00100"));
+    }
+
+    @Test
+    @DisplayName("GET /branches/{id}/postal-areas should return 404 when branch does not exist")
+    void shouldReturn404WhenGettingPostalAreasForUnknownBranch() throws Exception {
+        when(branchService.getAssignedPostalAreas(999L))
+                .thenThrow(new ResourceNotFoundException("Branch", 999L));
+
+        mockMvc.perform(get("/branches/999/postal-areas"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @WithMockUser(roles = "HEAD_OFFICE_ADMIN")
+    @DisplayName("PUT /branches/{id}/postal-areas should sync postal areas for HEAD_OFFICE_ADMIN")
+    void shouldUpdatePostalAreasForHeadOfficeAdmin() throws Exception {
+        com.swiftdrop.organization.dto.BranchPostalAreasUpdateRequest request =
+                new com.swiftdrop.organization.dto.BranchPostalAreasUpdateRequest(List.of(10L, 20L));
+        com.swiftdrop.organization.dto.BranchPostalAreaResponse area = new com.swiftdrop.organization.dto.BranchPostalAreaResponse(
+                100L, 10L, "00100", "Colombo 01 - Fort",
+                1L, "Western", 2L, "Colombo", 3L, "Colombo",
+                6.9344, 79.8428, true, LocalDateTime.of(2026, 11, 19, 1, 0), "admin@swiftdrop.lk"
+        );
+
+        when(branchService.updatePostalAreas(eq(1L), any())).thenReturn(List.of(area));
+
+        mockMvc.perform(put("/branches/1/postal-areas")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].postalCode").value("00100"));
+
+        mockMvc.perform(put("/api/v1/branches/1/postal-areas")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].postalCode").value("00100"));
+    }
+
+    @Test
+    @WithMockUser(roles = "BRANCH_MANAGER")
+    @DisplayName("PUT /branches/{id}/postal-areas should return 403 Forbidden for BRANCH_MANAGER")
+    void shouldReturn403WhenBranchManagerUpdatesPostalAreas() throws Exception {
+        com.swiftdrop.organization.dto.BranchPostalAreasUpdateRequest request =
+                new com.swiftdrop.organization.dto.BranchPostalAreasUpdateRequest(List.of(10L));
+
+        mockMvc.perform(put("/branches/1/postal-areas")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(put("/api/v1/branches/1/postal-areas")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    @DisplayName("PUT /branches/{id}/postal-areas should return 409 Conflict when postal area is assigned to another branch")
+    void shouldReturn409WhenUpdatingPostalAreasWithConflict() throws Exception {
+        com.swiftdrop.organization.dto.BranchPostalAreasUpdateRequest request =
+                new com.swiftdrop.organization.dto.BranchPostalAreasUpdateRequest(List.of(10L));
+
+        when(branchService.updatePostalAreas(eq(1L), any()))
+                .thenThrow(new DuplicateResourceException("Postal Area '00100' (Colombo 01 - Fort) is already actively assigned to branch 'Colombo North' (BR-N)"));
+
+        mockMvc.perform(put("/branches/1/postal-areas")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Postal Area '00100' (Colombo 01 - Fort) is already actively assigned to branch 'Colombo North' (BR-N)"));
+    }
 }
 

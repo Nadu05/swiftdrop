@@ -203,4 +203,76 @@ class BranchPostalAssignmentIntegrationTest {
         assertThat(branchRepository.existsByCode("BR-SECOND")).isFalse();
         assertThat(branchPostalAreaRepository.findByPostalAreaIdAndIsActiveTrue(kollupitiya00300.getId())).isEmpty();
     }
+
+    @Test
+    @DisplayName("PUT postal-areas performs transactional set-sync: deactivates removed rows with audit fields, keeps unchanged rows, inserts new rows")
+    void shouldSyncPostalAreasTransactionallyWithAuditHistory() {
+        BranchResponse branch = branchService.create(
+                buildRequest("BR-SYNC", "Sync Branch", List.of(fort00100.getId()))
+        );
+
+        var initialAssignments = branchPostalAreaRepository.findByBranchIdAndIsActiveTrue(branch.getId());
+        assertThat(initialAssignments).hasSize(1);
+        Long originalFortAssignmentId = initialAssignments.get(0).getId();
+
+        // Sync to [fort00100, kollupitiya00300]: fort stays, kollupitiya is added
+        var afterAdd = branchService.updatePostalAreas(
+                branch.getId(),
+                new com.swiftdrop.organization.dto.BranchPostalAreasUpdateRequest(
+                        List.of(fort00100.getId(), kollupitiya00300.getId())
+                )
+        );
+        assertThat(afterAdd).extracting("postalCode").containsExactly("00100", "00300");
+
+        // Sync to [kollupitiya00300]: fort is deactivated with unassignedAt/unassignedBy, kollupitiya stays
+        var afterRemove = branchService.updatePostalAreas(
+                branch.getId(),
+                new com.swiftdrop.organization.dto.BranchPostalAreasUpdateRequest(
+                        List.of(kollupitiya00300.getId())
+                )
+        );
+        assertThat(afterRemove).extracting("postalCode").containsExactly("00300");
+
+        var deactivatedFort = branchPostalAreaRepository.findById(originalFortAssignmentId).orElseThrow();
+        assertThat(deactivatedFort.isActive()).isFalse();
+        assertThat(deactivatedFort.getUnassignedAt()).isNotNull();
+        assertThat(deactivatedFort.getUnassignedBy()).isNotBlank();
+    }
+
+    @Test
+    @DisplayName("PUT postal-areas rejects clearing the last active Postal Area on an ACTIVE branch")
+    void shouldRejectClearingLastPostalAreaOnActiveBranch() {
+        BranchResponse branch = branchService.create(
+                buildRequest("BR-ACT-GUARD", "Active Guard Branch", List.of(fort00100.getId()))
+        );
+
+        assertThatThrownBy(() -> branchService.updatePostalAreas(
+                branch.getId(),
+                new com.swiftdrop.organization.dto.BranchPostalAreasUpdateRequest(List.of())
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("at least one");
+
+        assertThat(branchPostalAreaRepository.findByBranchIdAndIsActiveTrue(branch.getId())).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("PUT postal-areas rejects cross-branch collision with DuplicateResourceException and rolls back")
+    void shouldRejectCrossBranchCollisionOnPostalAreaUpdate() {
+        branchService.create(buildRequest("BR-A", "Branch Alpha", List.of(fort00100.getId())));
+        BranchResponse branchB = branchService.create(buildRequest("BR-B", "Branch Beta", List.of(kollupitiya00300.getId())));
+
+        assertThatThrownBy(() -> branchService.updatePostalAreas(
+                branchB.getId(),
+                new com.swiftdrop.organization.dto.BranchPostalAreasUpdateRequest(List.of(fort00100.getId()))
+        ))
+                .isInstanceOf(DuplicateResourceException.class)
+                .hasMessageContaining("00100")
+                .hasMessageContaining("Branch Alpha");
+
+        // Rollback check: kollupitiya00300 must still be active on Branch Beta
+        var betaActive = branchPostalAreaRepository.findByBranchIdAndIsActiveTrue(branchB.getId());
+        assertThat(betaActive).hasSize(1);
+        assertThat(betaActive.get(0).getPostalArea().getId()).isEqualTo(kollupitiya00300.getId());
+    }
 }

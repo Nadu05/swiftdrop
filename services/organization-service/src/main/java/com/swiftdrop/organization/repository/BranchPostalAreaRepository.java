@@ -23,4 +23,15 @@ public interface BranchPostalAreaRepository extends JpaRepository<BranchPostalAr
               AND bpa.isActive = true
             """)
     List<BranchPostalArea> findActiveByPostalAreaIdIn(@Param("postalAreaIds") Collection<Long> postalAreaIds);
+
+    @Query("""
+            SELECT bpa FROM BranchPostalArea bpa
+            JOIN FETCH bpa.branch b
+            JOIN FETCH bpa.postalArea pa
+            WHERE pa.postalCode = :postalCode
+              AND pa.isActive = true
+              AND bpa.isActive = true
+              AND b.status = com.swiftdrop.organization.entity.enums.BranchStatus.ACTIVE
+            """)
+    Optional<BranchPostalArea> findActiveByPostalCodeAndActiveBranch(@Param("postalCode") String postalCode);
 }

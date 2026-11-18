@@ -26,6 +26,13 @@ public class UnsupportedServiceAreaException extends RuntimeException {
         this.locationType = locationType != null ? locationType.toUpperCase() : "PICKUP";
     }
 
+    public UnsupportedServiceAreaException(String locationType, String postalCode) {
+        super(String.format("%s postal code '%s' is not covered by any active branch",
+                "DESTINATION".equalsIgnoreCase(locationType) ? "Destination" : "Pickup",
+                postalCode));
+        this.locationType = locationType != null ? locationType.toUpperCase() : "PICKUP";
+    }
+
     public String getLocationType() {
         return locationType;
     }

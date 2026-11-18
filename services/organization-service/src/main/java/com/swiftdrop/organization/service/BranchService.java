@@ -1,6 +1,8 @@
 package com.swiftdrop.organization.service;
 
 import com.swiftdrop.organization.dto.BranchCreateRequest;
+import com.swiftdrop.organization.dto.BranchPostalAreaResponse;
+import com.swiftdrop.organization.dto.BranchPostalAreasUpdateRequest;
 import com.swiftdrop.organization.dto.BranchResponse;
 import com.swiftdrop.organization.dto.BranchUpdateRequest;
 import com.swiftdrop.organization.dto.PostalAreaDto;
@@ -131,31 +133,8 @@ public class BranchService {
 
         List<PostalAreaDto> assignedDtos = new ArrayList<>();
         if (!distinctPostalAreaIds.isEmpty()) {
-            List<PostalArea> foundAreas = postalAreaRepository.findAllById(distinctPostalAreaIds);
-            Map<Long, PostalArea> areaById = foundAreas.stream()
-                    .collect(Collectors.toMap(PostalArea::getId, Function.identity()));
-
-            for (Long areaId : distinctPostalAreaIds) {
-                PostalArea area = areaById.get(areaId);
-                if (area == null) {
-                    throw new ResourceNotFoundException("PostalArea", areaId);
-                }
-                if (!area.isActive()) {
-                    throw new IllegalArgumentException(
-                            "Postal Area '" + area.getPostalCode() + "' is inactive and cannot be assigned");
-                }
-            }
-
-            List<BranchPostalArea> conflicts = branchPostalAreaRepository.findActiveByPostalAreaIdIn(distinctPostalAreaIds);
-            if (!conflicts.isEmpty()) {
-                BranchPostalArea conflict = conflicts.get(0);
-                throw new DuplicateResourceException(
-                        String.format("Postal Area '%s' (%s) is already actively assigned to branch '%s' (%s)",
-                                conflict.getPostalArea().getPostalCode(),
-                                conflict.getPostalArea().getAreaName(),
-                                conflict.getBranch().getName(),
-                                conflict.getBranch().getCode()));
-            }
+            Map<Long, PostalArea> areaById = validateAndLoadPostalAreas(distinctPostalAreaIds);
+            ensureNoCrossBranchConflicts(distinctPostalAreaIds);
 
             String assignedBy = resolveCurrentActor();
             LocalDateTime now = LocalDateTime.now();
@@ -207,6 +186,90 @@ public class BranchService {
         Branch branch = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Branch", id));
         return toResponse(branch);
+    }
+
+    /**
+     * Retrieve all active Postal Area assignments for a branch.
+     *
+     * @param branchId the branch ID
+     * @return ordered list of active assigned Postal Areas with assignment metadata
+     * @throws ResourceNotFoundException if the branch does not exist
+     */
+    @Transactional(readOnly = true)
+    public List<BranchPostalAreaResponse> getAssignedPostalAreas(Long branchId) {
+        if (!repository.existsById(branchId)) {
+            throw new ResourceNotFoundException("Branch", branchId);
+        }
+        return branchPostalAreaRepository.findActiveByBranchIdWithDetails(branchId).stream()
+                .map(this::toBranchPostalAreaResponse)
+                .toList();
+    }
+
+    /**
+     * Transactionally synchronize the active Postal Areas assigned to a branch.
+     * Removed assignments are deactivated with audit fields; unchanged active rows
+     * remain intact; newly added rows are checked for cross-branch collisions and inserted.
+     */
+    public List<BranchPostalAreaResponse> updatePostalAreas(Long branchId, BranchPostalAreasUpdateRequest request) {
+        Branch branch = repository.findById(branchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Branch", branchId));
+
+        Set<Long> requestedIds = request.postalAreaIds() == null
+                ? Set.of()
+                : new LinkedHashSet<>(request.postalAreaIds());
+
+        if (branch.getStatus() == BranchStatus.ACTIVE && requestedIds.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "An ACTIVE branch must have at least one assigned Postal Area");
+        }
+
+        Map<Long, PostalArea> areaById = requestedIds.isEmpty()
+                ? Map.of()
+                : validateAndLoadPostalAreas(requestedIds);
+
+        List<BranchPostalArea> currentActive = branchPostalAreaRepository.findByBranchIdAndIsActiveTrue(branchId);
+        Set<Long> currentActiveAreaIds = currentActive.stream()
+                .map(bpa -> bpa.getPostalArea().getId())
+                .collect(Collectors.toSet());
+
+        String actor = resolveCurrentActor();
+        LocalDateTime now = LocalDateTime.now();
+
+        List<BranchPostalArea> toDeactivate = new ArrayList<>();
+        for (BranchPostalArea existing : currentActive) {
+            if (!requestedIds.contains(existing.getPostalArea().getId())) {
+                existing.setActive(false);
+                existing.setUnassignedAt(now);
+                existing.setUnassignedBy(actor);
+                toDeactivate.add(existing);
+            }
+        }
+        if (!toDeactivate.isEmpty()) {
+            branchPostalAreaRepository.saveAll(toDeactivate);
+        }
+
+        Set<Long> newlyAddedIds = requestedIds.stream()
+                .filter(id -> !currentActiveAreaIds.contains(id))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        if (!newlyAddedIds.isEmpty()) {
+            ensureNoCrossBranchConflicts(newlyAddedIds);
+            List<BranchPostalArea> toInsert = new ArrayList<>();
+            for (Long areaId : newlyAddedIds) {
+                BranchPostalArea bpa = new BranchPostalArea();
+                bpa.setBranch(branch);
+                bpa.setPostalArea(areaById.get(areaId));
+                bpa.setActive(true);
+                bpa.setAssignedAt(now);
+                bpa.setAssignedBy(actor);
+                toInsert.add(bpa);
+            }
+            branchPostalAreaRepository.saveAll(toInsert);
+        }
+
+        return branchPostalAreaRepository.findActiveByBranchIdWithDetails(branchId).stream()
+                .map(this::toBranchPostalAreaResponse)
+                .toList();
     }
 
     /**
@@ -310,6 +373,58 @@ public class BranchService {
         response.setPostalCode(branch.getPostalCode());
         response.setAssignedPostalAreas(assignedPostalAreas);
         return response;
+    }
+
+    private Map<Long, PostalArea> validateAndLoadPostalAreas(Set<Long> postalAreaIds) {
+        List<PostalArea> foundAreas = postalAreaRepository.findAllById(postalAreaIds);
+        Map<Long, PostalArea> areaById = foundAreas.stream()
+                .collect(Collectors.toMap(PostalArea::getId, Function.identity()));
+
+        for (Long areaId : postalAreaIds) {
+            PostalArea area = areaById.get(areaId);
+            if (area == null) {
+                throw new ResourceNotFoundException("PostalArea", areaId);
+            }
+            if (!area.isActive()) {
+                throw new IllegalArgumentException(
+                        "Postal Area '" + area.getPostalCode() + "' is inactive and cannot be assigned");
+            }
+        }
+        return areaById;
+    }
+
+    private void ensureNoCrossBranchConflicts(Set<Long> postalAreaIds) {
+        List<BranchPostalArea> conflicts = branchPostalAreaRepository.findActiveByPostalAreaIdIn(postalAreaIds);
+        if (!conflicts.isEmpty()) {
+            BranchPostalArea conflict = conflicts.get(0);
+            throw new DuplicateResourceException(
+                    String.format("Postal Area '%s' (%s) is already actively assigned to branch '%s' (%s)",
+                            conflict.getPostalArea().getPostalCode(),
+                            conflict.getPostalArea().getAreaName(),
+                            conflict.getBranch().getName(),
+                            conflict.getBranch().getCode()));
+        }
+    }
+
+    private BranchPostalAreaResponse toBranchPostalAreaResponse(BranchPostalArea bpa) {
+        PostalArea area = bpa.getPostalArea();
+        return new BranchPostalAreaResponse(
+                bpa.getId(),
+                area.getId(),
+                area.getPostalCode(),
+                area.getAreaName(),
+                area.getProvince().getId(),
+                area.getProvince().getName(),
+                area.getDistrict().getId(),
+                area.getDistrict().getName(),
+                area.getDsDivision() != null ? area.getDsDivision().getId() : null,
+                area.getDsDivision() != null ? area.getDsDivision().getName() : null,
+                area.getLatitude(),
+                area.getLongitude(),
+                bpa.isActive(),
+                bpa.getAssignedAt(),
+                bpa.getAssignedBy()
+        );
     }
 
     private PostalAreaDto toPostalAreaDto(PostalArea area) {
