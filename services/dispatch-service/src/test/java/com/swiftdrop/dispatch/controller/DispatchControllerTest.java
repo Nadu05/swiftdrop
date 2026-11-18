@@ -116,7 +116,7 @@ class DispatchControllerTest {
 
     @Test
     void reportFailedDelivery_MaxAttemptsReached_Returns422UnprocessableEntity() throws Exception {
-        when(dispatchService.recordFailedDelivery(eq("ASN-7001"), any(FailedDeliveryRequest.class), any()))
+        when(dispatchService.recordFailedDelivery(eq("ASN-7001"), any(FailedDeliveryRequest.class), any(), any()))
                 .thenThrow(new DispatchValidationException(
                         "MAX_ATTEMPTS_EXCEEDED",
                         "Maximum delivery attempts (3) reached; awaiting dispatcher exception decision"

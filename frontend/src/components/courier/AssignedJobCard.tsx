@@ -2,16 +2,19 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, CheckCircle2, Loader2, MapPin, Package, Phone, RotateCcw } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Loader2, MapPin, Phone, Store } from 'lucide-react';
 import { mapDeliveryJobDtoToCourierJob } from '@/api/services/courier.api';
-import { useAcceptCourierTaskMutation } from '@/hooks/api/use-courier';
+import { describeActionError, useAcceptCourierTaskMutation } from '@/hooks/api/use-courier';
 import type { CourierJob } from '@/types/courier.types';
+import { canDo } from './courierStatus';
 import {
+  AttemptIndicator,
   JobStatusBadge,
   PriorityTag,
   TaskTypeBadge,
   formatLkr,
   formatTime,
+  hasValue,
 } from './CourierUI';
 
 interface AssignedJobCardProps {
@@ -20,14 +23,11 @@ interface AssignedJobCardProps {
   onUpdated: (updated: CourierJob) => void;
 }
 
+/** One pickup task or delivery job. Accept while ASSIGNED; otherwise open it in the Active Task view. */
 export default function AssignedJobCard({ job, canAccept, onUpdated }: AssignedJobCardProps) {
   const [error, setError] = useState<string | null>(null);
   const acceptMutation = useAcceptCourierTaskMutation();
-
   const isPickup = job.taskType === 'PICKUP';
-  const showAccept = job.status === 'ASSIGNED';
-  const attemptCount = job.attemptCount ?? 0;
-  const maxAttempts = job.maxAttempts ?? 3;
 
   const handleAccept = async () => {
     setError(null);
@@ -35,138 +35,94 @@ export default function AssignedJobCard({ job, canAccept, onUpdated }: AssignedJ
       const dto = await acceptMutation.mutateAsync(job.assignmentId);
       onUpdated(mapDeliveryJobDtoToCourierJob(dto));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to accept task');
+      setError(describeActionError(err, 'Could not accept this task.'));
     }
   };
 
   return (
-    <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-          <strong style={{ color: '#ffffff', fontSize: '1rem' }}>{job.trackingNumber}</strong>
-          <JobStatusBadge status={job.status} />
+    <article className="cp-card cp-job" aria-label={`${isPickup ? 'Pickup' : 'Delivery'} ${job.trackingNumber}`}>
+      <div className="cp-job__head">
+        <div className="cp-job__badges">
+          <span className="cp-job__id">{job.trackingNumber}</span>
           <TaskTypeBadge taskType={job.taskType} />
+          <JobStatusBadge status={job.status} />
           <PriorityTag priority={job.priority} />
-          {!isPickup && attemptCount > 0 && (
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.25rem',
-                fontSize: '0.72rem',
-                fontWeight: 600,
-                padding: '0.15rem 0.45rem',
-                borderRadius: '999px',
-                background: 'rgba(245, 158, 11, 0.15)',
-                color: '#fcd34d',
-              }}
-            >
-              <RotateCcw size={11} /> Attempt {attemptCount}/{maxAttempts}
-            </span>
-          )}
+          <AttemptIndicator job={job} />
         </div>
-        <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#38bdf8' }}>
-          {formatLkr(job.payoutLkr)}
-        </span>
+        {job.payoutLkr > 0 && <span className="cp-job__payout">{formatLkr(job.payoutLkr)}</span>}
       </div>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: '0.75rem',
-          fontSize: '0.85rem',
-          color: '#cbd5e1',
-        }}
-      >
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
-          <Package size={15} color="#64748b" style={{ flexShrink: 0, marginTop: '2px' }} />
+      <div className="cp-grid-auto">
+        <div className="cp-stop">
+          <span className="cp-stop__icon cp-tone--info" aria-hidden="true">
+            <Store size={16} />
+          </span>
           <div>
-            <div style={{ fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase' }}>
-              {isPickup ? 'Collect From Sender' : 'Pickup From Branch / Sender'}
-            </div>
-            <div style={{ color: '#f1f5f9', fontWeight: 600 }}>{job.merchantName}</div>
-            <div style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{job.pickupAddress}</div>
+            <div className="cp-field__label">{isPickup ? 'Collect from sender' : 'Pick up from'}</div>
+            <div className="cp-stop__name">{job.merchantName}</div>
+            <div className="cp-stop__addr">{job.pickupAddress}</div>
           </div>
         </div>
-
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
-          <MapPin size={15} color="#64748b" style={{ flexShrink: 0, marginTop: '2px' }} />
+        <div className="cp-stop">
+          <span className="cp-stop__icon cp-tone--success" aria-hidden="true">
+            <MapPin size={16} />
+          </span>
           <div>
-            <div style={{ fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase' }}>
-              {isPickup ? 'Final Destination' : 'Deliver To Recipient'}
-            </div>
-            <div style={{ color: '#f1f5f9', fontWeight: 600 }}>
+            <div className="cp-field__label">{isPickup ? 'Final destination' : 'Deliver to'}</div>
+            <div className="cp-stop__name">
               {job.recipient.name}
-              {job.recipient.city && job.recipient.city !== '—' ? ` · ${job.recipient.city}` : ''}
+              {hasValue(job.recipient.city) ? ` · ${job.recipient.city}` : ''}
             </div>
-            <div style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{job.recipient.address}</div>
+            <div className="cp-stop__addr">{job.recipient.address}</div>
           </div>
         </div>
       </div>
 
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: '0.75rem',
-          flexWrap: 'wrap',
-          paddingTop: '0.6rem',
-          borderTop: '1px solid rgba(148, 163, 184, 0.12)',
-          fontSize: '0.78rem',
-          color: '#94a3b8',
-        }}
-      >
-        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+      <div className="cp-job__foot">
+        <div className="cp-meta">
           <span>
             {job.parcel.category} · {job.parcel.weightKg} kg
           </span>
-          <span>{job.distanceKm} km</span>
+          {job.distanceKm > 0 && <span>{job.distanceKm} km</span>}
           <span>Assigned {formatTime(job.assignedAt)}</span>
           {job.paymentMethod === 'COD' && job.codAmount ? (
-            <span style={{ color: '#fbbf24', fontWeight: 600 }}>
-              COD Collect: {formatLkr(job.codAmount)}
-            </span>
+            <span className="cp-meta__cod">Collect COD {formatLkr(job.codAmount)}</span>
           ) : null}
-          {job.recipient.phone && job.recipient.phone !== '—' && (
-            <a
-              href={`tel:${job.recipient.phone}`}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: '#60a5fa', textDecoration: 'none' }}
-            >
-              <Phone size={12} /> {job.recipient.phone}
+          {hasValue(job.recipient.phone) && (
+            <a href={`tel:${job.recipient.phone}`} className="cp-phone">
+              <Phone size={13} aria-hidden="true" /> {job.recipient.phone}
             </a>
           )}
         </div>
 
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          {showAccept && (
+        <div className="cp-actions cp-actions--stack-mobile">
+          <Link href={`/courier/active?job=${job.assignmentId}`} className="cp-btn cp-btn--secondary">
+            Open task <ArrowRight size={15} aria-hidden="true" />
+          </Link>
+          {canDo(job, 'ACCEPT') && (
             <button
               type="button"
-              className="btn btn-primary"
+              className="cp-btn cp-btn--primary"
               disabled={!canAccept || acceptMutation.isPending}
-              title={!canAccept ? 'Go online to accept tasks' : undefined}
+              title={canAccept ? undefined : 'Go online to accept tasks'}
               onClick={handleAccept}
             >
               {acceptMutation.isPending ? (
-                <Loader2 size={14} className="animate-spin" />
+                <Loader2 size={15} className="cp-spin" aria-hidden="true" />
               ) : (
-                <CheckCircle2 size={14} />
+                <CheckCircle2 size={15} aria-hidden="true" />
               )}
-              {acceptMutation.isPending ? 'Accepting...' : isPickup ? 'Accept Pickup' : 'Accept Task'}
+              {acceptMutation.isPending ? 'Accepting…' : isPickup ? 'Accept pickup' : 'Accept delivery'}
             </button>
           )}
-          <Link href={`/courier/active?job=${job.assignmentId}`} className="btn btn-secondary">
-            Open active view <ArrowRight size={14} />
-          </Link>
         </div>
       </div>
 
       {error && (
-        <div role="alert" style={{ fontSize: '0.8rem', color: '#fca5a5' }}>
+        <p role="alert" className="cp-error">
           {error}
-        </div>
+        </p>
       )}
-    </div>
+    </article>
   );
 }

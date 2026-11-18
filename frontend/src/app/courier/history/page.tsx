@@ -3,12 +3,15 @@
 import { Fragment, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import {
+  AttemptHistory,
   EmptyState,
   ErrorState,
   Field,
   JobStatusBadge,
   LoadingState,
   PageHeader,
+  PodSummary,
+  TaskTypeBadge,
   formatDateTime,
   formatLkr,
 } from '@/components/courier/CourierUI';
@@ -17,11 +20,8 @@ import { useCourierData } from '@/hooks/api/use-courier';
 type Filter = 'ALL' | 'DELIVERED' | 'FAILED';
 
 /**
- * Member 08: Job History
- * Route: /courier/history
- *
- * Finished jobs with proof of delivery or the failure reason - the same
- * records the dispatcher sees on Delivery History.
+ * Job History (/courier/history): finished tasks with proof of delivery, failure reasons and
+ * attempt history: the same records the dispatcher sees.
  */
 export default function JobHistoryPage() {
   const { profile, jobs, loading, error, reload } = useCourierData();
@@ -37,82 +37,96 @@ export default function JobHistoryPage() {
     .sort((a, b) => (b.completedAt ?? '').localeCompare(a.completedAt ?? ''));
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className="cp-page">
       <PageHeader
         title="Job History"
-        subtitle="Your finished deliveries with proof of delivery or failure details"
+        subtitle="Finished tasks with proof of delivery or failure details"
         action={
-          <select className="input-field" style={{ width: 'auto' }} value={filter} onChange={(e) => setFilter(e.target.value as Filter)} aria-label="Filter by status">
-            <option value="ALL">All finished</option>
-            <option value="DELIVERED">Delivered</option>
-            <option value="FAILED">Failed</option>
-          </select>
+          <label>
+            <span className="cp-sr-only">Filter by status</span>
+            <select className="cp-input" value={filter} onChange={(e) => setFilter(e.target.value as Filter)}>
+              <option value="ALL">All finished</option>
+              <option value="DELIVERED">Delivered</option>
+              <option value="FAILED">Failed</option>
+            </select>
+          </label>
         }
       />
 
       {finished.length === 0 ? (
-        <EmptyState text="No finished jobs yet." />
+        <EmptyState text="No finished tasks yet." />
       ) : (
-        <div className="glass-card" style={{ padding: 0, overflowX: 'auto' }}>
-          <table style={{ width: '100%', minWidth: '720px', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+        <div className="cp-card cp-card--flush cp-table-wrap">
+          <table className="cp-table">
             <thead>
-              <tr style={{ textAlign: 'left', color: '#64748b', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                <th style={th} />
-                <th style={th}>Tracking</th>
-                <th style={th}>Recipient</th>
-                <th style={th}>Finished</th>
-                <th style={th}>Status</th>
-                <th style={{ ...th, textAlign: 'right' }}>Payout</th>
+              <tr>
+                <th aria-label="Details" />
+                <th>Tracking</th>
+                <th>Type</th>
+                <th>Recipient</th>
+                <th>Finished</th>
+                <th>Status</th>
+                <th className="cp-table__right">Payout</th>
               </tr>
             </thead>
             <tbody>
               {finished.map((job) => {
                 const open = openId === job.assignmentId;
+                const toggle = () => setOpenId(open ? null : job.assignmentId);
                 return (
                   <Fragment key={job.assignmentId}>
-                    <tr style={{ borderTop: '1px solid rgba(59, 130, 246, 0.1)', cursor: 'pointer' }} onClick={() => setOpenId(open ? null : job.assignmentId)}>
-                      <td style={td}>
+                    <tr className="is-clickable" onClick={toggle}>
+                      <td>
                         <button
                           type="button"
+                          className="cp-icon-btn"
                           aria-expanded={open}
                           aria-label={`${open ? 'Hide' : 'Show'} details for ${job.trackingNumber}`}
-                          style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggle();
+                          }}
                         >
                           {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                         </button>
                       </td>
-                      <td style={{ ...td, color: '#ffffff', fontWeight: 600 }}>{job.trackingNumber}</td>
-                      <td style={td}>
+                      <td className="cp-table__strong">{job.trackingNumber}</td>
+                      <td>
+                        <TaskTypeBadge taskType={job.taskType} />
+                      </td>
+                      <td>
                         {job.recipient.name} · {job.recipient.city}
                       </td>
-                      <td style={td}>{formatDateTime(job.completedAt)}</td>
-                      <td style={td}>
+                      <td>{formatDateTime(job.completedAt)}</td>
+                      <td>
                         <JobStatusBadge status={job.status} />
                       </td>
-                      <td style={{ ...td, textAlign: 'right', color: '#e2e8f0' }}>{job.status === 'DELIVERED' ? formatLkr(job.payoutLkr) : 'No payout'}</td>
+                      <td className="cp-table__right">{job.status === 'DELIVERED' ? formatLkr(job.payoutLkr) : 'No payout'}</td>
                     </tr>
                     {open && (
-                      <tr>
+                      <tr className="cp-table__detail">
                         <td />
-                        <td colSpan={5} style={{ padding: '0 1rem 1.25rem' }}>
-                          <div className="grid-cols-4" style={{ gap: '1rem' }}>
-                            <Field label="Merchant">{job.merchantName}</Field>
-                            <Field label="Address">{job.recipient.address}</Field>
-                            <Field label="Parcel">
-                              {job.parcel.category} · {job.parcel.weightKg} kg
-                            </Field>
-                            {job.proofOfDelivery && (
-                              <Field label="Proof of delivery">
-                                {job.proofOfDelivery.type} · {job.proofOfDelivery.reference} · received by {job.proofOfDelivery.receivedBy}
+                        <td colSpan={6}>
+                          <div className="cp-stack">
+                            <div className="cp-grid-auto">
+                              <Field label="Pickup">{job.merchantName}</Field>
+                              <Field label="Delivery address">{job.recipient.address}</Field>
+                              <Field label="Parcel">
+                                {job.parcel.category} · {job.parcel.weightKg} kg
                               </Field>
-                            )}
-                            {job.failure && (
-                              <Field label="Failure reason">
-                                {job.failure.reason}
-                                <br />
-                                <span style={{ color: '#94a3b8' }}>{job.failure.notes}</span>
-                              </Field>
-                            )}
+                              {job.proofOfDelivery && (
+                                <Field label="Proof of delivery">
+                                  <PodSummary pod={job.proofOfDelivery} />
+                                </Field>
+                              )}
+                              {job.failure && (
+                                <Field label="Failure reason">
+                                  {job.failure.reason}
+                                  {job.failure.notes ? <span className="cp-muted"> · {job.failure.notes}</span> : null}
+                                </Field>
+                              )}
+                            </div>
+                            <AttemptHistory job={job} />
                           </div>
                         </td>
                       </tr>
@@ -127,6 +141,3 @@ export default function JobHistoryPage() {
     </div>
   );
 }
-
-const th: React.CSSProperties = { padding: '0.85rem 1rem', fontWeight: 600 };
-const td: React.CSSProperties = { padding: '0.85rem 1rem', color: '#94a3b8' };

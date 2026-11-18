@@ -10,8 +10,12 @@ import com.swiftdrop.dispatch.exception.DispatchValidationException;
 import com.swiftdrop.dispatch.exception.ResourceNotFoundException;
 import com.swiftdrop.dispatch.repository.*;
 import com.swiftdrop.dispatch.security.DispatchUserPrincipal;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.swiftdrop.dispatch.exception.IdempotencyConflictException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,8 +23,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.security.SecureRandom;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.function.Supplier;
 
 @Service
 @Transactional
@@ -821,12 +829,211 @@ public class DispatchService {
 
     @Transactional(readOnly = true)
     public List<DeliveryJobDto> getMyCourierJobs(DispatchUserPrincipal principal) {
+        return getMyCourierJobs(null, null, null, principal);
+    }
+
+    /**
+     * Jobs of the logged-in courier, optionally filtered by status and by assigned date range.
+     * status: a single AssignmentStatus, "PENDING" (ASSIGNED+ACCEPTED), "ACTIVE" (not finished) or "ALL"/blank.
+     */
+    @Transactional(readOnly = true)
+    public List<DeliveryJobDto> getMyCourierJobs(
+            String status, LocalDate from, LocalDate to, DispatchUserPrincipal principal) {
         requireCourierRole(principal);
+        if (from != null && to != null && to.isBefore(from)) {
+            throw new IllegalArgumentException("The to date must not be before the from date");
+        }
+        Set<AssignmentStatus> wanted = parseStatusFilter(status);
         CourierProfileEntity courier = resolveOrProvisionCurrentCourier(principal);
-        List<CourierAssignment> assignments = assignmentRepository.findByCourierIdOrderByAssignedAtDesc(courier.getId());
-        return assignments.stream()
+        return assignmentRepository.findByCourierIdOrderByAssignedAtDesc(courier.getId()).stream()
+                .filter(a -> wanted == null || wanted.contains(a.getStatus()))
+                .filter(a -> from == null || (a.getAssignedAt() != null && !a.getAssignedAt().toLocalDate().isBefore(from)))
+                .filter(a -> to == null || (a.getAssignedAt() != null && !a.getAssignedAt().toLocalDate().isAfter(to)))
                 .map(this::toCourierJobDtoFromAssignment)
                 .toList();
+    }
+
+    /** One job of the logged-in courier; a job owned by another courier is refused with 403. */
+    @Transactional(readOnly = true)
+    public DeliveryJobDto getMyCourierJobDetail(String assignmentIdOrCode, DispatchUserPrincipal principal) {
+        requireCourierRole(principal);
+        CourierAssignment assignment = resolveAssignment(assignmentIdOrCode);
+        verifyCourierOrDispatcherAccess(assignment, principal);
+        return toCourierJobDtoFromAssignment(assignment);
+    }
+
+    /**
+     * Dashboard counters for one day (default today). Unfinished jobs always count as work for the day;
+     * finished jobs count on the day they were completed. CANCELLED is ignored; REASSIGNED counts as pending.
+     */
+    @Transactional(readOnly = true)
+    public CourierSummaryDto getMyCourierSummary(LocalDate date, DispatchUserPrincipal principal) {
+        requireCourierRole(principal);
+        LocalDate day = date != null ? date : LocalDate.now();
+        CourierProfileEntity courier = resolveOrProvisionCurrentCourier(principal);
+
+        long pending = 0;
+        long inProgress = 0;
+        long completed = 0;
+        long failed = 0;
+        int active = 0;
+        for (CourierAssignment a : assignmentRepository.findByCourierIdOrderByAssignedAtDesc(courier.getId())) {
+            boolean finishedToday = a.getCompletedAt() != null && a.getCompletedAt().toLocalDate().equals(day);
+            switch (a.getStatus()) {
+                case ASSIGNED, REASSIGNED, ACCEPTED -> { pending++; active++; }
+                case IN_TRANSIT -> { inProgress++; active++; }
+                case DELIVERED -> { if (finishedToday) completed++; }
+                case FAILED -> { if (finishedToday) failed++; }
+                default -> { }
+            }
+        }
+
+        CourierSummaryDto dto = new CourierSummaryDto();
+        dto.setDate(day.toString());
+        dto.setPending(pending);
+        dto.setInProgress(inProgress);
+        dto.setCompleted(completed);
+        dto.setFailed(failed);
+        dto.setTotalAssigned(pending + inProgress + completed + failed);
+        dto.setActiveWorkload(active);
+        int max = Math.max(1, courier.getMaxCapacity());
+        dto.setMaxConcurrent(max);
+        int pct = Math.min(100, (int) Math.round(active * 100.0 / max));
+        dto.setWorkloadPercent(pct);
+        dto.setWorkloadLevel(pct >= 80 ? "HIGH" : pct >= 50 ? "MEDIUM" : "LOW");
+        return dto;
+    }
+
+    private static final long MAX_POD_PHOTO_BYTES = 5L * 1024 * 1024;
+
+    /** Stores a proof-of-delivery photo for one of the courier own jobs and returns its evidence reference. */
+    public String storeCourierPodPhoto(String assignmentIdOrCode, byte[] content, String contentType,
+                                       DispatchUserPrincipal principal) {
+        requireCourierRole(principal);
+        CourierAssignment assignment = resolveDeliveryAssignment(assignmentIdOrCode);
+        verifyCourierOrDispatcherAccess(assignment, principal);
+        if (assignment.getDeliveryJob() == null) {
+            throw new DispatchValidationException("NOT_A_DELIVERY_JOB",
+                    "Proof-of-delivery photos can only be uploaded for delivery jobs");
+        }
+        if (content == null || content.length == 0) {
+            throw new IllegalArgumentException("Photo file is empty");
+        }
+        if (content.length > MAX_POD_PHOTO_BYTES) {
+            throw new DispatchValidationException("POD_PHOTO_TOO_LARGE", "Photo must be 5 MB or smaller");
+        }
+        String type = contentType == null ? "" : contentType.trim().toLowerCase();
+        if (!type.equals("image/jpeg") && !type.equals("image/png")) {
+            throw new DispatchValidationException("POD_PHOTO_UNSUPPORTED_TYPE", "Only JPEG or PNG photos are accepted");
+        }
+        String dataUri = "data:" + type + ";base64," + Base64.getEncoder().encodeToString(content);
+        return podEvidenceStorageService.storeEvidenceReference(
+                assignment.getDeliveryJob().getTrackingNumber(), "photo", dataUri);
+    }
+
+    private Set<AssignmentStatus> parseStatusFilter(String status) {
+        if (status == null || status.isBlank() || "ALL".equalsIgnoreCase(status.trim())) {
+            return null;
+        }
+        String v = status.trim().toUpperCase();
+        if ("PENDING".equals(v)) {
+            return EnumSet.of(AssignmentStatus.ASSIGNED, AssignmentStatus.REASSIGNED, AssignmentStatus.ACCEPTED);
+        }
+        if ("ACTIVE".equals(v)) {
+            return EnumSet.of(AssignmentStatus.ASSIGNED, AssignmentStatus.REASSIGNED,
+                    AssignmentStatus.ACCEPTED, AssignmentStatus.IN_TRANSIT);
+        }
+        if ("ASSIGNED".equals(v)) {
+            return EnumSet.of(AssignmentStatus.ASSIGNED, AssignmentStatus.REASSIGNED);
+        }
+        try {
+            return EnumSet.of(AssignmentStatus.valueOf(v));
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("Invalid status filter: " + status);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Idempotent courier actions (Idempotency-Key header)
+    // -------------------------------------------------------------------------
+
+    @Autowired(required = false)
+    private CourierIdempotencyRepository idempotencyRepository;
+
+    @Autowired(required = false)
+    private ObjectMapper idempotencyMapper;
+
+    public DeliveryJobDto acceptAssignment(String id, DispatchUserPrincipal principal, String idempotencyKey) {
+        return runIdempotent(idempotencyKey, "ACCEPT", id, null, principal,
+                () -> acceptAssignment(id, principal));
+    }
+
+    public DeliveryJobDto markPickedUp(String id, DispatchUserPrincipal principal, String idempotencyKey) {
+        return runIdempotent(idempotencyKey, "PICKUP", id, null, principal,
+                () -> markPickedUp(id, principal));
+    }
+
+    public DeliveryJobDto completeDelivery(String id, ProofOfDeliveryRequest req,
+                                           DispatchUserPrincipal principal, String idempotencyKey) {
+        return runIdempotent(idempotencyKey, "DELIVER", id, req, principal,
+                () -> completeDelivery(id, req, principal));
+    }
+
+    public DeliveryJobDto recordFailedDelivery(String id, FailedDeliveryRequest req,
+                                               DispatchUserPrincipal principal, String idempotencyKey) {
+        return runIdempotent(idempotencyKey, "FAIL", id, req, principal,
+                () -> recordFailedDelivery(id, req, principal));
+    }
+
+    private DeliveryJobDto runIdempotent(String key, String operation, String assignmentRef, Object body,
+                                         DispatchUserPrincipal principal, Supplier<DeliveryJobDto> action) {
+        if (key == null || key.isBlank() || idempotencyRepository == null || idempotencyMapper == null
+                || principal == null || principal.userId() == null) {
+            return action.get();
+        }
+        String trimmedKey = key.trim();
+        if (trimmedKey.length() > 100) {
+            throw new IllegalArgumentException("Idempotency-Key must be at most 100 characters");
+        }
+        String actor = principal.userId();
+        String hash = requestHash(operation, assignmentRef, body);
+
+        Optional<CourierIdempotencyRecord> existing =
+                idempotencyRepository.findByActorIdAndIdempotencyKey(actor, trimmedKey);
+        if (existing.isPresent()) {
+            CourierIdempotencyRecord rec = existing.get();
+            if (!rec.getRequestHash().equals(hash)) {
+                throw new IdempotencyConflictException("Idempotency-Key was already used for a different request");
+            }
+            try {
+                return idempotencyMapper.readValue(rec.getResponseJson(), DeliveryJobDto.class);
+            } catch (Exception ex) {
+                throw new IllegalStateException("Stored idempotent response could not be read", ex);
+            }
+        }
+
+        DeliveryJobDto result = action.get();
+        try {
+            idempotencyRepository.saveAndFlush(new CourierIdempotencyRecord(
+                    trimmedKey, actor, operation, assignmentRef, hash,
+                    idempotencyMapper.writeValueAsString(result)));
+        } catch (DataIntegrityViolationException ex) {
+            throw new IdempotencyConflictException("An identical request is already being processed");
+        } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+            throw new IllegalStateException("Could not store idempotent response", ex);
+        }
+        return result;
+    }
+
+    private String requestHash(String operation, String assignmentRef, Object body) {
+        try {
+            String raw = operation + "|" + assignmentRef + "|"
+                    + (body == null ? "" : idempotencyMapper.writeValueAsString(body));
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(raw.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest);
+        } catch (Exception ex) {
+            throw new IllegalStateException("Could not hash request", ex);
+        }
     }
 
     // =========================================================================
@@ -839,6 +1046,7 @@ public class DispatchService {
             throw new AccessDeniedException("Only the assigned courier may accept an assignment");
         }
         verifyCourierOrDispatcherAccess(assignment, principal);
+        enforceCourierLifecycle(assignment, principal, CourierLifecycle.ACCEPT);
 
         if (assignment.getStatus() == AssignmentStatus.DELIVERED
                 || assignment.getStatus() == AssignmentStatus.CANCELLED
@@ -872,6 +1080,7 @@ public class DispatchService {
     public DeliveryJobDto markPickedUp(String assignmentIdOrCode, DispatchUserPrincipal principal) {
         CourierAssignment assignment = resolveAssignment(assignmentIdOrCode);
         verifyCourierOrDispatcherAccess(assignment, principal);
+        enforceCourierLifecycle(assignment, principal, CourierLifecycle.PICKUP);
 
         if (assignment.getStatus() == AssignmentStatus.DELIVERED
                 || assignment.getStatus() == AssignmentStatus.CANCELLED) {
@@ -988,6 +1197,11 @@ public class DispatchService {
 
         CourierAssignment assignment = resolveDeliveryAssignment(assignmentOrJobId);
         verifyCourierOrDispatcherAccess(assignment, principal);
+        if (assignment.getDeliveryJob() != null
+                && assignment.getDeliveryJob().getStatus() != DeliveryJobStatus.DELIVERED
+                && assignment.getDeliveryJob().getStatus() != DeliveryJobStatus.PENDING_DISPATCHER_DECISION) {
+            enforceCourierLifecycle(assignment, principal, CourierLifecycle.DELIVER);
+        }
 
         DeliveryJob job = assignment.getDeliveryJob();
         if (job == null) {
@@ -1120,6 +1334,11 @@ public class DispatchService {
                     "NOT_A_DELIVERY_JOB",
                     "Assignment " + assignment.getAssignmentCode() + " is not a delivery job"
             );
+        }
+        if (job.getStatus() != DeliveryJobStatus.DELIVERED && job.getStatus() != DeliveryJobStatus.CANCELLED
+                && job.getStatus() != DeliveryJobStatus.PENDING_DISPATCHER_DECISION
+                && job.getAttemptCount() < job.getMaxAttempts()) {
+            enforceCourierLifecycle(assignment, principal, CourierLifecycle.FAIL);
         }
 
         if (job.getStatus() == DeliveryJobStatus.DELIVERED || job.getStatus() == DeliveryJobStatus.CANCELLED) {
@@ -1419,6 +1638,13 @@ public class DispatchService {
             );
         }
         return principal.branchId();
+    }
+
+    /** Couriers must follow ASSIGNED, ACCEPTED, IN_TRANSIT, then DELIVERED or FAILED; dispatchers and admins may override. */
+    private void enforceCourierLifecycle(CourierAssignment assignment, DispatchUserPrincipal principal, String action) {
+        if (principal != null && principal.isCourier() && !principal.isAdmin() && !principal.isDispatcher()) {
+            CourierLifecycle.require(assignment, action);
+        }
     }
 
     private void verifyCourierOrDispatcherAccess(CourierAssignment assignment, DispatchUserPrincipal principal) {
@@ -2187,6 +2413,7 @@ public class DispatchService {
             dto.setAssignedAt(a.getAssignedAt() != null ? a.getAssignedAt().toString() : dto.getAssignedAt());
             dto.setPickedUpAt(a.getPickedUpAt() != null ? a.getPickedUpAt().toString() : dto.getPickedUpAt());
             dto.setCompletedAt(a.getCompletedAt() != null ? a.getCompletedAt().toString() : dto.getCompletedAt());
+            dto.setAllowedActions(CourierLifecycle.allowedActions(a));
             return dto;
         }
 
@@ -2226,6 +2453,7 @@ public class DispatchService {
         dto.setAssignedAt(a.getAssignedAt() != null ? a.getAssignedAt().toString() : null);
         dto.setPickedUpAt(a.getPickedUpAt() != null ? a.getPickedUpAt().toString() : null);
         dto.setCompletedAt(a.getCompletedAt() != null ? a.getCompletedAt().toString() : null);
+        dto.setAllowedActions(CourierLifecycle.allowedActions(a));
         return dto;
     }
 

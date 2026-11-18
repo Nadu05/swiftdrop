@@ -9,9 +9,13 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -144,8 +148,40 @@ public class DispatchController {
     @GetMapping({"/api/v1/dispatch/couriers/me/assignments", "/couriers/me/assignments"})
     @Operation(summary = "List tasks and delivery jobs assigned to the authenticated courier")
     public ResponseEntity<List<DeliveryJobDto>> getMyCourierAssignments(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @AuthenticationPrincipal DispatchUserPrincipal principal) {
-        return ResponseEntity.ok(dispatchService.getMyCourierJobs(principal));
+        return ResponseEntity.ok(dispatchService.getMyCourierJobs(status, from, to, principal));
+    }
+
+    @GetMapping({"/api/v1/dispatch/couriers/me/summary", "/couriers/me/summary"})
+    @Operation(summary = "Dashboard counters (assigned, pending, completed, failed) and workload for the authenticated courier")
+    public ResponseEntity<CourierSummaryDto> getMyCourierSummary(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @AuthenticationPrincipal DispatchUserPrincipal principal) {
+        return ResponseEntity.ok(dispatchService.getMyCourierSummary(date, principal));
+    }
+
+    @GetMapping({"/api/v1/dispatch/couriers/me/assignments/{id}", "/couriers/me/assignments/{id}"})
+    @Operation(summary = "Details of one delivery assigned to the authenticated courier (403 for another courier)")
+    public ResponseEntity<DeliveryJobDto> getMyCourierAssignment(
+            @PathVariable String id,
+            @AuthenticationPrincipal DispatchUserPrincipal principal) {
+        return ResponseEntity.ok(dispatchService.getMyCourierJobDetail(id, principal));
+    }
+
+    @PostMapping(value = {
+            "/api/v1/dispatch/couriers/me/assignments/{id}/pod-photo",
+            "/couriers/me/assignments/{id}/pod-photo"
+    }, consumes = "multipart/form-data")
+    @Operation(summary = "Upload a proof-of-delivery photo; returns the evidence reference to send with /deliver")
+    public ResponseEntity<java.util.Map<String, String>> uploadMyPodPhoto(
+            @PathVariable String id,
+            @RequestParam("file") MultipartFile file,
+            @AuthenticationPrincipal DispatchUserPrincipal principal) throws IOException {
+        String reference = dispatchService.storeCourierPodPhoto(id, file.getBytes(), file.getContentType(), principal);
+        return ResponseEntity.ok(java.util.Map.of("photoEvidenceReference", reference));
     }
 
     @PostMapping({
@@ -155,8 +191,9 @@ public class DispatchController {
     @Operation(summary = "Courier accepts an assigned pickup or delivery task")
     public ResponseEntity<DeliveryJobDto> acceptMyAssignment(
             @PathVariable String id,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @AuthenticationPrincipal DispatchUserPrincipal principal) {
-        return ResponseEntity.ok(dispatchService.acceptAssignment(id, principal));
+        return ResponseEntity.ok(dispatchService.acceptAssignment(id, principal, idempotencyKey));
     }
 
     @PostMapping({
@@ -166,8 +203,9 @@ public class DispatchController {
     @Operation(summary = "Courier records parcel pickup from sender or departure from branch")
     public ResponseEntity<DeliveryJobDto> markMyAssignmentPickedUp(
             @PathVariable String id,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @AuthenticationPrincipal DispatchUserPrincipal principal) {
-        return ResponseEntity.ok(dispatchService.markPickedUp(id, principal));
+        return ResponseEntity.ok(dispatchService.markPickedUp(id, principal, idempotencyKey));
     }
 
     @PostMapping({
@@ -178,8 +216,9 @@ public class DispatchController {
     public ResponseEntity<DeliveryJobDto> completeMyDelivery(
             @PathVariable String id,
             @Valid @RequestBody ProofOfDeliveryRequest request,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @AuthenticationPrincipal DispatchUserPrincipal principal) {
-        return ResponseEntity.ok(dispatchService.completeDelivery(id, request, principal));
+        return ResponseEntity.ok(dispatchService.completeDelivery(id, request, principal, idempotencyKey));
     }
 
     @PostMapping({
@@ -190,8 +229,9 @@ public class DispatchController {
     public ResponseEntity<DeliveryJobDto> reportMyFailedDelivery(
             @PathVariable String id,
             @Valid @RequestBody FailedDeliveryRequest request,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @AuthenticationPrincipal DispatchUserPrincipal principal) {
-        return ResponseEntity.ok(dispatchService.recordFailedDelivery(id, request, principal));
+        return ResponseEntity.ok(dispatchService.recordFailedDelivery(id, request, principal, idempotencyKey));
     }
 
     // -------------------------------------------------------------------------

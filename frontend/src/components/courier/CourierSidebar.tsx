@@ -2,174 +2,112 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Box, History, LayoutDashboard, Navigation, Package, User, Wallet, Layers, LogOut } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  Box,
+  History,
+  LayoutDashboard,
+  Layers,
+  LogOut,
+  Navigation,
+  Package,
+  User,
+  Wallet,
+  type LucideIcon,
+} from 'lucide-react';
 import { useLogout } from '@/hooks/api/use-auth';
 import { useAuthStore } from '@/store/auth.store';
 
-const navItems = [
-  { name: 'Dashboard', href: '/courier/dashboard', icon: LayoutDashboard },
-  { name: 'Active Delivery', href: '/courier/active', icon: Navigation },
-  { name: 'My Deliveries', href: '/courier/deliveries', icon: Package },
-  { name: 'Job History', href: '/courier/history', icon: History },
-  { name: 'Earnings', href: '/courier/earnings', icon: Wallet },
-  { name: 'My Profile', href: '/courier/profile', icon: User },
+interface NavItem {
+  name: string;
+  short: string;
+  href: string;
+  icon: LucideIcon;
+  /** Shown in the mobile bottom bar (max 5). */
+  mobile?: boolean;
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { name: 'Dashboard', short: 'Home', href: '/courier/dashboard', icon: LayoutDashboard, mobile: true },
+  { name: 'My Tasks', short: 'Tasks', href: '/courier/deliveries', icon: Package, mobile: true },
+  { name: 'Active Task', short: 'Active', href: '/courier/active', icon: Navigation, mobile: true },
+  { name: 'Transfers', short: 'Transfers', href: '/courier/transfers', icon: ArrowLeftRight, mobile: true },
+  { name: 'Job History', short: 'History', href: '/courier/history', icon: History, mobile: true },
+  { name: 'Earnings', short: 'Earnings', href: '/courier/earnings', icon: Wallet },
+  { name: 'My Profile', short: 'Profile', href: '/courier/profile', icon: User },
 ];
 
-/**
- * Courier portal navigation. Same look as the shared platform Sidebar
- * (components/Sidebar.tsx) so the courier area matches the rest of the app.
- */
+function useIsActive() {
+  const pathname = usePathname() ?? '';
+  return (href: string) =>
+    href === '/courier/dashboard'
+      ? pathname === '/courier' || pathname === '/courier/dashboard'
+      : pathname.startsWith(href);
+}
+
+/** Desktop navigation (hidden below 1024px, where CourierBottomNav takes over). */
 export default function CourierSidebar() {
-  const pathname = usePathname();
+  const isActive = useIsActive();
   const { mutate: triggerLogout, isPending: isLoggingOut } = useLogout();
   const user = useAuthStore((s) => s.user);
 
   return (
-    <aside
-      style={{
-        width: '260px',
-        flexShrink: 0,
-        background: 'rgba(11, 17, 33, 0.95)',
-        borderRight: '1px solid rgba(59, 130, 246, 0.15)',
-        display: 'flex',
-        flexDirection: 'column',
-        padding: '1.5rem 1rem',
-        gap: '2rem',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0 0.5rem' }}>
-        <div
-          style={{
-            width: '36px',
-            height: '36px',
-            borderRadius: '10px',
-            background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 0 16px rgba(59, 130, 246, 0.4)',
-          }}
-        >
+    <aside className="cp-sidebar">
+      <div className="cp-brand">
+        <span className="cp-brand__mark" aria-hidden="true">
           <Box size={20} color="#ffffff" />
-        </div>
+        </span>
         <div>
-          <h1 style={{ fontSize: '1.15rem', fontWeight: 800, letterSpacing: '-0.02em', color: '#ffffff' }}>
-            Swift<span style={{ color: '#60a5fa' }}>Drop</span>
-          </h1>
-          <p style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 500 }}>Courier Portal</p>
+          <div className="cp-brand__name">SwiftDrop</div>
+          <div className="cp-brand__sub">Courier Portal</div>
         </div>
       </div>
 
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }} aria-label="Courier navigation">
-        <div
-          style={{
-            fontSize: '0.68rem',
-            fontWeight: 700,
-            color: '#64748b',
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-            padding: '0 0.5rem 0.4rem',
-          }}
-        >
-          Navigation
-        </div>
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive =
-            item.href === '/courier/dashboard'
-              ? pathname === '/courier' || pathname === '/courier/dashboard'
-              : pathname?.startsWith(item.href);
+      <nav className="cp-nav" aria-label="Courier navigation">
+        <span className="cp-nav__heading">Navigation</span>
+        {NAV_ITEMS.map(({ name, href, icon: Icon }) => {
+          const active = isActive(href);
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={isActive ? 'page' : undefined}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-                padding: '0.7rem 0.85rem',
-                borderRadius: '8px',
-                fontSize: '0.875rem',
-                fontWeight: isActive ? 600 : 500,
-                color: isActive ? '#ffffff' : '#94a3b8',
-                background: isActive
-                  ? 'linear-gradient(90deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.05) 100%)'
-                  : 'transparent',
-                borderLeft: isActive ? '3px solid #3b82f6' : '3px solid transparent',
-                textDecoration: 'none',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              <Icon size={18} color={isActive ? '#60a5fa' : '#64748b'} />
-              <span>{item.name}</span>
+            <Link key={href} href={href} className={`cp-nav__link${active ? ' is-active' : ''}`} aria-current={active ? 'page' : undefined}>
+              <Icon size={18} aria-hidden="true" />
+              <span>{name}</span>
             </Link>
           );
         })}
       </nav>
 
-      <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+      <div className="cp-sidebar__footer">
         {user && (
-          <div
-            style={{
-              padding: '0.65rem 0.9rem',
-              background: 'rgba(15, 23, 42, 0.5)',
-              borderRadius: '10px',
-              border: '1px solid rgba(59, 130, 246, 0.12)',
-            }}
-          >
-            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#e2e8f0' }}>
-              {user.fullName}
-            </div>
-            <div style={{ fontSize: '0.68rem', color: '#64748b' }}>
-              {user.roles?.join(', ') || 'COURIER'}
-            </div>
+          <div className="cp-user">
+            <div className="cp-user__name">{user.fullName}</div>
+            <div className="cp-user__role">{user.roles?.join(', ') || 'COURIER'}</div>
           </div>
         )}
-
-        <Link
-          href="/"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.6rem',
-            padding: '0.75rem 1rem',
-            background: 'rgba(15, 23, 42, 0.6)',
-            borderRadius: '10px',
-            border: '1px solid rgba(59, 130, 246, 0.1)',
-            fontSize: '0.8rem',
-            color: '#94a3b8',
-            textDecoration: 'none',
-          }}
-        >
-          <Layers size={14} color="#3b82f6" />
-          Platform Overview
+        <Link href="/" className="cp-sidebar__btn">
+          <Layers size={15} aria-hidden="true" /> Platform overview
         </Link>
-
-        <button
-          type="button"
-          onClick={() => triggerLogout()}
-          disabled={isLoggingOut}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.6rem',
-            padding: '0.7rem 1rem',
-            background: 'rgba(239, 68, 68, 0.08)',
-            borderRadius: '10px',
-            border: '1px solid rgba(239, 68, 68, 0.2)',
-            fontSize: '0.8rem',
-            fontWeight: 600,
-            color: '#fca5a5',
-            cursor: 'pointer',
-            width: '100%',
-            textAlign: 'left',
-          }}
-        >
-          <LogOut size={14} color="#f87171" />
-          {isLoggingOut ? 'Signing out...' : 'Logout'}
+        <button type="button" className="cp-sidebar__btn" onClick={() => triggerLogout()} disabled={isLoggingOut}>
+          <LogOut size={15} aria-hidden="true" /> {isLoggingOut ? 'Signing out…' : 'Sign out'}
         </button>
       </div>
     </aside>
+  );
+}
+
+/** Mobile-first bottom tab bar (below 1024px). Earnings and Profile stay reachable from the dashboard. */
+export function CourierBottomNav() {
+  const isActive = useIsActive();
+  return (
+    <nav className="cp-bottomnav" aria-label="Courier navigation">
+      {NAV_ITEMS.filter((i) => i.mobile).map(({ short, href, icon: Icon }) => {
+        const active = isActive(href);
+        return (
+          <Link key={href} href={href} className={`cp-bottomnav__link${active ? ' is-active' : ''}`} aria-current={active ? 'page' : undefined}>
+            <Icon size={20} aria-hidden="true" />
+            <span>{short}</span>
+          </Link>
+        );
+      })}
+    </nav>
   );
 }

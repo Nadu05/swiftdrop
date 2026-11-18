@@ -1,16 +1,14 @@
 'use client';
 
-import { Bike, Building2, Mail, Phone, Star } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { Bike, Building2, Phone } from 'lucide-react';
 import AvailabilityToggle from '@/components/courier/AvailabilityToggle';
-import { ErrorState, Field, LoadingState, PageHeader } from '@/components/courier/CourierUI';
+import { ErrorState, Field, LoadingState, PageHeader, hasValue } from '@/components/courier/CourierUI';
 import { useCourierData } from '@/hooks/api/use-courier';
 
 /**
- * Member 08: Courier Profile
- * Route: /courier/profile
- *
- * Read-only courier details (owned by dispatch-service / identity-service) and
- * the availability switch. Editing vehicle or documents is done by the branch.
+ * Courier Profile (/courier/profile): read-only courier details plus the availability switch.
+ * Vehicle, documents and branch are changed by branch staff, not by the courier.
  */
 export default function CourierProfilePage() {
   const { profile, setProfile, loading, error, reload } = useCourierData();
@@ -22,76 +20,60 @@ export default function CourierProfilePage() {
     .split(' ')
     .map((p) => p[0])
     .join('')
-    .slice(0, 2);
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+    <div className="cp-page">
       <PageHeader title="My Profile" subtitle="Your courier details and availability" />
 
-      <div className="glass-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1.5rem', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div
-            style={{
-              width: '56px',
-              height: '56px',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 800,
-              color: '#ffffff',
-              fontSize: '1.1rem',
-            }}
-            aria-hidden="true"
-          >
+      <section className="cp-card cp-row cp-row--between" aria-label="Courier summary">
+        <div className="cp-row">
+          <span className="cp-avatar" aria-hidden="true">
             {initials}
-          </div>
+          </span>
           <div>
-            <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#ffffff' }}>{profile.name}</div>
-            <div style={{ fontSize: '0.85rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              {profile.courierCode} · <Star size={14} color="#fbbf24" /> {profile.rating.toFixed(1)}
+            <div className="cp-strong">{profile.name}</div>
+            <div className="cp-muted cp-small">
+              {profile.courierCode}
+              {profile.rating > 0 ? ` · ${profile.rating.toFixed(1)} ★ rating` : ''}
             </div>
           </div>
         </div>
         <AvailabilityToggle profile={profile} onChange={setProfile} />
-      </div>
+      </section>
 
-      <div className="grid-cols-3">
-        <InfoCard icon={<Phone size={18} color="#3b82f6" />} title="Contact">
+      <div className="cp-grid-3">
+        <InfoCard icon={<Phone size={16} />} title="Contact">
           <Field label="Phone">{profile.phone}</Field>
-          <Field label="Email">
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-              <Mail size={14} /> {profile.email}
-            </span>
-          </Field>
+          {hasValue(profile.email) && <Field label="Email">{profile.email}</Field>}
         </InfoCard>
-        <InfoCard icon={<Bike size={18} color="#10b981" />} title="Vehicle">
+        <InfoCard icon={<Bike size={16} />} title="Vehicle">
           <Field label="Type">{profile.vehicleType}</Field>
           <Field label="Registration">{profile.vehiclePlate}</Field>
           <Field label="Max parcels at once">{profile.maxCapacity}</Field>
         </InfoCard>
-        <InfoCard icon={<Building2 size={18} color="#8b5cf6" />} title="Branch">
+        <InfoCard icon={<Building2 size={16} />} title="Branch">
           <Field label="Assigned branch">{profile.branchName}</Field>
-          <Field label="Service zone">{profile.zone}</Field>
+          {hasValue(profile.zone) && <Field label="Service zone">{profile.zone}</Field>}
         </InfoCard>
       </div>
 
-      <p style={{ fontSize: '0.8rem', color: '#64748b' }}>
-        To change your vehicle, documents or branch, contact your branch dispatcher.
-      </p>
+      <p className="cp-hint">To change your vehicle, documents or branch, contact your branch dispatcher.</p>
     </div>
   );
 }
 
-function InfoCard({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
+function InfoCard({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
   return (
-    <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-        {icon}
-        <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#ffffff' }}>{title}</h2>
+    <section className="cp-card cp-card--stack">
+      <div className="cp-row">
+        <span className="cp-stat__icon cp-tone--info" aria-hidden="true">
+          {icon}
+        </span>
+        <h2 className="cp-section__title">{title}</h2>
       </div>
       {children}
-    </div>
+    </section>
   );
 }
