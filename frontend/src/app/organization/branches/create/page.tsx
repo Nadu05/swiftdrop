@@ -34,9 +34,7 @@ export default function CreateBranchPage() {
   };
 
   const handleSuccessNavigate = (savedBranch: BranchResponse) => {
-    router.push(
-      `/organization/branches?created=${encodeURIComponent(savedBranch.code)}`
-    );
+    router.push(`/organization/branches/${savedBranch.id}`);
     router.refresh();
   };
 

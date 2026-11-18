@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -19,7 +19,8 @@ import BranchFormSection from './BranchFormSection';
 import PostalAreaPicker from './PostalAreaPicker';
 import SearchableSelect from './SearchableSelect';
 import {
-  branchFormSchema,
+  branchCreateFormSchema,
+  branchEditFormSchema,
   DEFAULT_BRANCH_FORM_VALUES,
   type BranchFormValues,
 } from '@/schema/branch.schema';
@@ -84,6 +85,11 @@ export default function BranchForm({
   const [selectedPostalAreas, setSelectedPostalAreas] = useState<PostalAreaDto[]>([]);
   const [postalAreaError, setPostalAreaError] = useState<string | null>(null);
 
+  const schema = useMemo(
+    () => (mode === 'create' ? branchCreateFormSchema : branchEditFormSchema),
+    [mode]
+  );
+
   const {
     register,
     control,
@@ -93,7 +99,7 @@ export default function BranchForm({
     setValue,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<BranchFormValues>({
-    resolver: zodResolver(branchFormSchema),
+    resolver: zodResolver(schema),
     mode: 'onTouched',
     defaultValues: initialValues,
   });
@@ -268,7 +274,9 @@ export default function BranchForm({
         postalAreaIds: selectedPostalAreas.map((a) => a.id),
       });
       setSavedBranch(response);
-      if (mode === 'edit') {
+      if (mode === 'create') {
+        onSuccessNavigate(response);
+      } else {
         setTimeout(() => {
           onSuccessNavigate(response);
         }, 900);
@@ -338,33 +346,21 @@ export default function BranchForm({
               </p>
 
               {mode === 'create' && (
-                <div style={{ marginTop: '0.6rem', padding: '0.5rem', background: 'rgba(56, 189, 248, 0.1)', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.25)' }}>
-                  <p style={{ fontSize: '0.78rem', color: '#bae6fd', margin: 0, lineHeight: 1.4 }}>
-                    <strong>Administrative Action Recommended:</strong> Provision a Branch Administrator for this hub under the <code style={{ color: '#fff' }}>BRANCH_MANAGER</code> role to manage branch operations and dispatchers.
-                  </p>
-                </div>
+                <p style={{ fontSize: '0.8rem', marginTop: '0.35rem', marginBottom: 0 }}>
+                  A <strong>Branch Manager</strong> account has been provisioned. Redirecting to Branch Details to view credentials and email delivery status...
+                </p>
               )}
             </div>
           </div>
 
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            {mode === 'create' && (
-              <a
-                href={`/admin/users`}
-                className="org-btn org-btn--primary"
-                style={{ fontSize: '0.8rem', padding: '0.45rem 0.85rem' }}
-              >
-                <span>Provision Administrator</span>
-              </a>
-            )}
-
             <button
               type="button"
               className="org-btn org-btn--secondary"
               onClick={() => onSuccessNavigate(savedBranch)}
             >
               <ArrowLeft size={14} aria-hidden="true" />
-              <span>Return to Directory</span>
+              <span>{mode === 'create' ? 'View Branch Details' : 'Return to Directory'}</span>
             </button>
           </div>
         </div>
@@ -380,6 +376,8 @@ export default function BranchForm({
                 {isConflictError
                   ? submitError.toLowerCase().includes('postal area')
                     ? 'Postal Area Coverage Conflict (HTTP 409)'
+                    : submitError.toLowerCase().includes('email')
+                    ? 'Branch Email Conflict (HTTP 409)'
                     : 'Duplicate Branch Code Conflict (HTTP 409)'
                   : mode === 'create'
                   ? 'Unable to Create Branch'
@@ -782,11 +780,15 @@ export default function BranchForm({
             )}
           </div>
 
-          {/* Contact Email (Optional) */}
+          {/* Branch Email (Required in Create Mode, Contact-Only in Edit Mode) */}
           <div className="org-form-field">
             <label htmlFor="branch-email" className="org-form-label">
-              <span>Contact Email</span>
-              <span className="org-form-optional">(Optional)</span>
+              <span>{mode === 'create' ? 'Branch Email' : 'Contact Email'}</span>
+              {mode === 'create' ? (
+                <span className="org-form-required" aria-hidden="true">*</span>
+              ) : (
+                <span className="org-form-optional">(Optional)</span>
+              )}
             </label>
             <input
               id="branch-email"
@@ -794,12 +796,15 @@ export default function BranchForm({
               className={`org-form-input${errors.email ? ' org-form-input--error' : ''}`}
               placeholder="e.g. colombo.central@swiftdrop.lk"
               disabled={isDisabled}
+              aria-required={mode === 'create'}
               aria-invalid={Boolean(errors.email)}
               aria-describedby={errors.email ? 'branch-email-error' : 'branch-email-hint'}
               {...register('email')}
             />
             <span id="branch-email-hint" className="org-form-hint">
-              Official branch dispatch or administration email address.
+              {mode === 'create'
+                ? "Used as the Branch Manager's login email and destination for initial credentials."
+                : "Branch contact email only. Editing this does not change the Branch Manager's login email."}
             </span>
             {errors.email && (
               <p id="branch-email-error" className="org-form-error" role="alert">

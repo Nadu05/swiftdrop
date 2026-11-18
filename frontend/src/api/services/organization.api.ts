@@ -1,6 +1,7 @@
 import { apiClient } from '@/api/axios-client';
 import type {
   BranchCreateRequest,
+  BranchCredentialsResponse,
   BranchResolutionRequest,
   BranchResolutionResponse,
   BranchResponse,
@@ -88,12 +89,18 @@ function buildOrganizationApiError(
   if (status === 409) {
     const conflictMsg =
       data?.message ||
-      'A conflict occurred while saving the branch. Please check branch code and postal area assignments.';
-    const isPostalAreaConflict = conflictMsg.toLowerCase().includes('postal area');
+      'A conflict occurred while saving the branch. Please check branch code, email, and postal area assignments.';
+    const lowerMsg = conflictMsg.toLowerCase();
+    const isPostalAreaConflict = lowerMsg.includes('postal area');
+    const isEmailConflict = lowerMsg.includes('email');
     return new OrganizationApiError(conflictMsg, {
       status: 409,
       isConflict: true,
-      fieldErrors: isPostalAreaConflict ? undefined : { code: conflictMsg },
+      fieldErrors: isPostalAreaConflict
+        ? undefined
+        : isEmailConflict
+        ? { email: conflictMsg }
+        : { code: conflictMsg },
     });
   }
 
@@ -273,6 +280,94 @@ export async function updateBranchStatus(
   status: BranchStatus
 ): Promise<BranchResponse> {
   return updateBranch(id, { status });
+}
+
+/**
+ * Fetch Branch Manager credential status and email delivery status for a branch.
+ *
+ * Confirmed Backend Endpoint:
+ * GET /api/v1/organization/branches/{id}/credentials
+ */
+export async function getBranchCredentials(
+  id: number
+): Promise<BranchCredentialsResponse> {
+  try {
+    const response = await apiClient.get<BranchCredentialsResponse>(
+      `${BRANCHES_BASE_PATH}/${id}/credentials`
+    );
+    return response.data;
+  } catch (error: any) {
+    throw buildOrganizationApiError(
+      error,
+      `Unable to load Branch Manager credentials for branch #${id}.`
+    );
+  }
+}
+
+/**
+ * Resend active Branch Manager temporary credentials to the branch email.
+ *
+ * Confirmed Backend Endpoint:
+ * POST /api/v1/organization/branches/{id}/credentials/resend
+ */
+export async function resendBranchCredentials(
+  id: number
+): Promise<BranchCredentialsResponse> {
+  try {
+    const response = await apiClient.post<BranchCredentialsResponse>(
+      `${BRANCHES_BASE_PATH}/${id}/credentials/resend`
+    );
+    return response.data;
+  } catch (error: any) {
+    throw buildOrganizationApiError(
+      error,
+      `Unable to resend Branch Manager credentials for branch #${id}.`
+    );
+  }
+}
+
+/**
+ * Reset Branch Manager password and email the new temporary credentials.
+ *
+ * Confirmed Backend Endpoint:
+ * POST /api/v1/organization/branches/{id}/credentials/reset
+ */
+export async function resetBranchCredentials(
+  id: number
+): Promise<BranchCredentialsResponse> {
+  try {
+    const response = await apiClient.post<BranchCredentialsResponse>(
+      `${BRANCHES_BASE_PATH}/${id}/credentials/reset`
+    );
+    return response.data;
+  } catch (error: any) {
+    throw buildOrganizationApiError(
+      error,
+      `Unable to reset Branch Manager credentials for branch #${id}.`
+    );
+  }
+}
+
+/**
+ * Provision a Branch Manager account for a legacy branch and email credentials.
+ *
+ * Confirmed Backend Endpoint:
+ * POST /api/v1/organization/branches/{id}/credentials/provision
+ */
+export async function provisionBranchCredentials(
+  id: number
+): Promise<BranchCredentialsResponse> {
+  try {
+    const response = await apiClient.post<BranchCredentialsResponse>(
+      `${BRANCHES_BASE_PATH}/${id}/credentials/provision`
+    );
+    return response.data;
+  } catch (error: any) {
+    throw buildOrganizationApiError(
+      error,
+      `Unable to provision Branch Manager credentials for branch #${id}.`
+    );
+  }
 }
 
 /**
@@ -686,6 +781,10 @@ export const organizationApi = {
   createBranch,
   updateBranch,
   getBranchById,
+  getBranchCredentials,
+  resendBranchCredentials,
+  resetBranchCredentials,
+  provisionBranchCredentials,
   getProvinces,
   getDistricts,
   getDsDivisions,

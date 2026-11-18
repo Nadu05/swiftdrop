@@ -12,6 +12,7 @@ import {
   Power,
 } from 'lucide-react';
 import type { BranchResponse } from '@/types/organization.types';
+import BranchManagerCredentialsCard from './BranchManagerCredentialsCard';
 
 export interface BranchDetailsProps {
   branch: BranchResponse;
@@ -313,6 +314,9 @@ export default function BranchDetails({
             </div>
           </dl>
         </section>
+
+        {/* Card D: Branch Manager Credentials (System Admin / Head Office Admin only) */}
+        {canManageBranch && <BranchManagerCredentialsCard branch={branch} />}
       </div>
     </div>
   );

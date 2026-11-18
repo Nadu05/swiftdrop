@@ -19,6 +19,8 @@ export type BranchStatusFilter = 'ALL' | BranchStatus;
 
 export type ServiceAreaStatus = 'ACTIVE' | 'INACTIVE';
 
+export type CredentialEmailStatus = 'PENDING' | 'SENT' | 'FAILED';
+
 /**
  * Authoritative response DTO returned by:
  * - GET /api/v1/organization/branches
@@ -50,8 +52,32 @@ export interface BranchResponse {
   dsDivisionId?: number | null;
   postalCode?: string | null;
   assignedPostalAreas?: PostalAreaDto[] | null;
+  credentialEmailStatus?: CredentialEmailStatus | null;
+  credentialEmailSentAt?: string | null;
+  credentialEmailError?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * Combined Branch Manager credential status and credential email delivery status.
+ * Aligned with `com.swiftdrop.organization.dto.BranchCredentialsResponse`:
+ * - GET  /api/v1/organization/branches/{id}/credentials
+ * - POST /api/v1/organization/branches/{id}/credentials/resend
+ * - POST /api/v1/organization/branches/{id}/credentials/reset
+ * - POST /api/v1/organization/branches/{id}/credentials/provision
+ */
+export interface BranchCredentialsResponse {
+  branchId: number;
+  provisioned: boolean;
+  userId: string | null;
+  loginEmail: string | null;
+  mustChangePassword: boolean;
+  temporaryPassword: string | null;
+  passwordChangedAt: string | null;
+  credentialEmailStatus: CredentialEmailStatus | null;
+  credentialEmailSentAt: string | null;
+  credentialEmailError: string | null;
 }
 
 /**
@@ -64,7 +90,7 @@ export interface BranchCreateRequest {
   addressLine2?: string | null;
   city: string;
   phone: string;
-  email?: string | null;
+  email: string;
   latitude: number;
   longitude: number;
   provinceId?: number | null;

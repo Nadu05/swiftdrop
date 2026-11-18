@@ -18,6 +18,21 @@ import type {
 const PHONE_REGEX = /^\+?[0-9\s\-()]{7,20}$/;
 const BRANCH_CODE_REGEX = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
 
+const requiredEmailSchema = z
+  .string()
+  .trim()
+  .min(1, 'Branch email is required for Branch Manager account provisioning')
+  .max(255, 'Email must be at most 255 characters')
+  .email('Enter a valid email address (e.g. colombo.central@swiftdrop.lk)');
+
+const optionalEmailSchema = z
+  .string()
+  .trim()
+  .max(255, 'Email must be at most 255 characters')
+  .email('Enter a valid email address (e.g. colombo.central@swiftdrop.lk)')
+  .optional()
+  .or(z.literal(''));
+
 export const branchFormSchema = z.object({
   code: z
     .string()
@@ -68,13 +83,7 @@ export const branchFormSchema = z.object({
       'Enter a valid phone number (e.g. +94 11 234 5601 or 0112345601)'
     ),
 
-  email: z
-    .string()
-    .trim()
-    .max(255, 'Email must be at most 255 characters')
-    .email('Enter a valid email address (e.g. colombo.central@swiftdrop.lk)')
-    .optional()
-    .or(z.literal('')),
+  email: optionalEmailSchema,
 
   latitude: z
     .number({
@@ -107,6 +116,12 @@ export const branchFormSchema = z.object({
     .or(z.literal('')),
   postalAreaIds: z.array(z.number()).optional(),
 });
+
+export const branchCreateFormSchema = branchFormSchema.extend({
+  email: requiredEmailSchema,
+});
+
+export const branchEditFormSchema = branchFormSchema;
 
 export type BranchFormValues = z.infer<typeof branchFormSchema>;
 
@@ -168,7 +183,7 @@ export function toBranchCreatePayload(values: BranchFormValues): BranchCreateReq
     addressLine2: trimmedAddressLine2.length > 0 ? trimmedAddressLine2 : null,
     city: values.city.trim(),
     phone: values.phone.trim(),
-    email: trimmedEmail.length > 0 ? trimmedEmail : null,
+    email: trimmedEmail,
     latitude: values.latitude,
     longitude: values.longitude,
     provinceId: values.provinceId ?? null,
