@@ -224,6 +224,13 @@ export function resolveParcelModalCapabilities(
     primaryNextActionLabel = 'Confirm Destination Receipt';
   } else if (canAssignDeliveryCourier) {
     primaryNextActionLabel = 'Assign Delivery Courier';
+  } else if (
+    !sameBranch &&
+    isDestinationBranchScope &&
+    !isOriginBranchScope &&
+    ['CREATED', 'CONFIRMED', 'PICKUP_ASSIGNED', 'PICKED_UP', 'AT_ORIGIN_BRANCH'].includes(s)
+  ) {
+    primaryNextActionLabel = 'Awaiting Pickup/Transfer at Origin Branch';
   }
 
   return {
@@ -237,4 +244,99 @@ export function resolveParcelModalCapabilities(
     canAssignDeliveryCourier,
     primaryNextActionLabel,
   };
+}
+
+export function resolveEffectiveDispatcherBranchId(input: {
+  userBranchId?: number | null;
+  couriers?: Array<{ branchId?: number | null }>;
+  pickupTasks?: Array<{ originBranchId?: number | null }>;
+  deliveryJobs?: Array<{ branchId?: number | null }>;
+}): number | null {
+  if (input.userBranchId !== null && input.userBranchId !== undefined && Number(input.userBranchId) > 0) {
+    return Number(input.userBranchId);
+  }
+  const courierBranch = input.couriers?.find((c) => c.branchId != null && Number(c.branchId) > 0)?.branchId;
+  if (courierBranch != null) {
+    return Number(courierBranch);
+  }
+  const pickupBranch = input.pickupTasks?.find(
+    (t) => t.originBranchId != null && Number(t.originBranchId) > 0
+  )?.originBranchId;
+  if (pickupBranch != null) {
+    return Number(pickupBranch);
+  }
+  const jobBranch = input.deliveryJobs?.find((j) => j.branchId != null && Number(j.branchId) > 0)?.branchId;
+  if (jobBranch != null) {
+    return Number(jobBranch);
+  }
+  return null;
+}
+
+export function shouldIncludeOrderInOriginPickupQueue(
+  order: ParcelOrderMinimal,
+  effectiveBranchId?: number | null
+): boolean {
+  const s = String(order.status || '').trim().toUpperCase();
+  if (!['CREATED', 'CONFIRMED', 'PICKUP_ASSIGNED', 'PICKED_UP', 'AT_ORIGIN_BRANCH'].includes(s)) {
+    return false;
+  }
+  if (effectiveBranchId !== null && effectiveBranchId !== undefined) {
+    return (
+      order.originBranchId !== null &&
+      order.originBranchId !== undefined &&
+      Number(order.originBranchId) === Number(effectiveBranchId)
+    );
+  }
+  return true;
+}
+
+export function shouldIncludeOrderInLastMileDeliveryQueue(
+  order: ParcelOrderMinimal,
+  effectiveBranchId?: number | null
+): boolean {
+  const s = String(order.status || '').trim().toUpperCase();
+  const sameBranch = isSameBranchOrder(order);
+  const isReadyForLastMile =
+    s === 'AT_DESTINATION_BRANCH' ||
+    (sameBranch && ['PICKED_UP', 'AT_ORIGIN_BRANCH'].includes(s));
+
+  if (!isReadyForLastMile) {
+    return false;
+  }
+  if (effectiveBranchId !== null && effectiveBranchId !== undefined) {
+    const targetDestBranch = order.destinationBranchId ?? order.originBranchId;
+    return (
+      targetDestBranch !== null &&
+      targetDestBranch !== undefined &&
+      Number(targetDestBranch) === Number(effectiveBranchId)
+    );
+  }
+  return true;
+}
+
+export function resolveFleetQueryBranchId(
+  order: ParcelOrderMinimal,
+  capabilities: ParcelModalCapabilities,
+  effectiveBranchId?: number | null
+): number | null {
+  const requiresCourierFleet =
+    capabilities.canAssignPickupCourier ||
+    capabilities.canAssignDeliveryCourier ||
+    capabilities.canSendToInterBranchTransport;
+
+  if (!requiresCourierFleet) {
+    return null;
+  }
+
+  if (effectiveBranchId !== null && effectiveBranchId !== undefined) {
+    return Number(effectiveBranchId);
+  }
+
+  if (capabilities.canAssignDeliveryCourier) {
+    const dest = order.destinationBranchId ?? order.originBranchId;
+    return dest != null ? Number(dest) : null;
+  }
+
+  const origin = order.originBranchId ?? order.destinationBranchId;
+  return origin != null ? Number(origin) : null;
 }

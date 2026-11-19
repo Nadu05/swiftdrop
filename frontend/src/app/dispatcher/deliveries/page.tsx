@@ -16,8 +16,14 @@ import DeliveryDetailsModal from '@/components/dispatcher/deliveries/DeliveryDet
 import AssignCourierDialog from '@/components/dispatcher/deliveries/AssignCourierDialog';
 import BranchDropoffDialog from '@/components/dispatcher/deliveries/BranchDropoffDialog';
 import OrderDispatchActionModal from '@/components/organization/branch-admin/OrderDispatchActionModal';
+import {
+  resolveEffectiveDispatcherBranchId,
+  shouldIncludeOrderInLastMileDeliveryQueue,
+  shouldIncludeOrderInOriginPickupQueue,
+} from '@/components/organization/branch-admin/parcel-dispatch-workflow';
 import { getCustomerOrders } from '@/api/services/orders.api';
 import type { PickupTaskDto } from '@/api/services/dispatch.api';
+import { useAuthStore } from '@/store/auth.store';
 import {
   mapDeliveryJobToUnassigned,
   mapPickupTaskToQueueItem,
@@ -41,6 +47,7 @@ type QueueTab = 'deliveries' | 'pickups';
 
 export default function UnassignedDeliveriesPage() {
   const queryClient = useQueryClient();
+  const user = useAuthStore((s) => s.user);
   const [activeTab, setActiveTab] = useState<QueueTab>('deliveries');
   const [hasAutoSelectedTab, setHasAutoSelectedTab] = useState(false);
 
@@ -55,6 +62,17 @@ export default function UnassignedDeliveriesPage() {
     queryFn: () => getCustomerOrders(),
     refetchInterval: 15_000,
   });
+
+  const effectiveBranchId = useMemo(
+    () =>
+      resolveEffectiveDispatcherBranchId({
+        userBranchId: user?.branchId,
+        couriers: couriersQuery.data,
+        pickupTasks: pickupTasksQuery.data,
+        deliveryJobs: unassignedQuery.data,
+      }),
+    [user?.branchId, couriersQuery.data, pickupTasksQuery.data, unassignedQuery.data]
+  );
 
   // Selected items for modals
   const [selectedDetailsDelivery, setSelectedDetailsDelivery] =
@@ -78,23 +96,20 @@ export default function UnassignedDeliveriesPage() {
   };
 
   const unassignedDeliveries = useMemo(() => {
-    const base = (unassignedQuery.data || []).map(mapDeliveryJobToUnassigned);
+    const base = (unassignedQuery.data || [])
+      .filter(
+        (job) =>
+          !effectiveBranchId ||
+          !job.branchId ||
+          Number(job.branchId) === Number(effectiveBranchId)
+      )
+      .map(mapDeliveryJobToUnassigned);
     const seenTrackings = new Set(base.map((d) => d.trackingNumber));
     const seenOrderIds = new Set(base.map((d) => String(d.orderId)));
 
     for (const order of branchOrdersQuery.data || []) {
-      const s = String(order.status || '').toUpperCase();
-      const sameBranch =
-        Boolean(order.sameBranch) ||
-        (order.originBranchId &&
-          order.destinationBranchId &&
-          Number(order.originBranchId) === Number(order.destinationBranchId));
-      const isReadyForLastMile =
-        s === 'AT_DESTINATION_BRANCH' ||
-        (sameBranch && ['PICKED_UP', 'AT_ORIGIN_BRANCH'].includes(s));
-
       if (
-        isReadyForLastMile &&
+        shouldIncludeOrderInLastMileDeliveryQueue(order, effectiveBranchId) &&
         !seenTrackings.has(order.trackingNumber) &&
         !seenOrderIds.has(String(order.id))
       ) {
@@ -123,11 +138,16 @@ export default function UnassignedDeliveriesPage() {
       }
     }
     return base;
-  }, [unassignedQuery.data, branchOrdersQuery.data]);
+  }, [unassignedQuery.data, branchOrdersQuery.data, effectiveBranchId]);
 
   const openPickupTasks = useMemo(() => {
     const base: PickupTaskDto[] = (pickupTasksQuery.data || []).filter(
-      (task) => task.status !== 'BRANCH_RECEIVED' && task.status !== 'CANCELLED'
+      (task) =>
+        task.status !== 'BRANCH_RECEIVED' &&
+        task.status !== 'CANCELLED' &&
+        (!effectiveBranchId ||
+          !task.originBranchId ||
+          Number(task.originBranchId) === Number(effectiveBranchId))
     );
     const seenTrackings = new Set(base.map((t) => t.trackingNumber));
     const seenOrderIds = new Set(base.map((t) => String(t.orderId)));
@@ -135,7 +155,7 @@ export default function UnassignedDeliveriesPage() {
     for (const order of branchOrdersQuery.data || []) {
       const s = String(order.status || '').toUpperCase();
       if (
-        ['CREATED', 'CONFIRMED', 'PICKUP_ASSIGNED', 'PICKED_UP', 'AT_ORIGIN_BRANCH'].includes(s) &&
+        shouldIncludeOrderInOriginPickupQueue(order, effectiveBranchId) &&
         !seenTrackings.has(order.trackingNumber) &&
         !seenOrderIds.has(String(order.id))
       ) {
@@ -155,7 +175,7 @@ export default function UnassignedDeliveriesPage() {
                 ? 'ASSIGNED'
                 : 'PICKED_UP',
           priority: 'NORMAL',
-          originBranchId: order.originBranchId || 1,
+          originBranchId: order.originBranchId || effectiveBranchId || 1,
           originBranchName: order.originBranchName,
           destinationBranchId: order.destinationBranchId,
           destinationBranchName: order.destinationBranchName,
@@ -177,7 +197,7 @@ export default function UnassignedDeliveriesPage() {
       }
     }
     return base;
-  }, [pickupTasksQuery.data, branchOrdersQuery.data]);
+  }, [pickupTasksQuery.data, branchOrdersQuery.data, effectiveBranchId]);
 
   useEffect(() => {
     if (
@@ -549,6 +569,7 @@ export default function UnassignedDeliveriesPage() {
               o.trackingNumber === String(selectedActionModalOrderId)
           ) ?? null
         }
+        effectiveBranchId={effectiveBranchId}
         allBranches={branchesQuery.data || []}
         onClose={() => setSelectedActionModalOrderId(null)}
         onUpdated={handleRefresh}

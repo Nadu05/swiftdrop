@@ -18,8 +18,13 @@ import DeliveryStatusChart from '@/components/dispatcher/overview/DeliveryStatus
 import CourierWorkload from '@/components/dispatcher/overview/CourierWorkload';
 import DispatchActionBar from '@/components/dispatcher/overview/DispatchActionBar';
 import OrderDispatchActionModal from '@/components/organization/branch-admin/OrderDispatchActionModal';
-import { resolveParcelModalCapabilities } from '@/components/organization/branch-admin/parcel-dispatch-workflow';
+import {
+  resolveEffectiveDispatcherBranchId,
+  resolveParcelModalCapabilities,
+  shouldIncludeOrderInOriginPickupQueue,
+} from '@/components/organization/branch-admin/parcel-dispatch-workflow';
 import { getCustomerOrders } from '@/api/services/orders.api';
+import { useAuthStore } from '@/store/auth.store';
 import type { OrderResponse } from '@/types/order.types';
 import type {
   CourierWorkloadItem,
@@ -45,6 +50,7 @@ function toLocalIsoDate(input: Date): string {
 }
 
 export default function DispatcherDashboardPage() {
+  const user = useAuthStore((s) => s.user);
   const [selectedOrder, setSelectedOrder] = useState<OrderResponse | null>(null);
   const pickupTasksQuery = usePickupTasks(undefined, { refetchInterval: 15_000 });
   const deliveryJobsQuery = useDeliveryJobs(undefined, { refetchInterval: 15_000 });
@@ -97,6 +103,17 @@ export default function DispatcherDashboardPage() {
   const assignments = assignmentsQuery.data ?? [];
   const branchOrders = branchOrdersQuery.data ?? [];
 
+  const effectiveBranchId = useMemo(
+    () =>
+      resolveEffectiveDispatcherBranchId({
+        userBranchId: user?.branchId,
+        couriers,
+        pickupTasks,
+        deliveryJobs,
+      }),
+    [user?.branchId, couriers, pickupTasks, deliveryJobs]
+  );
+
   const metrics = useMemo(() => {
     const todayKey = toLocalIsoDate(new Date());
 
@@ -113,6 +130,7 @@ export default function DispatcherDashboardPage() {
     const unsyncedConfirmedOrders = branchOrders.filter(
       (o) =>
         ['CREATED', 'CONFIRMED'].includes(String(o.status || '').toUpperCase()) &&
+        shouldIncludeOrderInOriginPickupQueue(o, effectiveBranchId) &&
         !pickupTasks.some((t) => t.trackingNumber === o.trackingNumber)
     );
 
@@ -194,7 +212,7 @@ export default function DispatcherDashboardPage() {
         unsyncedConfirmedOrders.length,
       openExceptionsCount: openExceptions.length,
     };
-  }, [assignments, branchOrders, couriers, deliveryJobs, exceptions, pickupTasks]);
+  }, [assignments, branchOrders, couriers, deliveryJobs, effectiveBranchId, exceptions, pickupTasks]);
 
   const activityData = useMemo<DailyActivityData[]>(() => {
     const dayFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'short' });
@@ -356,7 +374,7 @@ export default function DispatcherDashboardPage() {
                 </tr>
               ) : (
                 branchOrders.map((order) => {
-                  const caps = resolveParcelModalCapabilities(order);
+                  const caps = resolveParcelModalCapabilities(order, effectiveBranchId);
                   return (
                     <tr
                       key={order.id}
@@ -433,6 +451,7 @@ export default function DispatcherDashboardPage() {
         isOpen={selectedOrder !== null}
         orderIdOrTracking={selectedOrder?.id ?? selectedOrder?.trackingNumber ?? null}
         initialOrder={selectedOrder}
+        effectiveBranchId={effectiveBranchId}
         allBranches={branchesQuery.data || []}
         onClose={() => setSelectedOrder(null)}
         onUpdated={handleRefresh}

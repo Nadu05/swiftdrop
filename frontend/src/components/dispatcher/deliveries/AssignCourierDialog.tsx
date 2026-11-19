@@ -8,6 +8,7 @@ import {
 } from './assignmentService';
 import AssignmentConfirmation from './AssignmentConfirmation';
 import CourierSelectionCard from './CourierSelectionCard';
+import { resolveAssignDialogPresentation } from './assignDialogUtils';
 import { isCourierSelectable } from './courierUtils';
 import { toDispatchError, type DispatchApiError } from './dispatchErrors';
 import type { CourierAvailability, UnassignedDelivery } from './types';
@@ -89,6 +90,7 @@ export default function AssignCourierDialog({
     couriers.find((c) => c.id === selectedCourierId) ?? null;
 
   const eligibleCount = couriers.filter((c) => isCourierSelectable(c)).length;
+  const presentation = resolveAssignDialogPresentation(order);
 
   const handleSelectCourier = (courier: CourierAvailability) => {
     if (!isCourierSelectable(courier)) return;
@@ -168,10 +170,10 @@ export default function AssignCourierDialog({
               </span>
             </div>
             <h2 id={titleId} className="dispatcher-modal-title">
-              Assign Courier
+              {presentation.title}
             </h2>
             <p id={descriptionId} className="dispatcher-modal-subtitle">
-              Select an eligible courier to dispatch this delivery.
+              {presentation.subtitle}
             </p>
           </div>
 
@@ -194,9 +196,11 @@ export default function AssignCourierDialog({
             <span className="dispatcher-assign-dialog__order-value">{order.recipientName}</span>
           </div>
           <div className="dispatcher-assign-dialog__order-item">
-            <span className="dispatcher-assign-dialog__order-label">Destination</span>
+            <span className="dispatcher-assign-dialog__order-label">
+              {presentation.locationLabel}
+            </span>
             <span className="dispatcher-assign-dialog__order-value">
-              {order.deliveryAddress} ({order.city})
+              {presentation.locationValue}
             </span>
           </div>
           <div className="dispatcher-assign-dialog__order-item">

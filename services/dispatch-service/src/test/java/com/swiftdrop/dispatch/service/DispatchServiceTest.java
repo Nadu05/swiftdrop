@@ -720,6 +720,53 @@ class DispatchServiceTest {
         assertTrue(branchTasks.stream().anyMatch(t -> "SD-52711".equals(t.getTrackingNumber()) && "COURIER_PICKUP".equals(t.getPickupMethod())));
         assertTrue(branchTasks.stream().anyMatch(t -> "SD-23581".equals(t.getTrackingNumber()) && "BRANCH_DROPOFF".equals(t.getPickupMethod())));
     }
+
+    @Test
+    void getAvailableCouriers_InterBranchOrderWithPickupTaskAtBranch3_AllowsDestinationBranch5DispatcherAndRejectsCrossBranch3Query() {
+        DispatchUserPrincipal branch5Dispatcher =
+                new DispatchUserPrincipal("disp-5", "nadua@swiftdrop.lk", List.of("DISPATCHER"), 5L);
+
+        PickupTask interBranchPickup = new PickupTask();
+        interBranchPickup.setId(20L);
+        interBranchPickup.setTaskCode("PKP-20020");
+        interBranchPickup.setOrderId("2");
+        interBranchPickup.setTrackingNumber("SD-52711");
+        interBranchPickup.setOriginBranchId(3L);
+        interBranchPickup.setDestinationBranchId(5L);
+        interBranchPickup.setWeightKg(new BigDecimal("0.50"));
+
+        CourierProfileEntity branch5Courier = new CourierProfileEntity();
+        branch5Courier.setId(50L);
+        branch5Courier.setCourierCode("CR-4579");
+        branch5Courier.setName("mangala");
+        branch5Courier.setPhone("+94 77 000 0000");
+        branch5Courier.setVehicleType(VehicleType.MOTORCYCLE);
+        branch5Courier.setBranchId(5L);
+        branch5Courier.setBranchCode("BR-5");
+        branch5Courier.setBranchName("Branch 5");
+        branch5Courier.setZone("Zone A");
+        branch5Courier.setAvailabilityStatus(CourierAvailabilityStatus.AVAILABLE);
+        branch5Courier.setMaxCapacity(8);
+
+        when(deliveryJobRepository.findByOrderId("2")).thenReturn(Optional.empty());
+        when(deliveryJobRepository.findByTrackingNumberIgnoreCase("2")).thenReturn(Optional.empty());
+        when(pickupTaskRepository.findByOrderId("2")).thenReturn(Optional.of(interBranchPickup));
+        when(courierRepository.findByBranchIdOrderByNameAsc(5L)).thenReturn(List.of(branch5Courier));
+
+        // 1. Explicitly querying Branch 3 as a Branch 5 dispatcher must be rejected
+        AccessDeniedException denied = assertThrows(
+                AccessDeniedException.class,
+                () -> dispatchService.getAvailableCouriers(3L, "2", new BigDecimal("0.50"), branch5Dispatcher)
+        );
+        assertEquals("Dispatcher scoped to branch 5 cannot query branch 3", denied.getMessage());
+
+        // 2. Querying without an explicit branchId (or with branchId=5) for an order whose destinationBranchId is 5
+        // must NOT fail with "Dispatcher scoped to branch 5 cannot query branch 3" when PickupTask has originBranchId=3
+        List<CourierProfileDto> couriers = dispatchService.getAvailableCouriers(null, "2", null, branch5Dispatcher);
+        assertEquals(1, couriers.size());
+        assertEquals("CR-4579", couriers.get(0).getCourierCode());
+        assertTrue(couriers.get(0).getIsEligible());
+    }
 }
 
 

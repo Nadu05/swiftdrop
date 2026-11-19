@@ -30,6 +30,7 @@ import type { DeliveryOrder } from '@/types/order.types';
 import type { BranchResponse } from '@/types/organization.types';
 import {
   isSameBranchOrder,
+  resolveFleetQueryBranchId,
   resolveParcelModalCapabilities,
 } from './parcel-dispatch-workflow';
 
@@ -115,29 +116,33 @@ export function OrderDispatchActionModal({
           fetched,
           effectiveBranchId
         );
-        const fleetBranchId = capabilities.canAssignDeliveryCourier
-          ? fetched.destinationBranchId || fetched.originBranchId || effectiveBranchId
-          : fetched.originBranchId || effectiveBranchId || fetched.destinationBranchId;
+        const fleetBranchId = resolveFleetQueryBranchId(
+          fetched,
+          capabilities,
+          effectiveBranchId
+        );
 
-        setIsLoadingCouriers(true);
-        try {
-          const avail = await dispatchApi.getCourierAvailability({
-            branchId: fleetBranchId ?? undefined,
-            orderId: fetched.id,
-            weightKg: fetched.weightKg,
-          });
-          if (avail.length > 0) {
-            setCouriers(avail);
-          } else {
-            const branchFleet = await dispatchApi.getCouriers(
-              fleetBranchId ?? undefined
-            );
-            setCouriers(branchFleet);
-          }
-        } catch {
+        if (fleetBranchId === null) {
           setCouriers([]);
-        } finally {
-          setIsLoadingCouriers(false);
+        } else {
+          setIsLoadingCouriers(true);
+          try {
+            const avail = await dispatchApi.getCourierAvailability({
+              branchId: fleetBranchId,
+              orderId: fetched.id,
+              weightKg: fetched.weightKg,
+            });
+            if (avail.length > 0) {
+              setCouriers(avail);
+            } else {
+              const branchFleet = await dispatchApi.getCouriers(fleetBranchId);
+              setCouriers(branchFleet);
+            }
+          } catch {
+            setCouriers([]);
+          } finally {
+            setIsLoadingCouriers(false);
+          }
         }
       } catch (err: unknown) {
         if (!initialOrder) {
@@ -806,6 +811,29 @@ export function OrderDispatchActionModal({
                         </span>
                       </button>
                     )}
+                    {!capabilities.canAssignPickupCourier &&
+                      !capabilities.canConfirmOriginBranchArrival &&
+                      !capabilities.canSendToInterBranchTransport &&
+                      !capabilities.canConfirmDestinationBranchReceipt &&
+                      !capabilities.canAssignDeliveryCourier &&
+                      !sameBranch &&
+                      capabilities.isDestinationBranchScope &&
+                      !capabilities.isOriginBranchScope && (
+                        <div className="w-full rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-xs text-amber-900">
+                          <strong>Awaiting Pickup/Transfer at Origin Branch:</strong>{' '}
+                          This inter-branch order originates at{' '}
+                          <span className="font-semibold">
+                            {resolveBranchLabel(
+                              order.originBranchId,
+                              order.originBranchName
+                            )}
+                          </span>
+                          . Only the Origin Branch can assign the pickup courier and
+                          dispatch the parcel to Inter-Branch Transport. Once it is
+                          in transit to your branch, you will be able to confirm
+                          receipt and assign a last-mile delivery courier here.
+                        </div>
+                      )}
                   </div>
                 </div>
               )}
