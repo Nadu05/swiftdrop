@@ -16,6 +16,8 @@ import java.util.Optional;
 public interface PostalAreaRepository extends JpaRepository<PostalArea, Long>, JpaSpecificationExecutor<PostalArea> {
     Optional<PostalArea> findByPostalCode(String postalCode);
 
+    boolean existsByImportVersion(String importVersion);
+
     default List<PostalArea> searchActivePostalAreas(
             Long provinceId,
             Long districtId,

@@ -20,9 +20,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Idempotently imports a curated Sri Lankan geographical reference bundle
@@ -58,10 +61,37 @@ public class GeoImportService {
     }
 
     @Transactional
-    public GeoImportSummary importBundle(InputStream bundleStream) throws IOException {
+    public GeoImportSummary importBundleIfNeeded(InputStream bundleStream, boolean force) throws IOException {
         GeoBundlePayload payload = objectMapper.readValue(bundleStream, GeoBundlePayload.class);
         String defaultVersion = payload.importVersion != null ? payload.importVersion : "unknown";
 
+        if (!force
+                && postalAreaRepository.existsByImportVersion(defaultVersion)
+                && dsDivisionRepository.count() > 0
+                && gnDivisionRepository.count() > 0) {
+            log.info("Geo-import version={} is already seeded; skipping startup import (set app.geo-import.force=true to re-import)",
+                    defaultVersion);
+            return new GeoImportSummary(
+                    defaultVersion,
+                    (int) provinceRepository.count(),
+                    (int) districtRepository.count(),
+                    (int) dsDivisionRepository.count(),
+                    (int) postalAreaRepository.count(),
+                    (int) gnDivisionRepository.count()
+            );
+        }
+
+        return importPayload(payload, defaultVersion);
+    }
+
+    @Transactional
+    public GeoImportSummary importBundle(InputStream bundleStream) throws IOException {
+        GeoBundlePayload payload = objectMapper.readValue(bundleStream, GeoBundlePayload.class);
+        String defaultVersion = payload.importVersion != null ? payload.importVersion : "unknown";
+        return importPayload(payload, defaultVersion);
+    }
+
+    private GeoImportSummary importPayload(GeoBundlePayload payload, String defaultVersion) {
         Map<String, Province> provinceMap = upsertProvinces(payload.provinces);
         Map<String, District> districtMap = upsertDistricts(payload.districts, provinceMap);
         Map<String, DsDivision> dsMap = upsertDsDivisions(payload.dsDivisions, districtMap);
@@ -85,17 +115,23 @@ public class GeoImportService {
     }
 
     private Map<String, Province> upsertProvinces(List<ProvinceRecord> records) {
-        Map<String, Province> result = new HashMap<>();
-        if (records == null) {
+        Map<String, Province> existing = provinceRepository.findAll().stream()
+                .collect(Collectors.toMap(Province::getCode, Function.identity(), (a, b) -> a));
+        Map<String, Province> result = new HashMap<>(existing);
+        if (records == null || records.isEmpty()) {
             return result;
         }
+        List<Province> toSave = new ArrayList<>(records.size());
         for (ProvinceRecord rec : records) {
-            Province entity = provinceRepository.findByCode(rec.code).orElseGet(Province::new);
+            Province entity = existing.getOrDefault(rec.code, new Province());
             entity.setCode(rec.code);
             entity.setName(rec.name);
             entity.setLatitude(rec.latitude);
             entity.setLongitude(rec.longitude);
-            result.put(rec.code, provinceRepository.save(entity));
+            toSave.add(entity);
+        }
+        for (Province saved : provinceRepository.saveAll(toSave)) {
+            result.put(saved.getCode(), saved);
         }
         return result;
     }
@@ -104,19 +140,25 @@ public class GeoImportService {
             List<DistrictRecord> records,
             Map<String, Province> provinceMap
     ) {
-        Map<String, District> result = new HashMap<>();
-        if (records == null) {
+        Map<String, District> existing = districtRepository.findAll().stream()
+                .collect(Collectors.toMap(District::getCode, Function.identity(), (a, b) -> a));
+        Map<String, District> result = new HashMap<>(existing);
+        if (records == null || records.isEmpty()) {
             return result;
         }
+        List<District> toSave = new ArrayList<>(records.size());
         for (DistrictRecord rec : records) {
             Province province = resolveProvince(rec.provinceCode, provinceMap);
-            District entity = districtRepository.findByCode(rec.code).orElseGet(District::new);
+            District entity = existing.getOrDefault(rec.code, new District());
             entity.setCode(rec.code);
             entity.setProvince(province);
             entity.setName(rec.name);
             entity.setLatitude(rec.latitude);
             entity.setLongitude(rec.longitude);
-            result.put(rec.code, districtRepository.save(entity));
+            toSave.add(entity);
+        }
+        for (District saved : districtRepository.saveAll(toSave)) {
+            result.put(saved.getCode(), saved);
         }
         return result;
     }
@@ -125,19 +167,25 @@ public class GeoImportService {
             List<DsDivisionRecord> records,
             Map<String, District> districtMap
     ) {
-        Map<String, DsDivision> result = new HashMap<>();
-        if (records == null) {
+        Map<String, DsDivision> existing = dsDivisionRepository.findAll().stream()
+                .collect(Collectors.toMap(DsDivision::getCode, Function.identity(), (a, b) -> a));
+        Map<String, DsDivision> result = new HashMap<>(existing);
+        if (records == null || records.isEmpty()) {
             return result;
         }
+        List<DsDivision> toSave = new ArrayList<>(records.size());
         for (DsDivisionRecord rec : records) {
             District district = resolveDistrict(rec.districtCode, districtMap);
-            DsDivision entity = dsDivisionRepository.findByCode(rec.code).orElseGet(DsDivision::new);
+            DsDivision entity = existing.getOrDefault(rec.code, new DsDivision());
             entity.setCode(rec.code);
             entity.setDistrict(district);
             entity.setName(rec.name);
             entity.setLatitude(rec.latitude);
             entity.setLongitude(rec.longitude);
-            result.put(rec.code, dsDivisionRepository.save(entity));
+            toSave.add(entity);
+        }
+        for (DsDivision saved : dsDivisionRepository.saveAll(toSave)) {
+            result.put(saved.getCode(), saved);
         }
         return result;
     }
@@ -149,10 +197,13 @@ public class GeoImportService {
             Map<String, DsDivision> dsMap,
             String defaultVersion
     ) {
-        Map<String, PostalArea> result = new HashMap<>();
-        if (records == null) {
+        Map<String, PostalArea> existing = postalAreaRepository.findAll().stream()
+                .collect(Collectors.toMap(PostalArea::getPostalCode, Function.identity(), (a, b) -> a));
+        Map<String, PostalArea> result = new HashMap<>(existing);
+        if (records == null || records.isEmpty()) {
             return result;
         }
+        List<PostalArea> toSave = new ArrayList<>(records.size());
         for (PostalAreaRecord rec : records) {
             Province province = resolveProvince(rec.provinceCode, provinceMap);
             District district = resolveDistrict(rec.districtCode, districtMap);
@@ -160,8 +211,7 @@ public class GeoImportService {
                     ? resolveDsDivision(rec.dsDivisionCode, dsMap)
                     : null;
 
-            PostalArea entity = postalAreaRepository.findByPostalCode(rec.postalCode)
-                    .orElseGet(PostalArea::new);
+            PostalArea entity = existing.getOrDefault(rec.postalCode, new PostalArea());
             entity.setPostalCode(rec.postalCode);
             entity.setAreaName(rec.areaName);
             entity.setProvince(province);
@@ -173,7 +223,10 @@ public class GeoImportService {
             entity.setSourceName(rec.sourceName != null ? rec.sourceName : "slwdc/Postal-Codes");
             entity.setSourceReference(rec.sourceReference != null ? rec.sourceReference : "SriLankaPost");
             entity.setImportVersion(rec.importVersion != null ? rec.importVersion : defaultVersion);
-            result.put(rec.postalCode, postalAreaRepository.save(entity));
+            toSave.add(entity);
+        }
+        for (PostalArea saved : postalAreaRepository.saveAll(toSave)) {
+            result.put(saved.getPostalCode(), saved);
         }
         return result;
     }
@@ -183,20 +236,19 @@ public class GeoImportService {
             Map<String, DsDivision> dsMap,
             Map<String, PostalArea> postalAreaMap
     ) {
-        if (records == null) {
+        if (records == null || records.isEmpty()) {
             return 0;
         }
-        int count = 0;
+        Map<String, GnDivision> existing = gnDivisionRepository.findAll().stream()
+                .collect(Collectors.toMap(GnDivision::getCode, Function.identity(), (a, b) -> a));
+        List<GnDivision> toSave = new ArrayList<>(records.size());
         for (GnDivisionRecord rec : records) {
             DsDivision dsDivision = resolveDsDivision(rec.dsDivisionCode, dsMap);
             PostalArea postalArea = null;
             if (rec.postalCode != null && !rec.postalCode.isBlank()) {
-                postalArea = postalAreaMap.computeIfAbsent(
-                        rec.postalCode,
-                        code -> postalAreaRepository.findByPostalCode(code).orElse(null)
-                );
+                postalArea = postalAreaMap.get(rec.postalCode);
             }
-            GnDivision entity = gnDivisionRepository.findByCode(rec.code).orElseGet(GnDivision::new);
+            GnDivision entity = existing.getOrDefault(rec.code, new GnDivision());
             entity.setCode(rec.code);
             entity.setDsDivision(dsDivision);
             entity.setName(rec.name);
@@ -204,10 +256,10 @@ public class GeoImportService {
             entity.setPostalArea(postalArea);
             entity.setLatitude(rec.latitude);
             entity.setLongitude(rec.longitude);
-            gnDivisionRepository.save(entity);
-            count++;
+            toSave.add(entity);
         }
-        return count;
+        gnDivisionRepository.saveAll(toSave);
+        return toSave.size();
     }
 
     private Province resolveProvince(String code, Map<String, Province> cache) {

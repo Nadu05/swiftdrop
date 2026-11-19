@@ -48,7 +48,7 @@ public class GeoImportRunner implements CommandLineRunner {
         Resource resource = resolveBundleResource();
         log.info("Running geo-import from bundle: {}", resource.getDescription());
         try (InputStream stream = resource.getInputStream()) {
-            geoImportService.importBundle(stream);
+            geoImportService.importBundleIfNeeded(stream, forceImport);
         }
     }
 
@@ -62,7 +62,8 @@ public class GeoImportRunner implements CommandLineRunner {
         }
         String[] defaultCandidates = {
                 "file:data/geo/curated/sri-lanka-geo-bundle.json",
-                "file:../../data/geo/curated/sri-lanka-geo-bundle.json"
+                "file:../../data/geo/curated/sri-lanka-geo-bundle.json",
+                "classpath:geo/sri-lanka-geo-bundle.json"
         };
         for (String candidate : defaultCandidates) {
             Resource res = resourceLoader.getResource(candidate);
