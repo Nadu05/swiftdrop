@@ -85,348 +85,392 @@ export default function CustomerReceiptPage() {
   };
 
   return (
-    <div style={{ maxWidth: '850px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      {/* ---------------- SCREEN-ONLY NAVIGATION & ACTIONS (NO-PRINT) ---------------- */}
-      <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-          <Link
-            href="/customer/dashboard"
-            className="btn btn-secondary"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem' }}
-          >
-            Dashboard
-          </Link>
-          <span style={{ color: '#64748b' }}>/</span>
-          <Link
-            href={`/bookings/${id}`}
-            className="btn btn-secondary"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem' }}
-          >
-            <ArrowLeft size={14} /> Order #{id}
-          </Link>
-        </div>
-
-        {order && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <Link
-              href={`/tracking?number=${encodeURIComponent(order.trackingNumber)}`}
-              className="btn btn-secondary"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
-            >
-              <Truck size={15} /> Track Parcel
+    <div className="sd-fullpage-root">
+      {/* ---------------- EDGE-TO-EDGE TOP HEADER BAR (NO-PRINT) ---------------- */}
+      <header className="sd-fullpage-header no-print">
+        <div className="sd-header-inner">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <Link href={`/bookings/${id}`} className="sd-back-btn" aria-label={`Back to Order #${id}`}>
+              <ArrowLeft size={20} />
             </Link>
-
-            <button
-              type="button"
-              onClick={handlePrint}
-              className="btn btn-secondary"
-              title="Save receipt as a PDF using your browser's Print dialog"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
-            >
-              <Download size={15} /> Download / PDF
-            </button>
-
-            <button
-              type="button"
-              onClick={handlePrint}
-              className="btn btn-primary"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
-            >
-              <Printer size={15} /> Print Receipt
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* ---------------- STATE 1: LOADING ---------------- */}
-      {isLoading && (
-        <div
-          className="glass-card"
-          style={{
-            padding: '4rem 2rem',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '1rem',
-          }}
-        >
-          <Loader2 size={36} color="#3b82f6" className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
-          <div style={{ fontSize: '1rem', fontWeight: 600, color: '#ffffff' }}>Loading official receipt...</div>
-          <p style={{ fontSize: '0.8rem', color: '#64748b' }}>
-            Fetching verified booking #{id} from Order Service
-          </p>
-        </div>
-      )}
-
-      {/* ---------------- STATE 2: ERROR ---------------- */}
-      {!isLoading && error && (
-        <div
-          className="glass-card"
-          style={{
-            padding: '2.5rem',
-            border: '1px solid rgba(239, 68, 68, 0.35)',
-            background: 'rgba(239, 68, 68, 0.08)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            textAlign: 'center',
-            gap: '1rem',
-          }}
-        >
-          <div
-            style={{
-              width: '54px',
-              height: '54px',
-              borderRadius: '50%',
-              background: 'rgba(239, 68, 68, 0.15)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <AlertCircle size={30} color="#ef4444" />
-          </div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#ef4444' }}>Unable to Load Receipt</h2>
-          <p style={{ fontSize: '0.875rem', color: '#cbd5e1', maxWidth: '480px' }}>{error}</p>
-          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
-            <button type="button" onClick={() => orderQuery.refetch()} className="btn btn-primary" style={{ fontSize: '0.85rem' }}>
-              Try Again
-            </button>
-            <Link href="/bookings" className="btn btn-secondary" style={{ fontSize: '0.85rem' }}>
-              Return to Deliveries
-            </Link>
-          </div>
-        </div>
-      )}
-
-      {/* ---------------- STATE 3: VERIFIED RECEIPT CARD ---------------- */}
-      {!isLoading && order && (
-        <div className="receipt-container">
-          {/* Receipt Top Header */}
-          <div className="receipt-header">
-            <div className="brand-block">
-              <div className="brand-logo">
-                <FileText size={24} color="#ffffff" />
+            <div>
+              <h1 className="sd-header-title">Official Booking Receipt</h1>
+              <div className="sd-header-sub">
+                Order #{id} {order?.trackingNumber ? `· ${order.trackingNumber}` : ''}
               </div>
-              <div>
-                <div className="brand-title">
-                  Swift<span>Drop</span> Logistics
+            </div>
+          </div>
+
+          {order && (
+            <div className="sd-header-actions" style={{ flexWrap: 'wrap' }}>
+              <Link
+                href={`/tracking?number=${encodeURIComponent(order.trackingNumber)}`}
+                className="sd-header-action-btn secondary"
+              >
+                <Truck size={15} /> Track Parcel
+              </Link>
+
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="sd-header-action-btn secondary"
+                title="Save receipt as a PDF using your browser's Print dialog"
+              >
+                <Download size={15} /> Download / PDF
+              </button>
+
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="sd-header-book-btn"
+              >
+                <Printer size={15} /> Print Receipt
+              </button>
+            </div>
+          )}
+        </div>
+      </header>
+
+      {/* ---------------- BODY CONTENT ---------------- */}
+      <div className="sd-fullpage-body">
+        <div className="sd-content-wrapper" style={{ maxWidth: '880px' }}>
+          {/* ---------------- STATE 1: LOADING ---------------- */}
+          {isLoading && (
+            <div
+              className="sd-card-panel"
+              style={{
+                padding: '4rem 2rem',
+                alignItems: 'center',
+                justifyContent: 'center',
+                textAlign: 'center',
+                gap: '0.85rem',
+              }}
+            >
+              <Loader2 size={36} color="#2563eb" style={{ animation: 'spin 1s linear infinite' }} />
+              <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a' }}>
+                Loading official receipt...
+              </div>
+              <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>
+                Fetching verified booking #{id} from Order Service
+              </p>
+            </div>
+          )}
+
+          {/* ---------------- STATE 2: ERROR ---------------- */}
+          {!isLoading && error && (
+            <div
+              className="sd-card-panel"
+              style={{
+                padding: '2.5rem',
+                borderColor: '#fecaca',
+                background: '#fef2f2',
+                alignItems: 'center',
+                textAlign: 'center',
+                gap: '1rem',
+              }}
+            >
+              <div
+                style={{
+                  width: '54px',
+                  height: '54px',
+                  borderRadius: '50%',
+                  background: '#fee2e2',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <AlertCircle size={30} color="#dc2626" />
+              </div>
+              <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#991b1b', margin: 0 }}>
+                Unable to Load Receipt
+              </h2>
+              <p style={{ fontSize: '0.875rem', color: '#7f1d1d', maxWidth: '480px', margin: 0 }}>
+                {error}
+              </p>
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => orderQuery.refetch()}
+                  className="sd-receipt-btn-primary"
+                >
+                  Try Again
+                </button>
+                <Link href="/bookings" className="sd-receipt-btn-outline">
+                  Return to Deliveries
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {/* ---------------- STATE 3: VERIFIED RECEIPT CARD ---------------- */}
+          {!isLoading && order && (
+            <div className="receipt-container">
+              {/* Receipt Top Header */}
+              <div className="receipt-header">
+                <div className="brand-block">
+                  <div className="brand-logo">
+                    <FileText size={24} color="#ffffff" />
+                  </div>
+                  <div>
+                    <div className="brand-title">
+                      Swift<span>Drop</span> Logistics
+                    </div>
+                    <div className="brand-subtitle">Parcel Delivery &amp; Courier Management System</div>
+                    <div className="receipt-pill">Official Booking Receipt</div>
+                  </div>
                 </div>
-                <div className="brand-subtitle">Parcel Delivery & Courier Management System</div>
-                <div className="receipt-pill">Official Booking Receipt</div>
-              </div>
-            </div>
 
-            <div className="receipt-meta">
-              <div className="meta-row">
-                <span className="meta-label">Receipt Ref:</span>
-                <span className="meta-value">REC-{String(order.id).padStart(6, '0')}</span>
+                <div className="receipt-meta">
+                  <div className="meta-row">
+                    <span className="meta-label">Receipt Ref:</span>
+                    <span className="meta-value">REC-{String(order.id).padStart(6, '0')}</span>
+                  </div>
+                  <div className="meta-row">
+                    <span className="meta-label">Date Issued:</span>
+                    <span className="meta-value">{formatDate(order.createdAt)}</span>
+                  </div>
+                  <div className="meta-row">
+                    <span className="meta-label">Order Status:</span>
+                    <span className="status-badge">{order.statusLabel || order.status || 'Created'}</span>
+                  </div>
+                </div>
               </div>
-              <div className="meta-row">
-                <span className="meta-label">Date Issued:</span>
-                <span className="meta-value">{formatDate(order.createdAt)}</span>
-              </div>
-              <div className="meta-row">
-                <span className="meta-label">Order Status:</span>
-                <span className="status-badge">{order.statusLabel || order.status || 'Created'}</span>
-              </div>
-            </div>
-          </div>
 
-          {/* Authoritative Tracking Banner */}
-          <div className="tracking-strip">
-            <div className="tracking-text">
-              <span className="label">OFFICIAL TRACKING NUMBER:</span>
-              <span className="number">{order.trackingNumber}</span>
-            </div>
-            <button
-              type="button"
-              onClick={handleCopyTracking}
-              className="copy-btn no-print"
-              title="Copy tracking number"
-            >
-              {copied ? (
-                <>
-                  <Check size={14} color="#10b981" /> Copied
-                </>
-              ) : (
-                <>
-                  <Copy size={14} /> Copy
-                </>
-              )}
-            </button>
-          </div>
-
-          {/* Sender & Recipient Columns */}
-          <div className="parties-grid">
-            {/* Origin Details */}
-            <div className="party-card">
-              <div className="party-title origin">
-                <MapPin size={15} /> SENDER / PICKUP DETAILS
+              {/* Authoritative Tracking Banner */}
+              <div className="tracking-strip">
+                <div className="tracking-text">
+                  <span className="label">OFFICIAL TRACKING NUMBER</span>
+                  <span className="number">{order.trackingNumber}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCopyTracking}
+                  className="copy-btn no-print"
+                  title="Copy tracking number"
+                >
+                  {copied ? (
+                    <>
+                      <Check size={14} color="#16a34a" /> Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={14} /> Copy
+                    </>
+                  )}
+                </button>
               </div>
-              <div className="party-address">{order.pickupAddress}</div>
-              <div className="party-contacts">
-                {order.pickupContactName && (
-                  <div className="contact-row">
-                    <User size={13} /> Contact: <strong>{order.pickupContactName}</strong>
+
+              {/* Sender & Recipient Columns */}
+              <div className="parties-grid">
+                {/* Origin Details */}
+                <div className="party-card">
+                  <div className="party-title origin">
+                    <MapPin size={15} /> SENDER / PICKUP DETAILS
+                  </div>
+                  <div className="party-address">{order.pickupAddress}</div>
+                  <div className="party-contacts">
+                    {order.pickupContactName && (
+                      <div className="contact-row">
+                        <User size={13} /> Contact: <strong>{order.pickupContactName}</strong>
+                      </div>
+                    )}
+                    {order.pickupContactPhone && (
+                      <div className="contact-row">
+                        <Phone size={13} /> Phone: <strong>{order.pickupContactPhone}</strong>
+                      </div>
+                    )}
+                    {order.originBranchName && (
+                      <div className="contact-row">
+                        <Building2 size={13} /> Origin Branch:{' '}
+                        <strong>
+                          {order.originBranchName} {order.originBranchCode ? `(${order.originBranchCode})` : ''}
+                        </strong>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Destination Details */}
+                <div className="party-card">
+                  <div className="party-title destination">
+                    <MapPin size={15} /> RECIPIENT / DELIVERY DETAILS
+                  </div>
+                  <div className="party-address">{order.dropoffAddress}</div>
+                  <div className="party-contacts">
+                    {order.dropoffContactName && (
+                      <div className="contact-row">
+                        <User size={13} /> Recipient: <strong>{order.dropoffContactName}</strong>
+                      </div>
+                    )}
+                    {order.dropoffContactPhone && (
+                      <div className="contact-row">
+                        <Phone size={13} /> Phone: <strong>{order.dropoffContactPhone}</strong>
+                      </div>
+                    )}
+                    {order.destinationBranchName && (
+                      <div className="contact-row">
+                        <Building2 size={13} /> Destination Branch:{' '}
+                        <strong>
+                          {order.destinationBranchName}{' '}
+                          {order.destinationBranchCode ? `(${order.destinationBranchCode})` : ''}
+                        </strong>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Parcel Specifications Table */}
+              <div className="spec-card">
+                <div className="spec-title">
+                  <Package size={15} /> PARCEL &amp; SHIPMENT INFORMATION
+                </div>
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="spec-table">
+                    <thead>
+                      <tr>
+                        <th>Description</th>
+                        <th>Size Category</th>
+                        <th>Weight (KG)</th>
+                        <th>Pickup Method</th>
+                        <th>Booking ID</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>{order.parcelDescription || 'Standard Parcel'}</td>
+                        <td>
+                          <span className="size-badge">{order.parcelSize || 'STANDARD'}</span>
+                        </td>
+                        <td>{order.weightKg ? `${order.weightKg} kg` : '—'}</td>
+                        <td>{order.pickupMethod === 'BRANCH_DROPOFF' ? 'Branch Drop-Off' : 'Courier Pickup'}</td>
+                        <td>#{order.id}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {order.deliveryInstructions && (
+                  <div className="instructions-box">
+                    <strong>Delivery Instructions:</strong> {order.deliveryInstructions}
                   </div>
                 )}
-                {order.pickupContactPhone && (
-                  <div className="contact-row">
-                    <Phone size={13} /> Phone: <strong>{order.pickupContactPhone}</strong>
+              </div>
+
+              {/* Pricing & Fee Summary */}
+              <div className="financial-card">
+                <div className="financial-row">
+                  <span className="fee-label">
+                    <CreditCard size={14} style={{ display: 'inline', marginRight: '0.4rem', verticalAlign: 'middle' }} />
+                    Payment Method &amp; Status
+                  </span>
+                  <span className="fee-amount">
+                    {order.paymentMethod || 'PREPAID'} · {order.paymentStatus || 'UNPAID'}
+                  </span>
+                </div>
+                {order.paymentMethod === 'COD' && Number(order.codAmount || 0) > 0 && (
+                  <div className="financial-row">
+                    <span className="fee-label">COD Item Collection Value (Separate from Delivery Fee)</span>
+                    <span className="fee-amount">
+                      {order.currency || 'LKR'} {Number(order.codAmount || 0).toFixed(2)}
+                    </span>
                   </div>
                 )}
-                {order.originBranchName && (
-                  <div className="contact-row">
-                    <Building2 size={13} /> Origin Branch: <strong>{order.originBranchName} {order.originBranchCode ? `(${order.originBranchCode})` : ''}</strong>
+                <div className="financial-row">
+                  <span className="fee-label">Standard Delivery &amp; Handling Fee</span>
+                  <span className="fee-amount">
+                    {order.currency || 'LKR'} {Number(order.deliveryFee || 0).toFixed(2)}
+                  </span>
+                </div>
+                <div className="financial-divider" />
+                <div className="total-row">
+                  <span className="total-label">TOTAL DELIVERY FEE</span>
+                  <span className="total-amount">
+                    {order.currency || 'LKR'} {Number(order.deliveryFee || 0).toFixed(2)}
+                  </span>
+                </div>
+                <div className="authoritative-note">
+                  ✓ Authoritative fee calculated and stored by Order Service. No hidden charges.
+                </div>
+              </div>
+
+              {/* Simulated Barcode & Verification Footer */}
+              <div className="receipt-footer">
+                <div className="barcode-box">
+                  <div className="barcode-bars">
+                    ||| | |||| | ||| |||| | || | |||| ||| | |||| | ||| || | ||||
                   </div>
-                )}
-              </div>
-            </div>
+                  <div className="barcode-code">{order.trackingNumber}</div>
+                </div>
 
-            {/* Destination Details */}
-            <div className="party-card">
-              <div className="party-title destination">
-                <MapPin size={15} /> RECIPIENT / DELIVERY DETAILS
-              </div>
-              <div className="party-address">{order.dropoffAddress}</div>
-              <div className="party-contacts">
-                {order.dropoffContactName && (
-                  <div className="contact-row">
-                    <User size={13} /> Recipient: <strong>{order.dropoffContactName}</strong>
+                <div className="footer-notes">
+                  <div className="verification-badge">
+                    <ShieldCheck size={15} color="#16a34a" /> Verified Order Service Record
                   </div>
-                )}
-                {order.dropoffContactPhone && (
-                  <div className="contact-row">
-                    <Phone size={13} /> Phone: <strong>{order.dropoffContactPhone}</strong>
-                  </div>
-                )}
-                {order.destinationBranchName && (
-                  <div className="contact-row">
-                    <Building2 size={13} /> Destination Branch: <strong>{order.destinationBranchName} {order.destinationBranchCode ? `(${order.destinationBranchCode})` : ''}</strong>
-                  </div>
-                )}
+                  <p style={{ margin: 0 }}>
+                    Thank you for choosing SwiftDrop. Keep this receipt for your records. For public tracking, anyone can
+                    visit the tracking portal with this tracking number.
+                  </p>
+                  <p className="support-line" style={{ margin: 0 }}>
+                    Support: support@swiftdrop.io | SwiftDrop Courier Management
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-
-          {/* Parcel Specifications Table */}
-          <div className="spec-card">
-            <div className="spec-title">
-              <Package size={15} /> PARCEL & SHIPMENT INFORMATION
-            </div>
-            <table className="spec-table">
-              <thead>
-                <tr>
-                  <th>Description</th>
-                  <th>Size Category</th>
-                  <th>Weight (KG)</th>
-                  <th>Pickup Method</th>
-                  <th>Booking ID</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>{order.parcelDescription || 'Standard Parcel'}</td>
-                  <td>
-                    <span className="size-badge">{order.parcelSize || 'STANDARD'}</span>
-                  </td>
-                  <td>{order.weightKg ? `${order.weightKg} kg` : '—'}</td>
-                  <td>{order.pickupMethod === 'BRANCH_DROPOFF' ? 'Branch Drop-Off' : 'Courier Pickup'}</td>
-                  <td>#{order.id}</td>
-                </tr>
-              </tbody>
-            </table>
-
-            {order.deliveryInstructions && (
-              <div className="instructions-box">
-                <strong>Delivery Instructions:</strong> {order.deliveryInstructions}
-              </div>
-            )}
-          </div>
-
-          {/* Pricing & Fee Summary */}
-          <div className="financial-card">
-            <div className="financial-row">
-              <span className="fee-label">
-                <CreditCard size={13} style={{ display: 'inline', marginRight: '0.35rem', verticalAlign: 'middle' }} />
-                Payment Method & Status
-              </span>
-              <span className="fee-amount">
-                {order.paymentMethod || 'PREPAID'} · {order.paymentStatus || 'UNPAID'}
-              </span>
-            </div>
-            {order.paymentMethod === 'COD' && Number(order.codAmount || 0) > 0 && (
-              <div className="financial-row">
-                <span className="fee-label">COD Item Collection Value (Separate from Delivery Fee)</span>
-                <span className="fee-amount">
-                  {order.currency || 'LKR'} {Number(order.codAmount || 0).toFixed(2)}
-                </span>
-              </div>
-            )}
-            <div className="financial-row">
-              <span className="fee-label">Standard Delivery & Handling Fee</span>
-              <span className="fee-amount">
-                {order.currency || 'LKR'} {Number(order.deliveryFee || 0).toFixed(2)}
-              </span>
-            </div>
-            <div className="financial-divider" />
-            <div className="total-row">
-              <span className="total-label">TOTAL DELIVERY FEE</span>
-              <span className="total-amount">
-                {order.currency || 'LKR'} {Number(order.deliveryFee || 0).toFixed(2)}
-              </span>
-            </div>
-            <div className="authoritative-note">
-              ✓ Authoritative fee calculated and stored by Order Service. No hidden charges.
-            </div>
-          </div>
-
-          {/* Simulated Barcode & Verification Footer */}
-          <div className="receipt-footer">
-            <div className="barcode-box">
-              <div className="barcode-bars">
-                ||| | |||| | ||| |||| | || | |||| ||| | |||| | ||| || | ||||
-              </div>
-              <div className="barcode-code">{order.trackingNumber}</div>
-            </div>
-
-            <div className="footer-notes">
-              <div className="verification-badge">
-                <ShieldCheck size={14} color="#10b981" /> Verified Order Service Record
-              </div>
-              <p>
-                Thank you for choosing SwiftDrop. Keep this receipt for your records. For public tracking, anyone can visit the tracking portal with this tracking number.
-              </p>
-              <p className="support-line">
-                Support: support@swiftdrop.io | SwiftDrop Courier Management
-              </p>
-            </div>
-          </div>
+          )}
         </div>
-      )}
+      </div>
 
       {/* ---------------- STYLES (SCREEN & PRINT) ---------------- */}
       <style jsx global>{`
-        /* Screen Card Styles */
+        .sd-receipt-btn-primary {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.45rem;
+          background: #2563eb;
+          color: #ffffff;
+          border: 1px solid #2563eb;
+          border-radius: 8px;
+          padding: 0.55rem 1.05rem;
+          font-size: 0.85rem;
+          font-weight: 600;
+          text-decoration: none;
+          cursor: pointer;
+        }
+        .sd-receipt-btn-outline {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.45rem;
+          background: #ffffff;
+          color: #0f172a;
+          border: 1px solid #cbd5e1;
+          border-radius: 8px;
+          padding: 0.55rem 1.05rem;
+          font-size: 0.85rem;
+          font-weight: 600;
+          text-decoration: none;
+          cursor: pointer;
+        }
+
+        /* Screen Card Styles — Crisp Light Theme */
         .receipt-container {
-          background: #0f172a;
-          border: 1px solid rgba(59, 130, 246, 0.25);
+          background: #ffffff;
+          border: 1px solid #e2e8f0;
           border-radius: 16px;
-          padding: 2.5rem;
-          color: #f8fafc;
+          padding: 2.25rem;
+          color: #0f172a;
           display: flex;
-          flexDirection: column;
-          gap: 1.75rem;
-          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+          flex-direction: column;
+          gap: 1.5rem;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
         }
 
         .receipt-header {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+          border-bottom: 1px solid #e2e8f0;
           padding-bottom: 1.5rem;
           gap: 1.5rem;
           flex-wrap: wrap;
@@ -442,47 +486,48 @@ export default function CustomerReceiptPage() {
           width: 48px;
           height: 48px;
           border-radius: 12px;
-          background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+          background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 0 16px rgba(59, 130, 246, 0.4);
+          box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+          flex-shrink: 0;
         }
 
         .brand-title {
           font-size: 1.4rem;
           font-weight: 800;
           letter-spacing: -0.02em;
-          color: #ffffff;
+          color: #0f172a;
         }
 
         .brand-title span {
-          color: #60a5fa;
+          color: #2563eb;
         }
 
         .brand-subtitle {
           font-size: 0.8rem;
-          color: #94a3b8;
+          color: #64748b;
           margin-top: 2px;
         }
 
         .receipt-pill {
           display: inline-block;
-          font-size: 0.75rem;
+          font-size: 0.72rem;
           font-weight: 700;
           text-transform: uppercase;
           letter-spacing: 0.06em;
-          background: rgba(59, 130, 246, 0.15);
-          color: #60a5fa;
-          padding: 0.2rem 0.6rem;
+          background: #dbeafe;
+          color: #1d4ed8;
+          padding: 0.2rem 0.65rem;
           border-radius: 9999px;
-          margin-top: 0.4rem;
+          margin-top: 0.45rem;
         }
 
         .receipt-meta {
           display: flex;
           flex-direction: column;
-          gap: 0.35rem;
+          gap: 0.4rem;
           font-size: 0.85rem;
           text-align: right;
         }
@@ -490,6 +535,7 @@ export default function CustomerReceiptPage() {
         .meta-row {
           display: flex;
           justify-content: flex-end;
+          align-items: center;
           gap: 0.5rem;
         }
 
@@ -498,30 +544,32 @@ export default function CustomerReceiptPage() {
         }
 
         .meta-value {
-          color: #e2e8f0;
+          color: #0f172a;
           font-weight: 600;
           font-family: monospace;
         }
 
         .status-badge {
-          background: rgba(16, 185, 129, 0.15);
-          color: #34d399;
-          padding: 0.15rem 0.5rem;
-          border-radius: 4px;
-          font-size: 0.75rem;
+          background: #dcfce7;
+          color: #15803d;
+          padding: 0.15rem 0.55rem;
+          border-radius: 9999px;
+          font-size: 0.72rem;
           font-weight: 700;
           text-transform: uppercase;
         }
 
         /* Tracking Strip */
         .tracking-strip {
-          background: rgba(30, 41, 59, 0.7);
-          border: 1px solid rgba(59, 130, 246, 0.2);
+          background: #eff6ff;
+          border: 1px solid #bfdbfe;
           border-radius: 10px;
-          padding: 0.9rem 1.25rem;
+          padding: 0.95rem 1.25rem;
           display: flex;
           justify-content: space-between;
           align-items: center;
+          gap: 1rem;
+          flex-wrap: wrap;
         }
 
         .tracking-text {
@@ -532,98 +580,104 @@ export default function CustomerReceiptPage() {
         }
 
         .tracking-text .label {
-          font-size: 0.75rem;
+          font-size: 0.72rem;
           font-weight: 700;
           letter-spacing: 0.08em;
-          color: #94a3b8;
+          color: #475569;
         }
 
         .tracking-text .number {
           font-family: monospace;
           font-size: 1.15rem;
-          font-weight: 700;
-          color: #60a5fa;
-          letter-spacing: 0.05em;
+          font-weight: 800;
+          color: #1d4ed8;
+          letter-spacing: 0.04em;
         }
 
         .copy-btn {
-          background: rgba(255, 255, 255, 0.06);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          color: #cbd5e1;
-          padding: 0.35rem 0.75rem;
-          border-radius: 6px;
+          background: #ffffff;
+          border: 1px solid #cbd5e1;
+          color: #0f172a;
+          padding: 0.4rem 0.85rem;
+          border-radius: 8px;
           font-size: 0.8rem;
+          font-weight: 600;
           cursor: pointer;
           display: inline-flex;
           align-items: center;
           gap: 0.35rem;
+          transition: background 0.15s;
+        }
+        .copy-btn:hover {
+          background: #f8fafc;
         }
 
         /* Parties Grid */
         .parties-grid {
           display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 1.5rem;
+          grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+          gap: 1.25rem;
         }
 
         .party-card {
-          background: rgba(15, 23, 42, 0.6);
-          border: 1px solid rgba(255, 255, 255, 0.06);
-          border-radius: 10px;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
           padding: 1.25rem;
           display: flex;
           flex-direction: column;
-          gap: 0.5rem;
+          gap: 0.55rem;
         }
 
         .party-title {
-          font-size: 0.8rem;
+          font-size: 0.76rem;
           font-weight: 700;
-          letter-spacing: 0.06em;
+          letter-spacing: 0.05em;
           display: flex;
           align-items: center;
           gap: 0.4rem;
         }
 
         .party-title.origin {
-          color: #60a5fa;
+          color: #2563eb;
         }
 
         .party-title.destination {
-          color: #34d399;
+          color: #15803d;
         }
 
         .party-address {
           font-size: 0.95rem;
-          font-weight: 600;
-          color: #ffffff;
+          font-weight: 700;
+          color: #0f172a;
           line-height: 1.4;
         }
 
         .party-contacts {
           display: flex;
           flex-direction: column;
-          gap: 0.25rem;
-          font-size: 0.8rem;
-          color: #94a3b8;
+          gap: 0.3rem;
+          font-size: 0.82rem;
+          color: #475569;
           margin-top: 0.25rem;
         }
 
         .contact-row {
           display: flex;
           align-items: center;
-          gap: 0.35rem;
+          gap: 0.4rem;
+          flex-wrap: wrap;
         }
 
         .contact-row strong {
-          color: #e2e8f0;
+          color: #0f172a;
         }
 
         /* Parcel Specification Table */
         .spec-card {
-          background: rgba(15, 23, 42, 0.6);
-          border: 1px solid rgba(255, 255, 255, 0.06);
-          border-radius: 10px;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
           padding: 1.25rem;
           display: flex;
           flex-direction: column;
@@ -631,10 +685,10 @@ export default function CustomerReceiptPage() {
         }
 
         .spec-title {
-          font-size: 0.8rem;
+          font-size: 0.76rem;
           font-weight: 700;
-          letter-spacing: 0.06em;
-          color: #a78bfa;
+          letter-spacing: 0.05em;
+          color: #4338ca;
           display: flex;
           align-items: center;
           gap: 0.4rem;
@@ -649,59 +703,68 @@ export default function CustomerReceiptPage() {
         .spec-table th {
           text-align: left;
           color: #64748b;
-          font-weight: 600;
-          font-size: 0.75rem;
+          font-weight: 700;
+          font-size: 0.72rem;
           text-transform: uppercase;
           letter-spacing: 0.05em;
-          padding: 0.5rem 0.25rem;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+          padding: 0.55rem 0.5rem;
+          border-bottom: 1px solid #e2e8f0;
         }
 
         .spec-table td {
-          padding: 0.75rem 0.25rem;
-          color: #ffffff;
-          font-weight: 500;
-        }
-
-        .size-badge {
-          background: rgba(99, 102, 241, 0.2);
-          color: #a5b4fc;
-          font-size: 0.75rem;
-          padding: 0.15rem 0.5rem;
-          border-radius: 4px;
+          padding: 0.75rem 0.5rem;
+          color: #0f172a;
           font-weight: 600;
         }
 
-        .instructions-box {
-          font-size: 0.8rem;
-          color: #cbd5e1;
-          background: rgba(0, 0, 0, 0.2);
-          padding: 0.5rem 0.75rem;
+        .size-badge {
+          background: #e0e7ff;
+          color: #4338ca;
+          font-size: 0.72rem;
+          padding: 0.2rem 0.55rem;
           border-radius: 6px;
-          border-left: 3px solid #3b82f6;
+          font-weight: 700;
+        }
+
+        .instructions-box {
+          font-size: 0.82rem;
+          color: #334155;
+          background: #ffffff;
+          padding: 0.65rem 0.85rem;
+          border-radius: 8px;
+          border: 1px solid #e2e8f0;
+          border-left: 3px solid #2563eb;
         }
 
         /* Financial Card */
         .financial-card {
-          background: rgba(30, 41, 59, 0.5);
-          border: 1px solid rgba(59, 130, 246, 0.2);
-          border-radius: 10px;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
           padding: 1.25rem;
           display: flex;
           flex-direction: column;
-          gap: 0.6rem;
+          gap: 0.65rem;
         }
 
         .financial-row {
           display: flex;
           justify-content: space-between;
-          font-size: 0.9rem;
-          color: #cbd5e1;
+          align-items: center;
+          gap: 1rem;
+          font-size: 0.88rem;
+          color: #475569;
+          flex-wrap: wrap;
+        }
+
+        .fee-amount {
+          font-weight: 600;
+          color: #0f172a;
         }
 
         .financial-divider {
           height: 1px;
-          background: rgba(255, 255, 255, 0.08);
+          background: #e2e8f0;
           margin: 0.25rem 0;
         }
 
@@ -709,32 +772,34 @@ export default function CustomerReceiptPage() {
           display: flex;
           justify-content: space-between;
           align-items: center;
+          gap: 1rem;
+          flex-wrap: wrap;
         }
 
         .total-label {
-          font-size: 1rem;
+          font-size: 0.95rem;
           font-weight: 800;
-          letter-spacing: 0.05em;
-          color: #ffffff;
+          letter-spacing: 0.04em;
+          color: #0f172a;
         }
 
         .total-amount {
           font-size: 1.4rem;
           font-weight: 800;
-          color: #34d399;
+          color: #15803d;
           font-family: monospace;
         }
 
         .authoritative-note {
-          font-size: 0.75rem;
+          font-size: 0.76rem;
           color: #64748b;
           font-style: italic;
         }
 
         /* Receipt Footer */
         .receipt-footer {
-          border-top: 1px dashed rgba(255, 255, 255, 0.15);
-          padding-top: 1.5rem;
+          border-top: 1px dashed #cbd5e1;
+          padding-top: 1.25rem;
           display: flex;
           justify-content: space-between;
           align-items: center;
@@ -747,10 +812,10 @@ export default function CustomerReceiptPage() {
           flex-direction: column;
           align-items: center;
           gap: 0.25rem;
-          padding: 0.5rem 1rem;
-          background: rgba(0, 0, 0, 0.25);
-          border-radius: 6px;
-          border: 1px solid rgba(255, 255, 255, 0.05);
+          padding: 0.6rem 1rem;
+          background: #f8fafc;
+          border-radius: 8px;
+          border: 1px solid #e2e8f0;
         }
 
         .barcode-bars {
@@ -758,13 +823,13 @@ export default function CustomerReceiptPage() {
           letter-spacing: 0.2em;
           font-weight: 700;
           font-size: 1.1rem;
-          color: #94a3b8;
+          color: #0f172a;
         }
 
         .barcode-code {
           font-family: monospace;
           font-size: 0.75rem;
-          color: #64748b;
+          color: #475569;
         }
 
         .footer-notes {
@@ -772,8 +837,8 @@ export default function CustomerReceiptPage() {
           display: flex;
           flex-direction: column;
           gap: 0.35rem;
-          font-size: 0.75rem;
-          color: #94a3b8;
+          font-size: 0.78rem;
+          color: #475569;
           max-width: 480px;
         }
 
@@ -781,46 +846,45 @@ export default function CustomerReceiptPage() {
           display: inline-flex;
           align-items: center;
           gap: 0.35rem;
-          font-size: 0.75rem;
-          font-weight: 600;
-          color: #10b981;
+          font-size: 0.78rem;
+          font-weight: 700;
+          color: #15803d;
         }
 
         .support-line {
           color: #64748b;
         }
 
+        @keyframes spin {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
+        }
+
         /* ==============================================================
            PRINT OPTIMIZATIONS (@media print)
-           Triggered by browser window.print() and Save-as-PDF.
-           Converts receipt to crisp high-contrast black/white for A4 printing.
            ============================================================== */
         @media print {
-          /* Hide application chrome: sidebar, top nav, buttons */
           aside,
           .no-print,
           nav,
-          button {
+          button,
+          .sd-topbar {
             display: none !important;
           }
 
-          body {
+          body,
+          .customer-app-shell,
+          .customer-main-content,
+          .sd-fullpage-root,
+          .sd-fullpage-body {
             background: #ffffff !important;
             color: #000000 !important;
             margin: 0 !important;
             padding: 0 !important;
-          }
-
-          .app-container {
-            display: block !important;
-            min-height: auto !important;
-          }
-
-          .main-content {
-            padding: 0 !important;
-            margin: 0 !important;
-            max-width: 100% !important;
-            width: 100% !important;
           }
 
           .receipt-container {
@@ -833,159 +897,6 @@ export default function CustomerReceiptPage() {
             max-width: 100% !important;
             box-shadow: none !important;
             page-break-inside: avoid;
-          }
-
-          .receipt-header {
-            border-bottom: 2px solid #e2e8f0 !important;
-          }
-
-          .brand-title {
-            color: #0f172a !important;
-          }
-
-          .brand-title span {
-            color: #2563eb !important;
-          }
-
-          .brand-subtitle {
-            color: #475569 !important;
-          }
-
-          .receipt-pill {
-            background: #e0e7ff !important;
-            color: #1e3a8a !important;
-            border: 1px solid #c7d2fe !important;
-          }
-
-          .meta-label {
-            color: #475569 !important;
-          }
-
-          .meta-value {
-            color: #0f172a !important;
-          }
-
-          .status-badge {
-            background: #dcfce7 !important;
-            color: #166534 !important;
-            border: 1px solid #bbf7d0 !important;
-          }
-
-          .tracking-strip {
-            background: #f1f5f9 !important;
-            border: 1px solid #cbd5e1 !important;
-          }
-
-          .tracking-text .label {
-            color: #475569 !important;
-          }
-
-          .tracking-text .number {
-            color: #1e40af !important;
-          }
-
-          .parties-grid {
-            gap: 16px !important;
-          }
-
-          .party-card {
-            background: #f8fafc !important;
-            border: 1px solid #cbd5e1 !important;
-          }
-
-          .party-title.origin {
-            color: #1e40af !important;
-          }
-
-          .party-title.destination {
-            color: #166534 !important;
-          }
-
-          .party-address {
-            color: #0f172a !important;
-          }
-
-          .party-contacts {
-            color: #475569 !important;
-          }
-
-          .contact-row strong {
-            color: #0f172a !important;
-          }
-
-          .spec-card {
-            background: #f8fafc !important;
-            border: 1px solid #cbd5e1 !important;
-          }
-
-          .spec-title {
-            color: #4338ca !important;
-          }
-
-          .spec-table th {
-            color: #475569 !important;
-            border-bottom: 1px solid #cbd5e1 !important;
-          }
-
-          .spec-table td {
-            color: #0f172a !important;
-          }
-
-          .size-badge {
-            background: #ede9fe !important;
-            color: #4338ca !important;
-          }
-
-          .instructions-box {
-            background: #f1f5f9 !important;
-            color: #334155 !important;
-            border-left: 3px solid #2563eb !important;
-          }
-
-          .financial-card {
-            background: #f8fafc !important;
-            border: 1px solid #cbd5e1 !important;
-          }
-
-          .financial-row {
-            color: #334155 !important;
-          }
-
-          .financial-divider {
-            background: #cbd5e1 !important;
-          }
-
-          .total-label {
-            color: #0f172a !important;
-          }
-
-          .total-amount {
-            color: #15803d !important;
-          }
-
-          .receipt-footer {
-            border-top: 1px dashed #94a3b8 !important;
-          }
-
-          .barcode-box {
-            background: #ffffff !important;
-            border: 1px solid #cbd5e1 !important;
-          }
-
-          .barcode-bars {
-            color: #0f172a !important;
-          }
-
-          .barcode-code {
-            color: #334155 !important;
-          }
-
-          .footer-notes {
-            color: #475569 !important;
-          }
-
-          .verification-badge {
-            color: #15803d !important;
           }
         }
       `}</style>

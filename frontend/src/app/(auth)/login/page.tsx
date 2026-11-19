@@ -221,9 +221,17 @@ export default function LoginPage() {
         Sign In — SwiftDrop National Logistics &amp; Delivery Platform
       </h1>
 
-      {/* Left Visual Hero Section (Matches Reference Image 2 & 3) */}
+      {/* Left Visual Hero Section */}
       <section style={leftHeroSectionStyle} aria-label="Nationwide Delivery Network">
         <div style={heroOverlayStyle} />
+        <div style={heroTextContainerStyle}>
+          <h2 style={heroHeadlineStyle}>
+            WHEREVER YOUR<br />CUSTOMER IS, WE&apos;RE<br />ALREADY THERE.
+          </h2>
+          <p style={heroSubtitleStyle}>
+            Nationwide branch network covering every corner of Sri Lanka. North, South, East, West — no address is too far.
+          </p>
+        </div>
       </section>
 
       {/* Right Form Card Section */}
@@ -240,7 +248,7 @@ export default function LoginPage() {
 
 const mainContainerStyle: React.CSSProperties = {
   minHeight: '100vh',
-  width: '100vw',
+  width: '100%',
   display: 'flex',
   flexWrap: 'wrap',
   margin: 0,
@@ -255,18 +263,47 @@ const leftHeroSectionStyle: React.CSSProperties = {
   minWidth: '320px',
   minHeight: '100vh',
   position: 'relative',
-  backgroundImage: "url('/hero-left.jpg')",
+  backgroundImage: "url('/auth-hero-vertical.jpg')",
   backgroundSize: 'cover',
-  backgroundPosition: 'center left',
+  backgroundPosition: 'center center',
   backgroundRepeat: 'no-repeat',
   backgroundColor: '#07101f',
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'flex-start',
+  padding: '3.5rem 3rem',
+  boxSizing: 'border-box',
 };
 
 const heroOverlayStyle: React.CSSProperties = {
   position: 'absolute',
   inset: 0,
-  background: 'linear-gradient(to right, rgba(7, 16, 31, 0.15) 0%, rgba(7, 16, 31, 0) 100%)',
+  background: 'linear-gradient(to bottom, rgba(7, 16, 31, 0.45) 0%, rgba(7, 16, 31, 0.12) 55%, rgba(7, 16, 31, 0.5) 100%)',
   pointerEvents: 'none',
+};
+
+const heroTextContainerStyle: React.CSSProperties = {
+  position: 'relative',
+  zIndex: 10,
+  maxWidth: '480px',
+};
+
+const heroHeadlineStyle: React.CSSProperties = {
+  fontSize: 'clamp(1.85rem, 3.1vw, 2.5rem)',
+  fontWeight: 800,
+  color: '#ffffff',
+  lineHeight: 1.15,
+  letterSpacing: '-0.02em',
+  margin: '0 0 1rem 0',
+  textShadow: '0 2px 12px rgba(0, 0, 0, 0.55)',
+};
+
+const heroSubtitleStyle: React.CSSProperties = {
+  fontSize: '0.95rem',
+  color: '#e2e8f0',
+  lineHeight: 1.55,
+  margin: 0,
+  textShadow: '0 1px 8px rgba(0, 0, 0, 0.5)',
 };
 
 const rightAuthSectionStyle: React.CSSProperties = {

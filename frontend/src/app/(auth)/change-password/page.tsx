@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 
 const cardClassName =
-  'w-full max-w-[460px] rounded-2xl border border-blue-500/25 bg-gray-900/90 p-9 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-md';
+  'w-full max-w-[460px] rounded-[20px] border border-slate-200/95 bg-white p-8 sm:p-9 shadow-[0_20px_45px_-8px_rgba(15,23,42,0.08),0_4px_14px_rgba(15,23,42,0.04)]';
 
 interface PasswordFieldProps {
   id: string;
@@ -52,7 +52,7 @@ function PasswordField({
     <div>
       <label
         htmlFor={id}
-        className="mb-1.5 block text-xs font-semibold text-slate-300"
+        className="mb-1.5 block text-xs font-semibold text-slate-700"
       >
         {label}
       </label>
@@ -63,21 +63,21 @@ function PasswordField({
           autoComplete={autoComplete}
           {...registration}
           placeholder={placeholder}
-          className={`w-full rounded-lg border bg-slate-900/75 py-2.5 pl-3.5 pr-10 text-sm text-slate-50 outline-none transition-colors focus:border-blue-500 ${
-            errorMessage ? 'border-red-500' : 'border-slate-400/25'
+          className={`w-full rounded-lg border bg-white py-2.5 pl-3.5 pr-10 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-colors focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 ${
+            errorMessage ? 'border-red-500' : 'border-slate-300'
           }`}
         />
         <button
           type="button"
           onClick={onToggleShow}
           aria-label={toggleLabel}
-          className="absolute right-2.5 top-1/2 flex -translate-y-1/2 cursor-pointer items-center justify-center rounded p-1 text-slate-400 hover:text-slate-200"
+          className="absolute right-2.5 top-1/2 flex -translate-y-1/2 cursor-pointer items-center justify-center rounded p-1 text-slate-400 hover:text-slate-700"
         >
           {show ? <EyeOff size={16} /> : <Eye size={16} />}
         </button>
       </div>
       {errorMessage && (
-        <p className="mt-1.5 text-xs text-red-400">{errorMessage}</p>
+        <p className="mt-1.5 text-xs text-red-600">{errorMessage}</p>
       )}
     </div>
   );
@@ -162,8 +162,8 @@ function ChangePasswordCard() {
     return (
       <div className={cardClassName}>
         <div className="flex flex-col items-center gap-3 py-8">
-          <Loader2 size={28} className="animate-spin text-blue-500" />
-          <p className="text-sm text-slate-400">Verifying session...</p>
+          <Loader2 size={28} className="animate-spin text-blue-600" />
+          <p className="text-sm text-slate-500">Verifying session...</p>
         </div>
       </div>
     );
@@ -172,16 +172,18 @@ function ChangePasswordCard() {
   return (
     <div className={cardClassName}>
       {/* Brand */}
-      <div className="mb-7 flex items-center justify-between">
+      <div className="mb-6 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-gradient-to-br from-blue-500 to-indigo-500">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-gradient-to-br from-blue-600 to-blue-700 shadow-[0_4px_12px_rgba(37,99,235,0.3)]">
             <Box size={22} className="text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-extrabold text-white">
-              Swift<span className="text-blue-400">Drop</span>
+            <h1 className="text-xl font-extrabold tracking-tight text-slate-900">
+              Swift<span className="text-blue-600">Drop</span>
             </h1>
-            <p className="text-[0.7rem] text-slate-400">Delivery Platform</p>
+            <p className="text-[0.72rem] font-medium text-slate-500">
+              National Logistics &amp; Delivery Platform
+            </p>
           </div>
         </div>
 
@@ -189,7 +191,7 @@ function ChangePasswordCard() {
           type="button"
           onClick={() => logoutMutation.mutate()}
           disabled={logoutMutation.isPending}
-          className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-400/25 bg-slate-900/60 px-3 py-1.5 text-xs font-semibold text-slate-300 transition-colors hover:bg-slate-800/80 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <LogOut size={13} />
           Sign out
@@ -197,21 +199,21 @@ function ChangePasswordCard() {
       </div>
 
       {/* Header */}
-      <div className="mb-2 flex items-center gap-2">
-        <KeyRound size={20} className="text-blue-400" />
-        <h2 className="text-[1.4rem] font-bold text-white">
+      <div className="mb-1.5 flex items-center gap-2">
+        <KeyRound size={20} className="text-blue-600" />
+        <h2 className="text-[1.35rem] font-bold tracking-tight text-slate-900">
           Set Your Personal Password
         </h2>
       </div>
-      <p className="mb-5 text-sm leading-relaxed text-slate-400">
+      <p className="mb-5 text-sm leading-relaxed text-slate-600">
         You signed in with a temporary password. For your account security, please choose a new personal password before accessing your portal.
       </p>
 
       {/* Notice Banner */}
-      <div className="mb-5 flex items-center gap-2 rounded-lg border border-blue-500/35 bg-blue-500/12 px-4 py-3 text-xs text-blue-300">
-        <ShieldCheck size={16} className="shrink-0" />
+      <div className="mb-5 flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-800">
+        <ShieldCheck size={16} className="shrink-0 text-blue-600" />
         <span>
-          Signed in as <strong className="text-white">{activeUser?.email}</strong>
+          Signed in as <strong className="font-semibold text-slate-900">{activeUser?.email}</strong>
         </span>
       </div>
 
@@ -219,14 +221,14 @@ function ChangePasswordCard() {
       {apiError && (
         <div
           role="alert"
-          className="mb-5 flex items-center gap-2 rounded-lg border border-red-500/40 bg-red-500/12 px-4 py-3 text-sm text-red-400"
+          className="mb-5 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
         >
-          <AlertCircle size={16} className="shrink-0" />
+          <AlertCircle size={16} className="shrink-0 text-red-600" />
           <span>{apiError}</span>
         </div>
       )}
 
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4.5">
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
         <PasswordField
           id="currentPassword"
           label="Temporary / Current Password"
@@ -253,15 +255,15 @@ function ChangePasswordCard() {
           />
 
           {/* Policy Checklist */}
-          <div className="mt-2.5 flex flex-col gap-1">
+          <div className="mt-2.5 flex flex-col gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
             {rules.map((rule) => (
               <div key={rule.label} className="flex items-center gap-1.5 text-xs">
                 {rule.valid ? (
-                  <Check size={13} className="text-emerald-500" />
+                  <Check size={13} className="text-emerald-600" />
                 ) : (
-                  <X size={13} className="text-slate-500" />
+                  <X size={13} className="text-slate-400" />
                 )}
-                <span className={rule.valid ? 'text-emerald-500' : 'text-slate-500'}>
+                <span className={rule.valid ? 'font-medium text-emerald-700' : 'text-slate-500'}>
                   {rule.label}
                 </span>
               </div>
@@ -284,10 +286,10 @@ function ChangePasswordCard() {
         <button
           type="submit"
           disabled={isPending}
-          className={`mt-1 flex w-full items-center justify-center gap-2 rounded-[10px] px-4 py-3 text-[0.925rem] font-bold text-white transition-opacity ${
+          className={`mt-1 flex w-full items-center justify-center gap-2 rounded-[10px] px-4 py-3 text-[0.925rem] font-bold text-white transition-colors ${
             isPending
-              ? 'cursor-not-allowed bg-blue-500/50'
-              : 'cursor-pointer bg-gradient-to-br from-blue-600 to-indigo-600 hover:opacity-95'
+              ? 'cursor-not-allowed bg-blue-400'
+              : 'cursor-pointer bg-blue-600 hover:bg-blue-700 shadow-[0_4px_14px_rgba(37,99,235,0.28)]'
           }`}
         >
           {isPending ? (
@@ -306,18 +308,44 @@ function ChangePasswordCard() {
 
 export default function ChangePasswordPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,#1e293b_0%,#0f172a_55%,#020617_100%)] p-6">
-      <Suspense
-        fallback={
-          <div className={cardClassName}>
-            <div className="flex justify-center py-8">
-              <Loader2 size={28} className="animate-spin text-blue-500" />
-            </div>
-          </div>
-        }
+    <main className="flex min-h-screen w-full flex-wrap bg-[#f0f3f8] font-sans">
+      {/* Left Visual Hero Section */}
+      <section
+        aria-label="Nationwide Delivery Network"
+        className="relative hidden min-h-screen flex-[1_1_52%] flex-col justify-start bg-[#07101f] bg-cover bg-center p-12 lg:flex"
+        style={{ backgroundImage: "url('/auth-hero-vertical.jpg')" }}
       >
-        <ChangePasswordCard />
-      </Suspense>
-    </div>
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              'linear-gradient(to bottom, rgba(7, 16, 31, 0.45) 0%, rgba(7, 16, 31, 0.12) 55%, rgba(7, 16, 31, 0.5) 100%)',
+          }}
+        />
+        <div className="relative z-10 max-w-[480px]">
+          <h2 className="mb-4 text-4xl font-extrabold leading-tight tracking-tight text-white drop-shadow-md">
+            WHEREVER YOUR<br />CUSTOMER IS, WE&apos;RE<br />ALREADY THERE.
+          </h2>
+          <p className="text-base leading-relaxed text-slate-200 drop-shadow">
+            Nationwide branch network covering every corner of Sri Lanka. North, South, East, West — no address is too far.
+          </p>
+        </div>
+      </section>
+
+      {/* Right Auth Card Section */}
+      <section className="flex min-h-screen flex-[1_1_48%] items-center justify-center bg-[#f0f3f8] px-6 py-10">
+        <Suspense
+          fallback={
+            <div className={cardClassName}>
+              <div className="flex justify-center py-8">
+                <Loader2 size={28} className="animate-spin text-blue-600" />
+              </div>
+            </div>
+          }
+        >
+          <ChangePasswordCard />
+        </Suspense>
+      </section>
+    </main>
   );
 }
