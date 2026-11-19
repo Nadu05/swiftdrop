@@ -1,6 +1,8 @@
 package com.swiftdrop.dispatch.service;
 
 import com.swiftdrop.dispatch.client.OrderServiceClient;
+import com.swiftdrop.dispatch.client.OrderStatusTransitionPayload;
+import com.swiftdrop.dispatch.client.OrderSummaryDto;
 import com.swiftdrop.dispatch.dto.*;
 import com.swiftdrop.dispatch.entity.*;
 import com.swiftdrop.dispatch.entity.enums.*;
@@ -384,8 +386,58 @@ class DispatchServiceTest {
         assertEquals("DELIVERED", pickedUp.getStatus());
         assertEquals(PickupTaskStatus.PICKED_UP, pickupTask.getStatus());
         assertNotNull(pickupTask.getPickedUpAt());
-        verify(orderServiceClient, times(2)).notifyStatusTransition(eq("505"), any(), eq("courier-101"), eq("COURIER"));
+        org.mockito.ArgumentCaptor<OrderStatusTransitionPayload> statusCaptor =
+                org.mockito.ArgumentCaptor.forClass(OrderStatusTransitionPayload.class);
+        verify(orderServiceClient, times(1)).notifyStatusTransition(eq("505"), statusCaptor.capture(), eq("courier-101"), eq("COURIER"));
+        assertEquals("PICKED_UP", statusCaptor.getValue().getStatus());
         verify(deliveryJobRepository).save(any(DeliveryJob.class));
+    }
+
+    @Test
+    void pickupConfirmation_InterBranchOrder_TransitionsToPickedUpAndAtOriginBranchForTransfer() {
+        PickupTask pickupTask = new PickupTask();
+        pickupTask.setId(16L);
+        pickupTask.setTaskCode("PKP-16001");
+        pickupTask.setOrderId("515");
+        pickupTask.setTrackingNumber("SD-51515");
+        pickupTask.setPickupMethod(PickupMethod.COURIER_PICKUP);
+        pickupTask.setStatus(PickupTaskStatus.ACCEPTED);
+        pickupTask.setPriority(DeliveryPriority.NORMAL);
+        pickupTask.setOriginBranchId(1L);
+        pickupTask.setOriginBranchCode("CMB-CENTRAL");
+        pickupTask.setOriginBranchName("Colombo Central Hub");
+        pickupTask.setDestinationBranchId(2L);
+        pickupTask.setDestinationBranchCode("KDY-MAIN");
+        pickupTask.setDestinationBranchName("Kandy Main Hub");
+        pickupTask.setSameBranch(false);
+        pickupTask.setPickupAddress("10 Duplication Rd, Colombo");
+        pickupTask.setDropoffAddress("20 Peradeniya Rd, Kandy");
+        pickupTask.setWeightKg(BigDecimal.ONE);
+
+        CourierAssignment assignment = new CourierAssignment();
+        assignment.setId(41L);
+        assignment.setAssignmentCode("ASN-4002");
+        assignment.setTaskType(AssignmentTaskType.PICKUP);
+        assignment.setPickupTask(pickupTask);
+        assignment.setOrderId("515");
+        assignment.setTrackingNumber("SD-51515");
+        assignment.setBranchId(1L);
+        assignment.setCourier(courier101);
+        assignment.setStatus(AssignmentStatus.ACCEPTED);
+
+        when(assignmentRepository.findByAssignmentCodeIgnoreCase("ASN-4002")).thenReturn(Optional.of(assignment));
+        when(pickupTaskRepository.save(any(PickupTask.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(assignmentRepository.save(any(CourierAssignment.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(courierRepository.save(any(CourierProfileEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        dispatchService.markPickedUp("ASN-4002", courier101Principal);
+
+        org.mockito.ArgumentCaptor<OrderStatusTransitionPayload> statusCaptor =
+                org.mockito.ArgumentCaptor.forClass(OrderStatusTransitionPayload.class);
+        verify(orderServiceClient, times(2)).notifyStatusTransition(eq("515"), statusCaptor.capture(), eq("courier-101"), eq("COURIER"));
+        assertEquals(List.of("PICKED_UP", "AT_ORIGIN_BRANCH"),
+                statusCaptor.getAllValues().stream().map(OrderStatusTransitionPayload::getStatus).toList());
+        verify(deliveryJobRepository, never()).save(any(DeliveryJob.class));
     }
 
     @Test
@@ -611,5 +663,63 @@ class DispatchServiceTest {
                 () -> dispatchService.createPickupTask(taskReq, nullBranchDispatcher)
         );
     }
+
+    @Test
+    void listPickupTasks_ReconcilesConfirmedBranchOrdersFromOrderServiceAndIncludesBranchDropoff() {
+        OrderSummaryDto confirmedPickupOrder = new OrderSummaryDto();
+        confirmedPickupOrder.setId(601L);
+        confirmedPickupOrder.setOrderId("601");
+        confirmedPickupOrder.setTrackingNumber("SD-52711");
+        confirmedPickupOrder.setStatus("CONFIRMED");
+        confirmedPickupOrder.setPickupMethod("COURIER_PICKUP");
+        confirmedPickupOrder.setOriginBranchId(1L);
+        confirmedPickupOrder.setOriginBranchCode("CMB-1");
+        confirmedPickupOrder.setOriginBranchName("Colombo Hub 1");
+        confirmedPickupOrder.setDestinationBranchId(2L);
+        confirmedPickupOrder.setDestinationBranchCode("KDY-2");
+        confirmedPickupOrder.setDestinationBranchName("Kandy Hub 2");
+        confirmedPickupOrder.setSameBranch(false);
+        confirmedPickupOrder.setPickupAddress("10 Duplication Rd, Colombo 03");
+        confirmedPickupOrder.setDropoffAddress("20 Peradeniya Rd, Kandy");
+        confirmedPickupOrder.setWeightKg(new BigDecimal("0.50"));
+
+        OrderSummaryDto confirmedDropoffOrder = new OrderSummaryDto();
+        confirmedDropoffOrder.setId(602L);
+        confirmedDropoffOrder.setOrderId("602");
+        confirmedDropoffOrder.setTrackingNumber("SD-23581");
+        confirmedDropoffOrder.setStatus("CONFIRMED");
+        confirmedDropoffOrder.setPickupMethod("BRANCH_DROPOFF");
+        confirmedDropoffOrder.setOriginBranchId(1L);
+        confirmedDropoffOrder.setOriginBranchCode("CMB-1");
+        confirmedDropoffOrder.setOriginBranchName("Colombo Hub 1");
+        confirmedDropoffOrder.setDestinationBranchId(2L);
+        confirmedDropoffOrder.setDestinationBranchCode("KDY-2");
+        confirmedDropoffOrder.setDestinationBranchName("Kandy Hub 2");
+        confirmedDropoffOrder.setSameBranch(false);
+        confirmedDropoffOrder.setPickupAddress("Walk-in Branch 1");
+        confirmedDropoffOrder.setDropoffAddress("25 Hill St, Kandy");
+        confirmedDropoffOrder.setWeightKg(new BigDecimal("0.50"));
+
+        List<PickupTask> savedTasks = new java.util.ArrayList<>();
+        when(orderServiceClient.getOrdersForBranch(1L))
+                .thenReturn(List.of(confirmedPickupOrder, confirmedDropoffOrder));
+        when(pickupTaskRepository.existsByOrderId("601")).thenReturn(false);
+        when(pickupTaskRepository.existsByOrderId("602")).thenReturn(false);
+        when(pickupTaskRepository.save(any(PickupTask.class))).thenAnswer(inv -> {
+            PickupTask t = inv.getArgument(0);
+            t.setId((long) (savedTasks.size() + 100));
+            savedTasks.add(t);
+            return t;
+        });
+        when(pickupTaskRepository.findByOriginBranchIdOrderByCreatedAtDesc(1L))
+                .thenAnswer(inv -> List.copyOf(savedTasks));
+
+        List<PickupTaskDto> branchTasks = dispatchService.listPickupTasks(null, null, branch1Dispatcher);
+
+        assertEquals(2, branchTasks.size());
+        assertTrue(branchTasks.stream().anyMatch(t -> "SD-52711".equals(t.getTrackingNumber()) && "COURIER_PICKUP".equals(t.getPickupMethod())));
+        assertTrue(branchTasks.stream().anyMatch(t -> "SD-23581".equals(t.getTrackingNumber()) && "BRANCH_DROPOFF".equals(t.getPickupMethod())));
+    }
 }
+
 

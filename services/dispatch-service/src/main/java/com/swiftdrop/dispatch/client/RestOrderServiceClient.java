@@ -8,13 +8,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Component
 public class RestOrderServiceClient implements OrderServiceClient {
@@ -62,6 +65,34 @@ public class RestOrderServiceClient implements OrderServiceClient {
                     "Unable to communicate with Order Service for order " + orderIdOrTracking + ": " + ex.getMessage(),
                     ex
             );
+        }
+    }
+
+    @Override
+    public List<OrderSummaryDto> getOrdersForBranch(Long branchId) {
+        String token = jwtService.generateInternalServiceToken("dispatch-service", "ADMIN");
+        try {
+            List<OrderSummaryDto> allOrders = restClient.get()
+                    .uri("/api/v1/orders")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                    .header(CorrelationIdHolder.HEADER_NAME, CorrelationIdHolder.currentOrNew())
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<List<OrderSummaryDto>>() {});
+
+            if (allOrders == null) {
+                return List.of();
+            }
+            if (branchId == null) {
+                return allOrders;
+            }
+            return allOrders.stream()
+                    .filter(o -> Objects.equals(o.getOriginBranchId(), branchId)
+                            || Objects.equals(o.getDestinationBranchId(), branchId))
+                    .toList();
+        } catch (Exception ex) {
+            log.warn("Could not fetch branch orders from Order Service for branch {}: {}", branchId, ex.getMessage());
+            return List.of();
         }
     }
 

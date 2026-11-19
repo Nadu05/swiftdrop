@@ -1,8 +1,14 @@
 package com.swiftdrop.dispatch.client;
 
+import java.util.List;
+
 public interface OrderServiceClient {
 
     OrderSummaryDto getOrderByIdOrTracking(String orderIdOrTracking);
+
+    default List<OrderSummaryDto> getOrdersForBranch(Long branchId) {
+        return List.of();
+    }
 
     void notifyStatusTransition(
             String orderIdOrTracking,
@@ -18,4 +24,5 @@ public interface OrderServiceClient {
             String actorRole
     );
 }
+
 

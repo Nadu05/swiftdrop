@@ -271,3 +271,34 @@ export async function cancelCustomerOrder(
     throw normalizeOrderApiError(error, 'Unable to cancel this delivery order.');
   }
 }
+
+export interface UpdateOrderStatusInput {
+  status: string;
+  location?: string;
+  description?: string;
+  courierId?: string;
+  courierName?: string;
+}
+
+/**
+ * Update official parcel lifecycle status in Order Service (Authorized Admin / Branch / Dispatcher).
+ * Endpoint: PATCH /api/v1/orders/{id}/status
+ */
+export async function updateOrderStatus(
+  idOrTracking: string | number,
+  payload: UpdateOrderStatusInput
+): Promise<DeliveryOrder> {
+  try {
+    const response = await apiClient.patch<DeliveryOrder>(
+      `/api/v1/orders/${encodeURIComponent(String(idOrTracking))}/status`,
+      payload
+    );
+    return response.data;
+  } catch (error: any) {
+    throw normalizeOrderApiError(
+      error,
+      'Unable to update the parcel operational status.'
+    );
+  }
+}
+

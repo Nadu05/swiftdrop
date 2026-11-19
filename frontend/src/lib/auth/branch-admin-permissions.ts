@@ -18,6 +18,7 @@ export const BRANCH_SCOPED_ROLES = [
   'BRANCH_MANAGER',
   'BRANCH_ADMIN',
   'BRANCH_STAFF',
+  'DISPATCHER',
 ] as const;
 
 export interface OrganizationPermissions {
@@ -103,8 +104,7 @@ export function resolveOrganizationPermissions(
     canManageGlobalUsers: isGlobalAdmin,
     canManageBranchStaff: isBranchAdmin || isGlobalAdmin,
     canViewBranchOperations: isBranchAdmin || isGlobalAdmin,
-    // Courier assignment belongs strictly to the Dispatcher module
-    canAssignCouriersInBranchAdmin: false,
+    canAssignCouriersInBranchAdmin: isBranchAdmin || isGlobalAdmin,
   };
 }
 

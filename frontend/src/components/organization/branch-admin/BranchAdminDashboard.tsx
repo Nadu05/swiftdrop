@@ -37,6 +37,7 @@ import type { OrderResponse } from '@/types/order.types';
 import { isOrderAuthorizedForBranch } from '@/lib/auth/branch-admin-permissions';
 import { useBranchAdminContext } from './useBranchAdminContext';
 import BranchScopeBanner from './BranchScopeBanner';
+import OrderDispatchActionModal from './OrderDispatchActionModal';
 
 function isToday(isoDate?: string | null): boolean {
   if (!isoDate) return false;
@@ -106,6 +107,7 @@ export default function BranchAdminDashboard() {
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [opsError, setOpsError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<OrderResponse | null>(null);
 
   const loadOperationalData = useCallback(
     async (manual = false) => {
@@ -990,16 +992,21 @@ export default function BranchAdminDashboard() {
                     return (
                       <tr
                         key={order.id}
-                        className="transition hover:bg-[#F5F7FA]"
+                        onClick={() => setSelectedOrder(order)}
+                        className="cursor-pointer transition hover:bg-[#F5F7FA]"
                       >
                         <td className="py-3 pr-3 font-mono font-semibold text-[#1677E8]">
-                          <Link
-                            href={`/bookings/${order.id}`}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedOrder(order);
+                            }}
                             className="inline-flex items-center gap-1 hover:underline"
                           >
                             {order.trackingNumber}
                             <ExternalLink className="h-3 w-3" />
-                          </Link>
+                          </button>
                         </td>
                         <td className="py-3 px-3">
                           <div className="font-medium text-[#111827]">
@@ -1138,6 +1145,18 @@ export default function BranchAdminDashboard() {
           </div>
         </section>
       </div>
+
+      <OrderDispatchActionModal
+        isOpen={selectedOrder !== null}
+        orderIdOrTracking={
+          selectedOrder?.id ?? selectedOrder?.trackingNumber ?? null
+        }
+        initialOrder={selectedOrder}
+        effectiveBranchId={effectiveBranchId}
+        allBranches={allBranches}
+        onClose={() => setSelectedOrder(null)}
+        onUpdated={() => loadOperationalData(true)}
+      />
     </div>
   );
 }

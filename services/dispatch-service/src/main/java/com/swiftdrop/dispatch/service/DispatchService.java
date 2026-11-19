@@ -244,8 +244,7 @@ public class DispatchService {
     public void handleOrderCreatedEvent(CreateOperationalTaskRequest req) {
         OrderSummaryDto orderInfo = resolveOrderSummary(req);
         PickupMethod method = PickupMethod.fromValue(orderInfo.getPickupMethod());
-        if (method == PickupMethod.COURIER_PICKUP
-                && !pickupTaskRepository.existsByOrderId(orderInfo.resolvedOrderId())) {
+        if (!pickupTaskRepository.existsByOrderId(orderInfo.resolvedOrderId())) {
             PickupTask task = buildPickupTaskFromOrder(orderInfo, method, req.getPriority());
             PickupTask saved = pickupTaskRepository.save(task);
             eventPublisher.publishEvent(
@@ -271,10 +270,77 @@ public class DispatchService {
         }
     }
 
-    @Transactional(readOnly = true)
+    private void reconcileBranchOrdersFromOrderService(Long effectiveBranchId) {
+        try {
+            List<OrderSummaryDto> orders = orderServiceClient.getOrdersForBranch(effectiveBranchId);
+            if (orders == null || orders.isEmpty()) {
+                return;
+            }
+            for (OrderSummaryDto orderInfo : orders) {
+                String resolvedId = orderInfo.resolvedOrderId();
+                if (resolvedId == null || resolvedId.isBlank()) {
+                    continue;
+                }
+                String status = orderInfo.getStatus() != null ? orderInfo.getStatus().trim().toUpperCase() : "";
+                boolean isOriginMatch = effectiveBranchId == null
+                        || Objects.equals(orderInfo.getOriginBranchId(), effectiveBranchId);
+                boolean isDestMatch = effectiveBranchId == null
+                        || Objects.equals(orderInfo.getDestinationBranchId(), effectiveBranchId);
+                boolean isSameBranch = Boolean.TRUE.equals(orderInfo.getSameBranch())
+                        || (orderInfo.getOriginBranchId() != null
+                        && Objects.equals(orderInfo.getOriginBranchId(), orderInfo.getDestinationBranchId()));
+
+                if (isOriginMatch && Set.of("CONFIRMED", "PICKUP_ASSIGNED", "PICKED_UP", "AT_ORIGIN_BRANCH").contains(status)) {
+                    Optional<PickupTask> existingTaskOpt = pickupTaskRepository.findByOrderId(resolvedId);
+                    PickupMethod method = PickupMethod.fromValue(orderInfo.getPickupMethod());
+                    if (existingTaskOpt.isEmpty() && !pickupTaskRepository.existsByOrderId(resolvedId)) {
+                        PickupTask task = buildPickupTaskFromOrder(orderInfo, method, "NORMAL");
+                        if ("PICKED_UP".equals(status)) {
+                            task.setStatus(PickupTaskStatus.PICKED_UP);
+                        } else if ("AT_ORIGIN_BRANCH".equals(status)) {
+                            task.setStatus(method == PickupMethod.BRANCH_DROPOFF
+                                    ? PickupTaskStatus.BRANCH_RECEIVED
+                                    : PickupTaskStatus.PICKED_UP);
+                        }
+                        pickupTaskRepository.save(task);
+                    } else if (existingTaskOpt.isPresent()) {
+                        PickupTask existingTask = existingTaskOpt.get();
+                        if ("AT_ORIGIN_BRANCH".equals(status)
+                                && existingTask.getStatus() != PickupTaskStatus.PICKED_UP
+                                && existingTask.getStatus() != PickupTaskStatus.BRANCH_RECEIVED) {
+                            existingTask.setStatus(method == PickupMethod.BRANCH_DROPOFF
+                                    ? PickupTaskStatus.BRANCH_RECEIVED
+                                    : PickupTaskStatus.PICKED_UP);
+                            pickupTaskRepository.save(existingTask);
+                        } else if ("PICKED_UP".equals(status)
+                                && existingTask.getStatus() != PickupTaskStatus.PICKED_UP
+                                && existingTask.getStatus() != PickupTaskStatus.BRANCH_RECEIVED) {
+                            existingTask.setStatus(PickupTaskStatus.PICKED_UP);
+                            pickupTaskRepository.save(existingTask);
+                        }
+                    }
+                }
+
+                if (isDestMatch && ("AT_DESTINATION_BRANCH".equals(status)
+                        || (isSameBranch && ("AT_ORIGIN_BRANCH".equals(status) || "PICKED_UP".equals(status))))) {
+                    if (!deliveryJobRepository.existsByOrderId(resolvedId)) {
+                        DeliveryJob job = buildDeliveryJobFromOrder(orderInfo, "NORMAL", null);
+                        deliveryJobRepository.save(job);
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            // Best-effort sync; do not fail local queue read if Order Service is unreachable
+            org.slf4j.LoggerFactory.getLogger(DispatchService.class)
+                    .debug("Best-effort branch order reconciliation skipped for branch {}: {}", effectiveBranchId, ex.getMessage());
+        }
+    }
+
+    @Transactional
     public List<PickupTaskDto> listPickupTasks(Long branchIdFilter, String statusFilter, DispatchUserPrincipal principal) {
         requireDispatcherOrAdmin(principal, "Only DISPATCHER or ADMIN can list branch pickup tasks");
         Long effectiveBranchId = resolveScopedBranchId(principal, branchIdFilter);
+        reconcileBranchOrdersFromOrderService(effectiveBranchId);
 
         List<PickupTask> tasks;
         if (effectiveBranchId != null) {
@@ -292,10 +358,11 @@ public class DispatchService {
         return tasks.stream().map(this::toPickupTaskDto).toList();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<DeliveryJobDto> listDeliveryJobs(Long branchIdFilter, String statusFilter, DispatchUserPrincipal principal) {
         requireDispatcherOrAdmin(principal, "Only DISPATCHER or ADMIN can list branch delivery jobs");
         Long effectiveBranchId = resolveScopedBranchId(principal, branchIdFilter);
+        reconcileBranchOrdersFromOrderService(effectiveBranchId);
 
         List<DeliveryJob> jobs;
         if (effectiveBranchId != null) {
@@ -616,6 +683,64 @@ public class DispatchService {
         CourierAssignment savedAssignment = assignmentRepository.save(assignment);
         refreshCourierAvailabilityStatus(courier);
 
+        String actorRole = principal.isAdmin() ? "ADMIN" : "DISPATCHER";
+
+        // For same-branch orders dispatched directly to the destination user without arriving at the branch hub,
+        // ensure the order transitions through PICKUP_ASSIGNED -> PICKED_UP before OUT_FOR_DELIVERY.
+        if (job.getOriginBranchId() != null && job.getOriginBranchId().equals(job.getDestinationBranchId())) {
+            Optional<PickupTask> pickupOpt = pickupTaskRepository.findByOrderId(job.getOrderId());
+            if (pickupOpt.isPresent()) {
+                PickupTask pickupTask = pickupOpt.get();
+                if (pickupTask.getStatus() != PickupTaskStatus.PICKED_UP
+                        && pickupTask.getStatus() != PickupTaskStatus.BRANCH_RECEIVED) {
+                    if (pickupTask.getStatus() == PickupTaskStatus.PENDING_ASSIGNMENT
+                            && pickupTask.getPickupMethod() == PickupMethod.COURIER_PICKUP) {
+                        OrderStatusTransitionPayload assignPayload = new OrderStatusTransitionPayload(
+                                "PICKUP_ASSIGNED",
+                                job.getBranchName(),
+                                "Courier " + courier.getName() + " (" + courier.getCourierCode() + ") assigned for direct same-branch pickup & delivery"
+                        );
+                        assignPayload.setCourierId(courier.getCourierCode());
+                        assignPayload.setCourierName(courier.getName());
+                        orderServiceClient.notifyStatusTransition(job.getOrderId(), assignPayload, principal.userId(), actorRole);
+                    }
+                    pickupTask.setStatus(PickupTaskStatus.PICKED_UP);
+                    pickupTask.setPickedUpAt(now);
+                    pickupTask.setCompletedAt(now);
+                    pickupTaskRepository.save(pickupTask);
+
+                    if (pickupTask.getPickupMethod() == PickupMethod.COURIER_PICKUP) {
+                        OrderStatusTransitionPayload pickedPayload = new OrderStatusTransitionPayload(
+                                "PICKED_UP",
+                                job.getPickupAddress(),
+                                "Parcel collected by courier " + courier.getName() + " (" + courier.getCourierCode() + ") for same-branch direct delivery"
+                        );
+                        pickedPayload.setCourierId(courier.getCourierCode());
+                        pickedPayload.setCourierName(courier.getName());
+                        orderServiceClient.notifyStatusTransition(job.getOrderId(), pickedPayload, principal.userId(), actorRole);
+                    }
+                }
+            } else {
+                OrderStatusTransitionPayload assignPayload = new OrderStatusTransitionPayload(
+                        "PICKUP_ASSIGNED",
+                        job.getBranchName(),
+                        "Courier " + courier.getName() + " (" + courier.getCourierCode() + ") assigned for direct same-branch pickup & delivery"
+                );
+                assignPayload.setCourierId(courier.getCourierCode());
+                assignPayload.setCourierName(courier.getName());
+                orderServiceClient.notifyStatusTransition(job.getOrderId(), assignPayload, principal.userId(), actorRole);
+
+                OrderStatusTransitionPayload pickedPayload = new OrderStatusTransitionPayload(
+                        "PICKED_UP",
+                        job.getPickupAddress(),
+                        "Parcel collected by courier " + courier.getName() + " (" + courier.getCourierCode() + ") for same-branch direct delivery"
+                );
+                pickedPayload.setCourierId(courier.getCourierCode());
+                pickedPayload.setCourierName(courier.getName());
+                orderServiceClient.notifyStatusTransition(job.getOrderId(), pickedPayload, principal.userId(), actorRole);
+            }
+        }
+
         // Notify Order Service of OUT_FOR_DELIVERY
         OrderStatusTransitionPayload statusPayload = new OrderStatusTransitionPayload(
                 "OUT_FOR_DELIVERY",
@@ -630,7 +755,7 @@ public class DispatchService {
                 job.getOrderId(),
                 statusPayload,
                 principal.userId(),
-                principal.isAdmin() ? "ADMIN" : "DISPATCHER"
+                actorRole
         );
 
         eventPublisher.publishEvent(
@@ -903,7 +1028,7 @@ public class DispatchService {
             courierRepository.save(courier);
             refreshCourierAvailabilityStatus(courier);
 
-            // Notify Order Service of PICKED_UP and arrival at origin branch
+            // Notify Order Service of PICKED_UP
             OrderStatusTransitionPayload pickedUpPayload = new OrderStatusTransitionPayload(
                     "PICKED_UP",
                     pickupTask.getPickupAddress(),
@@ -912,18 +1037,6 @@ public class DispatchService {
             pickedUpPayload.setCourierId(courier.getCourierCode());
             pickedUpPayload.setCourierName(courier.getName());
             orderServiceClient.notifyStatusTransition(pickupTask.getOrderId(), pickedUpPayload, principal.userId(), actorRole);
-
-            OrderStatusTransitionPayload originBranchPayload = new OrderStatusTransitionPayload(
-                    "AT_ORIGIN_BRANCH",
-                    pickupTask.getOriginBranchName(),
-                    "Parcel handed over to origin branch (" + pickupTask.getOriginBranchName() + ")"
-            );
-            orderServiceClient.notifyStatusTransition(pickupTask.getOrderId(), originBranchPayload, principal.userId(), actorRole);
-
-            if (pickupTask.isSameBranch() && !deliveryJobRepository.existsByOrderId(pickupTask.getOrderId())) {
-                DeliveryJob sameBranchJob = buildDeliveryJobFromPickupTask(pickupTask);
-                deliveryJobRepository.save(sameBranchJob);
-            }
 
             eventPublisher.publishEvent(
                     "dispatch.parcel.picked_up",
@@ -937,19 +1050,36 @@ public class DispatchService {
                             "courierName", courier.getName()
                     )
             );
-            eventPublisher.publishEvent(
-                    "dispatch.parcel.received_at_branch",
-                    "ParcelReceivedAtBranch",
-                    Map.of(
-                            "taskCode", pickupTask.getTaskCode(),
-                            "orderId", pickupTask.getOrderId(),
-                            "trackingNumber", pickupTask.getTrackingNumber(),
-                            "branchId", pickupTask.getOriginBranchId(),
-                            "branchName", pickupTask.getOriginBranchName() != null ? pickupTask.getOriginBranchName() : "",
-                            "pickupMethod", "COURIER_PICKUP",
-                            "courierCode", courier.getCourierCode()
-                    )
-            );
+
+            if (pickupTask.isSameBranch()) {
+                // Same-branch parcel does NOT arrive at the branch hub; it is sent directly to the destination user via the dispatcher
+                if (!deliveryJobRepository.existsByOrderId(pickupTask.getOrderId())) {
+                    DeliveryJob sameBranchJob = buildDeliveryJobFromPickupTask(pickupTask);
+                    deliveryJobRepository.save(sameBranchJob);
+                }
+            } else {
+                // Inter-branch parcel arrives at the origin branch so the dispatcher can send it to inter-branch transport
+                OrderStatusTransitionPayload originBranchPayload = new OrderStatusTransitionPayload(
+                        "AT_ORIGIN_BRANCH",
+                        pickupTask.getOriginBranchName(),
+                        "Parcel handed over to origin branch (" + pickupTask.getOriginBranchName() + ")"
+                );
+                orderServiceClient.notifyStatusTransition(pickupTask.getOrderId(), originBranchPayload, principal.userId(), actorRole);
+
+                eventPublisher.publishEvent(
+                        "dispatch.parcel.received_at_branch",
+                        "ParcelReceivedAtBranch",
+                        Map.of(
+                                "taskCode", pickupTask.getTaskCode(),
+                                "orderId", pickupTask.getOrderId(),
+                                "trackingNumber", pickupTask.getTrackingNumber(),
+                                "branchId", pickupTask.getOriginBranchId(),
+                                "branchName", pickupTask.getOriginBranchName() != null ? pickupTask.getOriginBranchName() : "",
+                                "pickupMethod", "COURIER_PICKUP",
+                                "courierCode", courier.getCourierCode()
+                        )
+                );
+            }
 
             return toCourierJobDtoFromAssignment(saved);
         }

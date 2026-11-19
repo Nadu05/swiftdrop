@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertCircle,
   CheckCircle2,
@@ -15,6 +15,9 @@ import UnassignedDeliveryTable from '@/components/dispatcher/deliveries/Unassign
 import DeliveryDetailsModal from '@/components/dispatcher/deliveries/DeliveryDetailsModal';
 import AssignCourierDialog from '@/components/dispatcher/deliveries/AssignCourierDialog';
 import BranchDropoffDialog from '@/components/dispatcher/deliveries/BranchDropoffDialog';
+import OrderDispatchActionModal from '@/components/organization/branch-admin/OrderDispatchActionModal';
+import { getCustomerOrders } from '@/api/services/orders.api';
+import type { PickupTaskDto } from '@/api/services/dispatch.api';
 import {
   mapDeliveryJobToUnassigned,
   mapPickupTaskToQueueItem,
@@ -28,6 +31,7 @@ import type {
 import {
   dispatchQueryKeys,
   useAssignments,
+  useDispatchBranches,
   useDispatchCouriers,
   usePickupTasks,
   useUnassignedDeliveries,
@@ -38,18 +42,27 @@ type QueueTab = 'deliveries' | 'pickups';
 export default function UnassignedDeliveriesPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<QueueTab>('deliveries');
+  const [hasAutoSelectedTab, setHasAutoSelectedTab] = useState(false);
 
   // Queries with controlled 15s polling
   const unassignedQuery = useUnassignedDeliveries(undefined, { refetchInterval: 15_000 });
   const pickupTasksQuery = usePickupTasks(undefined, { refetchInterval: 15_000 });
   const couriersQuery = useDispatchCouriers(undefined, { refetchInterval: 15_000 });
   const assignmentsQuery = useAssignments(undefined, { refetchInterval: 15_000 });
+  const branchesQuery = useDispatchBranches();
+  const branchOrdersQuery = useQuery({
+    queryKey: ['dispatcher', 'branch-orders'],
+    queryFn: () => getCustomerOrders(),
+    refetchInterval: 15_000,
+  });
 
   // Selected items for modals
   const [selectedDetailsDelivery, setSelectedDetailsDelivery] =
     useState<UnassignedDelivery | null>(null);
   const [selectedAssignDelivery, setSelectedAssignDelivery] =
     useState<UnassignedDelivery | null>(null);
+  const [selectedActionModalOrderId, setSelectedActionModalOrderId] =
+    useState<string | number | null>(null);
   const [branchDropoffOpen, setBranchDropoffOpen] = useState(false);
   const [branchDropoffTracking, setBranchDropoffTracking] = useState('');
   const [branchDropoffBranchId, setBranchDropoffBranchId] = useState<number | undefined>();
@@ -64,18 +77,118 @@ export default function UnassignedDeliveriesPage() {
     }, 5500);
   };
 
-  const unassignedDeliveries = useMemo(
-    () => (unassignedQuery.data || []).map(mapDeliveryJobToUnassigned),
-    [unassignedQuery.data]
-  );
+  const unassignedDeliveries = useMemo(() => {
+    const base = (unassignedQuery.data || []).map(mapDeliveryJobToUnassigned);
+    const seenTrackings = new Set(base.map((d) => d.trackingNumber));
+    const seenOrderIds = new Set(base.map((d) => String(d.orderId)));
 
-  const openPickupTasks = useMemo(
-    () =>
-      (pickupTasksQuery.data || []).filter(
-        (task) => task.status !== 'BRANCH_RECEIVED' && task.status !== 'CANCELLED'
-      ),
-    [pickupTasksQuery.data]
-  );
+    for (const order of branchOrdersQuery.data || []) {
+      const s = String(order.status || '').toUpperCase();
+      const sameBranch =
+        Boolean(order.sameBranch) ||
+        (order.originBranchId &&
+          order.destinationBranchId &&
+          Number(order.originBranchId) === Number(order.destinationBranchId));
+      const isReadyForLastMile =
+        s === 'AT_DESTINATION_BRANCH' ||
+        (sameBranch && ['PICKED_UP', 'AT_ORIGIN_BRANCH'].includes(s));
+
+      if (
+        isReadyForLastMile &&
+        !seenTrackings.has(order.trackingNumber) &&
+        !seenOrderIds.has(String(order.id))
+      ) {
+        base.push({
+          orderId: String(order.id),
+          trackingNumber: order.trackingNumber,
+          taskType: 'DELIVERY',
+          branchId: order.destinationBranchId || order.originBranchId,
+          branchName: order.destinationBranchName || order.originBranchName,
+          pickupAddress: order.pickupAddress,
+          recipientName: order.dropoffContactName || 'Recipient',
+          recipientPhone: order.dropoffContactPhone || '—',
+          deliveryAddress: order.dropoffAddress || '—',
+          city: order.dropoffCity || '—',
+          merchantName: order.pickupContactName || 'Sender',
+          merchantContact: order.pickupContactPhone,
+          orderDate: order.createdAt || new Date().toISOString(),
+          priority: 'NORMAL',
+          parcelInfo: {
+            weightKg: Number(order.weightKg ?? 0),
+            packageType: order.parcelDescription || 'Standard Parcel',
+            dimensions: order.parcelSize,
+            handlingNotes: order.deliveryInstructions,
+          },
+        });
+      }
+    }
+    return base;
+  }, [unassignedQuery.data, branchOrdersQuery.data]);
+
+  const openPickupTasks = useMemo(() => {
+    const base: PickupTaskDto[] = (pickupTasksQuery.data || []).filter(
+      (task) => task.status !== 'BRANCH_RECEIVED' && task.status !== 'CANCELLED'
+    );
+    const seenTrackings = new Set(base.map((t) => t.trackingNumber));
+    const seenOrderIds = new Set(base.map((t) => String(t.orderId)));
+
+    for (const order of branchOrdersQuery.data || []) {
+      const s = String(order.status || '').toUpperCase();
+      if (
+        ['CREATED', 'CONFIRMED', 'PICKUP_ASSIGNED', 'PICKED_UP', 'AT_ORIGIN_BRANCH'].includes(s) &&
+        !seenTrackings.has(order.trackingNumber) &&
+        !seenOrderIds.has(String(order.id))
+      ) {
+        const isDropoff =
+          String(order.pickupMethod || '').toUpperCase() === 'BRANCH_DROPOFF' ||
+          String(order.pickupMethod || '').toUpperCase() === 'BRANCH_DROP_OFF';
+        base.push({
+          id: Number(order.id),
+          taskCode: `ORD-${order.id}`,
+          orderId: Number(order.id),
+          trackingNumber: order.trackingNumber,
+          pickupMethod: isDropoff ? 'BRANCH_DROP_OFF' : 'COURIER_PICKUP',
+          status:
+            s === 'CONFIRMED' || s === 'CREATED'
+              ? 'PENDING_ASSIGNMENT'
+              : s === 'PICKUP_ASSIGNED'
+                ? 'ASSIGNED'
+                : 'PICKED_UP',
+          priority: 'NORMAL',
+          originBranchId: order.originBranchId || 1,
+          originBranchName: order.originBranchName,
+          destinationBranchId: order.destinationBranchId,
+          destinationBranchName: order.destinationBranchName,
+          sameBranch: Boolean(order.sameBranch),
+          senderName: order.pickupContactName,
+          senderPhone: order.pickupContactPhone,
+          pickupAddress: order.pickupAddress,
+          pickupCity: order.pickupCity,
+          recipientName: order.dropoffContactName,
+          recipientPhone: order.dropoffContactPhone,
+          dropoffAddress: order.dropoffAddress,
+          dropoffCity: order.dropoffCity,
+          parcelCategory: order.parcelDescription || 'Standard Parcel',
+          parcelSize: order.parcelSize,
+          weightKg: order.weightKg,
+          assignedCourierName: order.courierName || undefined,
+          createdAt: order.createdAt,
+        });
+      }
+    }
+    return base;
+  }, [pickupTasksQuery.data, branchOrdersQuery.data]);
+
+  useEffect(() => {
+    if (
+      !hasAutoSelectedTab &&
+      unassignedDeliveries.length === 0 &&
+      openPickupTasks.length > 0
+    ) {
+      setActiveTab('pickups');
+      setHasAutoSelectedTab(true);
+    }
+  }, [hasAutoSelectedTab, unassignedDeliveries.length, openPickupTasks.length]);
 
   const pendingPickupAssignCount = useMemo(
     () => openPickupTasks.filter((t) => t.status === 'PENDING_ASSIGNMENT').length,
@@ -108,6 +221,7 @@ export default function UnassignedDeliveriesPage() {
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: dispatchQueryKeys.all });
+    queryClient.invalidateQueries({ queryKey: ['dispatcher', 'branch-orders'] });
   };
 
   const handleAssignmentSuccess = ({
@@ -278,7 +392,9 @@ export default function UnassignedDeliveriesPage() {
                   </tr>
                 ) : (
                   openPickupTasks.map((task) => {
-                    const isDropoff = task.pickupMethod === 'BRANCH_DROP_OFF';
+                    const isDropoff =
+                      task.pickupMethod === 'BRANCH_DROP_OFF' ||
+                      String(task.pickupMethod) === 'BRANCH_DROPOFF';
                     const canAssign = !isDropoff && task.status === 'PENDING_ASSIGNMENT';
                     const canConfirmDropoff = isDropoff && task.status === 'PENDING_ASSIGNMENT';
 
@@ -335,34 +451,51 @@ export default function UnassignedDeliveriesPage() {
                           )}
                         </td>
                         <td style={{ textAlign: 'right' }}>
-                          {canAssign ? (
-                            <button
-                              type="button"
-                              className="dispatcher-btn-primary"
-                              style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem' }}
-                              onClick={() =>
-                                setSelectedAssignDelivery(mapPickupTaskToQueueItem(task))
-                              }
-                            >
-                              Assign Pickup Courier
-                            </button>
-                          ) : canConfirmDropoff ? (
+                          <div
+                            style={{
+                              display: 'inline-flex',
+                              gap: '0.45rem',
+                              alignItems: 'center',
+                              justifyContent: 'flex-end',
+                              flexWrap: 'wrap',
+                            }}
+                          >
+                            {canAssign ? (
+                              <button
+                                type="button"
+                                className="dispatcher-btn-primary"
+                                style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem' }}
+                                onClick={() =>
+                                  setSelectedAssignDelivery(mapPickupTaskToQueueItem(task))
+                                }
+                              >
+                                Assign Pickup Courier
+                              </button>
+                            ) : canConfirmDropoff ? (
+                              <button
+                                type="button"
+                                className="dispatcher-action-btn-secondary"
+                                onClick={() =>
+                                  handleOpenDropoffDialog(task.trackingNumber, task.originBranchId)
+                                }
+                              >
+                                Confirm Intake
+                              </button>
+                            ) : null}
+
                             <button
                               type="button"
                               className="dispatcher-action-btn-secondary"
+                              style={{ padding: '0.45rem 0.75rem', fontSize: '0.78rem' }}
                               onClick={() =>
-                                handleOpenDropoffDialog(task.trackingNumber, task.originBranchId)
+                                setSelectedActionModalOrderId(
+                                  task.orderId ?? task.trackingNumber
+                                )
                               }
                             >
-                              Confirm Intake
+                              Manage / Transfer
                             </button>
-                          ) : (
-                            <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
-                              {task.status === 'PICKED_UP'
-                                ? 'Collected by courier'
-                                : 'In progress'}
-                            </span>
-                          )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -401,8 +534,24 @@ export default function UnassignedDeliveriesPage() {
         onClose={() => setBranchDropoffOpen(false)}
         onConfirmed={(msg) => {
           showToast(msg);
-          queryClient.invalidateQueries({ queryKey: dispatchQueryKeys.all });
+          handleRefresh();
         }}
+      />
+
+      {/* Full Order Details, Courier Assignment & Inter-Branch Transfer Modal */}
+      <OrderDispatchActionModal
+        isOpen={selectedActionModalOrderId !== null}
+        orderIdOrTracking={selectedActionModalOrderId}
+        initialOrder={
+          (branchOrdersQuery.data || []).find(
+            (o) =>
+              String(o.id) === String(selectedActionModalOrderId) ||
+              o.trackingNumber === String(selectedActionModalOrderId)
+          ) ?? null
+        }
+        allBranches={branchesQuery.data || []}
+        onClose={() => setSelectedActionModalOrderId(null)}
+        onUpdated={handleRefresh}
       />
     </div>
   );

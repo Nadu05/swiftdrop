@@ -25,6 +25,7 @@ import type { OrderResponse } from '@/types/order.types';
 import { isOrderAuthorizedForBranch } from '@/lib/auth/branch-admin-permissions';
 import { useBranchAdminContext } from './useBranchAdminContext';
 import BranchScopeBanner from './BranchScopeBanner';
+import OrderDispatchActionModal from './OrderDispatchActionModal';
 
 interface BranchOrderRow {
   id: number | string;
@@ -113,6 +114,9 @@ export default function BranchOrdersOverview() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<number | string | null>(
+    null
+  );
 
   // Filters & Pagination
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -603,7 +607,7 @@ export default function BranchOrdersOverview() {
                   {paginatedOrders.map((row) => (
                     <tr
                       key={`${row.id}-${row.trackingNumber}`}
-                      onClick={() => router.push(`/bookings/${row.id}`)}
+                      onClick={() => setSelectedOrderId(row.id)}
                       className="org-table__row cursor-pointer transition hover:bg-[#F5F7FA]"
                     >
                       <td data-label="Order / Tracking ID">
@@ -680,13 +684,14 @@ export default function BranchOrdersOverview() {
                         className="org-table__td--actions"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <Link
-                          href={`/bookings/${row.id}`}
+                        <button
+                          type="button"
+                          onClick={() => setSelectedOrderId(row.id)}
                           className="org-action-btn"
                         >
-                          <ExternalLink size={14} />
-                          <span>View Order</span>
-                        </Link>
+                          <Truck size={14} />
+                          <span>Manage Order</span>
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -727,6 +732,18 @@ export default function BranchOrdersOverview() {
           </>
         )}
       </section>
+
+      <OrderDispatchActionModal
+        isOpen={selectedOrderId !== null}
+        orderIdOrTracking={selectedOrderId}
+        initialOrder={
+          orders.find((o) => String(o.id) === String(selectedOrderId)) ?? null
+        }
+        effectiveBranchId={effectiveBranchId}
+        allBranches={allBranches}
+        onClose={() => setSelectedOrderId(null)}
+        onUpdated={() => loadOrdersData(true)}
+      />
     </div>
   );
 }

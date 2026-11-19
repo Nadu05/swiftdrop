@@ -26,6 +26,11 @@ import type { OrderResponse } from '@/types/order.types';
 import { isOrderAuthorizedForBranch } from '@/lib/auth/branch-admin-permissions';
 import { useBranchAdminContext } from './useBranchAdminContext';
 import BranchScopeBanner from './BranchScopeBanner';
+import OrderDispatchActionModal from './OrderDispatchActionModal';
+import {
+  classifyOrderForBranchIncomingFlow,
+  resolveParcelModalCapabilities,
+} from './parcel-dispatch-workflow';
 
 export interface BranchParcelsOverviewProps {
   defaultFlow?: 'INCOMING' | 'OUTGOING';
@@ -56,6 +61,8 @@ interface ParcelFlowRecord {
   courierName?: string;
   weightKg?: number;
   updatedAt?: string;
+  actionLabel?: string;
+  orderObject?: OrderResponse;
 }
 
 function formatDateTime(isoString?: string | null): string {
@@ -98,6 +105,8 @@ export default function BranchParcelsOverview({
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedModalRecord, setSelectedModalRecord] =
+    useState<ParcelFlowRecord | null>(null);
 
   useEffect(() => {
     setActiveFlow(defaultFlow);
@@ -262,43 +271,86 @@ export default function BranchParcelsOverview({
       }
     }
 
-    // 2. From Orders where destinationBranchId === effectiveBranchId
+    // 2. From Orders (both Origin Branch first-mile/hub intake AND Destination Branch incoming)
     for (const o of orders) {
-      if (Number(o.destinationBranchId) !== Number(effectiveBranchId)) continue;
       if (map.has(o.trackingNumber)) continue;
+      const classification = classifyOrderForBranchIncomingFlow(
+        o,
+        effectiveBranchId
+      );
+      if (!classification) continue;
 
-      const s = (o.status || '').toUpperCase();
-      let stageCode: IncomingStage = 'ARRIVING_FROM_OTHER_BRANCHES';
-      if (
-        ['AT_DESTINATION_BRANCH', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(s)
-      ) {
-        stageCode = 'RECEIVED_BY_BRANCH';
-      } else if (['IN_TRANSIT', 'PICKED_UP', 'AT_ORIGIN_BRANCH'].includes(s)) {
-        stageCode = o.sameBranch
-          ? 'AWAITING_BRANCH_RECEIPT'
-          : 'ARRIVING_FROM_OTHER_BRANCHES';
-      } else {
-        stageCode = 'AWAITING_BRANCH_RECEIPT';
-      }
-
-      const stageLabel =
-        stageCode === 'RECEIVED_BY_BRANCH'
-          ? 'Received by Branch'
-          : stageCode === 'AWAITING_BRANCH_RECEIPT'
-            ? 'Awaiting Branch Receipt'
-            : 'Arriving from Other Branch';
+      const capabilities = resolveParcelModalCapabilities(o, effectiveBranchId);
+      const matchedPickup = pickupTasks.find(
+        (p) =>
+          p.trackingNumber === o.trackingNumber ||
+          String(p.orderId) === String(o.id)
+      );
+      const matchedJob = deliveryJobs.find(
+        (j) =>
+          j.trackingNumber === o.trackingNumber ||
+          String(j.orderId) === String(o.id)
+      );
 
       map.set(o.trackingNumber, {
         key: `in-order-${o.id}`,
         orderId: o.id,
         trackingNumber: o.trackingNumber,
-        originBranchLabel: `Hub #${o.originBranchId}`,
-        destinationBranchLabel: `Hub #${o.destinationBranchId}`,
+        originBranchLabel: o.originBranchName || `Hub #${o.originBranchId}`,
+        destinationBranchLabel:
+          o.destinationBranchName || `Hub #${o.destinationBranchId}`,
         backendStatus: o.status,
-        stageLabel,
-        stageCode,
+        stageLabel: classification.stageLabel,
+        stageCode: classification.stageCode,
+        courierName:
+          matchedJob?.courierName ||
+          matchedPickup?.assignedCourierName ||
+          o.courierName ||
+          undefined,
         weightKg: o.weightKg,
         updatedAt: o.updatedAt || o.createdAt,
+        actionLabel: capabilities.primaryNextActionLabel,
+        orderObject: o,
+      });
+    }
+
+    // 2b. From Origin Pickup Tasks not already represented in orders
+    for (const p of pickupTasks) {
+      if (!p.trackingNumber || map.has(p.trackingNumber)) continue;
+      if (
+        p.originBranchId &&
+        Number(p.originBranchId) !== Number(effectiveBranchId)
+      ) {
+        continue;
+      }
+      const isReceived =
+        p.status === 'BRANCH_RECEIVED' || p.status === 'PICKED_UP';
+      map.set(p.trackingNumber, {
+        key: `in-pickup-${p.id}`,
+        orderId: p.orderId,
+        trackingNumber: p.trackingNumber,
+        originBranchLabel:
+          p.originBranchName ||
+          p.originBranchCode ||
+          `Hub #${p.originBranchId || effectiveBranchId}`,
+        destinationBranchLabel:
+          p.destinationBranchName ||
+          p.destinationBranchCode ||
+          `Hub #${p.destinationBranchId || effectiveBranchId}`,
+        backendStatus: p.status,
+        stageLabel: isReceived
+          ? 'Received at Origin Branch'
+          : 'Awaiting Pickup to Branch',
+        stageCode: isReceived
+          ? 'RECEIVED_BY_BRANCH'
+          : 'AWAITING_BRANCH_RECEIPT',
+        courierName: p.assignedCourierName,
+        weightKg: p.weightKg,
+        updatedAt: p.pickedUpAt || p.branchConfirmedAt || p.createdAt,
+        actionLabel:
+          p.status === 'PENDING_ASSIGNMENT'
+            ? 'Assign Pickup Courier'
+            : 'Manage Order',
       });
     }
 
@@ -318,11 +370,15 @@ export default function BranchParcelsOverview({
         courierName: job.courierName,
         weightKg: job.parcel?.weightKg,
         updatedAt: job.updatedAt || job.createdAt,
+        actionLabel:
+          job.status === 'UNASSIGNED'
+            ? 'Assign Delivery Courier'
+            : 'Manage Order',
       });
     }
 
     return Array.from(map.values());
-  }, [effectiveBranchId, manifests, orders, deliveryJobs]);
+  }, [effectiveBranchId, manifests, orders, pickupTasks, deliveryJobs]);
 
   // ── Build Outgoing Parcel Records (strictly existing backend statuses) ────
   const outgoingRecords = useMemo<ParcelFlowRecord[]>(() => {
@@ -858,7 +914,11 @@ export default function BranchParcelsOverview({
               </thead>
               <tbody>
                 {displayedRecords.map((rec) => (
-                  <tr key={rec.key} className="org-table__row">
+                  <tr
+                    key={rec.key}
+                    onClick={() => setSelectedModalRecord(rec)}
+                    className="org-table__row cursor-pointer transition hover:bg-[#F5F7FA]"
+                  >
                     <td data-label="Tracking / Order ID">
                       <span className="org-branch-code">{rec.trackingNumber}</span>
                       <div className="mt-0.5 text-[11px] text-[#64748B]">
@@ -908,14 +968,19 @@ export default function BranchParcelsOverview({
                       </span>
                     </td>
 
-                    <td data-label="Action" className="org-table__td--actions">
-                      <Link
-                        href={`/bookings/${rec.orderId}`}
+                    <td
+                      data-label="Action"
+                      className="org-table__td--actions"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setSelectedModalRecord(rec)}
                         className="org-action-btn"
                       >
-                        <ExternalLink size={14} />
-                        <span>Order</span>
-                      </Link>
+                        <Truck size={14} />
+                        <span>{rec.actionLabel || 'Manage Order'}</span>
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -924,6 +989,21 @@ export default function BranchParcelsOverview({
           </div>
         )}
       </section>
+
+      <OrderDispatchActionModal
+        isOpen={selectedModalRecord !== null}
+        orderIdOrTracking={
+          selectedModalRecord?.orderId ??
+          selectedModalRecord?.trackingNumber ??
+          null
+        }
+        initialOrder={selectedModalRecord?.orderObject ?? null}
+        effectiveBranchId={effectiveBranchId}
+        allBranches={allBranches}
+        manifestCode={selectedModalRecord?.manifestCode}
+        onClose={() => setSelectedModalRecord(null)}
+        onUpdated={() => loadParcelFlowData(true)}
+      />
     </div>
   );
 }

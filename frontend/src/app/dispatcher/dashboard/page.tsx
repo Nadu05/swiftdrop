@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   AlertCircle,
   AlertTriangle,
@@ -16,6 +17,10 @@ import DeliveryActivityChart from '@/components/dispatcher/overview/DeliveryActi
 import DeliveryStatusChart from '@/components/dispatcher/overview/DeliveryStatusChart';
 import CourierWorkload from '@/components/dispatcher/overview/CourierWorkload';
 import DispatchActionBar from '@/components/dispatcher/overview/DispatchActionBar';
+import OrderDispatchActionModal from '@/components/organization/branch-admin/OrderDispatchActionModal';
+import { resolveParcelModalCapabilities } from '@/components/organization/branch-admin/parcel-dispatch-workflow';
+import { getCustomerOrders } from '@/api/services/orders.api';
+import type { OrderResponse } from '@/types/order.types';
 import type {
   CourierWorkloadItem,
   DailyActivityData,
@@ -26,6 +31,7 @@ import {
   useAssignments,
   useDeliveryExceptions,
   useDeliveryJobs,
+  useDispatchBranches,
   useDispatchCouriers,
   usePickupTasks,
 } from '@/hooks/api/use-dispatch';
@@ -39,11 +45,18 @@ function toLocalIsoDate(input: Date): string {
 }
 
 export default function DispatcherDashboardPage() {
+  const [selectedOrder, setSelectedOrder] = useState<OrderResponse | null>(null);
   const pickupTasksQuery = usePickupTasks(undefined, { refetchInterval: 15_000 });
   const deliveryJobsQuery = useDeliveryJobs(undefined, { refetchInterval: 15_000 });
   const couriersQuery = useDispatchCouriers(undefined, { refetchInterval: 15_000 });
   const exceptionsQuery = useDeliveryExceptions(undefined, { refetchInterval: 15_000 });
   const assignmentsQuery = useAssignments(undefined, { refetchInterval: 15_000 });
+  const branchesQuery = useDispatchBranches();
+  const branchOrdersQuery = useQuery({
+    queryKey: ['dispatcher', 'branch-orders'],
+    queryFn: () => getCustomerOrders(),
+    refetchInterval: 15_000,
+  });
 
   const isLoading =
     pickupTasksQuery.isLoading ||
@@ -56,7 +69,8 @@ export default function DispatcherDashboardPage() {
     deliveryJobsQuery.isFetching ||
     couriersQuery.isFetching ||
     exceptionsQuery.isFetching ||
-    assignmentsQuery.isFetching;
+    assignmentsQuery.isFetching ||
+    branchOrdersQuery.isFetching;
 
   const queryError =
     pickupTasksQuery.error ||
@@ -72,6 +86,7 @@ export default function DispatcherDashboardPage() {
       couriersQuery.refetch(),
       exceptionsQuery.refetch(),
       assignmentsQuery.refetch(),
+      branchOrdersQuery.refetch(),
     ]);
   };
 
@@ -80,6 +95,7 @@ export default function DispatcherDashboardPage() {
   const couriers = couriersQuery.data ?? [];
   const exceptions = exceptionsQuery.data ?? [];
   const assignments = assignmentsQuery.data ?? [];
+  const branchOrders = branchOrdersQuery.data ?? [];
 
   const metrics = useMemo(() => {
     const todayKey = toLocalIsoDate(new Date());
@@ -89,7 +105,15 @@ export default function DispatcherDashboardPage() {
       (task) => task.pickupMethod === 'COURIER_PICKUP' && task.status === 'PENDING_ASSIGNMENT'
     );
     const branchDropoffsPending = pickupTasks.filter(
-      (task) => task.pickupMethod === 'BRANCH_DROP_OFF' && task.status === 'PENDING_ASSIGNMENT'
+      (task) =>
+        (task.pickupMethod === 'BRANCH_DROP_OFF' ||
+          String(task.pickupMethod) === 'BRANCH_DROPOFF') &&
+        task.status === 'PENDING_ASSIGNMENT'
+    );
+    const unsyncedConfirmedOrders = branchOrders.filter(
+      (o) =>
+        ['CREATED', 'CONFIRMED'].includes(String(o.status || '').toUpperCase()) &&
+        !pickupTasks.some((t) => t.trackingNumber === o.trackingNumber)
     );
 
     const activeJobs = deliveryJobs.filter((job) =>
@@ -123,8 +147,11 @@ export default function DispatcherDashboardPage() {
       {
         id: 'pending-queue',
         title: 'Pending Dispatch Queue',
-        value: unassignedJobs.length + pendingCourierPickups.length,
-        description: `${unassignedJobs.length} deliveries · ${pendingCourierPickups.length} courier pickups · ${branchDropoffsPending.length} branch drop-offs`,
+        value:
+          unassignedJobs.length +
+          pendingCourierPickups.length +
+          unsyncedConfirmedOrders.length,
+        description: `${unassignedJobs.length} deliveries · ${pendingCourierPickups.length + unsyncedConfirmedOrders.length} pickups · ${branchDropoffsPending.length} branch drop-offs`,
         icon: Package,
         iconColor: '#d97706',
         iconBg: '#fffbeb',
@@ -161,10 +188,13 @@ export default function DispatcherDashboardPage() {
     return {
       statItems,
       unassignedCount: unassignedJobs.length,
-      pendingPickupsCount: pendingCourierPickups.length + branchDropoffsPending.length,
+      pendingPickupsCount:
+        pendingCourierPickups.length +
+        branchDropoffsPending.length +
+        unsyncedConfirmedOrders.length,
       openExceptionsCount: openExceptions.length,
     };
-  }, [assignments, couriers, deliveryJobs, exceptions, pickupTasks]);
+  }, [assignments, branchOrders, couriers, deliveryJobs, exceptions, pickupTasks]);
 
   const activityData = useMemo<DailyActivityData[]>(() => {
     const dayFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'short' });
@@ -280,6 +310,116 @@ export default function DispatcherDashboardPage() {
         ))}
       </section>
 
+      {/* 2b. Branch Incoming & Outgoing Orders Dispatch Table */}
+      <section className="dispatcher-table-card" aria-label="Branch orders dispatch queue">
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '1rem 1.25rem',
+            borderBottom: '1px solid #e2e8f0',
+          }}
+        >
+          <div>
+            <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+              Branch Orders &amp; Parcel Dispatch Queue ({branchOrders.length})
+            </h2>
+            <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0.2rem 0 0' }}>
+              Newly placed branch orders, pickup assignments, inter-branch transfers, and direct local deliveries.
+            </p>
+          </div>
+        </div>
+        <div className="dispatcher-table-wrapper">
+          <table className="dispatcher-table">
+            <thead>
+              <tr>
+                <th>Tracking / Order ID</th>
+                <th>Origin → Destination</th>
+                <th>Sender &amp; Recipient</th>
+                <th>Lifecycle Status</th>
+                <th style={{ textAlign: 'right' }}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {branchOrdersQuery.isLoading ? (
+                <tr>
+                  <td colSpan={5} style={{ textAlign: 'center', padding: '1.75rem', color: '#64748b' }}>
+                    Loading branch orders...
+                  </td>
+                </tr>
+              ) : branchOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                    No orders currently queued for this branch.
+                  </td>
+                </tr>
+              ) : (
+                branchOrders.map((order) => {
+                  const caps = resolveParcelModalCapabilities(order);
+                  return (
+                    <tr
+                      key={order.id}
+                      onClick={() => setSelectedOrder(order)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <td>
+                        <div style={{ fontWeight: 700, color: '#2563eb' }}>
+                          {order.trackingNumber}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                          Order #{order.id} · {order.weightKg} kg
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.82rem' }}>
+                          {order.originBranchName || `Hub #${order.originBranchId}`} →{' '}
+                          {order.destinationBranchName || `Hub #${order.destinationBranchId}`}
+                        </div>
+                        <div style={{ fontSize: '0.74rem', color: '#64748b' }}>
+                          {caps.isSameBranch
+                            ? 'Same-Branch Area (Direct to Recipient)'
+                            : 'Inter-Branch Route'}
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ fontSize: '0.8rem', color: '#0f172a', fontWeight: 600 }}>
+                          {order.pickupContactName || 'Sender'} →{' '}
+                          {order.dropoffContactName || 'Recipient'}
+                        </div>
+                        <div style={{ fontSize: '0.74rem', color: '#64748b' }}>
+                          {order.dropoffAddress}
+                        </div>
+                      </td>
+                      <td>
+                        <span className="dispatcher-status-badge dispatcher-status-badge--info">
+                          {order.status}
+                        </span>
+                        {order.courierName && (
+                          <div style={{ fontSize: '0.74rem', color: '#16a34a', marginTop: '0.2rem' }}>
+                            Courier: {order.courierName}
+                          </div>
+                        )}
+                      </td>
+                      <td style={{ textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          className="dispatcher-btn-primary"
+                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.78rem' }}
+                          onClick={() => setSelectedOrder(order)}
+                        >
+                          {caps.primaryNextActionLabel}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       {/* 3. Delivery Activity (Bar) & Status Breakdown (Donut) Charts */}
       <section className="dispatcher-charts-grid" aria-label="Delivery activity and status charts">
         <DeliveryActivityChart data={activityData} />
@@ -288,6 +428,15 @@ export default function DispatcherDashboardPage() {
 
       {/* 4. Courier Workload Monitoring */}
       <CourierWorkload couriers={workloadCouriers} />
+
+      <OrderDispatchActionModal
+        isOpen={selectedOrder !== null}
+        orderIdOrTracking={selectedOrder?.id ?? selectedOrder?.trackingNumber ?? null}
+        initialOrder={selectedOrder}
+        allBranches={branchesQuery.data || []}
+        onClose={() => setSelectedOrder(null)}
+        onUpdated={handleRefresh}
+      />
     </div>
   );
 }

@@ -21,7 +21,7 @@ public record DispatchUserPrincipal(
     }
 
     public boolean isDispatcher() {
-        return hasRole("DISPATCHER") || hasRole("BRANCH_MANAGER") || hasRole("BRANCH_STAFF");
+        return hasRole("DISPATCHER") || hasRole("BRANCH_MANAGER") || hasRole("BRANCH_ADMIN") || hasRole("BRANCH_STAFF");
     }
 
     public boolean isCourier() {

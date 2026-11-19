@@ -29,7 +29,7 @@ public record OrderUserPrincipal(
     }
 
     public boolean isBranchScopedStaff() {
-        return hasRole("BRANCH_MANAGER") || hasRole("BRANCH_STAFF") || hasRole("DISPATCHER");
+        return hasRole("BRANCH_MANAGER") || hasRole("BRANCH_ADMIN") || hasRole("BRANCH_STAFF") || hasRole("DISPATCHER");
     }
 
     public boolean canAccessOrderBranch(Long originBranchId, Long destinationBranchId) {
