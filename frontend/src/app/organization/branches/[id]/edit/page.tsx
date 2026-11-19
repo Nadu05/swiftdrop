@@ -10,15 +10,21 @@ import {
 } from 'lucide-react';
 import BranchForm from '@/components/organization/branches/BranchForm';
 import {
+  mapBranchPostalAreasToDtos,
+  submitBranchEditWithPostalAreas,
+} from '@/components/organization/branches/branch-postal-coverage';
+import {
   getBranchById,
+  getBranchPostalAreas,
   updateBranch,
+  updateBranchPostalAreas,
 } from '@/api/services/organization.api';
 import {
   branchResponseToFormValues,
   toBranchUpdatePayload,
   type BranchFormValues,
 } from '@/schema/branch.schema';
-import type { BranchResponse } from '@/types/organization.types';
+import type { BranchResponse, PostalAreaDto } from '@/types/organization.types';
 import { AdminGuard } from '@/components/auth/RoleGuard';
 
 /**
@@ -37,6 +43,7 @@ export default function EditBranchPage() {
   const isValidBranchId = Number.isInteger(numericId) && numericId > 0;
 
   const [branch, setBranch] = useState<BranchResponse | null>(null);
+  const [initialPostalAreas, setInitialPostalAreas] = useState<PostalAreaDto[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -51,10 +58,15 @@ export default function EditBranchPage() {
     setLoadError(null);
 
     try {
-      const data = await getBranchById(numericId);
+      const [data, assignedAreas] = await Promise.all([
+        getBranchById(numericId),
+        getBranchPostalAreas(numericId),
+      ]);
       setBranch(data);
+      setInitialPostalAreas(mapBranchPostalAreasToDtos(assignedAreas));
     } catch (err: unknown) {
       setBranch(null);
+      setInitialPostalAreas([]);
       setLoadError(
         err instanceof Error
           ? err.message
@@ -77,8 +89,14 @@ export default function EditBranchPage() {
   const handleEditSubmit = async (
     values: BranchFormValues
   ): Promise<BranchResponse> => {
-    const payload = toBranchUpdatePayload(values);
-    return updateBranch(numericId, payload);
+    return submitBranchEditWithPostalAreas({
+      branchId: numericId,
+      updatePayload: toBranchUpdatePayload(values),
+      initialPostalAreaIds: initialPostalAreas.map((a) => a.id),
+      nextPostalAreaIds: values.postalAreaIds ?? [],
+      updateBranch,
+      updateBranchPostalAreas,
+    });
   };
 
   const handleCancel = () => {
@@ -165,6 +183,7 @@ export default function EditBranchPage() {
         <BranchForm
           mode="edit"
           initialValues={initialFormValues}
+          initialPostalAreas={initialPostalAreas}
           branchStatus={branch.status}
           onSubmit={handleEditSubmit}
           onCancel={handleCancel}

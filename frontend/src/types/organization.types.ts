@@ -368,4 +368,22 @@ export interface PostalAreaDto {
   isActive: boolean;
 }
 
+export interface BranchPostalAreaResponse {
+  id: number;
+  postalAreaId: number;
+  postalCode: string;
+  areaName: string;
+  provinceId: number;
+  provinceName: string;
+  districtId: number;
+  districtName: string;
+  dsDivisionId: number | null;
+  dsDivisionName: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  isActive: boolean;
+  assignedAt: string | null;
+  assignedBy: string | null;
+}
+
 

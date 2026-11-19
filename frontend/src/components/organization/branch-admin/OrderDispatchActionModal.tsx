@@ -449,7 +449,7 @@ export function OrderDispatchActionModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/60 p-4 backdrop-blur-xs"
+      className="sd-dispatch-modal-overlay"
       onClick={() => {
         if (!isSubmitting) onClose();
       }}
@@ -458,27 +458,27 @@ export function OrderDispatchActionModal({
       aria-labelledby="order-dispatch-modal-title"
     >
       <div
-        className="relative flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white shadow-2xl"
+        className="sd-dispatch-modal"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="flex items-start justify-between gap-4 border-b border-[#E5EAF0] bg-[#F8FAFC] px-6 py-4">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-md bg-[#102B50] px-2.5 py-0.5 font-mono text-xs font-bold text-white">
+        <div className="sd-dispatch-modal__header">
+          <div className="min-w-0 flex-1">
+            <div className="sd-dispatch-modal__badges">
+              <span className="sd-dispatch-modal__tracking-pill">
                 {order?.trackingNumber || `Order #${orderIdOrTracking}`}
               </span>
               {order && (
-                <span className="rounded-full border border-[#BFDBFE] bg-[#EAF3FF] px-2.5 py-0.5 text-[11px] font-semibold text-[#102B50]">
+                <span className="sd-dispatch-modal__status-pill">
                   {order.status}
                 </span>
               )}
               {order && (
                 <span
-                  className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${
+                  className={`sd-dispatch-modal__route-pill ${
                     sameBranch
-                      ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                      : 'border-indigo-200 bg-indigo-50 text-indigo-800'
+                      ? 'sd-dispatch-modal__route-pill--same'
+                      : 'sd-dispatch-modal__route-pill--inter'
                   }`}
                 >
                   {sameBranch
@@ -489,11 +489,11 @@ export function OrderDispatchActionModal({
             </div>
             <h2
               id="order-dispatch-modal-title"
-              className="mt-1.5 text-lg font-bold text-[#102B50]"
+              className="sd-dispatch-modal__title"
             >
               Order Details &amp; Branch Dispatch Console
             </h2>
-            <p className="text-xs text-[#64748B]">
+            <p className="sd-dispatch-modal__subtitle">
               Inspect parcel specifications, assign pickup or delivery couriers,
               and manage inter-branch transport without leaving the dashboard.
             </p>
@@ -503,23 +503,23 @@ export function OrderDispatchActionModal({
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="rounded-lg p-1.5 text-[#64748B] transition hover:bg-[#E2E8F0] hover:text-[#0F172A]"
+            className="sd-dispatch-modal__close"
             aria-label="Close modal"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
+        <div className="sd-dispatch-modal__body">
           {errorMessage && (
             <div
-              className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs text-red-800"
+              className="sd-dispatch-modal__alert sd-dispatch-modal__alert--error"
               role="alert"
             >
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
               <div className="flex-1">
-                <strong className="font-semibold">Action Error:</strong>{' '}
+                <strong className="font-bold">Action Error:</strong>{' '}
                 {errorMessage}
               </div>
             </div>
@@ -527,11 +527,11 @@ export function OrderDispatchActionModal({
 
           {successMessage && (
             <div
-              className="flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 text-xs text-emerald-900"
+              className="sd-dispatch-modal__alert sd-dispatch-modal__alert--success"
               role="status"
             >
               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-              <div className="flex-1 font-medium">{successMessage}</div>
+              <div className="flex-1 font-semibold">{successMessage}</div>
             </div>
           )}
 
@@ -543,16 +543,16 @@ export function OrderDispatchActionModal({
           ) : order ? (
             <>
               {/* Route Banner */}
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#EAF3FF] text-[#1677E8]">
+              <div className="sd-dispatch-route-bar">
+                <div className="sd-dispatch-route-node">
+                  <div className="sd-dispatch-route-node__icon">
                     <Building2 className="h-4 w-4" />
                   </div>
-                  <div>
-                    <div className="text-[11px] font-semibold uppercase tracking-wider text-[#64748B]">
+                  <div className="min-w-0">
+                    <div className="sd-dispatch-route-node__label">
                       Origin Branch
                     </div>
-                    <div className="text-sm font-bold text-[#102B50]">
+                    <div className="sd-dispatch-route-node__value">
                       {resolveBranchLabel(
                         order.originBranchId,
                         order.originBranchName
@@ -561,17 +561,17 @@ export function OrderDispatchActionModal({
                   </div>
                 </div>
 
-                <ArrowRight className="h-4 w-4 text-[#94A3B8]" />
+                <ArrowRight className="h-4 w-4 shrink-0 text-[#94A3B8]" />
 
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#EAF3FF] text-[#102B50]">
+                <div className="sd-dispatch-route-node">
+                  <div className="sd-dispatch-route-node__icon sd-dispatch-route-node__icon--dest">
                     <MapPin className="h-4 w-4" />
                   </div>
-                  <div>
-                    <div className="text-[11px] font-semibold uppercase tracking-wider text-[#64748B]">
+                  <div className="min-w-0">
+                    <div className="sd-dispatch-route-node__label">
                       Destination Branch
                     </div>
-                    <div className="text-sm font-bold text-[#102B50]">
+                    <div className="sd-dispatch-route-node__value">
                       {resolveBranchLabel(
                         order.destinationBranchId,
                         order.destinationBranchName
@@ -580,11 +580,11 @@ export function OrderDispatchActionModal({
                   </div>
                 </div>
 
-                <div className="text-right">
-                  <div className="text-[11px] font-semibold uppercase tracking-wider text-[#64748B]">
+                <div className="sd-dispatch-route-method">
+                  <div className="sd-dispatch-route-node__label">
                     Pickup Method
                   </div>
-                  <div className="text-xs font-bold text-[#102B50]">
+                  <div className="mt-0.5 text-xs font-bold text-[#102B50]">
                     {String(order.pickupMethod).includes('DROP')
                       ? 'Branch Drop-Off'
                       : 'Courier Pickup'}
@@ -594,13 +594,13 @@ export function OrderDispatchActionModal({
 
               {/* Operational Dispatch & Transfer Facility */}
               {capabilities && (
-                <div className="rounded-xl border-2 border-[#BFDBFE] bg-[#F0F7FF] p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#DBEAFE] pb-3">
-                    <div>
-                      <h3 className="text-sm font-bold text-[#102B50]">
+                <div className="sd-dispatch-controls-card">
+                  <div className="sd-dispatch-controls-card__header">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="sd-dispatch-controls-card__title">
                         Operational Dispatch &amp; Transfer Controls
                       </h3>
-                      <p className="text-xs text-[#475569]">
+                      <p className="sd-dispatch-controls-card__desc">
                         {sameBranch
                           ? 'Same-branch coverage order: parcel is delivered directly to the destination recipient via dispatcher assignment without inter-branch transfer.'
                           : 'Inter-branch order: Origin Dispatcher assigns pickup courier to bring parcel to branch, then dispatches to Inter-Branch Transport; Destination Dispatcher receives and assigns last-mile courier.'}
@@ -610,14 +610,15 @@ export function OrderDispatchActionModal({
                       type="button"
                       onClick={() => loadOrderAndFleet(order.id)}
                       disabled={isLoadingOrder || isLoadingCouriers || isSubmitting}
-                      className="inline-flex items-center gap-1 rounded-md border border-[#CBD5E1] bg-white px-2.5 py-1 text-xs font-semibold text-[#334155] hover:bg-[#F8FAFC]"
+                      className="sd-dispatch-btn sd-dispatch-btn--secondary"
+                      style={{ height: '30px', padding: '0 0.65rem', fontSize: '0.72rem' }}
                     >
                       <RefreshCw
                         className={`h-3.5 w-3.5 ${
                           isLoadingOrder || isLoadingCouriers ? 'animate-spin' : ''
                         }`}
                       />
-                      Refresh
+                      <span>Refresh</span>
                     </button>
                   </div>
 
@@ -625,11 +626,11 @@ export function OrderDispatchActionModal({
                   {(capabilities.canAssignPickupCourier ||
                     capabilities.canAssignDeliveryCourier ||
                     capabilities.canSendToInterBranchTransport) && (
-                    <div className="mt-3.5 grid grid-cols-1 gap-3 md:grid-cols-3">
-                      <div className="md:col-span-2">
+                    <div className="sd-dispatch-controls-card__grid">
+                      <div>
                         <label
                           htmlFor="modal-courier-select"
-                          className="block text-xs font-semibold text-[#102B50]"
+                          className="sd-dispatch-field-label"
                         >
                           Select Branch Courier
                           {capabilities.canSendToInterBranchTransport
@@ -641,7 +642,7 @@ export function OrderDispatchActionModal({
                           value={selectedCourierId}
                           onChange={(e) => setSelectedCourierId(e.target.value)}
                           disabled={isSubmitting || isLoadingCouriers}
-                          className="mt-1 w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-xs text-[#0F172A] focus:border-[#1677E8] focus:outline-hidden"
+                          className="sd-dispatch-control"
                         >
                           <option value="">
                             {isLoadingCouriers
@@ -671,7 +672,7 @@ export function OrderDispatchActionModal({
                       <div>
                         <label
                           htmlFor="modal-priority-select"
-                          className="block text-xs font-semibold text-[#102B50]"
+                          className="sd-dispatch-field-label"
                         >
                           {capabilities.canSendToInterBranchTransport
                             ? 'Transport Vehicle'
@@ -683,7 +684,7 @@ export function OrderDispatchActionModal({
                             value={vehicleType}
                             onChange={(e) => setVehicleType(e.target.value)}
                             disabled={isSubmitting}
-                            className="mt-1 w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-xs text-[#0F172A]"
+                            className="sd-dispatch-control"
                           >
                             <option value="VAN">Linehaul Van</option>
                             <option value="TRUCK">Cargo Truck</option>
@@ -695,7 +696,7 @@ export function OrderDispatchActionModal({
                             value={priority}
                             onChange={(e) => setPriority(e.target.value)}
                             disabled={isSubmitting}
-                            className="mt-1 w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-xs text-[#0F172A]"
+                            className="sd-dispatch-control"
                           >
                             <option value="NORMAL">NORMAL</option>
                             <option value="HIGH">HIGH</option>
@@ -707,10 +708,10 @@ export function OrderDispatchActionModal({
                   )}
 
                   {/* Operational Notes */}
-                  <div className="mt-3">
+                  <div>
                     <label
                       htmlFor="modal-dispatch-notes"
-                      className="block text-xs font-semibold text-[#102B50]"
+                      className="sd-dispatch-field-label"
                     >
                       Operational / Handover Notes (Optional)
                     </label>
@@ -721,18 +722,18 @@ export function OrderDispatchActionModal({
                       onChange={(e) => setNotes(e.target.value)}
                       placeholder="Add courier instructions, manifest reference, or branch intake note..."
                       disabled={isSubmitting}
-                      className="mt-1 w-full rounded-lg border border-[#CBD5E1] bg-white px-3 py-1.5 text-xs text-[#0F172A]"
+                      className="sd-dispatch-control"
                     />
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="mt-4 flex flex-wrap items-center gap-2.5">
+                  <div className="sd-dispatch-controls-card__actions">
                     {capabilities.canAssignPickupCourier && (
                       <button
                         type="button"
                         disabled={isSubmitting || !selectedCourierId}
                         onClick={() => handleAssignCourier('PICKUP')}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-[#1677E8] px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-[#1261C0] disabled:opacity-50"
+                        className="sd-dispatch-btn sd-dispatch-btn--primary"
                       >
                         <UserCheck className="h-4 w-4" />
                         <span>
@@ -750,7 +751,7 @@ export function OrderDispatchActionModal({
                         type="button"
                         disabled={isSubmitting}
                         onClick={handleConfirmOriginBranchArrival}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-[#102B50] px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-[#1B3F6E] disabled:opacity-50"
+                        className="sd-dispatch-btn sd-dispatch-btn--navy"
                       >
                         <PackageCheck className="h-4 w-4" />
                         <span>
@@ -767,7 +768,7 @@ export function OrderDispatchActionModal({
                           type="button"
                           disabled={isSubmitting}
                           onClick={() => handleSendToInterBranchTransport(true)}
-                          className="inline-flex items-center gap-1.5 rounded-lg bg-[#1677E8] px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-[#1261C0] disabled:opacity-50"
+                          className="sd-dispatch-btn sd-dispatch-btn--primary"
                         >
                           <Send className="h-4 w-4" />
                           <span>Send to Inter-Branch Transport (In Transit)</span>
@@ -776,7 +777,7 @@ export function OrderDispatchActionModal({
                           type="button"
                           disabled={isSubmitting}
                           onClick={() => handleSendToInterBranchTransport(false)}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-[#102B50] bg-white px-3 py-2 text-xs font-semibold text-[#102B50] transition hover:bg-[#F1F5F9] disabled:opacity-50"
+                          className="sd-dispatch-btn sd-dispatch-btn--outline"
                         >
                           <Truck className="h-4 w-4" />
                           <span>Create Draft Transfer Manifest</span>
@@ -789,7 +790,7 @@ export function OrderDispatchActionModal({
                         type="button"
                         disabled={isSubmitting}
                         onClick={handleConfirmDestinationReceipt}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-emerald-700 disabled:opacity-50"
+                        className="sd-dispatch-btn sd-dispatch-btn--emerald"
                       >
                         <PackageCheck className="h-4 w-4" />
                         <span>Confirm Arrival at Destination Branch</span>
@@ -801,7 +802,7 @@ export function OrderDispatchActionModal({
                         type="button"
                         disabled={isSubmitting || !selectedCourierId}
                         onClick={() => handleAssignCourier('DELIVERY')}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-emerald-700 disabled:opacity-50"
+                        className="sd-dispatch-btn sd-dispatch-btn--emerald"
                       >
                         <Truck className="h-4 w-4" />
                         <span>
@@ -839,79 +840,75 @@ export function OrderDispatchActionModal({
               )}
 
               {/* Sender & Recipient Cards */}
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="rounded-xl border border-[#E2E8F0] p-4">
-                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#64748B]">
+              <div className="sd-dispatch-parties-grid">
+                <div className="sd-dispatch-info-card">
+                  <div className="sd-dispatch-info-card__heading">
                     <User className="h-3.5 w-3.5 text-[#1677E8]" />
-                    Sender &amp; Pickup Location
+                    <span>Sender &amp; Pickup Location</span>
                   </div>
-                  <div className="mt-2.5 space-y-1 text-xs text-[#1E293B]">
-                    <div className="font-bold text-[#0F172A]">
-                      {order.pickupContactName || 'Sender'}
-                    </div>
-                    <div className="text-[#475569]">
-                      {order.pickupContactPhone || '—'}
-                    </div>
-                    <div className="mt-1 text-[#334155]">
-                      {order.pickupAddress}
-                      {order.pickupCity ? `, ${order.pickupCity}` : ''}
-                      {order.pickupPostalCode ? ` (${order.pickupPostalCode})` : ''}
-                    </div>
+                  <div className="sd-dispatch-info-card__name">
+                    {order.pickupContactName || 'Sender'}
+                  </div>
+                  <div className="sd-dispatch-info-card__meta">
+                    {order.pickupContactPhone || '—'}
+                  </div>
+                  <div className="sd-dispatch-info-card__address">
+                    {order.pickupAddress}
+                    {order.pickupCity ? `, ${order.pickupCity}` : ''}
+                    {order.pickupPostalCode ? ` (${order.pickupPostalCode})` : ''}
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-[#E2E8F0] p-4">
-                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#64748B]">
+                <div className="sd-dispatch-info-card">
+                  <div className="sd-dispatch-info-card__heading">
                     <MapPin className="h-3.5 w-3.5 text-emerald-600" />
-                    Recipient &amp; Destination
+                    <span>Recipient &amp; Destination</span>
                   </div>
-                  <div className="mt-2.5 space-y-1 text-xs text-[#1E293B]">
-                    <div className="font-bold text-[#0F172A]">
-                      {order.dropoffContactName || 'Recipient'}
-                    </div>
-                    <div className="text-[#475569]">
-                      {order.dropoffContactPhone || '—'}
-                    </div>
-                    <div className="mt-1 text-[#334155]">
-                      {order.dropoffAddress}
-                      {order.dropoffCity ? `, ${order.dropoffCity}` : ''}
-                      {order.dropoffPostalCode
-                        ? ` (${order.dropoffPostalCode})`
-                        : ''}
-                    </div>
+                  <div className="sd-dispatch-info-card__name">
+                    {order.dropoffContactName || 'Recipient'}
+                  </div>
+                  <div className="sd-dispatch-info-card__meta">
+                    {order.dropoffContactPhone || '—'}
+                  </div>
+                  <div className="sd-dispatch-info-card__address">
+                    {order.dropoffAddress}
+                    {order.dropoffCity ? `, ${order.dropoffCity}` : ''}
+                    {order.dropoffPostalCode
+                      ? ` (${order.dropoffPostalCode})`
+                      : ''}
                   </div>
                 </div>
               </div>
 
               {/* Parcel Specs & Financials */}
-              <div className="grid grid-cols-2 gap-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-4 md:grid-cols-4">
-                <div>
-                  <div className="text-[11px] text-[#64748B]">Parcel Weight</div>
-                  <div className="mt-0.5 text-xs font-bold text-[#0F172A]">
+              <div className="sd-dispatch-specs-grid">
+                <div className="sd-dispatch-spec-item">
+                  <div className="sd-dispatch-spec-item__label">Parcel Weight</div>
+                  <div className="sd-dispatch-spec-item__value">
                     {order.weightKg} kg ({order.parcelSize || 'STANDARD'})
                   </div>
                 </div>
-                <div>
-                  <div className="text-[11px] text-[#64748B]">Payment Mode</div>
-                  <div className="mt-0.5 text-xs font-bold text-[#0F172A]">
+                <div className="sd-dispatch-spec-item">
+                  <div className="sd-dispatch-spec-item__label">Payment Mode</div>
+                  <div className="sd-dispatch-spec-item__value">
                     {order.paymentMethod} ({order.paymentStatus})
                   </div>
                 </div>
-                <div>
-                  <div className="text-[11px] text-[#64748B]">Delivery Fee</div>
-                  <div className="mt-0.5 text-xs font-bold text-[#0F172A]">
+                <div className="sd-dispatch-spec-item">
+                  <div className="sd-dispatch-spec-item__label">Delivery Fee</div>
+                  <div className="sd-dispatch-spec-item__value">
                     {formatCurrency(order.deliveryFee)}
                   </div>
                 </div>
-                <div>
-                  <div className="text-[11px] text-[#64748B]">COD Amount</div>
-                  <div className="mt-0.5 text-xs font-bold text-[#0F172A]">
+                <div className="sd-dispatch-spec-item">
+                  <div className="sd-dispatch-spec-item__label">COD Amount</div>
+                  <div className="sd-dispatch-spec-item__value">
                     {formatCurrency(order.codAmount)}
                   </div>
                 </div>
                 {order.parcelDescription && (
-                  <div className="col-span-2 md:col-span-4">
-                    <div className="text-[11px] text-[#64748B]">
+                  <div className="sd-dispatch-spec-item sd-dispatch-spec-item--full">
+                    <div className="sd-dispatch-spec-item__label">
                       Description &amp; Instructions
                     </div>
                     <div className="mt-0.5 text-xs text-[#334155]">
@@ -926,21 +923,21 @@ export function OrderDispatchActionModal({
 
               {/* Tracking History */}
               {order.trackingEvents && order.trackingEvents.length > 0 && (
-                <div className="rounded-xl border border-[#E2E8F0] p-4">
-                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#64748B]">
+                <div className="sd-dispatch-info-card">
+                  <div className="sd-dispatch-info-card__heading">
                     <Clock className="h-3.5 w-3.5 text-[#1677E8]" />
-                    Lifecycle Audit Trail
+                    <span>Lifecycle Audit Trail ({order.trackingEvents.length})</span>
                   </div>
-                  <div className="mt-3 space-y-2.5">
+                  <div className="sd-dispatch-timeline-list">
                     {order.trackingEvents.map((ev, idx) => (
                       <div
                         key={ev.id ?? idx}
-                        className="flex items-start justify-between gap-3 border-b border-[#F1F5F9] pb-2 last:border-b-0 last:pb-0"
+                        className="sd-dispatch-timeline-row"
                       >
-                        <div className="flex items-start gap-2">
+                        <div className="flex items-start gap-2.5">
                           <Package className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#1677E8]" />
                           <div>
-                            <div className="text-xs font-semibold text-[#0F172A]">
+                            <div className="text-xs font-bold text-[#0F172A]">
                               {ev.statusLabel || ev.status}
                               {ev.location ? ` · ${ev.location}` : ''}
                             </div>
@@ -949,7 +946,7 @@ export function OrderDispatchActionModal({
                             </div>
                           </div>
                         </div>
-                        <div className="shrink-0 text-[11px] text-[#64748B]">
+                        <div className="shrink-0 font-mono text-[11px] text-[#64748B]">
                           {formatDateTime(ev.timestamp)}
                         </div>
                       </div>
@@ -962,12 +959,17 @@ export function OrderDispatchActionModal({
         </div>
 
         {/* Modal Footer */}
-        <div className="flex items-center justify-end gap-3 border-t border-[#E5EAF0] bg-[#F8FAFC] px-6 py-3.5">
+        <div className="sd-dispatch-modal__footer">
+          <div className="text-[11px] font-medium text-[#64748B]">
+            {order
+              ? `Order ID #${order.id} · ${sameBranch ? 'Direct Local Coverage' : 'Hub-to-Hub Transfer Route'}`
+              : ''}
+          </div>
           <button
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="rounded-lg border border-[#CBD5E1] bg-white px-4 py-2 text-xs font-semibold text-[#334155] transition hover:bg-[#F1F5F9]"
+            className="sd-dispatch-btn sd-dispatch-btn--secondary"
           >
             Close
           </button>

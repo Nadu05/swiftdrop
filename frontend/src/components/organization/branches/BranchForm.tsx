@@ -18,6 +18,7 @@ import {
 import BranchFormSection from './BranchFormSection';
 import PostalAreaPicker from './PostalAreaPicker';
 import SearchableSelect from './SearchableSelect';
+import { validateBranchPostalAreasForMode } from './branch-postal-coverage';
 import {
   branchCreateFormSchema,
   branchEditFormSchema,
@@ -41,6 +42,7 @@ import type {
 export interface BranchFormProps {
   mode: 'create' | 'edit';
   initialValues?: BranchFormValues;
+  initialPostalAreas?: PostalAreaDto[];
   branchStatus?: BranchResponse['status'];
   onSubmit: (values: BranchFormValues) => Promise<BranchResponse>;
   onCancel: () => void;
@@ -60,9 +62,12 @@ const VALID_FORM_FIELDS: readonly (keyof BranchFormValues)[] = [
   'postalCode',
 ];
 
+const EMPTY_POSTAL_AREAS: PostalAreaDto[] = [];
+
 export default function BranchForm({
   mode,
   initialValues = DEFAULT_BRANCH_FORM_VALUES,
+  initialPostalAreas = EMPTY_POSTAL_AREAS,
   branchStatus,
   onSubmit,
   onCancel,
@@ -251,8 +256,13 @@ export default function BranchForm({
 
   // Sync form values when initialValues load asynchronously on Edit page
   useEffect(() => {
-    reset(initialValues);
-  }, [initialValues, reset]);
+    reset({
+      ...initialValues,
+      postalAreaIds: initialPostalAreas.map((a) => a.id),
+    });
+    setSelectedPostalAreas(initialPostalAreas);
+    setPostalAreaError(null);
+  }, [initialValues, initialPostalAreas, reset]);
 
   const handleFormSubmit = async (values: BranchFormValues) => {
     setSubmitError(null);
@@ -260,8 +270,13 @@ export default function BranchForm({
     setSavedBranch(null);
     setPostalAreaError(null);
 
-    if (mode === 'create' && selectedPostalAreas.length === 0) {
-      setPostalAreaError('Select at least one Postal Area for this active branch.');
+    const postalValidationError = validateBranchPostalAreasForMode(
+      mode,
+      branchStatus,
+      selectedPostalAreas.map((a) => a.id)
+    );
+    if (postalValidationError) {
+      setPostalAreaError(postalValidationError);
       return;
     }
 
@@ -314,9 +329,12 @@ export default function BranchForm({
     setSelectedProvinceId(null);
     setSelectedDistrictId(null);
     setSelectedDsDivisionId(null);
-    setSelectedPostalAreas([]);
+    setSelectedPostalAreas(initialPostalAreas);
     setPostalAreaError(null);
-    reset(initialValues);
+    reset({
+      ...initialValues,
+      postalAreaIds: initialPostalAreas.map((a) => a.id),
+    });
   };
 
   const isDisabled = isSubmitting || Boolean(savedBranch);
@@ -724,24 +742,27 @@ export default function BranchForm({
         </div>
       </BranchFormSection>
 
-      {/* SECTION 2B: Assigned Postal Areas (Create Mode) */}
-      {mode === 'create' && (
-        <BranchFormSection
-          id="org-section-postal-areas"
-          title="Assigned Postal Areas"
-          description="Exclusive Branch Coverage: select all Sri Lankan Postal Areas served by this branch. Active branches require at least one Postal Area."
-          icon={MapPinned}
-        >
-          <PostalAreaPicker
-            provinces={provinces}
-            physicalPostalCode={physicalPostalCode}
-            selectedAreas={selectedPostalAreas}
-            onChange={handlePostalAreasChange}
-            disabled={isDisabled}
-            error={postalAreaError}
-          />
-        </BranchFormSection>
-      )}
+      {/* SECTION 2B: Assigned Postal Areas (Create & Edit Modes) */}
+      <BranchFormSection
+        id="org-section-postal-areas"
+        title="Assigned Postal Areas"
+        description={
+          mode === 'edit' && branchStatus === 'INACTIVE'
+            ? 'Exclusive Branch Coverage: add or remove Sri Lankan Postal Areas served by this branch. Inactive branches may have zero areas, but at least one is required before activating.'
+            : 'Exclusive Branch Coverage: select all Sri Lankan Postal Areas served by this branch. Active branches require at least one Postal Area.'
+        }
+        icon={MapPinned}
+      >
+        <PostalAreaPicker
+          provinces={provinces}
+          physicalPostalCode={physicalPostalCode}
+          selectedAreas={selectedPostalAreas}
+          onChange={handlePostalAreasChange}
+          disabled={isDisabled}
+          error={postalAreaError}
+          autoSuggestPhysicalCode={mode === 'create'}
+        />
+      </BranchFormSection>
 
       {/* SECTION 3: Contact Information */}
       <BranchFormSection

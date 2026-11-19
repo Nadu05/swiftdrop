@@ -2,6 +2,7 @@ import { apiClient } from '@/api/axios-client';
 import type {
   BranchCreateRequest,
   BranchCredentialsResponse,
+  BranchPostalAreaResponse,
   BranchResolutionRequest,
   BranchResolutionResponse,
   BranchResponse,
@@ -305,6 +306,53 @@ export async function updateBranchStatus(
   status: BranchStatus
 ): Promise<BranchResponse> {
   return updateBranch(id, { status });
+}
+
+/**
+ * Fetch active assigned Postal Areas for a branch.
+ *
+ * Confirmed Backend Contract (BranchController.getPostalAreas):
+ * Endpoint: GET /api/v1/organization/branches/{id}/postal-areas
+ */
+export async function getBranchPostalAreas(
+  branchId: number
+): Promise<BranchPostalAreaResponse[]> {
+  try {
+    const response = await apiClient.get<BranchPostalAreaResponse[]>(
+      `${BRANCHES_BASE_PATH}/${branchId}/postal-areas`
+    );
+    return response.data;
+  } catch (error: any) {
+    throw buildOrganizationApiError(
+      error,
+      'Failed to load assigned postal areas for this branch.'
+    );
+  }
+}
+
+/**
+ * Replace active assigned Postal Areas for a branch (transactional set-sync).
+ *
+ * Confirmed Backend Contract (BranchController.updatePostalAreas):
+ * Endpoint: PUT /api/v1/organization/branches/{id}/postal-areas
+ * Payload:  { "postalAreaIds": number[] }
+ */
+export async function updateBranchPostalAreas(
+  branchId: number,
+  postalAreaIds: number[]
+): Promise<BranchPostalAreaResponse[]> {
+  try {
+    const response = await apiClient.put<BranchPostalAreaResponse[]>(
+      `${BRANCHES_BASE_PATH}/${branchId}/postal-areas`,
+      { postalAreaIds }
+    );
+    return response.data;
+  } catch (error: any) {
+    throw buildOrganizationApiError(
+      error,
+      'Failed to update assigned postal areas for this branch.'
+    );
+  }
 }
 
 /**
@@ -785,6 +833,8 @@ export const organizationApi = {
   getBranches,
   createBranch,
   updateBranch,
+  getBranchPostalAreas,
+  updateBranchPostalAreas,
   getBranchById,
   getBranchCredentials,
   resendBranchCredentials,

@@ -12,6 +12,7 @@ export interface PostalAreaPickerProps {
   onChange: (areas: PostalAreaDto[]) => void;
   disabled?: boolean;
   error?: string | null;
+  autoSuggestPhysicalCode?: boolean;
 }
 
 export default function PostalAreaPicker({
@@ -21,6 +22,7 @@ export default function PostalAreaPicker({
   onChange,
   disabled = false,
   error = null,
+  autoSuggestPhysicalCode = true,
 }: PostalAreaPickerProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterProvinceId, setFilterProvinceId] = useState<number | null>(null);
@@ -106,6 +108,7 @@ export default function PostalAreaPicker({
 
   // Auto-suggest and attach the branch's physical postal code once per 5-digit code entry
   useEffect(() => {
+    if (!autoSuggestPhysicalCode) return;
     const trimmed = physicalPostalCode?.trim() ?? '';
     if (!/^[0-9]{5}$/.test(trimmed)) return;
     if (dismissedPhysicalCode === trimmed) return;
@@ -132,7 +135,7 @@ export default function PostalAreaPicker({
     return () => {
       cancelled = true;
     };
-  }, [physicalPostalCode, dismissedPhysicalCode]);
+  }, [autoSuggestPhysicalCode, physicalPostalCode, dismissedPhysicalCode]);
 
   const handleAdd = (area: PostalAreaDto) => {
     if (disabled || selectedIds.has(area.id)) return;
