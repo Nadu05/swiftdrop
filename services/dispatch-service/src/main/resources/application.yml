@@ -11,11 +11,7 @@ spring:
   application:
     name: dispatch-service
   datasource:
-<<<<<<< HEAD
     url: jdbc:postgresql://localhost:5433/swiftdrop_dispatch
-=======
-    url: jdbc:postgresql://localhost:5437/swiftdrop_dispatch
->>>>>>> 88e95f212a8c306264bb2ae112543484b810402a
     username: postgres
     password: postgrespassword
     driver-class-name: org.postgresql.Driver
