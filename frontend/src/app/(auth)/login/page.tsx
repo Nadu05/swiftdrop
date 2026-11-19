@@ -205,7 +205,7 @@ function LoginCard() {
         </p>
         <p style={footerTextStyle}>
           Want to track a shipment?{' '}
-          <Link href="/tracking" style={footerLinkStyle}>
+          <Link href="/" style={footerLinkStyle}>
             Track Parcel
           </Link>
         </p>
