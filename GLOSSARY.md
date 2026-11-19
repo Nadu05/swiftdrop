@@ -45,3 +45,7 @@ _Avoid_: Radius zone, service area
 **Branch Manager**:
 The single branch-level administrative user role (`BRANCH_MANAGER`) responsible for managing a SwiftDrop branch's operations; one Branch Manager account is provisioned per branch using the branch's email address.
 _Avoid_: Branch Admin, Branch Supervisor
+
+**Branch Staff**:
+Operational personnel assigned to a specific SwiftDrop branch under a branch-scoped role (`DISPATCHER`, `COURIER`, or `BRANCH_STAFF`), managed within that branch's scope by its Branch Manager or Head Office Administration.
+_Avoid_: Branch Admin, Global Staff

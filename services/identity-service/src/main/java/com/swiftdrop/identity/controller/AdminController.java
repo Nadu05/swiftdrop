@@ -48,30 +48,41 @@ public class AdminController {
     // -----------------------------------------------------------------------
 
     @GetMapping("/users")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HEAD_OFFICE_ADMIN', 'BRANCH_MANAGER')")
     @Operation(summary = "List users with search, filtering, and pagination")
     public ResponseEntity<PageResponse<AdminUserResponse>> listUsers(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) RoleName role,
             @RequestParam(required = false) AccountStatus status,
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+            @RequestParam(required = false) Long branchId,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
+            Authentication auth
     ) {
-        return ResponseEntity.ok(adminService.listUsers(search, role, status, pageable));
+        String requesterEmail = auth != null ? auth.getName() : null;
+        return ResponseEntity.ok(adminService.listUsers(search, role, status, branchId, requesterEmail, pageable));
     }
 
     @GetMapping("/users/{userId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HEAD_OFFICE_ADMIN', 'BRANCH_MANAGER')")
     @Operation(summary = "Get user details by ID")
     public ResponseEntity<AdminUserResponse> getUserById(@PathVariable UUID userId) {
         return ResponseEntity.ok(adminService.getUserById(userId));
     }
 
     @PostMapping("/users")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HEAD_OFFICE_ADMIN', 'BRANCH_MANAGER')")
     @Operation(summary = "Administratively create an authorized user")
-    public ResponseEntity<AdminUserResponse> createUser(@Valid @RequestBody AdminCreateUserRequest request) {
-        AdminUserResponse created = adminService.createUser(request);
+    public ResponseEntity<AdminUserResponse> createUser(
+            @Valid @RequestBody AdminCreateUserRequest request,
+            Authentication auth
+    ) {
+        String adminEmail = auth != null ? auth.getName() : null;
+        AdminUserResponse created = adminService.createUser(request, adminEmail);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PutMapping("/users/{userId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HEAD_OFFICE_ADMIN', 'BRANCH_MANAGER')")
     @Operation(summary = "Update user details, roles, or status")
     public ResponseEntity<AdminUserResponse> updateUser(
             @PathVariable UUID userId,
@@ -83,6 +94,7 @@ public class AdminController {
     }
 
     @PatchMapping("/users/{userId}/status")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HEAD_OFFICE_ADMIN', 'BRANCH_MANAGER')")
     @Operation(summary = "Update account status (ACTIVE, SUSPENDED, DEACTIVATED)")
     public ResponseEntity<AdminUserResponse> updateAccountStatus(
             @PathVariable UUID userId,
@@ -95,6 +107,7 @@ public class AdminController {
     }
 
     @PostMapping("/users/{userId}/activate")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HEAD_OFFICE_ADMIN', 'BRANCH_MANAGER')")
     @Operation(summary = "Activate a user account")
     public ResponseEntity<AdminUserResponse> activateUser(
             @PathVariable UUID userId,
@@ -105,6 +118,7 @@ public class AdminController {
     }
 
     @PostMapping("/users/{userId}/suspend")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HEAD_OFFICE_ADMIN', 'BRANCH_MANAGER')")
     @Operation(summary = "Suspend a user account and revoke all active sessions")
     public ResponseEntity<AdminUserResponse> suspendUser(
             @PathVariable UUID userId,
@@ -140,6 +154,7 @@ public class AdminController {
     }
 
     @PostMapping("/users/{userId}/roles")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HEAD_OFFICE_ADMIN', 'BRANCH_MANAGER')")
     @Operation(summary = "Assign a role to a user")
     public ResponseEntity<AdminUserResponse> assignRole(
             @PathVariable UUID userId,
@@ -152,6 +167,7 @@ public class AdminController {
     }
 
     @DeleteMapping("/users/{userId}/roles/{roleId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HEAD_OFFICE_ADMIN', 'BRANCH_MANAGER')")
     @Operation(summary = "Remove a role from a user")
     public ResponseEntity<AdminUserResponse> removeRole(
             @PathVariable UUID userId,

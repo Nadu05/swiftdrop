@@ -366,5 +366,88 @@ class AdminServiceTest {
         verify(refreshTokenRepository).revokeAllByUser(bm);
         verify(userRepository).save(bm);
     }
+
+    @Test
+    @DisplayName("createUser - Branch-scoped role without branchId throws IllegalArgumentException")
+    void createUserBranchRoleWithoutBranchIdThrows() {
+        AdminCreateUserRequest req = new AdminCreateUserRequest(
+                "Kasun Perera", "kasun@swiftdrop.lk", "Password123!", "+94771234567",
+                List.of("DISPATCHER"), "ACTIVE", true
+        );
+        req.setBranchId(null);
+
+        assertThatThrownBy(() -> adminService.createUser(req, "admin@swiftdrop.lk"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("branchId");
+    }
+
+    @Test
+    @DisplayName("createUser - Branch Manager can create Branch Staff in their own assigned branch")
+    void createUserByBranchManagerInOwnBranchSuccess() {
+        Role branchManagerRole = new Role(RoleName.BRANCH_MANAGER);
+        Role dispatcherRole = new Role(RoleName.DISPATCHER);
+
+        User branchManager = new User();
+        branchManager.setUserId(UUID.randomUUID());
+        branchManager.setEmail("colombo@swiftdrop.lk");
+        branchManager.setBranchId(5L);
+        branchManager.setRoles(new HashSet<>(Set.of(branchManagerRole)));
+
+        AdminCreateUserRequest req = new AdminCreateUserRequest(
+                "naduka", "naduka@gmail.com", "Password123!", "+94757833488",
+                List.of("DISPATCHER"), "ACTIVE", true
+        );
+        req.setBranchId(5L);
+
+        when(userRepository.findByEmail("colombo@swiftdrop.lk")).thenReturn(Optional.of(branchManager));
+        when(userRepository.existsByEmail("naduka@gmail.com")).thenReturn(false);
+        when(passwordEncoder.encode("Password123!")).thenReturn("encoded-pass");
+        when(roleRepository.findByRoleName(RoleName.DISPATCHER)).thenReturn(Optional.of(dispatcherRole));
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> {
+            User u = inv.getArgument(0);
+            u.setUserId(UUID.randomUUID());
+            return u;
+        });
+
+        AdminUserResponse res = adminService.createUser(req, "colombo@swiftdrop.lk");
+
+        assertThat(res.getEmail()).isEqualTo("naduka@gmail.com");
+        assertThat(res.getBranchId()).isEqualTo(5L);
+        assertThat(res.getRoles()).containsExactly("DISPATCHER");
+    }
+
+    @Test
+    @DisplayName("createUser - Branch Manager cannot create staff for another branch or with privileged roles")
+    void createUserByBranchManagerCrossBranchOrPrivilegedRoleRejected() {
+        Role branchManagerRole = new Role(RoleName.BRANCH_MANAGER);
+
+        User branchManager = new User();
+        branchManager.setUserId(UUID.randomUUID());
+        branchManager.setEmail("colombo@swiftdrop.lk");
+        branchManager.setBranchId(5L);
+        branchManager.setRoles(new HashSet<>(Set.of(branchManagerRole)));
+
+        when(userRepository.findByEmail("colombo@swiftdrop.lk")).thenReturn(Optional.of(branchManager));
+
+        AdminCreateUserRequest crossBranchReq = new AdminCreateUserRequest(
+                "Other Branch Staff", "other@swiftdrop.lk", "Password123!", null,
+                List.of("DISPATCHER"), "ACTIVE", true
+        );
+        crossBranchReq.setBranchId(2L);
+
+        assertThatThrownBy(() -> adminService.createUser(crossBranchReq, "colombo@swiftdrop.lk"))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class)
+                .hasMessageContaining("assigned branch");
+
+        AdminCreateUserRequest privilegedRoleReq = new AdminCreateUserRequest(
+                "Escalated User", "escalated@swiftdrop.lk", "Password123!", null,
+                List.of("BRANCH_MANAGER"), "ACTIVE", true
+        );
+        privilegedRoleReq.setBranchId(5L);
+
+        assertThatThrownBy(() -> adminService.createUser(privilegedRoleReq, "colombo@swiftdrop.lk"))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class)
+                .hasMessageContaining("Branch Staff roles");
+    }
 }
 

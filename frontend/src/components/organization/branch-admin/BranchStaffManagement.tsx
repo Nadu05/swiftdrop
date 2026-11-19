@@ -36,8 +36,16 @@ import type { AdminUser } from '@/types/admin.types';
 import { useAuthStore } from '@/store/auth.store';
 import { useBranchAdminContext } from './useBranchAdminContext';
 import BranchScopeBanner from './BranchScopeBanner';
+import {
+  BRANCH_STAFF_ASSIGNABLE_ROLES,
+  buildCreateBranchStaffPayload,
+  extractAdminApiErrorMessage,
+  resolveSelectableBranchesForStaffRegistration,
+  type BranchAssignableRole,
+  type CreateBranchStaffFormState,
+} from './branch-staff-form';
 
-export type BranchAssignableRole = 'DISPATCHER' | 'COURIER' | 'BRANCH_MANAGER';
+export type { BranchAssignableRole };
 
 export interface UnifiedBranchStaffMember {
   key: string;
@@ -58,24 +66,6 @@ export interface UnifiedBranchStaffMember {
   completedToday?: number;
   source: 'IDENTITY_AND_DISPATCH' | 'IDENTITY_SERVICE' | 'DISPATCH_SERVICE' | 'SESSION_CONTEXT';
 }
-
-const BRANCH_ASSIGNABLE_ROLES: { value: BranchAssignableRole; label: string; desc: string }[] = [
-  {
-    value: 'DISPATCHER',
-    label: 'Dispatcher',
-    desc: 'Reviews delivery requests, selects eligible couriers, and manages dispatch assignments.',
-  },
-  {
-    value: 'COURIER',
-    label: 'Courier',
-    desc: 'Executes assigned pickup tasks, inter-branch linehaul, and last-mile deliveries.',
-  },
-  {
-    value: 'BRANCH_MANAGER',
-    label: 'Branch Administrator',
-    desc: 'Monitors branch operations, incoming/outgoing parcels, and branch staff.',
-  },
-];
 
 function getAvailabilityBadge(status?: string | null) {
   if (!status) {
@@ -158,22 +148,56 @@ export default function BranchStaffManagement() {
   const [permissionsModalStaff, setPermissionsModalStaff] =
     useState<UnifiedBranchStaffMember | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
+  const [createModalError, setCreateModalError] = useState<string | null>(null);
   const [isSubmittingAction, setIsSubmittingAction] = useState<boolean>(false);
 
   // Create Staff Account Form State
-  const [createForm, setCreateForm] = useState<{
-    fullName: string;
-    email: string;
-    phone: string;
-    password: string;
-    role: BranchAssignableRole;
-  }>({
+  const [createForm, setCreateForm] = useState<CreateBranchStaffFormState>({
     fullName: '',
     email: '',
     phone: '',
     password: '',
     role: 'DISPATCHER',
+    branchId: effectiveBranchId ?? null,
   });
+
+  const selectableBranches = useMemo(
+    () =>
+      resolveSelectableBranchesForStaffRegistration({
+        canManageAllBranches: permissions.canManageAllBranches,
+        effectiveBranchId,
+        branch,
+        allBranches,
+      }),
+    [permissions.canManageAllBranches, effectiveBranchId, branch, allBranches]
+  );
+
+  useEffect(() => {
+    const hasCurrentSelection =
+      createForm.branchId !== null &&
+      selectableBranches.some((b) => Number(b.id) === Number(createForm.branchId));
+
+    if (!hasCurrentSelection) {
+      const nextBranchId =
+        (effectiveBranchId &&
+        selectableBranches.some((b) => Number(b.id) === Number(effectiveBranchId))
+          ? effectiveBranchId
+          : selectableBranches[0]?.id) ??
+        effectiveBranchId ??
+        null;
+      if (nextBranchId !== createForm.branchId) {
+        setCreateForm((prev) => ({ ...prev, branchId: nextBranchId }));
+      }
+    }
+  }, [effectiveBranchId, selectableBranches, createForm.branchId]);
+
+  const selectedCreateBranch = useMemo(
+    () =>
+      selectableBranches.find(
+        (b) => Number(b.id) === Number(createForm.branchId ?? effectiveBranchId)
+      ) || null,
+    [selectableBranches, createForm.branchId, effectiveBranchId]
+  );
 
   const loadStaffData = useCallback(
     async (manual = false) => {
@@ -193,7 +217,7 @@ export default function BranchStaffManagement() {
       try {
         const [couriersRes, usersRes, manifestsRes] = await Promise.allSettled([
           dispatchApi.getCouriers(effectiveBranchId),
-          getAdminUsers({ page: 0, size: 100 }),
+          getAdminUsers({ page: 0, size: 100, branchId: effectiveBranchId }),
           dispatchApi.listTransferManifests({ branchId: effectiveBranchId }),
         ]);
 
@@ -475,7 +499,7 @@ export default function BranchStaffManagement() {
       if (hasRole) {
         const nextRoles = member.roles.filter((r) => r !== roleName);
         await updateAdminUser(member.userId, {
-          roles: nextRoles.length > 0 ? nextRoles : ['BRANCH_MANAGER'],
+          roles: nextRoles.length > 0 ? nextRoles : ['BRANCH_STAFF'],
         });
         setFeedbackBanner({
           type: 'success',
@@ -503,41 +527,64 @@ export default function BranchStaffManagement() {
     }
   };
 
+  const handleOpenCreateModal = () => {
+    setCreateModalError(null);
+    setCreateForm((prev) => ({
+      ...prev,
+      branchId: effectiveBranchId ?? selectableBranches[0]?.id ?? null,
+    }));
+    setIsCreateModalOpen(true);
+  };
+
   const handleCreateBranchStaff = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!effectiveBranchId) return;
 
     setIsSubmittingAction(true);
     setFeedbackBanner(null);
+    setCreateModalError(null);
     try {
-      const created = await createAdminUser({
-        fullName: createForm.fullName.trim(),
-        email: createForm.email.trim(),
-        phone: createForm.phone.trim() || undefined,
-        password: createForm.password,
-        roles: [createForm.role],
-        branchId: effectiveBranchId,
+      const payload = buildCreateBranchStaffPayload(createForm, {
+        canManageAllBranches: permissions.canManageAllBranches,
+        effectiveBranchId,
       });
+      const created = await createAdminUser(payload);
+      const assignedBranchId = payload.branchId ?? effectiveBranchId;
+      const assignedBranchLabel = selectedCreateBranch
+        ? `${selectedCreateBranch.name} (${selectedCreateBranch.code})`
+        : `Branch #${assignedBranchId}`;
+
       setIsCreateModalOpen(false);
+      setCreateModalError(null);
       setCreateForm({
         fullName: '',
         email: '',
         phone: '',
         password: '',
         role: 'DISPATCHER',
+        branchId: effectiveBranchId ?? null,
       });
       setFeedbackBanner({
         type: 'success',
-        message: `Created branch account for "${created.fullName}" assigned to Branch #${effectiveBranchId}.`,
+        message: `Created branch account for "${created.fullName}" assigned to ${assignedBranchLabel}.`,
       });
-      await loadStaffData(true);
+      if (
+        permissions.canManageAllBranches &&
+        assignedBranchId &&
+        Number(assignedBranchId) !== Number(effectiveBranchId)
+      ) {
+        selectBranchForInspection(Number(assignedBranchId));
+      } else {
+        await loadStaffData(true);
+      }
     } catch (err: unknown) {
+      const errorMessage = extractAdminApiErrorMessage(
+        err,
+        'Unable to create branch staff account.'
+      );
+      setCreateModalError(errorMessage);
       setFeedbackBanner({
         type: 'error',
-        message:
-          err instanceof Error
-            ? err.message
-            : 'Unable to create staff account (Identity Service /api/v1/admin/users requires HEAD_OFFICE_ADMIN / ADMIN authorization).',
+        message: errorMessage,
       });
     } finally {
       setIsSubmittingAction(false);
@@ -586,8 +633,8 @@ export default function BranchStaffManagement() {
           <button
             type="button"
             className="org-btn org-btn--primary"
-            onClick={() => setIsCreateModalOpen(true)}
-            disabled={!effectiveBranchId}
+            onClick={handleOpenCreateModal}
+            disabled={!effectiveBranchId && selectableBranches.length === 0}
           >
             <UserPlus size={15} />
             <span>Register Branch Staff</span>
@@ -1055,7 +1102,7 @@ export default function BranchStaffManagement() {
             </div>
 
             <div className="mt-4 space-y-3">
-              {BRANCH_ASSIGNABLE_ROLES.map((roleOption) => {
+              {BRANCH_STAFF_ASSIGNABLE_ROLES.map((roleOption) => {
                 const isAssigned = permissionsModalStaff.roles.includes(
                   roleOption.value
                 );
@@ -1132,9 +1179,11 @@ export default function BranchStaffManagement() {
                 </h2>
                 <p className="text-xs text-[#64748B]">
                   Account will be bound strictly to{' '}
-                  {branch
-                    ? `${branch.name} (${branch.code})`
-                    : `Branch #${effectiveBranchId}`}
+                  {selectedCreateBranch
+                    ? `${selectedCreateBranch.name} (${selectedCreateBranch.code})`
+                    : branch
+                      ? `${branch.name} (${branch.code})`
+                      : `Branch #${createForm.branchId ?? effectiveBranchId}`}
                 </p>
               </div>
               <button
@@ -1147,6 +1196,49 @@ export default function BranchStaffManagement() {
             </div>
 
             <form onSubmit={handleCreateBranchStaff} className="mt-4 space-y-4">
+              {createModalError && (
+                <div
+                  className="flex items-start gap-2.5 rounded-xl border border-[#FECACA] bg-[#FEF2F2] px-3.5 py-2.5 text-xs font-medium text-[#B91C1C]"
+                  role="alert"
+                >
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>{createModalError}</span>
+                </div>
+              )}
+
+              <div>
+                <label
+                  htmlFor="create-staff-branch"
+                  className="block text-xs font-semibold text-[#111827]"
+                >
+                  Assigned Branch *
+                </label>
+                <select
+                  id="create-staff-branch"
+                  required
+                  disabled={!permissions.canManageAllBranches}
+                  value={createForm.branchId ?? effectiveBranchId ?? ''}
+                  onChange={(e) =>
+                    setCreateForm({
+                      ...createForm,
+                      branchId: e.target.value ? Number(e.target.value) : null,
+                    })
+                  }
+                  className="mt-1 w-full rounded-lg border border-[#E5EAF0] bg-[#F5F7FA] px-3 py-2 text-xs font-medium text-[#111827] focus:border-[#1677E8] focus:bg-white focus:outline-none disabled:cursor-not-allowed disabled:opacity-80"
+                >
+                  {selectableBranches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name} ({b.code}){b.city ? ` — ${b.city}` : ''}
+                    </option>
+                  ))}
+                </select>
+                {!permissions.canManageAllBranches && (
+                  <p className="mt-1 text-[11px] text-[#64748B]">
+                    Scoped to your assigned branch ({selectedCreateBranch ? `${selectedCreateBranch.name} · ${selectedCreateBranch.code}` : `Branch #${effectiveBranchId}`}).
+                  </p>
+                )}
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-[#111827]">
                   Full Name *
@@ -1208,7 +1300,7 @@ export default function BranchStaffManagement() {
                   }
                   className="mt-1 w-full rounded-lg border border-[#E5EAF0] bg-[#F5F7FA] px-3 py-2 text-xs text-[#111827] focus:border-[#1677E8] focus:bg-white focus:outline-none"
                 >
-                  {BRANCH_ASSIGNABLE_ROLES.map((r) => (
+                  {BRANCH_STAFF_ASSIGNABLE_ROLES.map((r) => (
                     <option key={r.value} value={r.value}>
                       {r.label} ({r.value})
                     </option>
@@ -1228,9 +1320,12 @@ export default function BranchStaffManagement() {
                   onChange={(e) =>
                     setCreateForm({ ...createForm, password: e.target.value })
                   }
-                  placeholder="Minimum 8 characters"
+                  placeholder="e.g. Staff@123"
                   className="mt-1 w-full rounded-lg border border-[#E5EAF0] bg-[#F5F7FA] px-3 py-2 text-xs text-[#111827] focus:border-[#1677E8] focus:bg-white focus:outline-none"
                 />
+                <p className="mt-1 text-[11px] text-[#64748B]">
+                  Min 8 characters with at least 1 uppercase letter, 1 digit, and 1 special character (e.g. <code>Staff@123</code>).
+                </p>
               </div>
 
               <div className="flex justify-end gap-2 pt-2">

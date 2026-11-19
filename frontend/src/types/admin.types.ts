@@ -77,6 +77,7 @@ export interface UserFilterParams {
   search?: string;
   role?: string;
   status?: string;
+  branchId?: number;
   page?: number;
   size?: number;
   sort?: string;

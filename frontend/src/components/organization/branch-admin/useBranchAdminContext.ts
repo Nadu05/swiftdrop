@@ -12,6 +12,7 @@ import {
   type OrganizationPermissions,
 } from '@/lib/auth/branch-admin-permissions';
 import type { BranchResponse, ServiceAreaResponse } from '@/types/organization.types';
+import { resolveInitialInspectedBranchId } from './branch-staff-form';
 
 export interface BranchAdminContextState {
   permissions: OrganizationPermissions;
@@ -61,11 +62,19 @@ export function useBranchAdminContext(): BranchAdminContextState {
     if (!permissions.canManageAllBranches) {
       return permissions.authorizedBranchId;
     }
-    return inspectedBranchId ?? permissions.authorizedBranchId;
+    if (allBranches.length > 0) {
+      return resolveInitialInspectedBranchId({
+        inspectedBranchId,
+        authorizedBranchId: permissions.authorizedBranchId,
+        allBranches,
+      });
+    }
+    return inspectedBranchId;
   }, [
     permissions.canManageAllBranches,
     permissions.authorizedBranchId,
     inspectedBranchId,
+    allBranches,
   ]);
 
   const loadBranchData = useCallback(async () => {
@@ -83,19 +92,20 @@ export function useBranchAdminContext(): BranchAdminContextState {
           return;
         }
 
-        try {
-          const [branchDetail, areas] = await Promise.all([
-            getBranchById(targetId),
-            getServiceAreasByBranch(targetId).catch(() => [] as ServiceAreaResponse[]),
-          ]);
-          setBranch(branchDetail);
-          setServiceAreas(areas);
-        } catch {
-          // Fallback to filtering getBranches() if getBranchById fails
-          const list = await getBranches();
-          const matched = list.find((b) => Number(b.id) === Number(targetId)) || null;
+        const list = await getBranches();
+        const matched = list.find((b) => Number(b.id) === Number(targetId)) || null;
+        if (matched) {
           setBranch(matched);
-          if (!matched) {
+          const areas = await getServiceAreasByBranch(targetId).catch(
+            () => [] as ServiceAreaResponse[]
+          );
+          setServiceAreas(areas);
+        } else {
+          try {
+            const branchDetail = await getBranchById(targetId);
+            setBranch(branchDetail);
+          } catch {
+            setBranch(null);
             setBranchError(
               `Assigned branch #${targetId} could not be found in Organization Service.`
             );
@@ -109,20 +119,18 @@ export function useBranchAdminContext(): BranchAdminContextState {
       const list = await getBranches();
       setAllBranches(list);
 
-      const resolvedId =
-        inspectedBranchId ??
-        permissions.authorizedBranchId ??
-        list.find((b) => b.status === 'ACTIVE')?.id ??
-        list[0]?.id ??
-        null;
+      const resolvedId = resolveInitialInspectedBranchId({
+        inspectedBranchId,
+        authorizedBranchId: permissions.authorizedBranchId,
+        allBranches: list,
+      });
 
       if (resolvedId) {
-        if (!inspectedBranchId) {
+        if (inspectedBranchId !== resolvedId) {
           setInspectedBranchId(resolvedId);
         }
         const matched =
-          list.find((b) => Number(b.id) === Number(resolvedId)) ||
-          (await getBranchById(resolvedId));
+          list.find((b) => Number(b.id) === Number(resolvedId)) || null;
         setBranch(matched);
         const areas = await getServiceAreasByBranch(resolvedId).catch(
           () => [] as ServiceAreaResponse[]

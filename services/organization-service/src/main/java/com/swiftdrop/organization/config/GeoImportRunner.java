@@ -1,5 +1,6 @@
 package com.swiftdrop.organization.config;
 
+import com.swiftdrop.organization.repository.ProvinceRepository;
 import com.swiftdrop.organization.service.GeoImportService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,27 +14,33 @@ import org.springframework.stereotype.Component;
 import java.io.InputStream;
 
 /**
- * Spring Boot runner activated with {@code --spring.profiles.active=geo-import}
- * to idempotently import the curated Sri Lankan geographical dataset bundle.
+ * Spring Boot runner activated on non-test profiles ({@code !test})
+ * to automatically and idempotently seed the curated Sri Lankan geographical dataset bundle on first boot.
  */
 @Component
-@Profile("geo-import")
+@Profile("!test")
 public class GeoImportRunner implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(GeoImportRunner.class);
 
     private final GeoImportService geoImportService;
+    private final ProvinceRepository provinceRepository;
     private final ResourceLoader resourceLoader;
     private final String bundleLocation;
+    private final boolean forceImport;
 
     public GeoImportRunner(
             GeoImportService geoImportService,
+            ProvinceRepository provinceRepository,
             ResourceLoader resourceLoader,
-            @Value("${app.geo-import.bundle-path:}") String bundleLocation
+            @Value("${app.geo-import.bundle-path:}") String bundleLocation,
+            @Value("${app.geo-import.force:false}") boolean forceImport
     ) {
         this.geoImportService = geoImportService;
+        this.provinceRepository = provinceRepository;
         this.resourceLoader = resourceLoader;
         this.bundleLocation = bundleLocation;
+        this.forceImport = forceImport;
     }
 
     @Override

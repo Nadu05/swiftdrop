@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +35,19 @@ public class AdminService {
     private static final String DIGITS = "23456789";
     private static final String SPECIAL = "!@#$%^&*-_=+";
     private static final String ALL_PASSWORD_CHARS = UPPER + LOWER + DIGITS + SPECIAL;
+
+    private static final Set<RoleName> BRANCH_SCOPED_ROLES = EnumSet.of(
+            RoleName.DISPATCHER,
+            RoleName.COURIER,
+            RoleName.BRANCH_STAFF,
+            RoleName.BRANCH_MANAGER
+    );
+
+    private static final Set<RoleName> BRANCH_STAFF_ASSIGNABLE_ROLES = EnumSet.of(
+            RoleName.DISPATCHER,
+            RoleName.COURIER,
+            RoleName.BRANCH_STAFF
+    );
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -59,6 +73,18 @@ public class AdminService {
                                                      RoleName role,
                                                      AccountStatus status,
                                                      Pageable pageable) {
+        return listUsers(search, role, status, null, null, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<AdminUserResponse> listUsers(String search,
+                                                     RoleName role,
+                                                     AccountStatus status,
+                                                     Long branchId,
+                                                     String requesterEmail,
+                                                     Pageable pageable) {
+        Long effectiveBranchFilter = resolveBranchFilterForRequester(branchId, requesterEmail);
+
         Specification<User> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -79,6 +105,10 @@ public class AdminService {
                 predicates.add(cb.equal(root.get("accountStatus"), status));
             }
 
+            if (effectiveBranchFilter != null) {
+                predicates.add(cb.equal(root.get("branchId"), effectiveBranchFilter));
+            }
+
             if (query != null) {
                 query.distinct(true);
             }
@@ -97,6 +127,12 @@ public class AdminService {
     }
 
     public AdminUserResponse createUser(AdminCreateUserRequest request) {
+        return createUser(request, null);
+    }
+
+    public AdminUserResponse createUser(AdminCreateUserRequest request, String adminEmail) {
+        Long resolvedBranchId = validateAndResolveCreateUserScope(request, adminEmail);
+
         if (userRepository.existsByEmail(request.getEmail().toLowerCase().trim())) {
             throw new DuplicateEmailException(request.getEmail());
         }
@@ -126,19 +162,21 @@ public class AdminService {
         // Roles
         Set<Role> roles = resolveRoles(request.getRoles());
         user.setRoles(roles);
-        user.setBranchId(request.getBranchId());
+        user.setBranchId(resolvedBranchId);
         user.setOrganizationId(request.getOrganizationId() != null && !request.getOrganizationId().isBlank()
                 ? request.getOrganizationId().trim()
                 : null);
 
         User saved = userRepository.save(user);
-        log.info("Admin created new user '{}' with roles {}", saved.getEmail(), request.getRoles());
+        log.info("Admin created new user '{}' with roles {} (branchId={})",
+                saved.getEmail(), request.getRoles(), saved.getBranchId());
         return toAdminUserResponse(saved);
     }
 
     public AdminUserResponse updateUser(UUID userId, AdminUpdateUserRequest request, String adminEmail) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
+        verifyBranchManagerTargetAccess(user, adminEmail, null);
 
         if (request.getFullName() != null && !request.getFullName().isBlank()) {
             user.setFullName(request.getFullName().trim());
@@ -198,6 +236,7 @@ public class AdminService {
     public AdminUserResponse updateAccountStatus(UUID userId, AccountStatus newStatus, String adminEmail) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
+        verifyBranchManagerTargetAccess(user, adminEmail, null);
 
         if ((newStatus == AccountStatus.SUSPENDED || newStatus == AccountStatus.DEACTIVATED)
                 && isLastActiveAdmin(user)) {
@@ -256,6 +295,7 @@ public class AdminService {
     public AdminUserResponse assignRole(UUID userId, RoleName roleName, String adminEmail) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
+        verifyBranchManagerTargetAccess(user, adminEmail, roleName);
 
         Role role = roleRepository.findByRoleName(roleName)
                 .orElseThrow(() -> new ResourceNotFoundException("Role not found: " + roleName));
@@ -276,6 +316,7 @@ public class AdminService {
 
         Role role = roleRepository.findById(roleId)
                 .orElseThrow(() -> new ResourceNotFoundException("Role not found: " + roleId));
+        verifyBranchManagerTargetAccess(user, adminEmail, role.getRoleName());
 
         if (role.getRoleName() == RoleName.ADMIN && isLastActiveAdmin(user)) {
             throw new IllegalArgumentException("Cannot remove ADMIN role from the last active system administrator");
@@ -421,6 +462,98 @@ public class AdminService {
     // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
+
+    private boolean isScopedBranchManager(User requester) {
+        if (requester == null) {
+            return false;
+        }
+        boolean hasGlobalAdmin = requester.hasRole(RoleName.ADMIN) || requester.hasRole(RoleName.HEAD_OFFICE_ADMIN);
+        return !hasGlobalAdmin && requester.hasRole(RoleName.BRANCH_MANAGER);
+    }
+
+    private Long resolveBranchFilterForRequester(Long requestedBranchId, String requesterEmail) {
+        if (requesterEmail == null || requesterEmail.isBlank()) {
+            return requestedBranchId;
+        }
+        Optional<User> requesterOpt = userRepository.findByEmail(requesterEmail.trim().toLowerCase());
+        if (requesterOpt.isEmpty() || !isScopedBranchManager(requesterOpt.get())) {
+            return requestedBranchId;
+        }
+        User requester = requesterOpt.get();
+        if (requester.getBranchId() == null) {
+            throw new AccessDeniedException("Branch Manager account is not assigned to a branch.");
+        }
+        if (requestedBranchId != null && !requestedBranchId.equals(requester.getBranchId())) {
+            throw new AccessDeniedException("Branch Managers can only view staff for their assigned branch.");
+        }
+        return requester.getBranchId();
+    }
+
+    private Long validateAndResolveCreateUserScope(AdminCreateUserRequest request, String adminEmail) {
+        List<RoleName> requestedRoleNames = new ArrayList<>();
+        if (request.getRoles() != null) {
+            for (String r : request.getRoles()) {
+                if (r != null && !r.isBlank()) {
+                    try {
+                        requestedRoleNames.add(RoleName.valueOf(r.trim().toUpperCase()));
+                    } catch (IllegalArgumentException e) {
+                        throw new IllegalArgumentException("Unknown role: " + r);
+                    }
+                }
+            }
+        }
+
+        Long branchId = request.getBranchId();
+
+        if (adminEmail != null && !adminEmail.isBlank()) {
+            Optional<User> requesterOpt = userRepository.findByEmail(adminEmail.trim().toLowerCase());
+            if (requesterOpt.isPresent() && isScopedBranchManager(requesterOpt.get())) {
+                User requester = requesterOpt.get();
+                if (requester.getBranchId() == null) {
+                    throw new AccessDeniedException("Branch Manager account is not assigned to a branch.");
+                }
+                if (branchId != null && !branchId.equals(requester.getBranchId())) {
+                    throw new AccessDeniedException(
+                            "Branch Managers can only create staff for their assigned branch.");
+                }
+                if (requestedRoleNames.isEmpty()
+                        || !BRANCH_STAFF_ASSIGNABLE_ROLES.containsAll(requestedRoleNames)) {
+                    throw new AccessDeniedException(
+                            "Branch Managers can only assign Branch Staff roles (DISPATCHER, COURIER, BRANCH_STAFF).");
+                }
+                branchId = requester.getBranchId();
+            }
+        }
+
+        boolean requiresBranchAssignment = requestedRoleNames.stream()
+                .anyMatch(BRANCH_SCOPED_ROLES::contains);
+        if (requiresBranchAssignment && branchId == null) {
+            throw new IllegalArgumentException(
+                    "Assigned branch (branchId) is required when creating a user with a branch-scoped role.");
+        }
+
+        return branchId;
+    }
+
+    private void verifyBranchManagerTargetAccess(User targetUser, String adminEmail, RoleName roleBeingMutated) {
+        if (adminEmail == null || adminEmail.isBlank()) {
+            return;
+        }
+        Optional<User> requesterOpt = userRepository.findByEmail(adminEmail.trim().toLowerCase());
+        if (requesterOpt.isEmpty() || !isScopedBranchManager(requesterOpt.get())) {
+            return;
+        }
+        User requester = requesterOpt.get();
+        if (requester.getBranchId() == null
+                || !requester.getBranchId().equals(targetUser.getBranchId())) {
+            throw new AccessDeniedException(
+                    "Branch Managers can only manage staff assigned to their own branch.");
+        }
+        if (roleBeingMutated != null && !BRANCH_STAFF_ASSIGNABLE_ROLES.contains(roleBeingMutated)) {
+            throw new AccessDeniedException(
+                    "Branch Managers can only manage Branch Staff roles (DISPATCHER, COURIER, BRANCH_STAFF).");
+        }
+    }
 
     private boolean isLastActiveAdmin(User user) {
         if (!user.hasRole(RoleName.ADMIN)) {

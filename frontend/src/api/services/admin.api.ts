@@ -27,6 +27,7 @@ export async function getAdminUsers(params?: UserFilterParams): Promise<PageResp
   if (params?.search) query.set('search', params.search);
   if (params?.role) query.set('role', params.role);
   if (params?.status) query.set('status', params.status);
+  if (params?.branchId !== undefined) query.set('branchId', params.branchId.toString());
   if (params?.page !== undefined) query.set('page', params.page.toString());
   if (params?.size !== undefined) query.set('size', params.size.toString());
   if (params?.sort) query.set('sort', params.sort);

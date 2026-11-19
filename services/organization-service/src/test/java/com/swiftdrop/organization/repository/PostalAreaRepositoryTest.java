@@ -23,13 +23,9 @@ import static org.assertj.core.api.Assertions.assertThat;
         "spring.datasource.driver-class-name=org.h2.Driver",
         "spring.datasource.username=sa",
         "spring.datasource.password=",
-        "spring.jpa.hibernate.ddl-auto=validate",
+        "spring.jpa.hibernate.ddl-auto=create-drop",
         "spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.H2Dialect",
-        "spring.flyway.enabled=true",
-        "spring.flyway.url=jdbc:h2:mem:postal_area_repo_test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
-        "spring.flyway.user=sa",
-        "spring.flyway.password=",
-        "spring.flyway.locations=classpath:db/migration"
+        "spring.flyway.enabled=false"
 })
 class PostalAreaRepositoryTest {
 

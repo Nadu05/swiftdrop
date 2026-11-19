@@ -83,10 +83,11 @@ class AdminControllerTest {
                 List.of(userRes), 0, 20, 1L, 1, true
         );
 
-        when(adminService.listUsers(any(), any(), any(), any(Pageable.class))).thenReturn(pageRes);
+        when(adminService.listUsers(any(), any(), any(), any(), any(), any(Pageable.class))).thenReturn(pageRes);
 
         mockMvc.perform(get("/api/v1/admin/users")
                         .param("search", "test")
+                        .param("branchId", "5")
                         .param("page", "0")
                         .param("size", "20"))
                 .andExpect(status().isOk())
@@ -95,13 +96,14 @@ class AdminControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/v1/admin/users - Success")
-    @WithMockUser(roles = "ADMIN")
+    @DisplayName("POST /api/v1/admin/users - Success with branchId")
+    @WithMockUser(username = "colombo@swiftdrop.lk", roles = "BRANCH_MANAGER")
     void createUserSuccess() throws Exception {
         AdminCreateUserRequest req = new AdminCreateUserRequest(
                 "New Courier", "courier@swiftdrop.io", "Pass1234!", "+1234567890",
                 List.of("COURIER"), "ACTIVE", true
         );
+        req.setBranchId(5L);
 
         UUID userId = UUID.randomUUID();
         AdminUserResponse userRes = new AdminUserResponse(
@@ -109,15 +111,17 @@ class AdminControllerTest {
                 List.of("COURIER"), "ACTIVE", true, "LOCAL",
                 LocalDateTime.now(), LocalDateTime.now(), null
         );
+        userRes.setBranchId(5L);
 
-        when(adminService.createUser(any(AdminCreateUserRequest.class))).thenReturn(userRes);
+        when(adminService.createUser(any(AdminCreateUserRequest.class), any())).thenReturn(userRes);
 
         mockMvc.perform(post("/api/v1/admin/users")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.email").value("courier@swiftdrop.io"))
-                .andExpect(jsonPath("$.roles[0]").value("COURIER"));
+                .andExpect(jsonPath("$.roles[0]").value("COURIER"))
+                .andExpect(jsonPath("$.branchId").value(5));
     }
 
     @Test
