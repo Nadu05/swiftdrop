@@ -15,6 +15,10 @@ declare global {
   }
 }
 
+// Module-level singleton trackers to prevent duplicate initialize() calls across re-renders/mounts
+let gsiInitializedClientId: string | null = null;
+let activeGsiCallback: ((response: { credential?: string }) => void) | null = null;
+
 export default function GoogleSignInButton({ mode, onError }: GoogleSignInButtonProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isGisLoaded, setIsGisLoaded] = useState(false);
@@ -23,7 +27,6 @@ export default function GoogleSignInButton({ mode, onError }: GoogleSignInButton
 
   const mutateAsyncRef = useRef(googleMutation.mutateAsync);
   const onErrorRef = useRef(onError);
-  const initializedClientIdRef = useRef<string | null>(null);
 
   mutateAsyncRef.current = googleMutation.mutateAsync;
   onErrorRef.current = onError;
@@ -66,28 +69,32 @@ export default function GoogleSignInButton({ mode, onError }: GoogleSignInButton
     }
 
     try {
-      if (initializedClientIdRef.current !== effectiveClientId) {
+      activeGsiCallback = async (response: { credential?: string }) => {
+        if (!response?.credential) {
+          onErrorRef.current?.('Google did not return an authentication credential.');
+          return;
+        }
+
+        try {
+          await mutateAsyncRef.current({
+            idToken: response.credential,
+          });
+        } catch (err) {
+          onErrorRef.current?.(getApiErrorMessage(err));
+        }
+      };
+
+      if (gsiInitializedClientId !== effectiveClientId) {
         window.google.accounts.id.initialize({
           client_id: effectiveClientId,
-          callback: async (response: { credential?: string }) => {
-            if (!response?.credential) {
-              onErrorRef.current?.('Google did not return an authentication credential.');
-              return;
-            }
-
-            try {
-              await mutateAsyncRef.current({
-                idToken: response.credential,
-              });
-            } catch (err) {
-              onErrorRef.current?.(getApiErrorMessage(err));
-            }
+          callback: (response: { credential?: string }) => {
+            activeGsiCallback?.(response);
           },
           auto_select: false,
           cancel_on_tap_outside: true,
         });
 
-        initializedClientIdRef.current = effectiveClientId;
+        gsiInitializedClientId = effectiveClientId;
       }
 
       containerRef.current.innerHTML = '';
