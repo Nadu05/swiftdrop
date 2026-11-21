@@ -58,8 +58,9 @@ public class CustomerAssistantService {
 
     private static final Pattern PROMPT_INJECTION_PATTERN = Pattern.compile(
             "(?i)(?:"
-                    + "\\b(?:ignore|disregard|forget|override)\\s+(?:all\\s+|any\\s+)?(?:previous|prior|above|system|safety)\\s+(?:instructions|prompts|rules|constraints|guidelines)\\b"
-                    + "|\\b(?:reveal|show|print|dump|output|leak|display)\\s+(?:your\\s+)?(?:system\\s+prompt|hidden\\s+instructions|developer\\s+prompt|api\\s*key|secret\\s*key|access\\s*token|environment\\s+variables?)\\b"
+                    + "\\b(?:ignore|disregard|forget|override)\\s+(?:all\\s+|any\\s+)?(?:of\\s+)?(?:your\\s+|the\\s+|my\\s+)?(?:previous|prior|above|earlier|system|safety|original|initial)\\s+(?:instructions|prompts|rules|constraints|guidelines)\\b"
+                    + "|\\b(?:reveal|show|print|dump|output|leak|display|tell|give|share|repeat)\\s+(?:me\\s+|us\\s+)?(?:your\\s+|the\\s+)?(?:full\\s+|exact\\s+|internal\\s+|original\\s+)?(?:system\\s+prompt|hidden\\s+instructions|developer\\s+prompt|initial\\s+instructions|api\\s*key|secret\\s*key|access\\s*token|environment\\s+variables?)\\b"
+                    + "|\\bwhat\\s+(?:is|are|was|were)\\s+your\\s+(?:system\\s+prompt|hidden\\s+instructions|initial\\s+instructions|api\\s*key)\\b"
                     + "|\\b(?:swiftdrop_ai_api_key|system_prompt)\\b"
                     + "|\\b(?:you\\s+are\\s+now|act\\s+as|pretend\\s+to\\s+be|switch\\s+to)\\s+(?:an?\\s+)?(?:admin|system_admin|dispatcher|courier|root|developer|unrestricted)\\b"
                     + "|\\b(?:bypass|disable)\\s+(?:security|authentication|authorization|ownership|rate\\s*limit|validation)\\b"
@@ -68,8 +69,26 @@ public class CustomerAssistantService {
     );
 
     private static final Pattern INTERNAL_LEAK_PATTERN = Pattern.compile(
-            "(?i)(?:https?://(?:localhost|127\\.0\\.0\\.1|order-service|organization-service|identity-service|api-gateway)[:/]?|swiftdrop_ai_api_key|generativelanguage\\.googleapis\\.com|bearer\\s+[a-z0-9._-]{10,}|\\b(?:resourceaccessexception|httpclienterrorexception|nullpointerexception)\\b)"
+            "(?i)(?:https?://(?:localhost|127\\.0\\.0\\.1|order-service|organization-service|identity-service|api-gateway)[:/]?|swiftdrop_ai_api_key|generativelanguage\\.googleapis\\.com|bearer\\s+[a-z0-9._-]{10,}|\\b(?:resourceaccessexception|httpclienterrorexception|nullpointerexception)\\b"
+                    // Distinctive system prompt section headings (prompt recitation / exfiltration)
+                    + "|parcel tracking rules:|delivery fee estimation rules:|strict accuracy and safety rules|conversational context and topic switching:)"
     );
+
+    private static final Pattern DELIVERY_DATE_CLAIM_PATTERN = Pattern.compile(
+            "(?i)(?:\\b(?:your parcel|your package|your delivery|your order|this parcel|the parcel|parcel\\s+sd-?[a-z0-9]{4,12}|sd-?[a-z0-9]{4,12})\\b[^.!?\\n]{0,80}\\b(?:will|should|is expected to|is scheduled to|is due to|is likely to)\\s+(?:be\\s+delivered|arrive|reach|get\\s+to)\\b"
+                    + "|\\b(?:estimated|expected)\\s+(?:delivery|arrival)\\s+(?:date|time)\\s*(?:is|:|of)\\b)"
+    );
+
+    private static final Pattern UNSUPPORTED_ACTION_CLAIM_PATTERN = Pattern.compile(
+            "(?i)\\b(?:i|we)(?:'ve|\\s+have)?(?:\\s+just)?\\s+(?:successfully\\s+|now\\s+|already\\s+|gone\\s+ahead\\s+and\\s+)?(?:cancell?ed|rescheduled|created|booked|placed|modified|updated|changed|refunded|reassigned|assigned|redirected|re-?routed)\\s+(?:your|the|a|an|this|that)\\b"
+    );
+
+    private static final Pattern MONEY_AMOUNT_PATTERN = Pattern.compile(
+            "(?i)(?:\\b(?:lkr|rs\\.?)\\s*(\\d[\\d,]*(?:\\.\\d+)?)|(\\d[\\d,]*(?:\\.\\d+)?)\\s*(?:lkr|rupees?)\\b)"
+    );
+
+    private static final String UNSUPPORTED_ACTION_FALLBACK =
+            "I can't create, cancel, reschedule, or change deliveries from this chat. Please use the My Deliveries page in your Customer Portal to manage your deliveries, or contact SwiftDrop support for help with changes.";
 
     private static final String MISSING_PRICING_DETAILS_FALLBACK =
             "To calculate your exact SwiftDrop delivery fee estimate, please share your pickup location, destination location, and parcel weight in kilograms (and optionally your parcel size: Small, Medium, Large, or Extra Large).";
@@ -223,9 +242,12 @@ public class CustomerAssistantService {
 
         String safeReply = enforcePricingIntegrity(rawReply, pricingTracker);
         safeReply = enforceTrackingIntegrity(safeReply, trackingTracker, principal, trimmedMessage, boundedHistory);
+        safeReply = enforceCapabilityIntegrity(safeReply);
         safeReply = sanitizeOutputLeaks(safeReply);
 
-        String category = resolveCategory(rawReply, safeReply, pricingTracker, trackingTracker);
+        String category = UNSUPPORTED_ACTION_FALLBACK.equals(safeReply)
+                ? "scope_boundary"
+                : resolveCategory(rawReply, safeReply, pricingTracker, trackingTracker);
 
         return new AssistantChatResponse(
                 safeReply,
@@ -322,6 +344,13 @@ public class CustomerAssistantService {
             return outcome.toFormattedSummary();
         }
 
+        // The tracking backend exposes no estimated delivery date, so any ETA claim is unverified.
+        if (DELIVERY_DATE_CLAIM_PATTERN.matcher(trimmedReply).find()) {
+            log.warn("LLM reply added an unverified delivery date for {}; returning verified summary",
+                    outcome.trackingNumber());
+            return outcome.toFormattedSummary();
+        }
+
         return trimmedReply;
     }
 
@@ -362,7 +391,50 @@ public class CustomerAssistantService {
             return outcome.toFormattedSummary();
         }
 
+        if (containsUnverifiedAmount(trimmedReply, tracker.getAllOutcomes())) {
+            log.warn("LLM reply contained a monetary amount not returned by the pricing tool; returning verified breakdown");
+            return outcome.toFormattedSummary();
+        }
+
         return trimmedReply;
+    }
+
+    private static boolean containsUnverifiedAmount(String reply, List<PricingEstimateOutcome> outcomes) {
+        List<java.math.BigDecimal> allowed = new ArrayList<>();
+        for (PricingEstimateOutcome o : outcomes) {
+            if (o != null && o.status() == OutcomeStatus.SUCCESS) {
+                for (java.math.BigDecimal v : new java.math.BigDecimal[]{
+                        o.totalFee(), o.baseFee(), o.distanceFee(), o.weightFee(), o.sizeSurcharge()}) {
+                    if (v != null) {
+                        allowed.add(v);
+                    }
+                }
+            }
+        }
+        java.util.regex.Matcher m = MONEY_AMOUNT_PATTERN.matcher(reply);
+        while (m.find()) {
+            String raw = m.group(1) != null ? m.group(1) : m.group(2);
+            java.math.BigDecimal amount;
+            try {
+                amount = new java.math.BigDecimal(raw.replace(",", ""));
+            } catch (NumberFormatException ex) {
+                return true;
+            }
+            boolean verified = allowed.stream().anyMatch(a -> a.compareTo(amount) == 0
+                    || a.setScale(2, RoundingMode.HALF_UP).compareTo(amount) == 0);
+            if (!verified) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String enforceCapabilityIntegrity(String reply) {
+        if (reply != null && UNSUPPORTED_ACTION_CLAIM_PATTERN.matcher(reply).find()) {
+            log.warn("Blocked LLM reply claiming an order action the assistant cannot perform");
+            return UNSUPPORTED_ACTION_FALLBACK;
+        }
+        return reply;
     }
 
     private static boolean containsMonetaryClaim(String text) {
@@ -372,7 +444,8 @@ public class CustomerAssistantService {
     private static boolean containsFabricatedTrackingClaim(String text) {
         return text != null
                 && (TRACKING_STATUS_CLAIM_PATTERN.matcher(text).find()
-                || FALSE_TOOL_CHECK_CLAIM_PATTERN.matcher(text).find());
+                || FALSE_TOOL_CHECK_CLAIM_PATTERN.matcher(text).find()
+                || DELIVERY_DATE_CLAIM_PATTERN.matcher(text).find());
     }
 
     private static boolean isPromptInjectionAttempt(String text) {

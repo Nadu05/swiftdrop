@@ -54,13 +54,13 @@ public class AssistantPricingToolService {
             "(?i)\\bto\\s+([A-Za-z0-9][A-Za-z0-9\\s,.()-]{1,45}?)(?=$|[:;,.!?]|\\s+(?:from|for|with|weighing|at|on|is|and|or|instead)\\b)"
     );
     private static final Pattern WEIGHT_INFERENCE_PATTERN = Pattern.compile(
-            "(?i)\\b(\\d+(?:\\.\\d+)?)\\s*(?:kg|kgs|kilograms?)\\b"
+            "(?i)(?<![-\\d.])(\\d+(?:\\.\\d+)?)\\s*(?:kg|kgs|kilograms?)\\b"
     );
     private static final Pattern PARCEL_SIZE_INFERENCE_PATTERN = Pattern.compile(
             "(?i)\\b(extra[\\s_-]*large|small|medium|large)\\b(?=\\s+(?:parcel|package|box|size|delivery)\\b|\\s*$)"
     );
     private static final Pattern TRACKING_SUMMARY_PATTERN = Pattern.compile(
-            "(?i)\\btracking number:|\\bcurrent status:|\\btracking unavailable\\b"
+            "(?i)\\btracking number:|\\bcurrent status:|\\btracking unavailable\\b|\\bsd-?(?=[a-z0-9]*\\d)[a-z0-9]{4,12}\\b"
     );
 
     private static final Map<String, ResolvedLocation> LOCATION_DIRECTORY = buildLocationDirectory();
@@ -153,10 +153,14 @@ public class AssistantPricingToolService {
     public static final class ExecutionTracker {
         private PricingEstimateOutcome latestOutcome;
         private boolean invoked;
+        private final List<PricingEstimateOutcome> allOutcomes = new ArrayList<>();
 
         public void record(PricingEstimateOutcome outcome) {
             this.invoked = true;
             this.latestOutcome = outcome;
+            if (outcome != null) {
+                this.allOutcomes.add(outcome);
+            }
         }
 
         public boolean isInvoked() {
@@ -165,6 +169,10 @@ public class AssistantPricingToolService {
 
         public PricingEstimateOutcome getLatestOutcome() {
             return latestOutcome;
+        }
+
+        public List<PricingEstimateOutcome> getAllOutcomes() {
+            return List.copyOf(allOutcomes);
         }
     }
 
@@ -615,7 +623,10 @@ public class AssistantPricingToolService {
         if (history != null && !history.isEmpty()) {
             for (int i = history.size() - 1; i >= 0; i--) {
                 LlmMessage msg = history.get(i);
-                if (msg != null && msg.content() != null && !msg.content().isBlank()) {
+                // Only customer-stated values are reused; assistant text (error messages, tracking replies,
+                // paraphrased routes) must never become pricing tool arguments.
+                if (msg != null && "user".equals(msg.role())
+                        && msg.content() != null && !msg.content().isBlank()) {
                     chronologicalNewestFirst.add(msg.content().trim());
                 }
             }
