@@ -2,6 +2,7 @@ package com.swiftdrop.order.assistant.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.swiftdrop.order.assistant.client.LlmClient.LlmMessage;
+import com.swiftdrop.order.assistant.client.LlmClient.LlmToolDefinition;
 import com.swiftdrop.order.assistant.config.AiAssistantProperties;
 import com.swiftdrop.order.assistant.exception.AiAssistantException;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,6 +26,7 @@ import java.net.SocketTimeoutException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -45,10 +47,10 @@ class RestLlmClientTest {
     void setUp() {
         properties = new AiAssistantProperties();
         properties.setEnabled(true);
-        properties.setProvider("openai");
-        properties.setModel("gpt-4o-mini");
+        properties.setProvider("gemini");
+        properties.setModel("gemini-3.5-flash-lite");
         properties.setApiKey("sk-test-secret-key");
-        properties.setBaseUrl("https://api.openai.com");
+        properties.setBaseUrl("https://generativelanguage.googleapis.com/v1beta/openai");
 
         RestClient.Builder builder = RestClient.builder();
         mockServer = MockRestServiceServer.bindTo(builder).build();
@@ -59,23 +61,30 @@ class RestLlmClientTest {
     void generateReply_ValidResponse_ReturnsTrimmedAssistantContent() {
         String providerJson = """
                 {
-                  "id": "chatcmpl-123",
+                  "id": "T-IBa-_ME__e694Ptdq9yA4",
+                  "model": "gemini-3.5-flash-lite",
                   "choices": [
                     {
                       "index": 0,
+                      "finish_reason": "stop",
                       "message": {
                         "role": "assistant",
-                        "content": "  Please enter your tracking number on the Track Parcel page.  "
+                        "content": "  Please enter your tracking number on the Track Parcel page.  ",
+                        "extra_content": {
+                          "google": {
+                            "thought_signature": "sample-signature"
+                          }
+                        }
                       }
                     }
                   ]
                 }
                 """;
 
-        mockServer.expect(requestTo("https://api.openai.com/v1/chat/completions"))
+        mockServer.expect(requestTo("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"))
                 .andExpect(method(HttpMethod.POST))
                 .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer sk-test-secret-key"))
-                .andExpect(jsonPath("$.model").value("gpt-4o-mini"))
+                .andExpect(jsonPath("$.model").value("gemini-3.5-flash-lite"))
                 .andExpect(jsonPath("$.messages[0].role").value("system"))
                 .andExpect(jsonPath("$.messages[0].content").value("System prompt"))
                 .andExpect(jsonPath("$.messages[1].role").value("user"))
@@ -96,7 +105,12 @@ class RestLlmClientTest {
 
     @Test
     void generateReply_ProviderTimeout_Throws503WithSafeMessage() {
-        mockServer.expect(requestTo("https://api.openai.com/v1/chat/completions"))
+        mockServer.expect(requestTo("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(request -> {
+                    throw new ResourceAccessException("Read timed out", new SocketTimeoutException("Read timed out"));
+                });
+        mockServer.expect(requestTo("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"))
                 .andExpect(method(HttpMethod.POST))
                 .andRespond(request -> {
                     throw new ResourceAccessException("Read timed out", new SocketTimeoutException("Read timed out"));
@@ -114,6 +128,25 @@ class RestLlmClientTest {
     }
 
     @Test
+    void generateReply_TransientTimeoutFollowedBySuccess_RetriesOnceAndReturnsReply() {
+        mockServer.expect(requestTo("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(request -> {
+                    throw new ResourceAccessException("Read timed out", new SocketTimeoutException("Read timed out"));
+                });
+        mockServer.expect(requestTo("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess(
+                        "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"Hello! How can I assist you?\"}}]}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        String reply = client.generateReply("System prompt", List.of(), "Hello");
+        assertThat(reply).isEqualTo("Hello! How can I assist you?");
+        mockServer.verify();
+    }
+
+    @Test
     void generateReply_ProviderErrorResponse_DoesNotLeakSensitiveProviderBody() {
         String sensitiveProviderError = """
                 {
@@ -124,7 +157,7 @@ class RestLlmClientTest {
                 }
                 """;
 
-        mockServer.expect(requestTo("https://api.openai.com/v1/chat/completions"))
+        mockServer.expect(requestTo("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"))
                 .andExpect(method(HttpMethod.POST))
                 .andRespond(withStatus(HttpStatus.UNAUTHORIZED)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -155,7 +188,7 @@ class RestLlmClientTest {
 
     @Test
     void generateReply_MalformedProviderResponse_Throws503WithSafeMessage() {
-        mockServer.expect(requestTo("https://api.openai.com/v1/chat/completions"))
+        mockServer.expect(requestTo("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"))
                 .andExpect(method(HttpMethod.POST))
                 .andRespond(withSuccess("{\"choices\":[]}", MediaType.APPLICATION_JSON));
 
@@ -181,7 +214,7 @@ class RestLlmClientTest {
             AiAssistantProperties customProps = new AiAssistantProperties();
             customProps.setEnabled(true);
             customProps.setProvider("gemini");
-            customProps.setModel("gemini-2.0-flash");
+            customProps.setModel("gemini-3.5-flash-lite");
             customProps.setApiKey("test-provider-key");
             customProps.setBaseUrl(baseUrl);
 
@@ -219,7 +252,7 @@ class RestLlmClientTest {
         Files.writeString(serviceLocalEnv, """
                 SWIFTDROP_AI_ENABLED=true
                 SWIFTDROP_AI_PROVIDER=gemini
-                SWIFTDROP_AI_MODEL=gemini-2.0-flash
+                SWIFTDROP_AI_MODEL=gemini-3.5-flash-lite
                 SWIFTDROP_AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
                 SWIFTDROP_AI_API_KEY=test-dotenv-key
                 """);
@@ -242,8 +275,199 @@ class RestLlmClientTest {
         assertThat(bound.isEnabled()).isTrue();
         assertThat(bound.isConfigured()).isTrue();
         assertThat(bound.getProvider()).isEqualTo("gemini");
-        assertThat(bound.getModel()).isEqualTo("gemini-2.0-flash");
+        assertThat(bound.getModel()).isEqualTo("gemini-3.5-flash-lite");
         assertThat(bound.getBaseUrl()).isEqualTo("https://generativelanguage.googleapis.com/v1beta/openai");
         assertThat(bound.getApiKey()).isEqualTo("test-dotenv-key");
+    }
+
+    @Test
+    void generateReply_GeminiToolCallingHandshake_PreservesThoughtSignatureAndReturnsFinalReply() {
+        String turn1ToolCallResponse = """
+                {
+                  "id": "turn-1",
+                  "model": "gemini-3.5-flash-lite",
+                  "choices": [
+                    {
+                      "index": 0,
+                      "finish_reason": "tool_calls",
+                      "message": {
+                        "role": "assistant",
+                        "tool_calls": [
+                          {
+                            "id": "call_12345",
+                            "type": "function",
+                            "extra_content": {
+                              "google": {
+                                "thought_signature": "sig-abc-123"
+                              }
+                            },
+                            "function": {
+                              "name": "estimate_delivery_price",
+                              "arguments": "{\\"pickupLocation\\":\\"Colombo\\",\\"destinationLocation\\":\\"Kandy\\",\\"weightKg\\":2}"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+                """;
+
+        String turn2FinalResponse = """
+                {
+                  "id": "turn-2",
+                  "model": "gemini-3.5-flash-lite",
+                  "choices": [
+                    {
+                      "index": 0,
+                      "finish_reason": "stop",
+                      "message": {
+                        "role": "assistant",
+                        "content": "The estimated delivery fee from Colombo to Kandy for a 2 kg parcel is LKR 6,952.10."
+                      }
+                    }
+                  ]
+                }
+                """;
+
+        mockServer.expect(requestTo("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(jsonPath("$.tools[0].function.name").value("estimate_delivery_price"))
+                .andExpect(jsonPath("$.tool_choice").value("auto"))
+                .andRespond(withSuccess(turn1ToolCallResponse, MediaType.APPLICATION_JSON));
+
+        mockServer.expect(requestTo("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(jsonPath("$.messages[2].tool_calls[0].extra_content.google.thought_signature").value("sig-abc-123"))
+                .andExpect(jsonPath("$.messages[3].role").value("tool"))
+                .andExpect(jsonPath("$.messages[3].tool_call_id").value("call_12345"))
+                .andExpect(jsonPath("$.messages[3].name").value("estimate_delivery_price"))
+                .andRespond(withSuccess(turn2FinalResponse, MediaType.APPLICATION_JSON));
+
+        LlmToolDefinition toolDef = new LlmToolDefinition(
+                "estimate_delivery_price",
+                "Calculate delivery price",
+                java.util.Map.of("type", "object")
+        );
+
+        String reply = client.generateReply(
+                "System prompt",
+                List.of(),
+                "How much to send a 2 kg parcel from Colombo to Kandy?",
+                List.of(toolDef),
+                call -> {
+                    assertThat(call.id()).isEqualTo("call_12345");
+                    assertThat(call.name()).isEqualTo("estimate_delivery_price");
+                    assertThat(call.argumentsJson()).contains("Kandy");
+                    return "{\"status\":\"SUCCESS\",\"totalFee\":6952.10,\"currency\":\"LKR\"}";
+                }
+        );
+
+        assertThat(reply).contains("LKR 6,952.10");
+        mockServer.verify();
+    }
+
+    @Test
+    void generateReply_DuplicateToolCallWithinSameTurn_ExecutesToolOnceAndReusesResult() {
+        String duplicateCallBody = """
+                {
+                  "id": "dup-turn-1",
+                  "model": "gemini-3.5-flash-lite",
+                  "choices": [
+                    {
+                      "index": 0,
+                      "finish_reason": "tool_calls",
+                      "message": {
+                        "role": "assistant",
+                        "tool_calls": [
+                          {
+                            "id": "call_dup_1",
+                            "type": "function",
+                            "function": {
+                              "name": "estimate_delivery_price",
+                              "arguments": "{\\"pickupLocation\\":\\"Colombo\\",\\"destinationLocation\\":\\"Kandy\\",\\"weightKg\\":2}"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+                """;
+
+        String duplicateCallBodyRound2 = """
+                {
+                  "id": "dup-turn-2",
+                  "model": "gemini-3.5-flash-lite",
+                  "choices": [
+                    {
+                      "index": 0,
+                      "finish_reason": "tool_calls",
+                      "message": {
+                        "role": "assistant",
+                        "tool_calls": [
+                          {
+                            "id": "call_dup_2",
+                            "type": "function",
+                            "function": {
+                              "name": "estimate_delivery_price",
+                              "arguments": "{\\"pickupLocation\\":\\"Colombo\\",\\"destinationLocation\\":\\"Kandy\\",\\"weightKg\\":2}"
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+                """;
+
+        String finalBody = """
+                {
+                  "id": "dup-turn-3",
+                  "model": "gemini-3.5-flash-lite",
+                  "choices": [
+                    {
+                      "index": 0,
+                      "finish_reason": "stop",
+                      "message": {
+                        "role": "assistant",
+                        "content": "The delivery fee is LKR 6,952.10."
+                      }
+                    }
+                  ]
+                }
+                """;
+
+        mockServer.expect(requestTo("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess(duplicateCallBody, MediaType.APPLICATION_JSON));
+        mockServer.expect(requestTo("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess(duplicateCallBodyRound2, MediaType.APPLICATION_JSON));
+        mockServer.expect(requestTo("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess(finalBody, MediaType.APPLICATION_JSON));
+
+        AtomicInteger executionCount = new AtomicInteger(0);
+        LlmToolDefinition toolDef = new LlmToolDefinition(
+                "estimate_delivery_price",
+                "Calculate delivery price",
+                java.util.Map.of("type", "object")
+        );
+
+        String reply = client.generateReply(
+                "System prompt",
+                List.of(),
+                "How much from Colombo to Kandy 2kg?",
+                List.of(toolDef),
+                call -> {
+                    executionCount.incrementAndGet();
+                    return "{\"status\":\"SUCCESS\",\"totalFee\":6952.10,\"currency\":\"LKR\"}";
+                }
+        );
+
+        assertThat(reply).contains("LKR 6,952.10");
+        assertThat(executionCount.get()).isEqualTo(1);
+        mockServer.verify();
     }
 }

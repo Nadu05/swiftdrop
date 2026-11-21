@@ -11,12 +11,12 @@ import org.springframework.context.annotation.Configuration;
 public class AiAssistantProperties {
 
     private boolean enabled = true;
-    private String provider = "openai";
-    private String model = "gpt-4o-mini";
+    private String provider = "gemini";
+    private String model = "gemini-3.5-flash-lite";
     private String apiKey = "";
-    private String baseUrl = "https://api.openai.com";
-    private int connectTimeoutMs = 3000;
-    private int readTimeoutMs = 15000;
+    private String baseUrl = "https://generativelanguage.googleapis.com/v1beta/openai";
+    private int connectTimeoutMs = 10000;
+    private int readTimeoutMs = 30000;
     private int maxMessageLength = 1000;
     private int maxHistoryMessages = 10;
     private int rateLimitMaxRequests = 15;

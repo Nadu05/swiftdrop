@@ -18,6 +18,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class AssistantRateLimiter {
 
+    private static final int MAX_TRACKED_USERS = 1000;
+
     private final AiAssistantProperties properties;
     private final Clock clock;
     private final ConcurrentHashMap<String, Deque<Instant>> requestTimestampsByUser = new ConcurrentHashMap<>();
@@ -43,6 +45,10 @@ public class AssistantRateLimiter {
         Instant now = clock.instant();
         Instant windowStart = now.minusSeconds(windowSeconds);
 
+        if (requestTimestampsByUser.size() > MAX_TRACKED_USERS) {
+            evictExpiredUsers(windowStart);
+        }
+
         Deque<Instant> timestamps = requestTimestampsByUser.computeIfAbsent(
                 userId.trim(),
                 ignored -> new ArrayDeque<>()
@@ -62,5 +68,17 @@ public class AssistantRateLimiter {
 
             timestamps.addLast(now);
         }
+    }
+
+    private void evictExpiredUsers(Instant windowStart) {
+        requestTimestampsByUser.entrySet().removeIf(entry -> {
+            Deque<Instant> timestamps = entry.getValue();
+            synchronized (timestamps) {
+                while (!timestamps.isEmpty() && !timestamps.peekFirst().isAfter(windowStart)) {
+                    timestamps.pollFirst();
+                }
+                return timestamps.isEmpty();
+            }
+        });
     }
 }

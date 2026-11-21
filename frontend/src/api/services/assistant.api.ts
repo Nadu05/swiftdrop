@@ -92,7 +92,7 @@ export async function sendAssistantChatMessage(
     const response = await apiClient.post<AssistantChatResponseDto>(
       ASSISTANT_CHAT_ENDPOINT,
       payload,
-      { timeout: 30000 }
+      { timeout: 45000 }
     );
 
     const data = response.data;

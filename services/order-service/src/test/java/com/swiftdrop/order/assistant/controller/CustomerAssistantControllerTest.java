@@ -145,6 +145,68 @@ class CustomerAssistantControllerTest {
     }
 
     @Test
+    void chat_PriceEstimateRequestAsAuthenticatedCustomer_Returns200WithFeeEstimateCategory() throws Exception {
+        OrderUserPrincipal customer = new OrderUserPrincipal(
+                "cust-1", "kasun@swiftdrop.lk", null, List.of("CUSTOMER")
+        );
+        AssistantChatResponse response = new AssistantChatResponse(
+                "The estimated delivery fee from Colombo to Kandy for 2 kg is LKR 6,959.25.",
+                "fee_estimate",
+                "conv-fee-1",
+                "2026-11-22T00:50:00"
+        );
+
+        when(assistantService.chat(any(AssistantChatRequest.class), eq(customer))).thenReturn(response);
+
+        String payload = """
+                {
+                  "message": "How much would it cost to send a 2 kg parcel from Colombo to Kandy?",
+                  "conversationId": "conv-fee-1"
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/orders/assistant/chat")
+                        .with(authentication(authToken(customer)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.reply").value(response.getReply()))
+                .andExpect(jsonPath("$.category").value("fee_estimate"))
+                .andExpect(jsonPath("$.conversationId").value("conv-fee-1"));
+    }
+
+    @Test
+    void chat_ParcelTrackingRequestAsAuthenticatedCustomer_Returns200WithTrackingCodeCategory() throws Exception {
+        OrderUserPrincipal customer = new OrderUserPrincipal(
+                "cust-1", "kasun@swiftdrop.lk", null, List.of("CUSTOMER")
+        );
+        AssistantChatResponse response = new AssistantChatResponse(
+                "Parcel SD-91001 is currently In Transit at Kegalle Hub.",
+                "tracking_code",
+                "conv-track-1",
+                "2026-11-22T01:25:00"
+        );
+
+        when(assistantService.chat(any(AssistantChatRequest.class), eq(customer))).thenReturn(response);
+
+        String payload = """
+                {
+                  "message": "Where is parcel SD-91001?",
+                  "conversationId": "conv-track-1"
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/orders/assistant/chat")
+                        .with(authentication(authToken(customer)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.reply").value(response.getReply()))
+                .andExpect(jsonPath("$.category").value("tracking_code"))
+                .andExpect(jsonPath("$.conversationId").value("conv-track-1"));
+    }
+
+    @Test
     void chat_BlankMessage_Returns400BadRequest() throws Exception {
         OrderUserPrincipal customer = new OrderUserPrincipal(
                 "cust-1", "kasun@swiftdrop.lk", null, List.of("CUSTOMER")
