@@ -1,6 +1,7 @@
 export type ChatSender = 'user' | 'assistant';
 
 export type ChatMessageCategory =
+  | 'assistant'
   | 'welcome'
   | 'tracking_prompt'
   | 'tracking_code'
@@ -33,12 +34,36 @@ export interface SuggestedQuestionItem {
   text: string;
 }
 
+export interface AssistantHistoryMessageDto {
+  role: ChatSender;
+  content: string;
+}
+
+export interface AssistantChatRequestDto {
+  message: string;
+  conversationId?: string;
+  history?: AssistantHistoryMessageDto[];
+}
+
+export interface AssistantChatResponseDto {
+  reply: string;
+  category?: string | null;
+  conversationId?: string | null;
+  timestamp?: string | null;
+}
+
 export interface AIResponsePayload {
   reply: string;
   category: ChatMessageCategory;
+  conversationId?: string;
+  timestamp?: string;
   extractedTrackingNumber?: string;
 }
 
 export interface AIAssistantService {
-  sendMessage(message: string, conversationId: string): Promise<AIResponsePayload>;
+  sendMessage(
+    message: string,
+    conversationId: string,
+    history?: AssistantHistoryMessageDto[]
+  ): Promise<AIResponsePayload>;
 }

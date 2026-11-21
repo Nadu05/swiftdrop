@@ -33,6 +33,11 @@ export type NewChatMessageInput = Omit<ChatMessageItem, 'id' | 'timestamp'> & {
   timestamp?: string;
 };
 
+interface SetErrorOptions {
+  canRetry?: boolean;
+  lastFailedMessage?: string | null;
+}
+
 interface AIAssistantState {
   conversationId: string;
   isOpen: boolean;
@@ -41,14 +46,17 @@ interface AIAssistantState {
   messages: ChatMessageItem[];
   isLoading: boolean;
   error: string | null;
+  canRetry: boolean;
+  lastFailedMessage: string | null;
 
   openChat: () => void;
   minimizeChat: () => void;
   closeChat: () => void;
   toggleChat: () => void;
   appendMessage: (message: NewChatMessageInput) => void;
+  setConversationId: (conversationId: string) => void;
   setLoading: (isLoading: boolean) => void;
-  setError: (error: string | null) => void;
+  setError: (error: string | null, options?: SetErrorOptions) => void;
   clearConversation: () => void;
 }
 
@@ -65,6 +73,8 @@ export const useAIAssistantStore = create<AIAssistantState>((set) => ({
   messages: [createWelcomeMessage()],
   isLoading: false,
   error: null,
+  canRetry: false,
+  lastFailedMessage: null,
 
   openChat: () =>
     set({
@@ -104,8 +114,21 @@ export const useAIAssistantStore = create<AIAssistantState>((set) => ({
       ],
     })),
 
+  setConversationId: (conversationId) =>
+    set((state) => {
+      const trimmed = conversationId.trim();
+      if (!trimmed || trimmed === state.conversationId) {
+        return state;
+      }
+      return { conversationId: trimmed };
+    }),
   setLoading: (isLoading) => set({ isLoading }),
-  setError: (error) => set({ error }),
+  setError: (error, options) =>
+    set({
+      error,
+      canRetry: error ? Boolean(options?.canRetry) : false,
+      lastFailedMessage: error ? (options?.lastFailedMessage ?? null) : null,
+    }),
 
   clearConversation: () =>
     set((state) => {
@@ -115,6 +138,8 @@ export const useAIAssistantStore = create<AIAssistantState>((set) => ({
         messages: [createWelcomeMessage()],
         isLoading: false,
         error: null,
+        canRetry: false,
+        lastFailedMessage: null,
       };
     }),
 }));

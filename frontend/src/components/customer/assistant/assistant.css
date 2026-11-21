@@ -487,17 +487,43 @@
   gap: 0.45rem;
 }
 
+.sd-ai-error-banner__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.sd-ai-error-banner__retry,
 .sd-ai-error-banner__dismiss {
-  padding: 0.15rem 0.4rem;
+  padding: 0.2rem 0.5rem;
   border-radius: 6px;
-  background: rgba(153, 27, 27, 0.08);
-  color: #991b1b;
   font-size: 0.72rem;
   font-weight: 600;
   cursor: pointer;
   flex-shrink: 0;
+  transition: background-color 0.15s ease;
 }
 
+.sd-ai-error-banner__retry {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.sd-ai-error-banner__retry:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.sd-ai-error-banner__dismiss {
+  background: rgba(153, 27, 27, 0.08);
+  color: #991b1b;
+}
+
+.sd-ai-error-banner__dismiss:hover:not(:disabled) {
+  background: rgba(153, 27, 27, 0.16);
+}
+
+.sd-ai-error-banner__retry:focus-visible,
 .sd-ai-error-banner__dismiss:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px #ef4444;

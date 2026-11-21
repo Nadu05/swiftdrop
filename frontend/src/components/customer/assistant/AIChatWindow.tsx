@@ -15,7 +15,9 @@ interface AIChatWindowProps {
   messages: ChatMessageItem[];
   isLoading: boolean;
   error: string | null;
+  canRetry?: boolean;
   onSendMessage: (message: string) => void;
+  onRetry?: () => void;
   onMinimize: () => void;
   onClose: () => void;
   onClear: () => void;
@@ -28,7 +30,9 @@ export function AIChatWindow({
   messages,
   isLoading,
   error,
+  canRetry = false,
   onSendMessage,
+  onRetry,
   onMinimize,
   onClose,
   onClear,
@@ -97,13 +101,24 @@ export function AIChatWindow({
               <AlertCircle size={15} style={{ flexShrink: 0, marginTop: '2px' }} aria-hidden="true" />
               <span>{error}</span>
             </div>
-            <button
-              type="button"
-              onClick={onDismissError}
-              className="sd-ai-error-banner__dismiss"
-            >
-              Dismiss
-            </button>
+            <div className="sd-ai-error-banner__actions">
+              {canRetry && onRetry && !isLoading && (
+                <button
+                  type="button"
+                  onClick={onRetry}
+                  className="sd-ai-error-banner__retry"
+                >
+                  Retry
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onDismissError}
+                className="sd-ai-error-banner__dismiss"
+              >
+                Dismiss
+              </button>
+            </div>
           </div>
         )}
 
