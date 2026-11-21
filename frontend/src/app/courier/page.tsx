@@ -14,6 +14,7 @@ import {
   RefreshCw,
   Star,
   Truck,
+  TriangleAlert,
   Wallet,
 } from 'lucide-react';
 import AssignedJobCard from '@/components/courier/AssignedJobCard';
@@ -28,7 +29,44 @@ import {
   formatLkr,
   formatTime,
 } from '@/components/courier/CourierUI';
-import { isActiveJob, isToday, useCourierData } from '@/hooks/api/use-courier';
+import {
+  isActiveJob,
+  isToday,
+  useCourierData,
+  useCourierSummary,
+  useFilteredCourierJobs,
+} from '@/hooks/api/use-courier';
+
+const STATUS_FILTERS = [
+  { value: 'ALL', label: 'All statuses' },
+  { value: 'PENDING', label: 'Pending (new or accepted)' },
+  { value: 'IN_TRANSIT', label: 'In transit' },
+  { value: 'DELIVERED', label: 'Delivered' },
+  { value: 'FAILED', label: 'Failed' },
+] as const;
+
+const todayIso = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+const filterInputStyle: React.CSSProperties = {
+  padding: '0.5rem 0.65rem',
+  borderRadius: '8px',
+  border: '1px solid #cbd5e1',
+  background: '#ffffff',
+  color: '#0f172a',
+  fontSize: '0.85rem',
+};
+
+const filterLabelStyle: React.CSSProperties = {
+  display: 'block',
+  fontSize: '0.72rem',
+  fontWeight: 600,
+  color: '#64748b',
+  marginBottom: '0.25rem',
+  textTransform: 'uppercase',
+};
 
 /**
  * SwiftDrop Courier Operations Dashboard
@@ -46,6 +84,19 @@ import { isActiveJob, isToday, useCourierData } from '@/hooks/api/use-courier';
 export default function CourierDashboardPage() {
   const { profile, setProfile, jobs, replaceJob, loading, error, reload } = useCourierData();
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Counts and workload come from the backend summary; the status/date filter is applied on the server.
+  const summaryQuery = useCourierSummary();
+  const summary = summaryQuery.data;
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [fromDate, setFromDate] = useState<string>(todayIso());
+  const [toDate, setToDate] = useState<string>(todayIso());
+  const dateRangeInvalid = Boolean(fromDate && toDate && toDate < fromDate);
+  const filtered = useFilteredCourierJobs({
+    status: statusFilter,
+    from: fromDate || undefined,
+    to: toDate || undefined,
+  });
 
   const [currentDate] = useState(() => {
     return new Intl.DateTimeFormat('en-US', {
@@ -112,10 +163,10 @@ export default function CourierDashboardPage() {
     );
 
   const online = profile.status !== 'OFFLINE';
-  const capacityPct = Math.min(
-    100,
-    Math.round((activeJobs.length / (profile.maxCapacity || 1)) * 100)
-  );
+  const loadActive = summary?.activeWorkload ?? activeJobs.length;
+  const loadMax = summary?.maxConcurrent ?? (profile.maxCapacity || 1);
+  const capacityPct =
+    summary?.workloadPercent ?? Math.min(100, Math.round((activeJobs.length / (profile.maxCapacity || 1)) * 100));
 
   return (
     <div className="dispatcher-overview">
@@ -218,7 +269,7 @@ export default function CourierDashboardPage() {
               Current Load Capacity
             </span>
             <span style={{ fontSize: '0.8125rem', color: '#0f172a', fontWeight: 700 }}>
-              {activeJobs.length} / {profile.maxCapacity} Orders ({capacityPct}%)
+              {loadActive} / {loadMax} Orders ({capacityPct}%)
             </span>
           </div>
           <div
@@ -248,38 +299,51 @@ export default function CourierDashboardPage() {
       {/* 3. Primary Operational Metrics Grid (4 KPI Cards) */}
       <section className="dispatcher-stats-grid" aria-label="Key courier metrics">
         <StatCard
-          label="Assigned Deliveries"
-          value={assignedDeliveriesCount}
-          hint={`${newJobs.length} awaiting acceptance · ${activeJobs.length} en route`}
+          label="Assigned Today"
+          value={summary ? summary.totalAssigned : assignedDeliveriesCount}
+          hint={`${summary ? summary.inProgress : activeJobs.length} on the road · ${newJobs.length} awaiting acceptance`}
           icon={<Package size={18} />}
           iconBg="#eff6ff"
           iconColor="#2563eb"
         />
         <StatCard
-          label="Pending Pickups"
-          value={pendingPickupsCount}
-          hint="Origin merchant & branch pickups"
+          label="Pending"
+          value={summary ? summary.pending : pendingPickupsCount}
+          hint="Assigned or accepted, not yet collected"
           icon={<Clock size={18} />}
           iconBg="#fffbeb"
           iconColor="#d97706"
         />
         <StatCard
-          label="Deliveries In Progress"
-          value={`${activeJobs.length} / ${profile.maxCapacity}`}
-          hint="Active parcels currently in transit"
-          icon={<Navigation size={18} />}
-          iconBg="#eef2ff"
-          iconColor="#4f46e5"
-        />
-        <StatCard
-          label="Completed Deliveries"
-          value={completedDeliveries.length}
-          hint={`${deliveredToday.length} completed today · ${formatLkr(earningsToday)}`}
+          label="Completed Today"
+          value={summary ? summary.completed : deliveredToday.length}
+          hint={`${completedDeliveries.length} delivered in total · ${formatLkr(earningsToday)} earned today`}
           icon={<CheckCircle2 size={18} />}
           iconBg="#f0fdf4"
           iconColor="#16a34a"
         />
+        <StatCard
+          label="Failed Today"
+          value={summary ? summary.failed : finishedToday.length - deliveredToday.length}
+          hint="Failed attempts reported today"
+          icon={<TriangleAlert size={18} />}
+          iconBg="#fef2f2"
+          iconColor="#dc2626"
+        />
       </section>
+
+      {summaryQuery.isError && (
+        <p role="alert" style={{ margin: 0, fontSize: '0.8125rem', color: '#b45309', fontWeight: 600 }}>
+          Live counts could not be loaded, so the numbers shown are calculated from your task list.{' '}
+          <button
+            type="button"
+            onClick={() => summaryQuery.refetch()}
+            style={{ border: 0, background: 'none', color: '#2563eb', fontWeight: 700, cursor: 'pointer', padding: 0 }}
+          >
+            Try again
+          </button>
+        </p>
+      )}
 
       {/* 4. Secondary Performance Summary Cards */}
       <section
@@ -461,6 +525,139 @@ export default function CourierDashboardPage() {
                 onUpdated={replaceJob}
               />
             ))}
+          </div>
+        )}
+      </section>
+
+      {/* 6b. Deliveries filtered by status and assigned date (server side) */}
+      <section className="dispatcher-table-card" aria-label="My deliveries with filters">
+        <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0' }}>
+          <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>My Deliveries</h2>
+          <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0.2rem 0 0.9rem' }}>
+            Filter by status and the date the delivery was assigned. Select a row to see its details.
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.85rem', alignItems: 'flex-end' }}>
+            <div>
+              <label style={filterLabelStyle} htmlFor="courier-flt-status">
+                Status
+              </label>
+              <select
+                id="courier-flt-status"
+                style={filterInputStyle}
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                {STATUS_FILTERS.map((f) => (
+                  <option key={f.value} value={f.value}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={filterLabelStyle} htmlFor="courier-flt-from">
+                From
+              </label>
+              <input
+                id="courier-flt-from"
+                type="date"
+                style={filterInputStyle}
+                value={fromDate}
+                max={toDate || undefined}
+                onChange={(e) => setFromDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <label style={filterLabelStyle} htmlFor="courier-flt-to">
+                To
+              </label>
+              <input
+                id="courier-flt-to"
+                type="date"
+                style={filterInputStyle}
+                value={toDate}
+                min={fromDate || undefined}
+                onChange={(e) => setToDate(e.target.value)}
+              />
+            </div>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => {
+                setStatusFilter('ALL');
+                setFromDate('');
+                setToDate('');
+              }}
+            >
+              Show all dates
+            </button>
+          </div>
+        </div>
+
+        {dateRangeInvalid ? (
+          <p role="alert" style={{ padding: '1rem 1.25rem', margin: 0, color: '#b45309', fontWeight: 600 }}>
+            The end date must not be before the start date.
+          </p>
+        ) : filtered.isLoading ? (
+          <p style={{ padding: '1.25rem', margin: 0, color: '#64748b' }}>Loading deliveries…</p>
+        ) : filtered.isError ? (
+          <p role="alert" style={{ padding: '1.25rem', margin: 0, color: '#dc2626', fontWeight: 600 }}>
+            {filtered.error instanceof Error ? filtered.error.message : 'Could not load your deliveries.'}{' '}
+            <button
+              type="button"
+              onClick={() => filtered.refetch()}
+              style={{ border: 0, background: 'none', color: '#2563eb', fontWeight: 700, cursor: 'pointer', padding: 0 }}
+            >
+              Try again
+            </button>
+          </p>
+        ) : (
+          <div className="dispatcher-table-wrapper">
+            <table className="dispatcher-table">
+              <thead>
+                <tr>
+                  <th>Tracking / Order</th>
+                  <th>Recipient &amp; Address</th>
+                  <th>Assigned</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(filtered.data ?? []).length === 0 ? (
+                  <tr>
+                    <td colSpan={4} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                      No deliveries match these filters.
+                    </td>
+                  </tr>
+                ) : (
+                  (filtered.data ?? []).map((job) => (
+                    <tr key={job.assignmentId}>
+                      <td>
+                        <Link
+                          href={`/courier/deliveries/${encodeURIComponent(job.assignmentId)}`}
+                          style={{ fontWeight: 700, color: '#2563eb', textDecoration: 'none' }}
+                        >
+                          {job.trackingNumber}
+                        </Link>
+                        <div style={{ fontSize: '0.72rem', color: '#64748b' }}>Order {job.orderId}</div>
+                      </td>
+                      <td>
+                        <div style={{ fontWeight: 600, color: '#334155' }}>{job.recipient.name}</div>
+                        <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                          {job.recipient.address}, {job.recipient.city}
+                        </div>
+                      </td>
+                      <td>
+                        <span style={{ fontSize: '0.8125rem', color: '#475569' }}>{formatDateTime(job.assignedAt)}</span>
+                      </td>
+                      <td>
+                        <JobStatusBadge status={job.status} />
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         )}
       </section>

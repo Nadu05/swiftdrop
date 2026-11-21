@@ -15,7 +15,8 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { mapDeliveryJobDtoToCourierJob } from '@/api/services/courier.api';
-import { useAcceptCourierTaskMutation } from '@/hooks/api/use-courier';
+import { describeActionError, useAcceptCourierTaskMutation } from '@/hooks/api/use-courier';
+import { canDo } from './courierActions';
 import type { CourierJob } from '@/types/courier.types';
 import {
   JobStatusBadge,
@@ -36,8 +37,12 @@ export default function AssignedJobCard({ job, canAccept, onUpdated }: AssignedJ
   const acceptMutation = useAcceptCourierTaskMutation();
 
   const isPickup = job.taskType === 'PICKUP';
-  const showAccept = job.status === 'ASSIGNED';
-  const isEnRoute = job.status === 'ACCEPTED' || job.status === 'IN_TRANSIT';
+  const showAccept = canDo(job, 'ACCEPT');
+  // A failed attempt that can still be retried also needs the active view.
+  const isEnRoute =
+    job.status === 'ACCEPTED' ||
+    job.status === 'IN_TRANSIT' ||
+    (job.status === 'FAILED' && canDo(job, 'DELIVER'));
   const attemptCount = job.attemptCount ?? 0;
   const maxAttempts = job.maxAttempts ?? 3;
 
@@ -47,7 +52,7 @@ export default function AssignedJobCard({ job, canAccept, onUpdated }: AssignedJ
       const dto = await acceptMutation.mutateAsync(job.assignmentId);
       onUpdated(mapDeliveryJobDtoToCourierJob(dto));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to accept task');
+      setError(describeActionError(err, 'Failed to accept task'));
     }
   };
 
@@ -305,6 +310,26 @@ export default function AssignedJobCard({ job, canAccept, onUpdated }: AssignedJ
               <ArrowRight size={13} />
             </Link>
           )}
+
+          <Link
+            href={`/courier/deliveries/${encodeURIComponent(job.assignmentId)}`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              padding: '0.45rem 0.9rem',
+              borderRadius: '9px',
+              background: '#ffffff',
+              color: '#334155',
+              border: '1px solid #e2e8f0',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              textDecoration: 'none',
+            }}
+          >
+            <span>Details</span>
+            <ArrowRight size={13} />
+          </Link>
         </div>
       </div>
 

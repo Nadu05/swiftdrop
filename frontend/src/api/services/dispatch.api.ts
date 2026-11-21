@@ -38,6 +38,8 @@ export type DispatchExceptionDecisionAction =
 export interface DispatchAttemptRecordDto {
   id?: number | string;
   attemptNumber: number;
+  /** SUCCESS or FAILED. */
+  outcome?: string;
   status?: string;
   courierId?: string | number;
   courierName?: string;
@@ -167,6 +169,8 @@ export interface DeliveryJobDto {
   attempts?: DispatchAttemptRecordDto[];
   proofOfDelivery?: DispatchProofOfDeliveryDto | null;
   failure?: DispatchFailureInfoDto | null;
+  /** Courier actions the backend allows right now: ACCEPT, PICKUP, DELIVER, FAIL. */
+  allowedActions?: string[];
   payoutLkr?: number;
   deliveryFee?: number;
   paymentMethod?: string;
@@ -182,6 +186,28 @@ export interface DeliveryJobDto {
   deliveredAt?: string;
   completedAt?: string;
   updatedAt?: string;
+}
+
+/** Dashboard counters for the signed-in courier (GET /couriers/me/summary). */
+export interface CourierSummaryDto {
+  date: string;
+  totalAssigned: number;
+  pending: number;
+  inProgress: number;
+  completed: number;
+  failed: number;
+  activeWorkload: number;
+  maxConcurrent: number;
+  workloadPercent: number;
+  workloadLevel: 'LOW' | 'MEDIUM' | 'HIGH' | string;
+}
+
+export interface CourierJobFilters {
+  /** ALL, PENDING, ACTIVE or a single status such as DELIVERED. */
+  status?: string;
+  /** ISO date (yyyy-mm-dd), inclusive, by assigned date. */
+  from?: string;
+  to?: string;
 }
 
 export interface CourierProfileDto {
@@ -489,6 +515,11 @@ function handleDispatchError(error: unknown, fallback: string): never {
   throw new Error(message && message !== 'An unexpected error occurred' ? message : fallback);
 }
 
+/** Sends an Idempotency-Key so a retried courier action is not recorded twice. */
+function idempotencyHeaders(key?: string) {
+  return key ? { headers: { 'Idempotency-Key': key } } : undefined;
+}
+
 export const dispatchApi = {
   // ── Dispatcher Queue & Pickup Tasks ─────────────────────────────────────────
   async getPickupTasks(params?: {
@@ -683,10 +714,11 @@ export const dispatchApi = {
     }
   },
 
-  async getMyAssignments(): Promise<DeliveryJobDto[]> {
+  async getMyAssignments(filters?: CourierJobFilters): Promise<DeliveryJobDto[]> {
     try {
       const { data } = await axiosClient.get<DeliveryJobDto[]>(
-        '/api/v1/dispatch/couriers/me/assignments'
+        '/api/v1/dispatch/couriers/me/assignments',
+        { params: filters }
       );
       return Array.isArray(data) ? data : [];
     } catch (error) {
@@ -694,10 +726,54 @@ export const dispatchApi = {
     }
   },
 
-  async acceptMyAssignment(assignmentOrJobId: string | number): Promise<DeliveryJobDto> {
+  async getMyCourierSummary(date?: string): Promise<CourierSummaryDto> {
+    try {
+      const { data } = await axiosClient.get<CourierSummaryDto>(
+        '/api/v1/dispatch/couriers/me/summary',
+        { params: date ? { date } : undefined }
+      );
+      return data;
+    } catch (error) {
+      handleDispatchError(error, 'Failed to load your dashboard summary');
+    }
+  },
+
+  async getMyAssignmentDetail(assignmentOrJobId: string | number): Promise<DeliveryJobDto> {
+    try {
+      const { data } = await axiosClient.get<DeliveryJobDto>(
+        `/api/v1/dispatch/couriers/me/assignments/${encodeURIComponent(String(assignmentOrJobId))}`
+      );
+      return data;
+    } catch (error) {
+      handleDispatchError(error, 'Failed to load delivery details');
+    }
+  },
+
+  /** Uploads a proof-of-delivery photo; returns the evidence reference to send with deliver. */
+  async uploadMyPodPhoto(assignmentOrJobId: string | number, file: File): Promise<string> {
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const { data } = await axiosClient.post<{ photoEvidenceReference: string }>(
+        `/api/v1/dispatch/couriers/me/assignments/${encodeURIComponent(String(assignmentOrJobId))}/pod-photo`,
+        form,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      );
+      return data.photoEvidenceReference;
+    } catch (error) {
+      handleDispatchError(error, 'Failed to upload the photo');
+    }
+  },
+
+  async acceptMyAssignment(
+    assignmentOrJobId: string | number,
+    idempotencyKey?: string
+  ): Promise<DeliveryJobDto> {
     try {
       const { data } = await axiosClient.post<DeliveryJobDto>(
-        `/api/v1/dispatch/couriers/me/assignments/${encodeURIComponent(String(assignmentOrJobId))}/accept`
+        `/api/v1/dispatch/couriers/me/assignments/${encodeURIComponent(String(assignmentOrJobId))}/accept`,
+        undefined,
+        idempotencyHeaders(idempotencyKey)
       );
       return data;
     } catch (error) {
@@ -705,10 +781,15 @@ export const dispatchApi = {
     }
   },
 
-  async pickupMyAssignment(assignmentOrJobId: string | number): Promise<DeliveryJobDto> {
+  async pickupMyAssignment(
+    assignmentOrJobId: string | number,
+    idempotencyKey?: string
+  ): Promise<DeliveryJobDto> {
     try {
       const { data } = await axiosClient.post<DeliveryJobDto>(
-        `/api/v1/dispatch/couriers/me/assignments/${encodeURIComponent(String(assignmentOrJobId))}/pickup`
+        `/api/v1/dispatch/couriers/me/assignments/${encodeURIComponent(String(assignmentOrJobId))}/pickup`,
+        undefined,
+        idempotencyHeaders(idempotencyKey)
       );
       return data;
     } catch (error) {
@@ -718,7 +799,8 @@ export const dispatchApi = {
 
   async deliverMyAssignment(
     assignmentOrJobId: string | number,
-    payload: PodSubmissionRequest
+    payload: PodSubmissionRequest,
+    idempotencyKey?: string
   ): Promise<DeliveryJobDto> {
     try {
       const requestBody: PodSubmissionRequest = {
@@ -736,7 +818,8 @@ export const dispatchApi = {
       };
       const { data } = await axiosClient.post<DeliveryJobDto>(
         `/api/v1/dispatch/couriers/me/assignments/${encodeURIComponent(String(assignmentOrJobId))}/deliver`,
-        requestBody
+        requestBody,
+        idempotencyHeaders(idempotencyKey)
       );
       return data;
     } catch (error) {
@@ -746,12 +829,14 @@ export const dispatchApi = {
 
   async failMyAssignment(
     assignmentOrJobId: string | number,
-    payload: FailureSubmissionRequest
+    payload: FailureSubmissionRequest,
+    idempotencyKey?: string
   ): Promise<DeliveryJobDto> {
     try {
       const { data } = await axiosClient.post<DeliveryJobDto>(
         `/api/v1/dispatch/couriers/me/assignments/${encodeURIComponent(String(assignmentOrJobId))}/fail`,
-        payload
+        payload,
+        idempotencyHeaders(idempotencyKey)
       );
       return data;
     } catch (error) {
