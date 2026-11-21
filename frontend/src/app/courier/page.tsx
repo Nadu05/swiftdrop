@@ -1,13 +1,19 @@
 'use client';
 
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowRight,
+  Bike,
+  Calendar,
   CheckCircle2,
+  Clock,
+  Compass,
   Navigation,
   Package,
-  Clock,
+  RefreshCw,
   Star,
+  Truck,
   Wallet,
 } from 'lucide-react';
 import AssignedJobCard from '@/components/courier/AssignedJobCard';
@@ -17,26 +23,84 @@ import {
   ErrorState,
   JobStatusBadge,
   LoadingState,
-  PageHeader,
   StatCard,
+  formatDateTime,
   formatLkr,
   formatTime,
 } from '@/components/courier/CourierUI';
 import { isActiveJob, isToday, useCourierData } from '@/hooks/api/use-courier';
 
 /**
- * Member 08: Courier Dashboard
+ * SwiftDrop Courier Operations Dashboard
  * Routes: /courier/dashboard & /courier
  *
  * Displays:
- * - Assigned deliveries
- * - Pending pickups
- * - Deliveries in progress
- * - Completed deliveries
- * - Delivery task list
+ * - Operational Header with Date & Live Refresh
+ * - Status & Vehicle Operations Strip
+ * - Primary Operational Metrics (Assigned, Pickups, In Transit, Completed)
+ * - Secondary Performance & Payout Summary
+ * - Deliveries in Progress (Active Execution)
+ * - Delivery Task List (New Dispatch Assignments)
+ * - Finished & Delivered Today Summary Table
  */
 export default function CourierDashboardPage() {
   const { profile, setProfile, jobs, replaceJob, loading, error, reload } = useCourierData();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const [currentDate] = useState(() => {
+    return new Intl.DateTimeFormat('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    }).format(new Date());
+  });
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await reload();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const activeJobs = useMemo(() => jobs.filter(isActiveJob), [jobs]);
+  const newJobs = useMemo(() => jobs.filter((j) => j.status === 'ASSIGNED'), [jobs]);
+  const assignedDeliveriesCount = newJobs.length + activeJobs.length;
+
+  const pendingPickupsCount = useMemo(
+    () =>
+      jobs.filter(
+        (j) =>
+          (j.taskType === 'PICKUP' || j.status === 'ASSIGNED') &&
+          (j.status === 'ASSIGNED' || isActiveJob(j))
+      ).length,
+    [jobs]
+  );
+
+  const completedDeliveries = useMemo(
+    () => jobs.filter((j) => j.status === 'DELIVERED'),
+    [jobs]
+  );
+
+  const finishedToday = useMemo(
+    () =>
+      jobs.filter(
+        (j) => (j.status === 'DELIVERED' || j.status === 'FAILED') && isToday(j.completedAt)
+      ),
+    [jobs]
+  );
+
+  const deliveredToday = useMemo(
+    () => finishedToday.filter((j) => j.status === 'DELIVERED'),
+    [finishedToday]
+  );
+
+  const earningsToday = useMemo(
+    () => deliveredToday.reduce((sum, j) => sum + j.payoutLkr, 0),
+    [deliveredToday]
+  );
 
   if (loading && !profile) return <LoadingState text="Loading your courier dashboard…" />;
   if (error || !profile)
@@ -47,198 +111,459 @@ export default function CourierDashboardPage() {
       />
     );
 
-  const activeJobs = jobs.filter(isActiveJob);
-  const newJobs = jobs.filter((j) => j.status === 'ASSIGNED');
-  const assignedDeliveriesCount = newJobs.length + activeJobs.length;
-  const pendingPickupsCount = jobs.filter(
-    (j) =>
-      (j.taskType === 'PICKUP' || j.status === 'ASSIGNED') &&
-      (j.status === 'ASSIGNED' || isActiveJob(j))
-  ).length;
-  const completedDeliveries = jobs.filter((j) => j.status === 'DELIVERED');
-  const finishedToday = jobs.filter(
-    (j) => (j.status === 'DELIVERED' || j.status === 'FAILED') && isToday(j.completedAt)
-  );
-  const deliveredToday = finishedToday.filter((j) => j.status === 'DELIVERED');
-  const earningsToday = deliveredToday.reduce((sum, j) => sum + j.payoutLkr, 0);
   const online = profile.status !== 'OFFLINE';
+  const capacityPct = Math.min(
+    100,
+    Math.round((activeJobs.length / (profile.maxCapacity || 1)) * 100)
+  );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      <PageHeader
-        title={`Welcome back, ${profile.name.split(' ')[0]}`}
-        subtitle={`${profile.courierCode} · ${profile.branchName} · ${profile.vehicleType} ${profile.vehiclePlate}`}
-        action={<AvailabilityToggle profile={profile} onChange={setProfile} />}
-      />
+    <div className="dispatcher-overview">
+      {/* 1. Header with Title & Live Refresh / Date / Availability Action */}
+      <header className="dispatcher-overview__header">
+        <div className="dispatcher-overview__title-group">
+          <h1 className="dispatcher-overview__title">Courier Operations Dashboard</h1>
+          <p className="dispatcher-overview__subtitle">
+            Welcome back, {profile.name} · {profile.courierCode} · {profile.branchName}
+          </p>
+        </div>
 
-      {/* Primary Operational Metrics required by Phase 5.3 */}
-      <div className="grid-cols-4">
+        <div className="dispatcher-overview__actions">
+          <div className="dispatcher-overview__date-badge" title="Current operations date">
+            <Calendar size={15} className="dispatcher-overview__date-icon" aria-hidden="true" />
+            <span>{currentDate}</span>
+          </div>
+
+          <button
+            type="button"
+            className="dispatcher-overview__refresh-btn"
+            onClick={handleManualRefresh}
+            disabled={isRefreshing || loading}
+            aria-label="Refresh dashboard data"
+          >
+            <RefreshCw
+              size={14}
+              className={`dispatcher-overview__refresh-icon ${
+                isRefreshing ? 'dispatcher-overview__refresh-icon--spinning' : ''
+              }`}
+              aria-hidden="true"
+            />
+            <span>{isRefreshing ? 'Refreshing…' : 'Refresh'}</span>
+          </button>
+
+          <AvailabilityToggle profile={profile} onChange={setProfile} />
+        </div>
+      </header>
+
+      {/* 2. Operations & Vehicle Status Attention Strip */}
+      <section
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '1rem',
+          padding: '0.85rem 1.25rem',
+          background: 'var(--ds-surface, #ffffff)',
+          border: '1px solid var(--ds-border, #e2e8f0)',
+          borderRadius: '12px',
+          boxShadow: '0 1px 2px rgba(15, 23, 42, 0.03)',
+        }}
+        aria-label="Courier status details"
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              padding: '0.3rem 0.65rem',
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              fontSize: '0.8125rem',
+              color: '#334155',
+              fontWeight: 600,
+            }}
+          >
+            <Bike size={15} color="#2563eb" />
+            <span>
+              {profile.vehicleType} ({profile.vehiclePlate || 'Assigned'})
+            </span>
+          </div>
+
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              padding: '0.3rem 0.65rem',
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              fontSize: '0.8125rem',
+              color: '#334155',
+              fontWeight: 600,
+            }}
+          >
+            <Compass size={15} color="#059669" />
+            <span>Hub: {profile.branchName}</span>
+          </div>
+        </div>
+
+        {/* Capacity utilization indicator */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.15rem' }}>
+            <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>
+              Current Load Capacity
+            </span>
+            <span style={{ fontSize: '0.8125rem', color: '#0f172a', fontWeight: 700 }}>
+              {activeJobs.length} / {profile.maxCapacity} Orders ({capacityPct}%)
+            </span>
+          </div>
+          <div
+            style={{
+              width: '80px',
+              height: '8px',
+              background: '#e2e8f0',
+              borderRadius: '999px',
+              overflow: 'hidden',
+            }}
+            title={`Capacity: ${capacityPct}%`}
+          >
+            <div
+              style={{
+                width: `${capacityPct}%`,
+                height: '100%',
+                background:
+                  capacityPct > 80 ? '#ef4444' : capacityPct > 50 ? '#f59e0b' : '#2563eb',
+                borderRadius: '999px',
+                transition: 'width 0.3s ease',
+              }}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* 3. Primary Operational Metrics Grid (4 KPI Cards) */}
+      <section className="dispatcher-stats-grid" aria-label="Key courier metrics">
         <StatCard
           label="Assigned Deliveries"
           value={assignedDeliveriesCount}
-          hint={`${newJobs.length} awaiting acceptance`}
-          icon={<Package size={18} color="#38bdf8" />}
+          hint={`${newJobs.length} awaiting acceptance · ${activeJobs.length} en route`}
+          icon={<Package size={18} />}
+          iconBg="#eff6ff"
+          iconColor="#2563eb"
         />
         <StatCard
           label="Pending Pickups"
           value={pendingPickupsCount}
-          hint="Origin & hub pickup tasks"
-          icon={<Clock size={18} color="#f59e0b" />}
+          hint="Origin merchant & branch pickups"
+          icon={<Clock size={18} />}
+          iconBg="#fffbeb"
+          iconColor="#d97706"
         />
         <StatCard
-          label="Deliveries in Progress"
+          label="Deliveries In Progress"
           value={`${activeJobs.length} / ${profile.maxCapacity}`}
-          hint="Currently en route"
-          icon={<Navigation size={18} color="#6366f1" />}
+          hint="Active parcels currently in transit"
+          icon={<Navigation size={18} />}
+          iconBg="#eef2ff"
+          iconColor="#4f46e5"
         />
         <StatCard
           label="Completed Deliveries"
           value={completedDeliveries.length}
-          hint={`${deliveredToday.length} delivered today · ${formatLkr(earningsToday)}`}
-          icon={<CheckCircle2 size={18} color="#10b981" />}
+          hint={`${deliveredToday.length} completed today · ${formatLkr(earningsToday)}`}
+          icon={<CheckCircle2 size={18} />}
+          iconBg="#f0fdf4"
+          iconColor="#16a34a"
         />
-      </div>
+      </section>
 
-      {/* Secondary Performance Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* 4. Secondary Performance Summary Cards */}
+      <section
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: '1.25rem',
+        }}
+        aria-label="Courier performance summary"
+      >
         <StatCard
           label="Today's Payout Earnings"
           value={formatLkr(earningsToday)}
-          hint={`From ${deliveredToday.length} delivered job(s) today`}
-          icon={<Wallet size={18} color="#3b82f6" />}
+          hint={`Earned across ${deliveredToday.length} successfully delivered parcel(s) today`}
+          icon={<Wallet size={18} />}
+          iconBg="#f0fdf4"
+          iconColor="#059669"
         />
         <StatCard
           label="Courier Service Rating"
           value={`${profile.rating.toFixed(1)} ★`}
-          hint={`Branch: ${profile.branchName}`}
-          icon={<Star size={18} color="#8b5cf6" />}
+          hint={`Branch fleet rating · Branch: ${profile.branchName}`}
+          icon={<Star size={18} />}
+          iconBg="#f5f3ff"
+          iconColor="#7c3aed"
         />
-      </div>
+      </section>
 
+      {/* 5. Deliveries In Progress (Active Jobs) */}
       {activeJobs.length > 0 && (
-        <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <SectionTitle title="Deliveries In Progress" subtitle="Jobs you have accepted and are executing" />
-          {activeJobs.map((job) => (
-            <AssignedJobCard
-              key={job.assignmentId}
-              job={job}
-              canAccept={online}
-              onUpdated={replaceJob}
-            />
-          ))}
+        <section
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1rem',
+          }}
+          aria-label="Active deliveries in progress"
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '0.75rem',
+            }}
+          >
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+                  Deliveries In Progress ({activeJobs.length})
+                </h2>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.25rem',
+                    padding: '0.15rem 0.5rem',
+                    borderRadius: '999px',
+                    background: '#eff6ff',
+                    color: '#1d4ed8',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                  }}
+                >
+                  ACTIVE
+                </span>
+              </div>
+              <p style={{ fontSize: '0.8125rem', color: '#64748b', margin: '0.2rem 0 0' }}>
+                Jobs you have accepted and are currently executing on your route.
+              </p>
+            </div>
+
+            <Link
+              href="/courier/active"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                color: '#2563eb',
+                fontSize: '0.8125rem',
+                fontWeight: 600,
+                textDecoration: 'none',
+              }}
+            >
+              Open Active Delivery View <ArrowRight size={14} />
+            </Link>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            {activeJobs.map((job) => (
+              <AssignedJobCard
+                key={job.assignmentId}
+                job={job}
+                canAccept={online}
+                onUpdated={replaceJob}
+              />
+            ))}
+          </div>
         </section>
       )}
 
-      <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <SectionTitle
-          title="Delivery Task List (New Assignments)"
-          subtitle="Jobs your branch dispatcher assigned to you"
-          link={{ href: '/courier/deliveries', label: 'All deliveries' }}
-        />
+      {/* 6. Delivery Task List (New Assignments) */}
+      <section
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '1rem',
+        }}
+        aria-label="New delivery assignments"
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '0.75rem',
+          }}
+        >
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+                Delivery Task List — New Assignments ({newJobs.length})
+              </h2>
+              {newJobs.length > 0 && (
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    padding: '0.15rem 0.5rem',
+                    borderRadius: '999px',
+                    background: '#fffbeb',
+                    color: '#b45309',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                  }}
+                >
+                  NEW
+                </span>
+              )}
+            </div>
+            <p style={{ fontSize: '0.8125rem', color: '#64748b', margin: '0.2rem 0 0' }}>
+              Jobs your branch dispatcher has assigned to you awaiting acceptance.
+            </p>
+          </div>
+
+          <Link
+            href="/courier/deliveries"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              color: '#2563eb',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              textDecoration: 'none',
+            }}
+          >
+            All deliveries ({assignedDeliveriesCount}) <ArrowRight size={14} />
+          </Link>
+        </div>
+
         {newJobs.length === 0 ? (
           <EmptyState
             text={
               online
-                ? 'No new jobs right now. Your branch will assign one soon.'
-                : 'You are offline. Go online to receive jobs.'
+                ? 'No new assignments right now. Your branch dispatcher will assign a parcel soon.'
+                : 'You are currently offline. Switch status to Online & Available to receive jobs.'
             }
           />
         ) : (
-          newJobs.map((job) => (
-            <AssignedJobCard
-              key={job.assignmentId}
-              job={job}
-              canAccept={online}
-              onUpdated={replaceJob}
-            />
-          ))
-        )}
-      </section>
-
-      <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <SectionTitle
-          title="Completed & Finished Today"
-          subtitle="Delivered and failed jobs"
-          link={{ href: '/courier/history', label: 'Job history' }}
-        />
-        {finishedToday.length === 0 ? (
-          <EmptyState text="No finished jobs yet today." />
-        ) : (
-          <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
-            {finishedToday.map((job, i) => (
-              <div
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            {newJobs.map((job) => (
+              <AssignedJobCard
                 key={job.assignmentId}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  gap: '1rem',
-                  padding: '0.9rem 1.5rem',
-                  borderTop: i === 0 ? 'none' : '1px solid rgba(59, 130, 246, 0.1)',
-                  flexWrap: 'wrap',
-                }}
-              >
-                <span style={{ color: '#ffffff', fontWeight: 600 }}>{job.trackingNumber}</span>
-                <span style={{ color: '#94a3b8', fontSize: '0.85rem', flex: 1 }}>
-                  {job.recipient.city} · {formatTime(job.completedAt)}
-                </span>
-                <JobStatusBadge status={job.status} />
-                <span
-                  style={{
-                    color: '#e2e8f0',
-                    fontSize: '0.85rem',
-                    minWidth: '90px',
-                    textAlign: 'right',
-                  }}
-                >
-                  {job.status === 'DELIVERED' ? formatLkr(job.payoutLkr) : 'No payout'}
-                </span>
-              </div>
+                job={job}
+                canAccept={online}
+                onUpdated={replaceJob}
+              />
             ))}
           </div>
         )}
       </section>
-    </div>
-  );
-}
 
-function SectionTitle({
-  title,
-  subtitle,
-  link,
-}: {
-  title: string;
-  subtitle: string;
-  link?: { href: string; label: string };
-}) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'flex-end',
-        gap: '1rem',
-      }}
-    >
-      <div>
-        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#ffffff' }}>{title}</h2>
-        <p style={{ fontSize: '0.85rem', color: '#94a3b8' }}>{subtitle}</p>
-      </div>
-      {link && (
-        <Link
-          href={link.href}
+      {/* 7. Completed & Finished Today Summary Table */}
+      <section className="dispatcher-table-card" aria-label="Completed today table">
+        <div
           style={{
             display: 'flex',
+            justifyContent: 'space-between',
             alignItems: 'center',
-            gap: '0.3rem',
-            color: '#60a5fa',
-            fontSize: '0.85rem',
-            textDecoration: 'none',
+            padding: '1rem 1.25rem',
+            borderBottom: '1px solid #e2e8f0',
+            flexWrap: 'wrap',
+            gap: '0.75rem',
           }}
         >
-          {link.label} <ArrowRight size={14} />
-        </Link>
-      )}
+          <div>
+            <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+              Completed &amp; Finished Today ({finishedToday.length})
+            </h2>
+            <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0.2rem 0 0' }}>
+              Delivered and processed parcels from your shifts today.
+            </p>
+          </div>
+
+          <Link
+            href="/courier/history"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.3rem',
+              color: '#2563eb',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              textDecoration: 'none',
+            }}
+          >
+            View Job History <ArrowRight size={13} />
+          </Link>
+        </div>
+
+        <div className="dispatcher-table-wrapper">
+          <table className="dispatcher-table">
+            <thead>
+              <tr>
+                <th>Tracking / Parcel ID</th>
+                <th>Destination &amp; Route</th>
+                <th>Completion Time</th>
+                <th>Status</th>
+                <th style={{ textAlign: 'right' }}>Payout Earned</th>
+              </tr>
+            </thead>
+            <tbody>
+              {finishedToday.length === 0 ? (
+                <tr>
+                  <td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                    No completed jobs yet today. Accepted deliveries will appear here upon completion.
+                  </td>
+                </tr>
+              ) : (
+                finishedToday.map((job) => (
+                  <tr key={job.assignmentId}>
+                    <td>
+                      <div style={{ fontWeight: 700, color: '#0f172a' }}>{job.trackingNumber}</div>
+                      <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                        {job.merchantName}
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ fontWeight: 600, color: '#334155' }}>
+                        {job.recipient.city}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                        {job.recipient.address}
+                      </div>
+                    </td>
+                    <td>
+                      <span style={{ fontSize: '0.8125rem', color: '#475569' }}>
+                        {formatTime(job.completedAt)}
+                      </span>
+                    </td>
+                    <td>
+                      <JobStatusBadge status={job.status} />
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <span
+                        style={{
+                          fontWeight: 700,
+                          fontSize: '0.875rem',
+                          color: job.status === 'DELIVERED' ? '#059669' : '#94a3b8',
+                        }}
+                      >
+                        {job.status === 'DELIVERED' ? formatLkr(job.payoutLkr) : '—'}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 }

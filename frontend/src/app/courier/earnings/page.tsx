@@ -18,8 +18,7 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
  * Member 08: Earnings
  * Route: /courier/earnings
  *
- * Payouts from delivered jobs. Failed jobs earn nothing. Calculated from the
- * courier's job list until dispatch-service exposes a payouts endpoint.
+ * Payouts from delivered jobs. Failed jobs earn nothing.
  */
 export default function EarningsPage() {
   const { profile, jobs, loading, error, reload } = useCourierData();
@@ -37,43 +36,112 @@ export default function EarningsPage() {
   const average = delivered.length ? Math.round(sum(delivered) / delivered.length) : 0;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      <PageHeader title="Earnings" subtitle="Payouts for delivered jobs. Failed or cancelled jobs are not paid." />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+      <PageHeader
+        title="Payout Earnings"
+        subtitle="Payouts for delivered jobs. Failed or cancelled jobs are not eligible for payout."
+      />
 
-      <div className="grid-cols-4">
-        <StatCard label="Today" value={formatLkr(sum(today))} hint={`${today.length} delivered`} icon={<Wallet size={18} color="#3b82f6" />} />
-        <StatCard label="Last 7 days" value={formatLkr(sum(week))} hint={`${week.length} delivered`} icon={<CalendarDays size={18} color="#10b981" />} />
-        <StatCard label="Paid jobs" value={delivered.length} hint="All time" icon={<CheckCircle2 size={18} color="#f59e0b" />} />
-        <StatCard label="Average per job" value={formatLkr(average)} hint="Delivered jobs" icon={<TrendingUp size={18} color="#8b5cf6" />} />
-      </div>
+      <section className="dispatcher-stats-grid" aria-label="Earnings metrics">
+        <StatCard
+          label="Today's Earnings"
+          value={formatLkr(sum(today))}
+          hint={`${today.length} job(s) delivered today`}
+          icon={<Wallet size={18} />}
+          iconBg="#eff6ff"
+          iconColor="#2563eb"
+        />
+        <StatCard
+          label="Last 7 Days"
+          value={formatLkr(sum(week))}
+          hint={`${week.length} deliveries in the last 7 days`}
+          icon={<CalendarDays size={18} />}
+          iconBg="#f0fdf4"
+          iconColor="#16a34a"
+        />
+        <StatCard
+          label="Total Paid Deliveries"
+          value={delivered.length}
+          hint="All completed jobs with verified delivery"
+          icon={<CheckCircle2 size={18} />}
+          iconBg="#fffbeb"
+          iconColor="#d97706"
+        />
+        <StatCard
+          label="Average Payout / Job"
+          value={formatLkr(average)}
+          hint="Per successful delivery completion"
+          icon={<TrendingUp size={18} />}
+          iconBg="#f5f3ff"
+          iconColor="#7c3aed"
+        />
+      </section>
 
-      <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#ffffff' }}>Payout breakdown</h2>
+      <section className="dispatcher-table-card" aria-label="Payout breakdown table">
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '1rem 1.25rem',
+            borderBottom: '1px solid #e2e8f0',
+          }}
+        >
+          <div>
+            <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+              Payout Breakdown ({delivered.length})
+            </h2>
+            <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0.2rem 0 0' }}>
+              Itemized history of delivered orders and earnings credited.
+            </p>
+          </div>
+        </div>
+
         {delivered.length === 0 ? (
-          <EmptyState text="No paid jobs yet." />
+          <div style={{ padding: '2rem' }}>
+            <EmptyState text="No completed paid jobs yet." />
+          </div>
         ) : (
-          <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
-            {delivered.map((job, i) => (
-              <div
-                key={job.assignmentId}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  gap: '1rem',
-                  padding: '0.9rem 1.5rem',
-                  borderTop: i === 0 ? 'none' : '1px solid rgba(59, 130, 246, 0.1)',
-                  flexWrap: 'wrap',
-                }}
-              >
-                <span style={{ color: '#ffffff', fontWeight: 600, minWidth: '90px' }}>{job.trackingNumber}</span>
-                <span style={{ color: '#94a3b8', fontSize: '0.85rem', flex: 1 }}>
-                  {job.merchantName} → {job.recipient.city} · {job.distanceKm} km
-                </span>
-                <span style={{ color: '#64748b', fontSize: '0.8rem' }}>{formatDateTime(job.completedAt)}</span>
-                <span style={{ color: '#34d399', fontWeight: 700, minWidth: '90px', textAlign: 'right' }}>{formatLkr(job.payoutLkr)}</span>
-              </div>
-            ))}
+          <div className="dispatcher-table-wrapper">
+            <table className="dispatcher-table">
+              <thead>
+                <tr>
+                  <th>Tracking Number</th>
+                  <th>Route &amp; Distance</th>
+                  <th>Completion Timestamp</th>
+                  <th style={{ textAlign: 'right' }}>Payout Earned</th>
+                </tr>
+              </thead>
+              <tbody>
+                {delivered.map((job) => (
+                  <tr key={job.assignmentId}>
+                    <td>
+                      <div style={{ fontWeight: 700, color: '#0f172a' }}>{job.trackingNumber}</div>
+                    </td>
+                    <td>
+                      <div style={{ fontWeight: 600, color: '#334155' }}>
+                        {job.merchantName} → {job.recipient.city}
+                      </div>
+                      {job.distanceKm ? (
+                        <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                          Distance: {job.distanceKm} km
+                        </div>
+                      ) : null}
+                    </td>
+                    <td>
+                      <span style={{ fontSize: '0.8125rem', color: '#475569' }}>
+                        {formatDateTime(job.completedAt)}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <span style={{ fontWeight: 700, fontSize: '0.875rem', color: '#059669' }}>
+                        {formatLkr(job.payoutLkr)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </section>

@@ -6503,4 +6503,45 @@ body.org-scroll-lock {
   font-weight: 600;
 }
 
+/* ==========================================================================
+   Courier Portal — Unified Design System Styles
+   Seamlessly unifies Courier Field Portal with Dispatcher & Organization UI.
+   ========================================================================== */
+
+.courier-shell {
+  --bg-card: #ffffff;
+  --border-color: #e2e8f0;
+  --border-highlight: #cbd5e1;
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02);
+  --shadow-glow: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+.courier-shell .glass-card {
+  background: var(--ds-surface, #ffffff);
+  border: 1px solid var(--ds-border, #e2e8f0);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  color: var(--ds-text, #0f172a);
+}
+
+.courier-shell .glass-card h1,
+.courier-shell .glass-card h2,
+.courier-shell .glass-card h3,
+.courier-shell .glass-card strong {
+  color: var(--ds-text, #0f172a);
+}
+
+.courier-shell .glass-card span[style*="color: #ffffff"],
+.courier-shell .glass-card span[style*="color: rgb(255, 255, 255)"],
+.courier-shell .glass-card div[style*="color: #ffffff"],
+.courier-shell .glass-card div[style*="color: rgb(255, 255, 255)"] {
+  color: #0f172a !important;
+}
+
+.courier-shell .glass-card span[style*="color: #cbd5e1"],
+.courier-shell .glass-card span[style*="color: #f1f5f9"],
+.courier-shell .glass-card span[style*="color: #e2e8f0"] {
+  color: #334155 !important;
+}
+
+
 
