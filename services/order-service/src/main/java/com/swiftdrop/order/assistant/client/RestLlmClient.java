@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -50,6 +51,16 @@ public class RestLlmClient implements LlmClient {
         String normalizedBaseUrl = normalizeBaseUrl(properties.getBaseUrl());
         this.endpointPath = resolveEndpointPath(normalizedBaseUrl);
         this.restClient = builder.baseUrl(normalizedBaseUrl).build();
+        boolean apiKeyConfigured = properties.getApiKey() != null && !properties.getApiKey().isBlank();
+        log.info(
+                "SwiftDrop AI RestLlmClient initialized (enabled={}, provider={}, model={}, baseUrl={}, endpointPath={}, apiKeyConfigured={})",
+                properties.isEnabled(),
+                properties.getProvider(),
+                properties.getModel(),
+                normalizedBaseUrl,
+                this.endpointPath,
+                apiKeyConfigured
+        );
     }
 
     private static RestClient.Builder createTimeoutBuilder(AiAssistantProperties properties) {
@@ -132,10 +143,13 @@ public class RestLlmClient implements LlmClient {
     }
 
     private static String resolveEndpointPath(String normalizedBaseUrl) {
-        if (normalizedBaseUrl.endsWith("/chat/completions")) {
+        String lower = normalizedBaseUrl.toLowerCase(Locale.ROOT);
+        if (lower.endsWith("/chat/completions")) {
             return "";
         }
-        if (normalizedBaseUrl.endsWith("/v1")) {
+        if (lower.endsWith("/v1")
+                || lower.endsWith("/v1beta/openai")
+                || lower.endsWith("/openai")) {
             return "/chat/completions";
         }
         return "/v1/chat/completions";

@@ -10,6 +10,12 @@ server:
 spring:
   application:
     name: order-service
+  config:
+    import:
+      - optional:file:infrastructure/dev/.env[.properties]
+      - optional:file:../../infrastructure/dev/.env[.properties]
+      - optional:file:../../.env[.properties]
+      - optional:file:.env[.properties]
   datasource:
     url: jdbc:postgresql://localhost:5437/swiftdrop_order
     username: postgres
@@ -84,3 +90,15 @@ swiftdrop:
       MEDIUM: 250.00
       LARGE: 650.00
       EXTRA_LARGE: 1200.00
+  ai:
+    enabled: ${SWIFTDROP_AI_ENABLED:true}
+    provider: ${SWIFTDROP_AI_PROVIDER:openai}
+    model: ${SWIFTDROP_AI_MODEL:gpt-4o-mini}
+    api-key: ${SWIFTDROP_AI_API_KEY:}
+    base-url: ${SWIFTDROP_AI_BASE_URL:https://api.openai.com}
+    connect-timeout-ms: ${SWIFTDROP_AI_CONNECT_TIMEOUT_MS:3000}
+    read-timeout-ms: ${SWIFTDROP_AI_READ_TIMEOUT_MS:15000}
+    max-message-length: ${SWIFTDROP_AI_MAX_MESSAGE_LENGTH:1000}
+    max-history-messages: ${SWIFTDROP_AI_MAX_HISTORY_MESSAGES:10}
+    rate-limit-max-requests: ${SWIFTDROP_AI_RATE_LIMIT_MAX_REQUESTS:15}
+    rate-limit-window-seconds: ${SWIFTDROP_AI_RATE_LIMIT_WINDOW_SECONDS:60}

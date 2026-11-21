@@ -6,15 +6,24 @@ import com.swiftdrop.order.assistant.config.AiAssistantProperties;
 import com.swiftdrop.order.assistant.exception.AiAssistantException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.springframework.boot.DefaultBootstrapContext;
+import org.springframework.boot.context.config.ConfigDataEnvironmentPostProcessor;
+import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.mock.env.MockEnvironment;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
+import java.io.IOException;
 import java.net.SocketTimeoutException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -159,5 +168,82 @@ class RestLlmClientTest {
                 });
 
         mockServer.verify();
+    }
+
+    @Test
+    void generateReply_OpenAiCompatibleVersionedBaseUrls_ResolvesChatCompletionsPath() {
+        for (String baseUrl : List.of(
+                "https://generativelanguage.googleapis.com/v1beta/openai",
+                "https://generativelanguage.googleapis.com/v1beta/openai/",
+                "https://api.groq.com/openai/v1",
+                "https://custom.example.com/openai"
+        )) {
+            AiAssistantProperties customProps = new AiAssistantProperties();
+            customProps.setEnabled(true);
+            customProps.setProvider("gemini");
+            customProps.setModel("gemini-2.0-flash");
+            customProps.setApiKey("test-provider-key");
+            customProps.setBaseUrl(baseUrl);
+
+            RestClient.Builder builder = RestClient.builder();
+            MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+            RestLlmClient customClient = new RestLlmClient(builder, customProps, new ObjectMapper());
+
+            String expectedUrl = baseUrl.replaceAll("/+$", "") + "/chat/completions";
+            server.expect(requestTo(expectedUrl))
+                    .andExpect(method(HttpMethod.POST))
+                    .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer test-provider-key"))
+                    .andRespond(withSuccess(
+                            "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"Ready to help!\"}}]}",
+                            MediaType.APPLICATION_JSON
+                    ));
+
+            String reply = customClient.generateReply("System", List.of(), "Hello");
+            assertThat(reply).isEqualTo("Ready to help!");
+            server.verify();
+        }
+    }
+
+    @Test
+    void applicationConfig_LoadsDotEnvPropertiesAndBindsAiConfiguration(@TempDir Path tempDir) throws IOException {
+        Path sharedDevEnv = tempDir.resolve("shared-dev.env");
+        Files.writeString(sharedDevEnv, """
+                SWIFTDROP_AI_ENABLED=true
+                SWIFTDROP_AI_PROVIDER=openai
+                SWIFTDROP_AI_MODEL=gpt-4o-mini
+                SWIFTDROP_AI_BASE_URL=https://api.openai.com
+                SWIFTDROP_AI_API_KEY=
+                """);
+
+        Path serviceLocalEnv = tempDir.resolve("service-local.env");
+        Files.writeString(serviceLocalEnv, """
+                SWIFTDROP_AI_ENABLED=true
+                SWIFTDROP_AI_PROVIDER=gemini
+                SWIFTDROP_AI_MODEL=gemini-2.0-flash
+                SWIFTDROP_AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
+                SWIFTDROP_AI_API_KEY=test-dotenv-key
+                """);
+
+        String sharedPath = "optional:file:" + sharedDevEnv.toAbsolutePath().toString().replace("\\", "/") + "[.properties]";
+        String localPath = "optional:file:" + serviceLocalEnv.toAbsolutePath().toString().replace("\\", "/") + "[.properties]";
+
+        MockEnvironment env = new MockEnvironment();
+        env.setProperty("spring.config.import", sharedPath + "," + localPath);
+
+        ConfigDataEnvironmentPostProcessor.applyTo(
+                env,
+                new DefaultResourceLoader(),
+                new DefaultBootstrapContext()
+        );
+
+        AiAssistantProperties bound = Binder.get(env)
+                .bindOrCreate("swiftdrop.ai", AiAssistantProperties.class);
+
+        assertThat(bound.isEnabled()).isTrue();
+        assertThat(bound.isConfigured()).isTrue();
+        assertThat(bound.getProvider()).isEqualTo("gemini");
+        assertThat(bound.getModel()).isEqualTo("gemini-2.0-flash");
+        assertThat(bound.getBaseUrl()).isEqualTo("https://generativelanguage.googleapis.com/v1beta/openai");
+        assertThat(bound.getApiKey()).isEqualTo("test-dotenv-key");
     }
 }
