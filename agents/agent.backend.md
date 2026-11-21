@@ -782,34 +782,44 @@ secured integration API.
 
 ## 12. Delivery lifecycle and business invariants
 
-The customer-visible lifecycle currently includes:
+> **Authoritative Business Specifications:** See `agents/SwiftDrop_Business_Process.md` and `agents/SwiftDrop_Finalized_Business_Decisions.md` for complete operational rules.
 
-`Created → Picked Up → In Transit → Out for Delivery → Delivered / Failed`
+### 12.1 Confirmed Operational Lifecycle
+1. `Created`
+2. `Confirmed`
+3. `Pickup Assigned` (when courier pickup is selected)
+4. `Picked Up` (or received at branch for drop-off)
+5. `At Origin Branch`
+6. `In Transit`
+7. `At Destination Branch`
+8. `Out for Delivery`
+9. `Delivered`
 
-Treat this as the high-level workflow, not permission to accept
-arbitrary transitions. Define the allowed transition matrix in Order and
-test it. Include cancellation or reattempt transitions only when
-supported by the documented scope.
+Exception and alternative states:
+- `Delivery Failed`
+- `Pending Dispatcher Decision` (after 3 unsuccessful delivery attempts)
+- `Return to Sender`
+- `Returned to Sender`
+- `Cancelled`
 
--   Order owns the official status and status history.
--   Dispatch owns assignment and operational execution records.
--   Dispatch reports milestones/proof to Order through a defined
-    contract.
--   Order validates the transition, persists the official
-    status/history, and publishes `order.delivery.status-changed.v1`.
--   Notification consumes the resulting event and sends
-    messages/webhooks.
--   A notification failure must not roll back a valid delivery status
-    change.
--   Proof-of-delivery should record appropriate metadata (such as
-    recipient confirmation, timestamp, note, and secure media reference)
-    with access controls and retention rules.
+The lifecycle must support branch drop-off without requiring a courier pickup assignment. Treat this as a strict state machine: define the allowed transition matrix in Order Service and test it.
 
-Branch selection should use the Organization service's
-branch/service-area data and a documented selection rule (for example,
-eligible branch with minimum distance where the scope specifies that).
-Do not invent a distance algorithm, fallback policy, or pricing formula
-without documenting and testing the business rule.
+### 12.2 Confirmed Business Decisions (BD-01 to BD-08)
+- **BD-01 (Payment model):** Both **Prepaid** and **Cash on Delivery (COD)** are supported. Revalidate payment status on the backend before allowing prepaid orders to proceed. Keep COD collection amounts strictly separate from delivery fees.
+- **BD-02 & BD-07 (Delivery retry limit & Escalation):** A maximum of **3 delivery attempts** is permitted. Use a separate delivery-attempt record instead of storing only an attempt counter. After 3 unsuccessful attempts, the parcel transitions to `Pending Dispatcher Decision` where the dispatcher decides the next action (RTS, approved retry, etc.), recorded with user identity, timestamp, and reason.
+- **BD-03 (Inter-branch transportation):** Regular couriers handle inter-branch parcel transportation. Model transfer manifests as first-class Dispatch Service entities distinguishable from normal customer pickup or last-mile delivery assignments.
+- **BD-04 & BD-05 (Customer & Merchant pickup methods):** Both customers and merchants can request courier pickup/collection or drop off parcels at a branch.
+- **BD-06 (Delivery pricing):** Pricing considers distance, parcel weight, and parcel size using configurable rates (not hardcoded). Store the quoted price against the order; Order Service is authoritative.
+- **BD-08 (Delivery proof):** Delivery confirmation requires recipient name, delivery timestamp, courier identification, and signature or photo evidence securely referenced from Dispatch Service.
+
+### 12.3 Core Ownership & Event Invariants
+-   Order owns the official status and immutable status history.
+-   Dispatch owns assignment, delivery attempts, transfer manifests, and operational execution records.
+-   Dispatch reports milestones/proof to Order through a defined contract.
+-   Order validates the transition, persists the official status/history, and publishes `order.delivery.status-changed.v1`.
+-   Notification consumes the resulting event and sends messages/webhooks.
+-   A notification failure must not roll back a valid delivery status change.
+-   Branch selection uses the Organization service's branch/service-area data and documented selection rules. Do not invent a distance algorithm, fallback policy, or pricing formula without documenting and testing the business rule.
 
 ------------------------------------------------------------------------
 

@@ -5,6 +5,7 @@ import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,8 +16,14 @@ public class RabbitMQConfig {
     @Value("${swiftdrop.rabbitmq.exchange:swiftdrop.events}")
     private String exchange;
 
+    @Value("${swiftdrop.rabbitmq.dlx:swiftdrop.events.dlx}")
+    private String dlxExchange;
+
     @Value("${swiftdrop.rabbitmq.queue:order.events.queue}")
     private String queue;
+
+    @Value("${swiftdrop.rabbitmq.dlq:order.events.dlq}")
+    private String dlq;
 
     @Value("${swiftdrop.rabbitmq.routing-key:order.#}")
     private String routingKey;
@@ -27,13 +34,33 @@ public class RabbitMQConfig {
     }
 
     @Bean
-    public Queue queue() {
-        return QueueBuilder.durable(queue).build();
+    public DirectExchange deadLetterExchange() {
+        return new DirectExchange(dlxExchange, true, false);
     }
 
     @Bean
-    public Binding binding(Queue queue, TopicExchange exchange) {
+    public Queue queue() {
+        return QueueBuilder.durable(queue)
+                .withArgument("x-dead-letter-exchange", dlxExchange)
+                .withArgument("x-dead-letter-routing-key", dlq)
+                .build();
+    }
+
+    @Bean
+    public Queue deadLetterQueue() {
+        return QueueBuilder.durable(dlq).build();
+    }
+
+    @Bean
+    public Binding binding(@Qualifier("queue") Queue queue, @Qualifier("exchange") TopicExchange exchange) {
         return BindingBuilder.bind(queue).to(exchange).with(routingKey);
+    }
+
+    @Bean
+    public Binding deadLetterBinding(
+            @Qualifier("deadLetterQueue") Queue deadLetterQueue,
+            @Qualifier("deadLetterExchange") DirectExchange deadLetterExchange) {
+        return BindingBuilder.bind(deadLetterQueue).to(deadLetterExchange).with(dlq);
     }
 
     @Bean

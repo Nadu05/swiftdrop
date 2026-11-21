@@ -1,0 +1,153 @@
+# =============================================================================
+# SwiftDrop API Gateway — Local Developer Configuration
+# Ready-to-use configuration with hardcoded microservice routes
+# No environment variables required.
+# =============================================================================
+
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        cors-configurations:
+          '[/**]':
+            allowed-origins:
+              - "http://localhost:3000"
+              - "http://127.0.0.1:3000"
+            allowed-methods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+            allowed-headers:
+              - "*"
+            exposed-headers:
+              - "X-Correlation-Id"
+            allow-credentials: true
+            max-age: 3600
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
+      routes:
+        # --- Identity Service (auth endpoints) ---
+        - id: identity-auth
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/v1/auth/**
+          filters:
+            - StripPrefix=2
+
+        # --- Identity Service (users endpoints) ---
+        - id: identity-users
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/v1/users/**
+          filters:
+            - StripPrefix=2
+
+        # --- Identity Service (admin endpoints) ---
+        - id: identity-admin
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/v1/admin/**
+          filters:
+            - StripPrefix=2
+
+        # --- Identity Service ---
+        - id: identity-service
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/v1/identity/**
+          filters:
+            - StripPrefix=3
+        - id: identity-service-health
+          uri: http://localhost:8081
+          predicates:
+            - Path=/services/identity/health
+          filters:
+            - RewritePath=/services/identity/health, /health
+
+        # --- Organization Service ---
+        - id: organization-service
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/v1/organization/**
+          filters:
+            - StripPrefix=3
+        - id: organization-service-health
+          uri: http://localhost:8082
+          predicates:
+            - Path=/services/organization/health
+          filters:
+            - RewritePath=/services/organization/health, /health
+
+        # --- Order Service ---
+        - id: order-service
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/v1/orders/**
+          filters:
+            - StripPrefix=3
+        - id: order-tracking-public
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/v1/tracking/**
+          filters:
+            - StripPrefix=3
+        - id: order-service-health
+          uri: http://localhost:8083
+          predicates:
+            - Path=/services/order/health
+          filters:
+            - RewritePath=/services/order/health, /health
+
+        # --- Dispatch Service ---
+        - id: dispatch-service
+          uri: http://localhost:8084
+          predicates:
+            - Path=/api/v1/dispatch/**
+          filters:
+            - StripPrefix=3
+        - id: dispatch-service-health
+          uri: http://localhost:8084
+          predicates:
+            - Path=/services/dispatch/health
+          filters:
+            - RewritePath=/services/dispatch/health, /health
+
+        # --- Notification Service ---
+        - id: notification-service
+          uri: http://localhost:8085
+          predicates:
+            - Path=/api/v1/notifications/**
+          filters:
+            - StripPrefix=3
+        - id: notification-service-health
+          uri: http://localhost:8085
+          predicates:
+            - Path=/services/notification/health
+          filters:
+            - RewritePath=/services/notification/health, /health
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    root: INFO
+    org.springframework.cloud.gateway: INFO
+    com.swiftdrop: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
