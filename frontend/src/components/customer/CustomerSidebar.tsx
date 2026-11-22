@@ -268,7 +268,7 @@ export default function CustomerSidebar() {
                   {user.fullName || 'Nimal Perera (Custo...'}
                 </div>
                 <div style={{ fontSize: '0.68rem', color: '#64748b' }}>
-                  Role, CUSTOMER
+                  Role: {primaryRole || 'UNRESOLVED'}
                 </div>
               </div>
             </Link>

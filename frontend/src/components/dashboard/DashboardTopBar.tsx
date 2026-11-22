@@ -36,11 +36,11 @@ interface DashboardTopBarProps {
 
 const SEGMENT_LABELS: Record<string, string> = {
   customer: 'Customer',
-  merchant: 'Merchant',
+  merchant: 'Business',
   courier: 'Courier',
   dispatcher: 'Dispatcher',
   branch: 'Branch Operations',
-  admin: 'System Admin',
+  admin: 'Administration',
   organization: 'Organization',
   dashboard: 'Dashboard',
   bookings: 'My Bookings',
@@ -161,7 +161,7 @@ export function DashboardTopBar({
             href={getDashboardRouteForRole(currentRole)}
             className="sd-topbar__crumb-root"
           >
-            {portalLabel || ROLE_LABELS[currentRole] || 'Workspace'}
+            {portalLabel || (currentRole ? ROLE_LABELS[currentRole] : 'Workspace')}
           </Link>
           {breadcrumbs.map((crumb) => (
             <React.Fragment key={crumb.href}>
@@ -193,7 +193,7 @@ export function DashboardTopBar({
             <Layers className={`h-3.5 w-3.5 ${isDark ? 'text-sky-400' : 'text-blue-600'}`} />
             <select
               aria-label="Switch active role"
-              value={currentRole}
+              value={currentRole || ''}
               onChange={(e) => handleRoleSwitch(e.target.value)}
               className="sd-topbar__role-select"
             >
@@ -322,7 +322,7 @@ export function DashboardTopBar({
                   {user.fullName}
                 </div>
                 <div className="sd-topbar__user-role">
-                  {ROLE_LABELS[currentRole] || currentRole}
+                  {currentRole ? (ROLE_LABELS[currentRole] || currentRole) : 'Unresolved Role'}
                 </div>
               </div>
               <ChevronDown

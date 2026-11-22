@@ -13,18 +13,61 @@ import {
   LogOut,
   ShieldCheck,
   X,
+  Building2,
+  MapPin,
+  Settings,
+  Lock,
+  Webhook,
 } from 'lucide-react';
 import { MerchantGuard } from '@/components/auth/RoleGuard';
 import { DashboardTopBar } from '@/components/dashboard/DashboardTopBar';
 import { useAuthStore } from '@/store/auth.store';
 import { useLogout } from '@/hooks/api/use-auth';
 
-const merchantNavItems = [
-  { name: 'Merchant Dashboard', href: '/merchant/dashboard', icon: LayoutDashboard },
-  { name: 'Create Shipment', href: '/book', icon: PlusCircle },
-  { name: 'All Shipments', href: '/bookings', icon: Package },
-  { name: 'Live Parcel Tracking', href: '/tracking', icon: Compass },
-  { name: 'Account Profile', href: '/profile', icon: User },
+type NavItem = {
+  name: string;
+  href: string;
+  icon: React.ElementType;
+  disabled?: boolean;
+  badge?: string;
+};
+
+type NavSection = {
+  label: string;
+  items: NavItem[];
+};
+
+const merchantNavSections: NavSection[] = [
+  {
+    label: 'OPERATIONS',
+    items: [
+      { name: 'Dashboard', href: '/merchant/dashboard', icon: LayoutDashboard },
+      { name: 'Create Delivery', href: '/merchant/orders/create', icon: PlusCircle },
+      { name: 'My Orders', href: '/merchant/orders', icon: Package },
+      { name: 'Track Parcel', href: '/merchant/tracking', icon: Compass },
+    ],
+  },
+  {
+    label: 'BUSINESS',
+    items: [
+      { name: 'Business Profile', href: '/merchant/profile/business', icon: Building2 },
+      { name: 'Pickup Locations', href: '/merchant/pickup-locations', icon: MapPin },
+    ],
+  },
+  {
+    label: 'INTEGRATIONS',
+    items: [
+      { name: 'API Credentials', href: '/merchant/api-credentials', icon: Lock, disabled: true, badge: 'Soon' },
+      { name: 'Webhooks', href: '/merchant/webhooks', icon: Webhook, disabled: true, badge: 'Soon' },
+    ],
+  },
+  {
+    label: 'ACCOUNT',
+    items: [
+      { name: 'Account Profile', href: '/profile', icon: User },
+      { name: 'Settings', href: '/settings', icon: Settings },
+    ],
+  },
 ];
 
 export default function MerchantLayout({
@@ -37,9 +80,15 @@ export default function MerchantLayout({
   const logoutMutation = useLogout();
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  const isActive = (href: string) => {
+    if (href === '/merchant/dashboard') return pathname === href;
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
+
   const sidebarContent = (
     <aside className="w-64 min-w-[256px] bg-[#0b1528] border-r border-indigo-500/20 flex flex-col justify-between p-5 min-h-screen">
       <div>
+        {/* Logo */}
         <div className="flex items-center justify-between px-2 pb-6 border-b border-white/10">
           <Link href="/merchant/dashboard" className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-blue-600 flex items-center justify-center shadow-lg shadow-indigo-600/30">
@@ -64,35 +113,60 @@ export default function MerchantLayout({
           </button>
         </div>
 
-        <nav className="mt-6 flex flex-col gap-1.5">
-          {merchantNavItems.map((item) => {
-            const Icon = item.icon;
-            const isActive =
-              pathname === item.href ||
-              (item.href !== '/merchant/dashboard' && pathname.startsWith(item.href));
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  isActive
-                    ? 'bg-indigo-600/20 text-white font-semibold border-l-3 border-indigo-400'
-                    : 'text-slate-400 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <Icon
-                  className={`h-4 w-4 ${
-                    isActive ? 'text-indigo-400' : 'text-slate-400'
-                  }`}
-                />
-                <span>{item.name}</span>
-              </Link>
-            );
-          })}
+        {/* Navigation Sections */}
+        <nav className="mt-5 flex flex-col gap-5">
+          {merchantNavSections.map((section) => (
+            <div key={section.label}>
+              <p className="px-3 mb-1.5 text-[10px] font-bold tracking-widest text-slate-500 uppercase">
+                {section.label}
+              </p>
+              <div className="flex flex-col gap-0.5">
+                {section.items.map((item) => {
+                  const Icon = item.icon;
+                  const active = !item.disabled && isActive(item.href);
+                  if (item.disabled) {
+                    return (
+                      <span
+                        key={item.href}
+                        className="flex items-center gap-3 px-3.5 py-2 rounded-xl text-sm font-medium text-slate-600 cursor-not-allowed select-none"
+                      >
+                        <Icon className="h-4 w-4 text-slate-700" />
+                        <span>{item.name}</span>
+                        {item.badge && (
+                          <span className="ml-auto text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-800 text-slate-500 border border-slate-700">
+                            {item.badge}
+                          </span>
+                        )}
+                      </span>
+                    );
+                  }
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setMobileOpen(false)}
+                      className={`flex items-center gap-3 px-3.5 py-2 rounded-xl text-sm font-medium transition-all ${
+                        active
+                          ? 'bg-indigo-600/20 text-white font-semibold border-l-[3px] border-indigo-400 pl-[11px]'
+                          : 'text-slate-400 hover:text-white hover:bg-white/5'
+                      }`}
+                    >
+                      <Icon
+                        className={`h-4 w-4 ${
+                          active ? 'text-indigo-400' : 'text-slate-400'
+                        }`}
+                      />
+                      <span>{item.name}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
       </div>
 
+      {/* Bottom: User card + Logout */}
       <div className="pt-4 border-t border-white/10 space-y-3">
         {user && (
           <div className="p-3 rounded-xl bg-slate-900/80 border border-indigo-500/20">

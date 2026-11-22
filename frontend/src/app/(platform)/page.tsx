@@ -242,6 +242,91 @@ export default function SwiftDropLandingPage() {
         </div>
       </section>
 
+      {/* ─── Merchants & Business Onboarding Section ─────────────────────── */}
+      <section id="merchants" style={{ ...sectionContainerStyle, backgroundColor: '#07101e', borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+          <span style={sectionBadgeStyle}>FOR BUSINESSES &amp; MERCHANTS</span>
+          <h2 style={sectionTitleStyle}>Power Your E-Commerce Delivery with SwiftDrop</h2>
+          <p style={sectionSubtitleStyle}>
+            From single-parcel dispatches to high-volume daily pickups, SwiftDrop provides end-to-end logistics with real-time tracking, COD collection, and dedicated merchant support.
+          </p>
+        </div>
+
+        {/* 3 Step Merchant Workflow */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '2.5rem' }}>
+          <div style={serviceCardStyle}>
+            <div style={serviceIconCircleStyle('#2563eb')}>
+              <Store size={24} color="#ffffff" />
+            </div>
+            <h3 style={serviceCardTitleStyle}>1. Register &amp; Get Approved</h3>
+            <p style={serviceCardDescStyle}>
+              Submit your business registration details and pickup locations. Our Head Office administration reviews and approves applications within 1–3 business days.
+            </p>
+          </div>
+
+          <div style={serviceCardStyle}>
+            <div style={serviceIconCircleStyle('#059669')}>
+              <Truck size={24} color="#ffffff" />
+            </div>
+            <h3 style={serviceCardTitleStyle}>2. Dispatch &amp; Schedule Pickups</h3>
+            <p style={serviceCardDescStyle}>
+              Create delivery orders directly in your Merchant Portal or connect via API. Dedicated couriers collect parcels directly from your warehouse or store.
+            </p>
+          </div>
+
+          <div style={serviceCardStyle}>
+            <div style={serviceIconCircleStyle('#d97706')}>
+              <ShieldCheck size={24} color="#ffffff" />
+            </div>
+            <h3 style={serviceCardTitleStyle}>3. Live Tracking &amp; COD Payouts</h3>
+            <p style={serviceCardDescStyle}>
+              Monitor hub scans and recipient delivery status in real-time. Automated COD collection and prompt bank account remittance keep your cash flow healthy.
+            </p>
+          </div>
+        </div>
+
+        {/* Merchant CTAs */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '1rem', alignItems: 'center' }}>
+          <Link
+            href="/merchant-register"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.85rem 1.75rem',
+              fontSize: '0.95rem',
+              fontWeight: 700,
+              color: '#ffffff',
+              backgroundColor: '#1d68ed',
+              borderRadius: '10px',
+              textDecoration: 'none',
+              boxShadow: '0 4px 14px rgba(29, 104, 237, 0.45)',
+            }}
+          >
+            <span>Register Your Business</span>
+            <ArrowRight size={18} />
+          </Link>
+          <Link
+            href="/login"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.85rem 1.75rem',
+              fontSize: '0.95rem',
+              fontWeight: 600,
+              color: '#e2e8f0',
+              backgroundColor: 'rgba(255, 255, 255, 0.06)',
+              border: '1.5px solid rgba(255, 255, 255, 0.2)',
+              borderRadius: '10px',
+              textDecoration: 'none',
+            }}
+          >
+            <span>Merchant Login</span>
+          </Link>
+        </div>
+      </section>
+
       {/* ─── Footer ───────────────────────────────────────────────────────── */}
       <footer id="support" style={footerStyle}>
         <div style={footerContainerStyle}>
@@ -257,7 +342,7 @@ export default function SwiftDropLandingPage() {
           <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.8rem', color: '#94a3b8' }}>
             <Link href="/tracking" style={footerLinkStyle}>Track Parcel</Link>
             <Link href="/login" style={footerLinkStyle}>Staff Portal</Link>
-            <Link href="/register" style={footerLinkStyle}>Merchant Onboarding</Link>
+            <Link href="/merchant-register" style={footerLinkStyle}>Merchant Onboarding</Link>
           </div>
         </div>
       </footer>

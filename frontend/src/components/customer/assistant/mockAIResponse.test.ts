@@ -9,13 +9,13 @@ import {
   mapAssistantCategory,
   normalizeAssistantApiError,
   normalizeConversationId,
-} from './assistant-helpers.ts';
+} from './assistant-helpers';
 import {
   SWIFTDROP_AI_INITIAL_SUGGESTIONS,
   SWIFTDROP_AI_WELCOME_MESSAGE,
   aiAssistantService,
   generateMockAIResponse,
-} from './mockAIResponse.ts';
+} from './mockAIResponse';
 
 test('welcome message and initial suggested questions match customer requirements', () => {
   assert.match(SWIFTDROP_AI_WELCOME_MESSAGE, /Welcome to SwiftDrop/i);

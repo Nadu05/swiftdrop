@@ -34,7 +34,8 @@ interface SidebarProps {
 }
 
 const adminNavItems = [
-  { name: 'Organization Admin Dashboard', href: '/organization', icon: LayoutDashboard },
+  { name: 'Admin Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
+  { name: 'Organization Overview', href: '/organization', icon: Layers },
   { name: 'Branch Network', href: '/organization/branches', icon: Building2 },
   { name: 'Merchant Approvals', href: '/organization/merchants', icon: Server },
   { name: 'Staff Management', href: '/organization/staff', icon: Users },
@@ -60,6 +61,7 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarPr
   const isAdmin =
     userRoles.includes('ADMIN') ||
     userRoles.includes('HEAD_OFFICE_ADMIN') ||
+    userRoles.includes('MAIN_ADMIN') ||
     userRoles.includes('SYSTEM_ADMIN');
   const primaryRole = resolvePrimaryRole(user, activeRole);
   const roleDashboardHref = getDashboardRouteForRole(primaryRole);

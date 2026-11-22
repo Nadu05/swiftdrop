@@ -25,8 +25,14 @@ function expandAllowedRoles(allowedRoles: UserRole[]): string[] {
   for (const r of allowedRoles) {
     const norm = normalizeRoleName(r);
     set.add(norm);
-    if (norm === 'ADMIN' || norm === 'SYSTEM_ADMIN' || norm === 'HEAD_OFFICE_ADMIN') {
+    if (
+      norm === 'ADMIN' ||
+      norm === 'MAIN_ADMIN' ||
+      norm === 'SYSTEM_ADMIN' ||
+      norm === 'HEAD_OFFICE_ADMIN'
+    ) {
       set.add('ADMIN');
+      set.add('MAIN_ADMIN');
       set.add('HEAD_OFFICE_ADMIN');
       set.add('SYSTEM_ADMIN');
     }
@@ -177,7 +183,7 @@ export function RoleGuard({ allowedRoles, portalName, children }: RoleGuardProps
 export function CustomerGuard({ children }: { children: React.ReactNode }) {
   return (
     <RoleGuard
-      allowedRoles={['CUSTOMER', 'MERCHANT', 'ADMIN', 'HEAD_OFFICE_ADMIN']}
+      allowedRoles={['CUSTOMER']}
       portalName="Customer Delivery Portal"
     >
       {children}
@@ -188,7 +194,7 @@ export function CustomerGuard({ children }: { children: React.ReactNode }) {
 export function MerchantGuard({ children }: { children: React.ReactNode }) {
   return (
     <RoleGuard
-      allowedRoles={['MERCHANT', 'ADMIN', 'HEAD_OFFICE_ADMIN']}
+      allowedRoles={['MERCHANT']}
       portalName="Merchant Partner Portal"
     >
       {children}
@@ -238,7 +244,7 @@ export function BranchGuard({ children }: { children: React.ReactNode }) {
 export function SystemAdminGuard({ children }: { children: React.ReactNode }) {
   return (
     <RoleGuard
-      allowedRoles={['ADMIN', 'HEAD_OFFICE_ADMIN', 'SYSTEM_ADMIN']}
+      allowedRoles={['ADMIN', 'HEAD_OFFICE_ADMIN', 'MAIN_ADMIN', 'SYSTEM_ADMIN']}
       portalName="System Administration Portal"
     >
       {children}

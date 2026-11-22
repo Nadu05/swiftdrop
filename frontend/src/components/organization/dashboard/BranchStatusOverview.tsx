@@ -192,7 +192,9 @@ function BranchStatusOverview({
                           {branch.name}
                         </Link>
                         <span className="org-branch-coords">
-                          {branch.latitude.toFixed(4)}° N, {branch.longitude.toFixed(4)}° E
+                          {typeof branch.latitude === 'number' && typeof branch.longitude === 'number'
+                            ? `${branch.latitude.toFixed(4)}° N, ${branch.longitude.toFixed(4)}° E`
+                            : 'Coordinates not set'}
                         </span>
                       </div>
                     </td>

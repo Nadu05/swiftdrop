@@ -157,7 +157,10 @@ export default function BranchTable({
                           {branch.name}
                         </Link>
                         <span className="org-branch-coords">
-                          ID #{branch.id} · {branch.latitude.toFixed(4)}, {branch.longitude.toFixed(4)}
+                          ID #{branch.id}
+                          {typeof branch.latitude === 'number' && typeof branch.longitude === 'number'
+                            ? ` · ${branch.latitude.toFixed(4)}, ${branch.longitude.toFixed(4)}`
+                            : ''}
                         </span>
                       </div>
                     </td>

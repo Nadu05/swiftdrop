@@ -6,6 +6,7 @@ import type { OrderResponse } from '@/types/order.types';
  * Global System / Head Office Administrator roles.
  */
 export const GLOBAL_ADMIN_ROLES = [
+  'MAIN_ADMIN',
   'HEAD_OFFICE_ADMIN',
   'SYSTEM_ADMIN',
   'ADMIN',
@@ -58,7 +59,7 @@ export function resolveOrganizationPermissions(
     return {
       isGlobalAdmin: false,
       isBranchAdmin: false,
-      effectiveRole: 'CUSTOMER',
+      effectiveRole: 'UNRESOLVED',
       authorizedBranchId: null,
       canCreateOrDeactivateBranches: false,
       canManageAllBranches: false,
@@ -71,7 +72,7 @@ export function resolveOrganizationPermissions(
   }
 
   const normalizedRoles = (user.roles || []).map(normalizeRoleName);
-  const effectiveRole = resolvePrimaryRole(user, activeRole);
+  const effectiveRole = resolvePrimaryRole(user, activeRole) ?? 'UNRESOLVED';
 
   const hasGlobalAdminRole = normalizedRoles.some((r) =>
     (GLOBAL_ADMIN_ROLES as readonly string[]).includes(r)

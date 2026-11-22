@@ -88,7 +88,9 @@ export default function BranchDetails({
                 ·
               </span>
               <span className="org-details-hero__meta-item org-details-hero__meta-item--mono">
-                {branch.latitude.toFixed(4)}, {branch.longitude.toFixed(4)}
+                {typeof branch.latitude === 'number' && typeof branch.longitude === 'number'
+                  ? `${branch.latitude.toFixed(4)}, ${branch.longitude.toFixed(4)}`
+                  : 'Coordinates not set'}
               </span>
             </div>
           </div>
@@ -302,14 +304,22 @@ export default function BranchDetails({
             <div className="org-details-list__item">
               <dt className="org-details-list__term">Latitude</dt>
               <dd className="org-details-list__desc org-details-list__desc--mono">
-                {branch.latitude}
+                {typeof branch.latitude === 'number' ? (
+                  branch.latitude
+                ) : (
+                  <span className="org-branch-contact__muted">Not specified</span>
+                )}
               </dd>
             </div>
 
             <div className="org-details-list__item">
               <dt className="org-details-list__term">Longitude</dt>
               <dd className="org-details-list__desc org-details-list__desc--mono">
-                {branch.longitude}
+                {typeof branch.longitude === 'number' ? (
+                  branch.longitude
+                ) : (
+                  <span className="org-branch-contact__muted">Not specified</span>
+                )}
               </dd>
             </div>
           </dl>

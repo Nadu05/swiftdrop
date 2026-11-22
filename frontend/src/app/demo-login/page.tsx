@@ -71,7 +71,7 @@ const SEEDED_ACCOUNTS = [
     description: 'System-wide user management, branch governance, merchant approvals & health',
     icon: Shield,
     color: '#a855f7',
-    badge: '/organization',
+    badge: '/admin/dashboard',
   },
 ] as const;
 

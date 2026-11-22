@@ -11,6 +11,7 @@ export type UserRole =
   | 'BRANCH_MANAGER'
   | 'BRANCH_ADMIN'
   | 'HEAD_OFFICE_ADMIN'
+  | 'MAIN_ADMIN'
   | 'SYSTEM_ADMIN'
   | 'ADMIN';
 

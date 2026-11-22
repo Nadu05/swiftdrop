@@ -45,7 +45,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ user: null, activeRole: null });
       return;
     }
-    const currentActive = get().activeRole;
+    const previousUserId = get().user?.userId;
+    const currentActive = previousUserId === user.userId ? get().activeRole : null;
     const resolvedRole = resolvePrimaryRole(user, currentActive);
     set({ user, activeRole: resolvedRole });
   },

@@ -106,7 +106,7 @@ export async function getCurrentUserProfile(): Promise<UserProfile> {
     name: res.fullName,
     email: res.email,
     phone: res.phone || undefined,
-    role: primaryRole,
+    role: primaryRole ?? undefined,
     status: res.accountStatus,
     createdAt: res.createdAt,
   };
@@ -131,7 +131,7 @@ export async function loginUser(
     name: res.fullName,
     email: res.email,
     phone: res.phone || undefined,
-    role: primaryRole,
+    role: primaryRole ?? undefined,
     status: res.accountStatus,
     createdAt: res.createdAt,
   };
