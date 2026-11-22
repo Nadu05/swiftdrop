@@ -135,9 +135,7 @@ class BranchPostalAssignmentIntegrationTest {
                 "Suite 4",
                 "Colombo",
                 "+94112345678",
-                code.toLowerCase() + "@swiftdrop.lk",
-                6.9271,
-                79.8612
+                code.toLowerCase() + "@swiftdrop.lk"
         );
         request.setProvinceId(western.getId());
         request.setDistrictId(colombo.getId());

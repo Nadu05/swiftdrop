@@ -38,16 +38,6 @@ public class BranchCreateRequest {
     @Size(max = 255, message = "Email must be at most 255 characters")
     private String email;
 
-    @NotNull(message = "Latitude is required")
-    @DecimalMin(value = "-90.0", message = "Latitude must be between -90 and 90")
-    @DecimalMax(value = "90.0", message = "Latitude must be between -90 and 90")
-    private Double latitude;
-
-    @NotNull(message = "Longitude is required")
-    @DecimalMin(value = "-180.0", message = "Longitude must be between -180 and 180")
-    @DecimalMax(value = "180.0", message = "Longitude must be between -180 and 180")
-    private Double longitude;
-
     private Long provinceId;
 
     private Long districtId;
@@ -64,7 +54,7 @@ public class BranchCreateRequest {
     public BranchCreateRequest() {}
 
     public BranchCreateRequest(String code, String name, String addressLine1, String addressLine2,
-                               String city, String phone, String email, Double latitude, Double longitude) {
+                               String city, String phone, String email) {
         this.code = code;
         this.name = name;
         this.addressLine1 = addressLine1;
@@ -72,8 +62,6 @@ public class BranchCreateRequest {
         this.city = city;
         this.phone = phone;
         this.email = email;
-        this.latitude = latitude;
-        this.longitude = longitude;
     }
 
     // --- Getters and Setters ---
@@ -98,12 +86,6 @@ public class BranchCreateRequest {
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
-
-    public Double getLatitude() { return latitude; }
-    public void setLatitude(Double latitude) { this.latitude = latitude; }
-
-    public Double getLongitude() { return longitude; }
-    public void setLongitude(Double longitude) { this.longitude = longitude; }
 
     public Long getProvinceId() { return provinceId; }
     public void setProvinceId(Long provinceId) { this.provinceId = provinceId; }

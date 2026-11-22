@@ -7,13 +7,11 @@ import type { OrganizationDashboardMetrics } from '@/types/organization.types';
 export interface OrganizationSummaryCardsProps {
   metrics: OrganizationDashboardMetrics;
   isLoading: boolean;
-  serviceAreasAvailable: boolean;
 }
 
 function OrganizationSummaryCards({
   metrics,
   isLoading,
-  serviceAreasAvailable,
 }: OrganizationSummaryCardsProps) {
   const cards = [
     {
@@ -45,20 +43,14 @@ function OrganizationSummaryCards({
       accentClass: 'org-summary-card__icon--slate',
     },
     {
-      id: 'service-areas',
-      title: serviceAreasAvailable ? 'Active Service Areas' : 'Cities Covered',
-      value: isLoading
-        ? '—'
-        : serviceAreasAvailable
-          ? String(metrics.activeServiceAreas)
-          : String(metrics.citiesCovered),
+      id: 'assigned-postal-areas',
+      title: 'Assigned Service Areas',
+      value: isLoading ? '—' : String(metrics.totalAssignedPostalAreas),
       description: isLoading
         ? 'Loading coverage metrics...'
-        : serviceAreasAvailable
-          ? `${metrics.totalServiceAreas} total configured radius ${
-              metrics.totalServiceAreas === 1 ? 'zone' : 'zones'
-            }`
-          : 'Distinct municipal cities across branches',
+        : `Postal areas assigned across ${metrics.totalBranches} ${
+            metrics.totalBranches === 1 ? 'branch' : 'branches'
+          }`,
       icon: Radar,
       accentClass: 'org-summary-card__icon--indigo',
     },
@@ -67,7 +59,7 @@ function OrganizationSummaryCards({
   return (
     <section
       className="org-summary-grid"
-      aria-label="Organization branch and service-area summary metrics"
+      aria-label="Organization branch summary metrics"
     >
       {cards.map((card) => {
         const Icon = card.icon;

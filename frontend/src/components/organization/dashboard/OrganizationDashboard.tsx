@@ -8,16 +8,14 @@ import {
 import {
   calculateOrganizationDashboardMetrics,
   getBranches,
-  getServiceAreas,
 } from '@/api/services/organization.api';
 import type {
   BranchResponse,
-  ServiceAreaResponse,
 } from '@/types/organization.types';
 import OrganizationWelcome from './OrganizationWelcome';
 import OrganizationSummaryCards from './OrganizationSummaryCards';
 import BranchStatusOverview from './BranchStatusOverview';
-import ServiceAreaOverview from './ServiceAreaOverview';
+import ServiceAreaCoverageOverview from './ServiceAreaCoverageOverview';
 import BranchAdminDashboard from '@/components/organization/branch-admin/BranchAdminDashboard';
 import { useAuthStore } from '@/store/auth.store';
 import { resolveOrganizationPermissions } from '@/lib/auth/branch-admin-permissions';
@@ -40,14 +38,11 @@ export default function OrganizationDashboard() {
 
 function HeadOfficeOrganizationDashboard() {
   const [branches, setBranches] = useState<BranchResponse[]>([]);
-  const [serviceAreas, setServiceAreas] = useState<ServiceAreaResponse[]>([]);
 
   const [isLoadingBranches, setIsLoadingBranches] = useState<boolean>(true);
-  const [isLoadingServiceAreas, setIsLoadingServiceAreas] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   const [branchesError, setBranchesError] = useState<string | null>(null);
-  const [serviceAreasError, setServiceAreasError] = useState<string | null>(null);
 
   const [lastUpdatedLabel, setLastUpdatedLabel] = useState<string | null>(null);
 
@@ -56,19 +51,13 @@ function HeadOfficeOrganizationDashboard() {
       setIsRefreshing(true);
     } else {
       setIsLoadingBranches(true);
-      setIsLoadingServiceAreas(true);
     }
 
     setBranchesError(null);
-    setServiceAreasError(null);
 
-    const [branchesResult, serviceAreasResult] = await Promise.allSettled([
-      getBranches(),
-      getServiceAreas(),
-    ]);
-
-    if (branchesResult.status === 'fulfilled') {
-      setBranches(branchesResult.value);
+    try {
+      const data = await getBranches();
+      setBranches(data);
       setLastUpdatedLabel(
         new Date().toLocaleTimeString([], {
           hour: '2-digit',
@@ -76,46 +65,16 @@ function HeadOfficeOrganizationDashboard() {
           second: '2-digit',
         })
       );
-    } else {
+    } catch (err: unknown) {
       setBranches([]);
       setBranchesError(
-        branchesResult.reason instanceof Error
-          ? branchesResult.reason.message
-          : 'Failed to load organization branches from backend.'
-      );
-    }
-
-    if (serviceAreasResult.status === 'fulfilled') {
-      setServiceAreas(serviceAreasResult.value);
-    } else {
-      setServiceAreas([]);
-      setServiceAreasError(
-        serviceAreasResult.reason instanceof Error
-          ? serviceAreasResult.reason.message
-          : 'Failed to load service areas from backend.'
-      );
-    }
-
-    setIsLoadingBranches(false);
-    setIsLoadingServiceAreas(false);
-    setIsRefreshing(false);
-  }, []);
-
-  const retryServiceAreasOnly = useCallback(async () => {
-    setIsLoadingServiceAreas(true);
-    setServiceAreasError(null);
-    try {
-      const data = await getServiceAreas();
-      setServiceAreas(data);
-    } catch (err: any) {
-      setServiceAreas([]);
-      setServiceAreasError(
         err instanceof Error
           ? err.message
-          : 'Failed to load service areas from backend.'
+          : 'Failed to load organization branches from backend.'
       );
     } finally {
-      setIsLoadingServiceAreas(false);
+      setIsLoadingBranches(false);
+      setIsRefreshing(false);
     }
   }, []);
 
@@ -124,11 +83,9 @@ function HeadOfficeOrganizationDashboard() {
   }, [loadDashboardData]);
 
   const metrics = useMemo(
-    () => calculateOrganizationDashboardMetrics(branches, serviceAreas),
-    [branches, serviceAreas]
+    () => calculateOrganizationDashboardMetrics(branches),
+    [branches]
   );
-
-  const serviceAreasAvailable = !serviceAreasError && !isLoadingServiceAreas;
 
   return (
     <div className="org-page">
@@ -169,7 +126,6 @@ function HeadOfficeOrganizationDashboard() {
       <OrganizationSummaryCards
         metrics={metrics}
         isLoading={isLoadingBranches}
-        serviceAreasAvailable={serviceAreasAvailable}
       />
 
       {/* Branch Status Overview Table */}
@@ -180,13 +136,13 @@ function HeadOfficeOrganizationDashboard() {
         />
       )}
 
-      {/* Member 03 Service-Area Coverage Overview */}
-      <ServiceAreaOverview
-        serviceAreas={serviceAreas}
-        isLoading={isLoadingServiceAreas}
-        error={serviceAreasError}
-        onRetry={retryServiceAreasOnly}
-      />
+      {/* Service-Area Coverage Overview (Assigned Postal Areas per Branch) */}
+      {!branchesError && (
+        <ServiceAreaCoverageOverview
+          branches={branches}
+          isLoading={isLoadingBranches}
+        />
+      )}
     </div>
   );
 }
