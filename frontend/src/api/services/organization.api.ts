@@ -22,8 +22,6 @@ import type {
   ProvinceDto,
   RouteBranchResolutionRequest,
   RouteBranchResolutionResponse,
-  ServiceAreaResponse,
-  ServiceAreaStatus,
 } from '@/types/organization.types';
 
 /**
@@ -35,12 +33,10 @@ import type {
  * - Gateway filter: StripPrefix=3 -> forwards /** to organization-service (:8082)
  * - Controllers:
  *   - com.swiftdrop.organization.controller.BranchController (/branches)
- *   - com.swiftdrop.organization.controller.ServiceAreaController (/service-areas, /branches/{branchId}/service-areas)
  *   - com.swiftdrop.organization.controller.BranchResolutionController (/branches/resolve)
  */
 
 const BRANCHES_BASE_PATH = '/api/v1/organization/branches';
-const SERVICE_AREAS_BASE_PATH = '/api/v1/organization/service-areas';
 const BRANCH_RESOLUTION_PATH = '/api/v1/organization/branches/resolve';
 const ROUTE_BRANCH_RESOLUTION_PATH = '/api/v1/organization/branches/resolve-route';
 const MERCHANT_APPLICATIONS_BASE_PATH = '/api/v1/organization/merchants/applications';
@@ -424,58 +420,6 @@ export async function provisionBranchCredentials(
 }
 
 /**
- * Fetch all organization service areas from Member 03's ServiceAreaController.
- *
- * Confirmed Backend Endpoint:
- * GET /api/v1/organization/service-areas?status={ACTIVE|INACTIVE}
- *
- * NOTE: Does NOT calculate geographic coverage or branch eligibility on the frontend.
- *
- * @param status Optional status filter ('ACTIVE' | 'INACTIVE')
- */
-export async function getServiceAreas(
-  status?: ServiceAreaStatus
-): Promise<ServiceAreaResponse[]> {
-  try {
-    const params = status ? { status } : undefined;
-    const response = await apiClient.get<ServiceAreaResponse[]>(SERVICE_AREAS_BASE_PATH, {
-      params,
-    });
-    return response.data;
-  } catch (error: any) {
-    throw buildOrganizationApiError(
-      error,
-      'An unexpected error occurred while loading organization service areas.'
-    );
-  }
-}
-
-/**
- * Fetch service areas belonging to a specific branch.
- *
- * Confirmed Backend Endpoint:
- * GET /api/v1/organization/branches/{branchId}/service-areas?status={ACTIVE|INACTIVE}
- */
-export async function getServiceAreasByBranch(
-  branchId: number,
-  status?: ServiceAreaStatus
-): Promise<ServiceAreaResponse[]> {
-  try {
-    const params = status ? { status } : undefined;
-    const response = await apiClient.get<ServiceAreaResponse[]>(
-      `${BRANCHES_BASE_PATH}/${branchId}/service-areas`,
-      { params }
-    );
-    return response.data;
-  } catch (error: any) {
-    throw buildOrganizationApiError(
-      error,
-      `An unexpected error occurred while loading service areas for branch #${branchId}.`
-    );
-  }
-}
-
-/**
  * Frontend Integration Boundary for Customer Booking Branch Resolution (Member 04 -> Member 03).
  *
  * Confirmed Backend Contract (BranchResolutionController):
@@ -745,28 +689,19 @@ export function calculateBranchSummaryMetrics(
 
 /**
  * Computes Organization Admin Dashboard metrics strictly from real
- * `BranchResponse[]` and `ServiceAreaResponse[]` payloads returned by the backend.
- *
- * TODO (Future Backend Integration Point — Member 03):
- * No dedicated aggregated dashboard endpoint (e.g., GET /api/v1/organization/dashboard/summary)
- * or organization audit-log endpoint (e.g., GET /api/v1/organization/audit-logs) exists in
- * `organization-service`. Until such endpoints are introduced, the dashboard derives its
- * branch and service-area counts from `getBranches()` and `getServiceAreas()`.
+ * `BranchResponse[]` payloads returned by the backend.
  */
 export function calculateOrganizationDashboardMetrics(
-  branches: BranchResponse[],
-  serviceAreas: ServiceAreaResponse[] = []
+  branches: BranchResponse[]
 ): OrganizationDashboardMetrics {
   const branchMetrics = calculateBranchSummaryMetrics(branches);
-  const totalServiceAreas = serviceAreas.length;
-  const activeServiceAreas = serviceAreas.filter((sa) => sa.status === 'ACTIVE').length;
-  const inactiveServiceAreas = serviceAreas.filter((sa) => sa.status === 'INACTIVE').length;
-
+  const totalAssignedPostalAreas = branches.reduce(
+    (sum, b) => sum + (b.assignedPostalAreas?.length ?? 0),
+    0
+  );
   return {
     ...branchMetrics,
-    totalServiceAreas,
-    activeServiceAreas,
-    inactiveServiceAreas,
+    totalAssignedPostalAreas,
   };
 }
 

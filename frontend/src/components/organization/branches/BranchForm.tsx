@@ -57,8 +57,6 @@ const VALID_FORM_FIELDS: readonly (keyof BranchFormValues)[] = [
   'city',
   'phone',
   'email',
-  'latitude',
-  'longitude',
   'postalCode',
 ];
 
@@ -202,13 +200,6 @@ export default function BranchForm({
     };
   }, [selectedDistrictId]);
 
-  const applyCoordinates = (lat: number | null | undefined, lng: number | null | undefined) => {
-    if (lat != null && lng != null) {
-      setValue('latitude', lat, { shouldDirty: true, shouldValidate: true });
-      setValue('longitude', lng, { shouldDirty: true, shouldValidate: true });
-    }
-  };
-
   const handleProvinceChange = (provinceId: number | null) => {
     setSelectedProvinceId(provinceId);
     setSelectedDistrictId(null);
@@ -216,10 +207,6 @@ export default function BranchForm({
     setValue('provinceId', provinceId, { shouldDirty: true });
     setValue('districtId', null, { shouldDirty: true });
     setValue('dsDivisionId', null, { shouldDirty: true });
-    const province = provinces.find((p) => p.id === provinceId);
-    if (province) {
-      applyCoordinates(province.latitude, province.longitude);
-    }
   };
 
   const handleDistrictChange = (districtId: number | null) => {
@@ -227,19 +214,11 @@ export default function BranchForm({
     setSelectedDsDivisionId(null);
     setValue('districtId', districtId, { shouldDirty: true });
     setValue('dsDivisionId', null, { shouldDirty: true });
-    const district = districts.find((d) => d.id === districtId);
-    if (district) {
-      applyCoordinates(district.latitude, district.longitude);
-    }
   };
 
   const handleDsDivisionChange = (dsDivisionId: number | null) => {
     setSelectedDsDivisionId(dsDivisionId);
     setValue('dsDivisionId', dsDivisionId, { shouldDirty: true });
-    const ds = dsDivisions.find((item) => item.id === dsDivisionId);
-    if (ds) {
-      applyCoordinates(ds.latitude, ds.longitude);
-    }
   };
 
   const handlePostalAreasChange = (areas: PostalAreaDto[]) => {
@@ -496,11 +475,11 @@ export default function BranchForm({
         </div>
       </BranchFormSection>
 
-      {/* SECTION 2: Address & Geographic Coordinates */}
+      {/* SECTION 2: Address & Location */}
       <BranchFormSection
         id="org-section-location"
-        title="Address &amp; Geographic Coordinates"
-        description="Physical street address, municipality, and GPS coordinates for branch routing and service area resolution."
+        title="Address &amp; Location"
+        description="Physical street address, administrative region, and municipality for this branch."
         icon={MapPin}
       >
         <div className="org-form-grid org-form-grid--2">
@@ -584,7 +563,7 @@ export default function BranchForm({
             onChange={handleDistrictChange}
             disabled={isDisabled || selectedProvinceId === null}
             loading={loadingDistricts}
-            hint="Selecting a district auto-populates coordinates."
+            hint="Select a district within the chosen province."
           />
 
           <SearchableSelect
@@ -604,7 +583,7 @@ export default function BranchForm({
             onChange={handleDsDivisionChange}
             disabled={isDisabled || selectedDistrictId === null}
             loading={loadingDsDivisions}
-            hint="Refines coordinates; latitude & longitude remain editable."
+            hint="Optional divisional secretariat division for this branch."
           />
         </div>
 
@@ -669,73 +648,6 @@ export default function BranchForm({
             {errors.postalCode && (
               <p id="branch-postal-code-error" className="org-form-error" role="alert">
                 {errors.postalCode.message}
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div className="org-form-grid org-form-grid--2" style={{ marginTop: '1rem' }}>
-
-          {/* Latitude */}
-          <div className="org-form-field">
-            <label htmlFor="branch-latitude" className="org-form-label">
-              <span>Latitude</span>
-              <span className="org-form-required" aria-hidden="true">*</span>
-            </label>
-            <input
-              id="branch-latitude"
-              type="number"
-              step="any"
-              className={`org-form-input org-form-input--mono${
-                errors.latitude ? ' org-form-input--error' : ''
-              }`}
-              placeholder="e.g. 6.9218"
-              disabled={isDisabled}
-              aria-required="true"
-              aria-invalid={Boolean(errors.latitude)}
-              aria-describedby={
-                errors.latitude ? 'branch-latitude-error' : 'branch-latitude-hint'
-              }
-              {...register('latitude', { valueAsNumber: true })}
-            />
-            <span id="branch-latitude-hint" className="org-form-hint">
-              Decimal degrees between -90.0 and 90.0.
-            </span>
-            {errors.latitude && (
-              <p id="branch-latitude-error" className="org-form-error" role="alert">
-                {errors.latitude.message}
-              </p>
-            )}
-          </div>
-
-          {/* Longitude */}
-          <div className="org-form-field">
-            <label htmlFor="branch-longitude" className="org-form-label">
-              <span>Longitude</span>
-              <span className="org-form-required" aria-hidden="true">*</span>
-            </label>
-            <input
-              id="branch-longitude"
-              type="number"
-              step="any"
-              className={`org-form-input org-form-input--mono${
-                errors.longitude ? ' org-form-input--error' : ''
-              }`}
-              placeholder="e.g. 79.8562"
-              disabled={isDisabled}
-              aria-required="true"
-              aria-invalid={Boolean(errors.longitude)}
-              aria-describedby={
-                errors.longitude ? 'branch-longitude-error' : 'branch-longitude-hint'
-              }
-              {...register('longitude', { valueAsNumber: true })}
-            />
-            <span id="branch-longitude-hint" className="org-form-hint">
-              Decimal degrees between -180.0 and 180.0.
-            </span>
-            {errors.longitude && (
-              <p id="branch-longitude-error" className="org-form-error" role="alert">
-                {errors.longitude.message}
               </p>
             )}
           </div>
