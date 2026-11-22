@@ -6,12 +6,9 @@ import com.swiftdrop.organization.dto.BranchPostalAreaResponse;
 import com.swiftdrop.organization.dto.BranchPostalAreasUpdateRequest;
 import com.swiftdrop.organization.dto.BranchResponse;
 import com.swiftdrop.organization.dto.BranchUpdateRequest;
-import com.swiftdrop.organization.dto.ServiceAreaResponse;
 import com.swiftdrop.organization.entity.enums.BranchStatus;
-import com.swiftdrop.organization.entity.enums.ServiceAreaStatus;
 import com.swiftdrop.organization.security.OrganizationUserPrincipal;
 import com.swiftdrop.organization.service.BranchService;
-import com.swiftdrop.organization.service.ServiceAreaService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -42,11 +39,9 @@ import java.util.List;
 public class BranchController {
 
     private final BranchService branchService;
-    private final ServiceAreaService serviceAreaService;
 
-    public BranchController(BranchService branchService, ServiceAreaService serviceAreaService) {
+    public BranchController(BranchService branchService) {
         this.branchService = branchService;
-        this.serviceAreaService = serviceAreaService;
     }
 
     @PostMapping
@@ -133,23 +128,6 @@ public class BranchController {
             }
         }
         return ResponseEntity.ok(branchService.update(id, request));
-    }
-
-    @GetMapping("/{branchId}/service-areas")
-    @Operation(summary = "Get all service areas belonging to a branch")
-    public ResponseEntity<List<ServiceAreaResponse>> findServiceAreasByBranch(
-            @PathVariable Long branchId,
-            @RequestParam(required = false) String status) {
-        ServiceAreaStatus areaStatus = null;
-        if (status != null && !status.isBlank()) {
-            try {
-                areaStatus = ServiceAreaStatus.valueOf(status.toUpperCase());
-            } catch (IllegalArgumentException e) {
-                throw new IllegalArgumentException(
-                        "Invalid status filter: '" + status + "'. Allowed values: ACTIVE, INACTIVE");
-            }
-        }
-        return ResponseEntity.ok(serviceAreaService.findByBranchId(branchId, areaStatus));
     }
 }
 

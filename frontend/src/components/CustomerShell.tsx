@@ -3,6 +3,7 @@
 import React from 'react';
 import CustomerSidebar from '@/components/customer/CustomerSidebar';
 import { DashboardTopBar } from '@/components/dashboard/DashboardTopBar';
+import { CustomerAIAssistant } from '@/components/customer/assistant/CustomerAIAssistant';
 import '@/app/customer/customer.css';
 
 /**
@@ -29,6 +30,7 @@ export default function CustomerShell({
           {children}
         </main>
       </div>
+      <CustomerAIAssistant />
     </div>
   );
 }

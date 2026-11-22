@@ -39,10 +39,10 @@ public class Branch {
     @Column(length = 255)
     private String email;
 
-    @Column(nullable = false)
+    @Column
     private Double latitude;
 
-    @Column(nullable = false)
+    @Column
     private Double longitude;
 
     @Enumerated(EnumType.STRING)

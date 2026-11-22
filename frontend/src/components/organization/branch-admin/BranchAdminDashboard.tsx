@@ -89,7 +89,6 @@ export default function BranchAdminDashboard() {
     effectiveBranchId,
     branch,
     allBranches,
-    serviceAreas,
     isLoadingBranch,
     branchError,
     selectBranchForInspection,
@@ -580,13 +579,6 @@ export default function BranchAdminDashboard() {
                 <span className="inline-flex items-center gap-1.5">
                   <Clock className="h-3.5 w-3.5 text-[#60A5FA]" />
                   Synced at {lastUpdated}
-                </span>
-              )}
-              {serviceAreas.length > 0 && (
-                <span className="inline-flex items-center gap-1.5">
-                  <ShieldCheck className="h-3.5 w-3.5 text-[#34D399]" />
-                  {serviceAreas.length} Active Service{' '}
-                  {serviceAreas.length === 1 ? 'Area' : 'Areas'}
                 </span>
               )}
             </div>

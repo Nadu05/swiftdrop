@@ -85,26 +85,6 @@ export const branchFormSchema = z.object({
 
   email: optionalEmailSchema,
 
-  latitude: z
-    .number({
-      message: 'Latitude is required and must be a valid number',
-    })
-    .refine((val) => !Number.isNaN(val) && Number.isFinite(val), {
-      message: 'Latitude is required and must be a valid number',
-    })
-    .min(-90, 'Latitude must be between -90 and 90')
-    .max(90, 'Latitude must be between -90 and 90'),
-
-  longitude: z
-    .number({
-      message: 'Longitude is required and must be a valid number',
-    })
-    .refine((val) => !Number.isNaN(val) && Number.isFinite(val), {
-      message: 'Longitude is required and must be a valid number',
-    })
-    .min(-180, 'Longitude must be between -180 and 180')
-    .max(180, 'Longitude must be between -180 and 180'),
-
   provinceId: z.number().nullable().optional(),
   districtId: z.number().nullable().optional(),
   dsDivisionId: z.number().nullable().optional(),
@@ -136,8 +116,6 @@ export const DEFAULT_BRANCH_FORM_VALUES: BranchFormValues = {
   city: '',
   phone: '',
   email: '',
-  latitude: 6.9271,
-  longitude: 79.8612,
   provinceId: null,
   districtId: null,
   dsDivisionId: null,
@@ -157,8 +135,6 @@ export function branchResponseToFormValues(branch: BranchResponse): BranchFormVa
     city: branch.city,
     phone: branch.phone,
     email: branch.email ?? '',
-    latitude: branch.latitude,
-    longitude: branch.longitude,
     provinceId: branch.provinceId ?? null,
     districtId: branch.districtId ?? null,
     dsDivisionId: branch.dsDivisionId ?? null,
@@ -184,8 +160,6 @@ export function toBranchCreatePayload(values: BranchFormValues): BranchCreateReq
     city: values.city.trim(),
     phone: values.phone.trim(),
     email: trimmedEmail,
-    latitude: values.latitude,
-    longitude: values.longitude,
     provinceId: values.provinceId ?? null,
     districtId: values.districtId ?? null,
     dsDivisionId: values.dsDivisionId ?? null,
@@ -213,8 +187,6 @@ export function toBranchUpdatePayload(values: BranchFormValues): BranchUpdateReq
     city: values.city.trim(),
     phone: values.phone.trim(),
     email: trimmedEmail.length > 0 ? trimmedEmail : null,
-    latitude: values.latitude,
-    longitude: values.longitude,
   };
 }
 

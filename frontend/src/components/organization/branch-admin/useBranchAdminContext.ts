@@ -5,13 +5,12 @@ import { useAuthStore } from '@/store/auth.store';
 import {
   getBranchById,
   getBranches,
-  getServiceAreasByBranch,
 } from '@/api/services/organization.api';
 import {
   resolveOrganizationPermissions,
   type OrganizationPermissions,
 } from '@/lib/auth/branch-admin-permissions';
-import type { BranchResponse, ServiceAreaResponse } from '@/types/organization.types';
+import type { BranchResponse } from '@/types/organization.types';
 import { resolveInitialInspectedBranchId } from './branch-staff-form';
 
 export interface BranchAdminContextState {
@@ -22,8 +21,6 @@ export interface BranchAdminContextState {
   branch: BranchResponse | null;
   /** All branches (loaded only if `permissions.canManageAllBranches` is true) */
   allBranches: BranchResponse[];
-  /** Service areas belonging to the branch */
-  serviceAreas: ServiceAreaResponse[];
   isLoadingBranch: boolean;
   branchError: string | null;
   /** Only permitted when `permissions.canManageAllBranches` is true (Head Office Admin) */
@@ -53,7 +50,6 @@ export function useBranchAdminContext(): BranchAdminContextState {
   const [inspectedBranchId, setInspectedBranchId] = useState<number | null>(null);
   const [branch, setBranch] = useState<BranchResponse | null>(null);
   const [allBranches, setAllBranches] = useState<BranchResponse[]>([]);
-  const [serviceAreas, setServiceAreas] = useState<ServiceAreaResponse[]>([]);
   const [isLoadingBranch, setIsLoadingBranch] = useState<boolean>(true);
   const [branchError, setBranchError] = useState<string | null>(null);
 
@@ -87,7 +83,6 @@ export function useBranchAdminContext(): BranchAdminContextState {
         const targetId = permissions.authorizedBranchId;
         if (!targetId) {
           setBranch(null);
-          setServiceAreas([]);
           setIsLoadingBranch(false);
           return;
         }
@@ -96,10 +91,6 @@ export function useBranchAdminContext(): BranchAdminContextState {
         const matched = list.find((b) => Number(b.id) === Number(targetId)) || null;
         if (matched) {
           setBranch(matched);
-          const areas = await getServiceAreasByBranch(targetId).catch(
-            () => [] as ServiceAreaResponse[]
-          );
-          setServiceAreas(areas);
         } else {
           try {
             const branchDetail = await getBranchById(targetId);
@@ -132,13 +123,8 @@ export function useBranchAdminContext(): BranchAdminContextState {
         const matched =
           list.find((b) => Number(b.id) === Number(resolvedId)) || null;
         setBranch(matched);
-        const areas = await getServiceAreasByBranch(resolvedId).catch(
-          () => [] as ServiceAreaResponse[]
-        );
-        setServiceAreas(areas);
       } else {
         setBranch(null);
-        setServiceAreas([]);
       }
     } catch (err: unknown) {
       setBranch(null);
@@ -176,7 +162,6 @@ export function useBranchAdminContext(): BranchAdminContextState {
     effectiveBranchId,
     branch,
     allBranches,
-    serviceAreas,
     isLoadingBranch,
     branchError,
     selectBranchForInspection,

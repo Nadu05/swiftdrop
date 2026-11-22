@@ -80,20 +80,14 @@ public class SecurityConfig {
                                 "/api/v1/branches/resolve",
                                 "/api/v1/branches/resolve-route"
                         ).permitAll()
-                        // Public read-only branch and service-area lookup
+                        // Public read-only branch and location lookup
                         .requestMatchers(HttpMethod.GET,
                                 "/branches",
                                 "/branches/*",
-                                "/branches/*/service-areas",
                                 "/branches/*/postal-areas",
                                 "/api/v1/branches",
                                 "/api/v1/branches/*",
-                                "/api/v1/branches/*/service-areas",
                                 "/api/v1/branches/*/postal-areas",
-                                "/service-areas",
-                                "/service-areas/*",
-                                "/api/v1/service-areas",
-                                "/api/v1/service-areas/*",
                                 "/locations/**",
                                 "/api/v1/locations/**"
                         ).permitAll()
@@ -118,11 +112,6 @@ public class SecurityConfig {
                         .hasAnyRole("ADMIN", "HEAD_OFFICE_ADMIN", "BRANCH_MANAGER")
                         // Branch postal area coverage sync: Head Office Admin only
                         .requestMatchers(HttpMethod.PUT, "/branches/*/postal-areas", "/api/v1/branches/*/postal-areas")
-                        .hasAnyRole("ADMIN", "HEAD_OFFICE_ADMIN")
-                        // Service area mutations: Head Office Admin only
-                        .requestMatchers(HttpMethod.POST, "/service-areas", "/api/v1/service-areas")
-                        .hasAnyRole("ADMIN", "HEAD_OFFICE_ADMIN")
-                        .requestMatchers(HttpMethod.PATCH, "/service-areas/*", "/api/v1/service-areas/*")
                         .hasAnyRole("ADMIN", "HEAD_OFFICE_ADMIN")
                         // Merchant approval / rejection: Head Office Admin only
                         .requestMatchers(HttpMethod.POST,
