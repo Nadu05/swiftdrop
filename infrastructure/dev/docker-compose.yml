@@ -77,6 +77,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-3600000}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      NOTIFICATION_SERVICE_URL: http://notification-service:8085
     ports:
       - "${IDENTITY_SERVICE_PORT:-8081}:8081"
     healthcheck:
@@ -100,6 +101,8 @@ services:
       SPRING_DATASOURCE_USERNAME: ${NEON_USER:?Set NEON_USER in .env}
       SPRING_DATASOURCE_PASSWORD: ${NEON_PASSWORD:?Set NEON_PASSWORD in .env}
       FLYWAY_DB_URL: jdbc:postgresql://${NEON_DIRECT_HOST:-${NEON_HOST}}:${NEON_PORT:-5432}/${ORGANIZATION_DB_NAME:-swiftdrop_organization}${NEON_SSL_MODE:-?sslmode=require}
+      IDENTITY_SERVICE_URL: http://identity-service:8081
+      NOTIFICATION_SERVICE_URL: http://notification-service:8085
     ports:
       - "${ORGANIZATION_SERVICE_PORT:-8082}:8082"
     healthcheck:
@@ -172,7 +175,12 @@ services:
       SPRING_MAIL_ENABLED: ${SPRING_MAIL_ENABLED:-true}
       SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:-mailpit}
       SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-1025}
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
+      SPRING_MAIL_SMTP_AUTH: ${SPRING_MAIL_SMTP_AUTH:-false}
+      SPRING_MAIL_SMTP_STARTTLS: ${SPRING_MAIL_SMTP_STARTTLS:-false}
       SPRING_MAIL_FROM: ${SPRING_MAIL_FROM:-noreply@swiftdrop.lk}
+      APP_FRONTEND_BASE_URL: ${FRONTEND_URL:-http://localhost:3000}
     ports:
       - "${NOTIFICATION_SERVICE_PORT:-8085}:8085"
     healthcheck:

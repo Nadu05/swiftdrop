@@ -33,17 +33,20 @@ public class PasswordService {
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final IdentityEventPublisher eventPublisher;
+    private final AuthService authService;
 
     public PasswordService(UserRepository userRepository,
                            RefreshTokenRepository refreshTokenRepository,
                            PasswordResetTokenRepository passwordResetTokenRepository,
                            PasswordEncoder passwordEncoder,
-                           IdentityEventPublisher eventPublisher) {
+                           IdentityEventPublisher eventPublisher,
+                           AuthService authService) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordResetTokenRepository = passwordResetTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.eventPublisher = eventPublisher;
+        this.authService = authService;
     }
 
     public void changePassword(String email, ChangePasswordRequest request, HttpServletResponse response) {
@@ -79,6 +82,11 @@ public class PasswordService {
 
         // Revoke all existing refresh tokens for security
         refreshTokenRepository.revokeAllByUser(user);
+
+        // Issue fresh access & refresh tokens to maintain active session
+        if (response != null && authService != null) {
+            authService.issueTokens(user, response);
+        }
 
         log.info("Password changed successfully for user: {}", email);
     }
@@ -152,6 +160,11 @@ public class PasswordService {
 
         // Revoke all refresh tokens on password reset
         refreshTokenRepository.revokeAllByUser(user);
+
+        // Clear any stale auth cookies from the client
+        if (response != null && authService != null) {
+            authService.clearAuthCookies(response);
+        }
 
         log.info("Password reset successfully for user: {}", user.getEmail());
     }

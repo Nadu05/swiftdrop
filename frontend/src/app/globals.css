@@ -3751,6 +3751,30 @@ body.org-scroll-lock {
   cursor: default;
 }
 
+.org-sidebar__link--logout {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  margin-bottom: 0.85rem;
+  color: var(--org-sidebar-text);
+}
+
+.org-sidebar__link--logout:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+}
+
+.org-sidebar__link--logout:hover:not(:disabled) .org-sidebar__icon {
+  color: #f87171;
+}
+
+.org-sidebar__link--logout:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .org-sidebar__footer {
   padding: 1rem 1.35rem 1.25rem;
   border-top: 1px solid rgba(255, 255, 255, 0.07);

@@ -51,6 +51,9 @@ class PasswordServiceTest {
     private IdentityEventPublisher eventPublisher;
 
     @Mock
+    private AuthService authService;
+
+    @Mock
     private HttpServletResponse response;
 
     @InjectMocks
@@ -88,6 +91,7 @@ class PasswordServiceTest {
         assertThat(testUser.isMustChangePassword()).isFalse();
         assertThat(testUser.getTemporaryPassword()).isNull();
         verify(refreshTokenRepository).revokeAllByUser(testUser);
+        verify(authService).issueTokens(eq(testUser), eq(response));
         verify(userRepository).save(testUser);
     }
 
@@ -184,6 +188,7 @@ class PasswordServiceTest {
         assertThat(testUser.getPasswordHash()).isEqualTo("$2a$10$resetHashedPassword");
         assertThat(testUser.getPasswordChangedAt()).isNotNull();
         verify(refreshTokenRepository).revokeAllByUser(testUser);
+        verify(authService).clearAuthCookies(eq(response));
         verify(userRepository).save(testUser);
     }
 
@@ -206,6 +211,34 @@ class PasswordServiceTest {
         assertThatThrownBy(() -> passwordService.resetPassword(req, response))
                 .isInstanceOf(InvalidTokenException.class)
                 .hasMessageContaining("expired");
+    }
+
+    @Test
+    @DisplayName("Should reject password reset when passwords do not match")
+    void shouldRejectResetPasswordMismatch() {
+        ResetPasswordRequest req = new ResetPasswordRequest("valid-token", "NewPass123!", "MismatchPass123!");
+
+        assertThatThrownBy(() -> passwordService.resetPassword(req, response))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Passwords do not match");
+
+        verify(passwordResetTokenRepository, never()).save(any());
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Should reject password reset when token is unknown")
+    void shouldRejectResetPasswordUnknownToken() {
+        String rawToken = "unknown-token";
+        String tokenHash = AuthService.sha256Hex(rawToken);
+
+        when(passwordResetTokenRepository.findByTokenHash(tokenHash)).thenReturn(Optional.empty());
+
+        ResetPasswordRequest req = new ResetPasswordRequest(rawToken, "NewPass123!", "NewPass123!");
+
+        assertThatThrownBy(() -> passwordService.resetPassword(req, response))
+                .isInstanceOf(InvalidTokenException.class)
+                .hasMessageContaining("Invalid or unknown");
     }
 
     @Test

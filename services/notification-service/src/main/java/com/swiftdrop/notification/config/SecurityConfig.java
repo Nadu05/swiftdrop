@@ -59,7 +59,13 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/tracking/**",
-                                "/api/v1/notifications/tracking/**"
+                                "/api/v1/notifications/tracking/**",
+                                "/api/v1/notifications/branch-credentials",
+                                "/branch-credentials",
+                                "/api/v1/notifications/password-reset",
+                                "/password-reset",
+                                "/api/v1/notifications/test-email",
+                                "/test-email"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

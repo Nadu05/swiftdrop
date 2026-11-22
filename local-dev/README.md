@@ -42,7 +42,7 @@ docker compose -f local-dev/docker-compose.yml up -d
 ```
 
 This starts:
-1. **PostgreSQL 17** on port `5432` with databases pre-created:
+1. **PostgreSQL 17** on host port `5433` (`5433:5432`) with databases pre-created:
    - `swiftdrop_identity`
    - `swiftdrop_organization`
    - `swiftdrop_order`
@@ -50,6 +50,7 @@ This starts:
    - `swiftdrop_notification`
 2. **RabbitMQ 3 Management** on port `5672` (AMQP) and `15672` (Web UI).
 3. **pgAdmin 4** on port `5050` (Web UI).
+4. **Mailpit SMTP Server & Web Inbox** on port `1025` (SMTP) and `8025` (Web UI).
 
 Verify containers are running:
 ```bash
@@ -139,12 +140,39 @@ npm run dev
 
 | Service | Protocol / Port | Access URL | Username / Email | Password |
 | :--- | :--- | :--- | :--- | :--- |
-| **PostgreSQL** | TCP `5432` | `localhost:5432` | `postgres` | `postgrespassword` |
+| **PostgreSQL** | TCP `5433` (Host) -> `5432` | `localhost:5433` | `postgres` | `postgrespassword` |
 | **pgAdmin 4** | HTTP `5050` | [http://localhost:5050](http://localhost:5050) | `admin@swiftdrop.lk` | `admin` |
 | **RabbitMQ Web** | HTTP `15672` | [http://localhost:15672](http://localhost:15672) | `swiftdrop` | `password123` |
 | **RabbitMQ AMQP** | TCP `5672` | `localhost:5672` | `swiftdrop` | `password123` |
+| **Mailpit Web UI** | HTTP `8025` | [http://localhost:8025](http://localhost:8025) | *(No auth needed)* | *(No auth needed)* |
+| **Mailpit SMTP** | TCP `1025` | `localhost:1025` | *(No auth needed)* | *(No auth needed)* |
 | **API Gateway** | HTTP `8080` | [http://localhost:8080](http://localhost:8080) | — | — |
 | **Frontend Web** | HTTP `3000` | [http://localhost:3000](http://localhost:3000) | *(See accounts below)* | *(See accounts below)* |
+
+---
+
+## Email Service & Notification Testing (Mailpit)
+
+In the local development environment, all emails are routed through **Mailpit** (running on ports `1025` SMTP / `8025` Web UI).
+
+### 1. View Delivered Emails
+Open **[http://localhost:8025](http://localhost:8025)** in your browser. All outgoing emails appear instantly in the inbox.
+
+### 2. Testing Branch Admin Onboarding Email
+1. Sign in as Main Admin (`admin@swiftdrop.lk` / `password123`).
+2. Navigate to `/organization/branches/create` and enter branch details and the Branch Admin's email.
+3. Upon branch creation:
+   - `organization-service` calls `notification-service`.
+   - A branded welcome email is sent with the Branch Admin's login email and temporary password.
+   - The email contains a direct sign-in button linking to `/login`.
+4. Check **http://localhost:8025** to view the delivered email and copy the temporary password.
+5. Sign in using the temporary credentials — the app automatically redirects to the redesigned first-login password change page (`/change-password`).
+
+### 3. Testing Forgot Password Email
+1. On the login screen (`/login`), click **"Forgot Password?"**.
+2. Enter a registered email address and submit.
+3. Check **http://localhost:8025** — open the password reset email and click the reset link (`/reset-password?token=...`).
+4. Set a new password and log in successfully.
 
 ---
 

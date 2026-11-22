@@ -284,10 +284,10 @@ public class AuthService {
     }
 
     // -----------------------------------------------------------------------
-    // Private helpers
+    // Token issuing & private helpers
     // -----------------------------------------------------------------------
 
-    private void issueTokens(User user, HttpServletResponse response) {
+    public void issueTokens(User user, HttpServletResponse response) {
         UserDetails details = buildUserDetails(user);
 
         // Access token

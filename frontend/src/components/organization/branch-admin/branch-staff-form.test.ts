@@ -6,17 +6,16 @@ import {
   buildCreateBranchStaffPayload,
   resolveInitialInspectedBranchId,
   extractAdminApiErrorMessage,
-} from './branch-staff-form.ts';
-import type { BranchResponse } from '../../../types/organization.types.ts';
+} from './branch-staff-form';
+import type { BranchResponse } from '../../../types/organization.types';
 
 const colomboBranch: BranchResponse = {
   id: 5,
   name: 'colombo',
   code: 'CMB-4',
   addressLine1: 'NO 15/6, Poojapitiya',
+  addressLine2: null,
   city: 'Colombo',
-  district: 'Colombo',
-  province: 'Western',
   postalCode: '00100',
   phone: '+94757833488',
   email: 'colombo@swiftdrop.lk',
@@ -32,9 +31,8 @@ const kandyBranch: BranchResponse = {
   name: 'Kandy Main Hub',
   code: 'KDY-MAIN',
   addressLine1: 'Peradeniya Rd',
+  addressLine2: null,
   city: 'Kandy',
-  district: 'Kandy',
-  province: 'Central',
   postalCode: '20000',
   phone: '+94812223344',
   email: 'kandy@swiftdrop.lk',

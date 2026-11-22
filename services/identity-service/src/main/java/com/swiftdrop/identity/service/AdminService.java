@@ -167,6 +167,14 @@ public class AdminService {
                 ? request.getOrganizationId().trim()
                 : null);
 
+        if (Boolean.TRUE.equals(request.getMustChangePassword())) {
+            user.setMustChangePassword(true);
+            user.setTemporaryPassword(request.getPassword());
+        } else {
+            user.setMustChangePassword(false);
+            user.setTemporaryPassword(null);
+        }
+
         User saved = userRepository.save(user);
         log.info("Admin created new user '{}' with roles {} (branchId={})",
                 saved.getEmail(), request.getRoles(), saved.getBranchId());

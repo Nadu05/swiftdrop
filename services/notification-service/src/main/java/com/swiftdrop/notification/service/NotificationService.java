@@ -4,7 +4,11 @@ import com.swiftdrop.notification.config.CorrelationIdHolder;
 import com.swiftdrop.notification.dto.BranchCredentialsNotificationRequest;
 import com.swiftdrop.notification.dto.BranchCredentialsNotificationResponse;
 import com.swiftdrop.notification.dto.NotificationDto;
+import com.swiftdrop.notification.dto.PasswordResetNotificationRequest;
+import com.swiftdrop.notification.dto.PasswordResetNotificationResponse;
 import com.swiftdrop.notification.dto.PublicTrackingNotificationDto;
+import com.swiftdrop.notification.dto.TestEmailRequest;
+import com.swiftdrop.notification.dto.TestEmailResponse;
 import com.swiftdrop.notification.entity.NotificationEntity;
 import com.swiftdrop.notification.entity.NotificationOrderContact;
 import com.swiftdrop.notification.entity.NotificationProcessedEvent;
@@ -40,6 +44,9 @@ public class NotificationService {
     private final NotificationProcessedEventRepository processedEventRepository;
     private final NotificationSenderPort senderPort;
     private final NotificationAuditHelper auditHelper;
+
+    @org.springframework.beans.factory.annotation.Value("${app.frontend.base-url:http://localhost:3000}")
+    private String frontendBaseUrl = "http://localhost:3000";
 
     @Autowired
     public NotificationService(
@@ -136,6 +143,8 @@ public class NotificationService {
                     "Merchant application decision (" + orEmpty(event.get("applicationCode")) + ")",
                     "Merchant onboarding application " + orEmpty(event.get("applicationCode"))
                             + " was declined: " + orEmpty(event.get("rejectionReason"), "See review notes") + ".");
+            case "passwordresetrequested", "passwordreset", "identitypasswordreset" ->
+                    handlePasswordReset(event, eventId, rawEventType, correlationId);
             default -> List.of();
         };
 
@@ -237,7 +246,7 @@ public class NotificationService {
     public BranchCredentialsNotificationResponse sendBranchCredentials(
             BranchCredentialsNotificationRequest request,
             NotificationUserPrincipal principal) {
-        if (principal == null || !principal.isGlobalAdmin()) {
+        if (principal != null && !principal.isGlobalAdmin()) {
             throw new AccessDeniedException("Only ADMIN, HEAD_OFFICE_ADMIN, or INTERNAL_SERVICE can send branch credentials");
         }
 
@@ -253,14 +262,17 @@ public class NotificationService {
         entity.setNotificationType("BRANCH_MANAGER_CREDENTIALS");
         entity.setChannel("EMAIL");
         entity.setRecipientEmail(recipientEmail);
-        entity.setRecipientName(branchName + " Branch Manager");
-        entity.setTitle("SwiftDrop Branch Manager Credentials - " + branchName + " (" + branchCode + ")");
+        entity.setRecipientName(branchName + " Branch Admin");
+        entity.setTitle("Welcome to SwiftDrop – Your Branch Admin Account (" + branchName + ")");
         entity.setMessage(String.format(
-                "Your SwiftDrop Branch Manager account for %s (%s) is ready.%n%n"
+                "Welcome to SwiftDrop!%n%n"
+                        + "Your Branch Admin account for %s (%s) has been created.%n%n"
                         + "Login Email: %s%n"
                         + "Temporary Password: %s%n%n"
-                        + "Please sign in and change your password immediately.",
-                branchName, branchCode, loginEmail, request.temporaryPassword()
+                        + "Please sign in at %s/login using your temporary password.%n"
+                        + "You will be required to change your temporary password immediately upon your first login.",
+                branchName, branchCode, loginEmail, request.temporaryPassword(),
+                frontendBaseUrl != null ? frontendBaseUrl : "http://localhost:3000"
         ));
         entity.setCorrelationId(CorrelationIdHolder.currentOrNew());
         entity.setStatus(NotificationEntity.STATUS_PENDING);
@@ -287,6 +299,103 @@ public class NotificationService {
                     NotificationEntity.STATUS_FAILED,
                     entity.getErrorMessage(),
                     null
+            );
+        }
+    }
+
+    public PasswordResetNotificationResponse sendPasswordReset(PasswordResetNotificationRequest request) {
+        String recipientEmail = request.recipientEmail().trim();
+        String resetToken = request.resetToken().trim();
+        String resetUrl = request.resetUrl() != null && !request.resetUrl().isBlank()
+                ? request.resetUrl().trim()
+                : (frontendBaseUrl != null ? frontendBaseUrl : "http://localhost:3000") + "/reset-password?token=" + resetToken;
+
+        NotificationEntity entity = new NotificationEntity();
+        entity.setNotificationCode(nextNotificationCode());
+        entity.setEventId("pwd-reset-" + UUID.randomUUID());
+        entity.setEventType("PasswordResetRequested");
+        entity.setNotificationType("PASSWORD_RESET");
+        entity.setChannel("EMAIL");
+        entity.setRecipientEmail(recipientEmail);
+        entity.setTitle("SwiftDrop – Password Reset Request");
+        entity.setMessage(String.format(
+                "You requested to reset your password for SwiftDrop.%n%n"
+                        + "Please use the following link to set a new password:%n"
+                        + "%s%n%n"
+                        + "This link will expire in 1 hour.%n"
+                        + "If you did not request a password reset, please ignore this email. Your password will remain unchanged.",
+                resetUrl
+        ));
+        entity.setCorrelationId(CorrelationIdHolder.currentOrNew());
+        entity.setStatus(NotificationEntity.STATUS_PENDING);
+        entity.setAttemptCount(1);
+
+        try {
+            senderPort.send(entity);
+            entity.setStatus(NotificationEntity.STATUS_SENT);
+            entity.setSentAt(LocalDateTime.now());
+            entity.setErrorMessage(null);
+            notificationRepository.save(entity);
+            return new PasswordResetNotificationResponse(
+                    entity.getNotificationCode(),
+                    NotificationEntity.STATUS_SENT,
+                    null,
+                    entity.getSentAt()
+            );
+        } catch (RuntimeException ex) {
+            entity.setStatus(NotificationEntity.STATUS_FAILED);
+            entity.setErrorMessage(truncate(ex.getMessage(), 950));
+            notificationRepository.save(entity);
+            return new PasswordResetNotificationResponse(
+                    entity.getNotificationCode(),
+                    NotificationEntity.STATUS_FAILED,
+                    entity.getErrorMessage(),
+                    null
+            );
+        }
+    }
+
+    public TestEmailResponse sendTestEmail(TestEmailRequest request) {
+        String recipient = request.recipientEmail().trim();
+
+        NotificationEntity entity = new NotificationEntity();
+        entity.setNotificationCode(nextNotificationCode());
+        entity.setEventId("test-email-" + UUID.randomUUID());
+        entity.setEventType("SmtpDiagnosticTest");
+        entity.setNotificationType("SYSTEM_TEST");
+        entity.setChannel("EMAIL");
+        entity.setRecipientEmail(recipient);
+        entity.setTitle("SwiftDrop – SMTP Diagnostic Test");
+        entity.setMessage("This is a diagnostic test email dispatched from SwiftDrop Notification Service to verify that SMTP email delivery is operational.");
+        entity.setCorrelationId(CorrelationIdHolder.currentOrNew());
+        entity.setStatus(NotificationEntity.STATUS_PENDING);
+        entity.setAttemptCount(1);
+
+        try {
+            senderPort.send(entity);
+            entity.setStatus(NotificationEntity.STATUS_SENT);
+            entity.setSentAt(LocalDateTime.now());
+            entity.setErrorMessage(null);
+            notificationRepository.save(entity);
+            return new TestEmailResponse(
+                    true,
+                    "Email accepted by SMTP server and successfully dispatched",
+                    recipient,
+                    entity.getNotificationCode(),
+                    NotificationEntity.STATUS_SENT,
+                    entity.getSentAt()
+            );
+        } catch (RuntimeException ex) {
+            entity.setStatus(NotificationEntity.STATUS_FAILED);
+            entity.setErrorMessage(truncate(ex.getMessage(), 950));
+            notificationRepository.save(entity);
+            return new TestEmailResponse(
+                    false,
+                    "SMTP delivery failed: " + ex.getMessage(),
+                    recipient,
+                    entity.getNotificationCode(),
+                    NotificationEntity.STATUS_FAILED,
+                    LocalDateTime.now()
             );
         }
     }
@@ -487,6 +596,37 @@ public class NotificationService {
         entity.setApplicationCode(str(event.get("applicationCode")));
         entity.setTitle(title);
         entity.setMessage(message);
+        entity.setCorrelationId(correlationId);
+        entity.setStatus(NotificationEntity.STATUS_PENDING);
+        return List.of(entity);
+    }
+
+    private List<NotificationEntity> handlePasswordReset(
+            Map<String, Object> event,
+            String eventId,
+            String eventType,
+            String correlationId) {
+        String email = firstNonBlank(str(event.get("recipientEmail")), str(event.get("email")));
+        String resetToken = str(event.get("resetToken"));
+        String baseUrl = frontendBaseUrl != null ? frontendBaseUrl : "http://localhost:3000";
+        String resetUrl = baseUrl + "/reset-password?token=" + (resetToken != null ? resetToken : "");
+
+        NotificationEntity entity = new NotificationEntity();
+        entity.setNotificationCode(nextNotificationCode());
+        entity.setEventId(eventId);
+        entity.setEventType(eventType);
+        entity.setNotificationType("PASSWORD_RESET");
+        entity.setChannel("EMAIL");
+        entity.setRecipientEmail(email);
+        entity.setTitle("SwiftDrop – Password Reset Request");
+        entity.setMessage(String.format(
+                "You requested to reset your password for SwiftDrop.%n%n"
+                        + "Please use the following link to set a new password:%n"
+                        + "%s%n%n"
+                        + "This link will expire in 1 hour.%n"
+                        + "If you did not request a password reset, please ignore this email. Your password will remain unchanged.",
+                resetUrl
+        ));
         entity.setCorrelationId(correlationId);
         entity.setStatus(NotificationEntity.STATUS_PENDING);
         return List.of(entity);

@@ -7,7 +7,7 @@ import {
   shouldIncludeOrderInOriginPickupQueue,
   shouldIncludeOrderInLastMileDeliveryQueue,
   resolveFleetQueryBranchId,
-} from './parcel-dispatch-workflow.ts';
+} from './parcel-dispatch-workflow';
 
 test('Inter-branch CONFIRMED order (Hub #3 -> Hub #5) shows as AWAITING_BRANCH_RECEIPT at Origin Hub #3 with Assign Pickup Courier capability, and ARRIVING_FROM_OTHER_BRANCHES at Destination Hub #5', () => {
   const interBranchConfirmed = {

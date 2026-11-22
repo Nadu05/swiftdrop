@@ -11,7 +11,7 @@ spring:
   application:
     name: identity-service
   datasource:
-    url: jdbc:postgresql://localhost:5437/swiftdrop_identity
+    url: jdbc:postgresql://localhost:${POSTGRES_PORT:5433}/swiftdrop_identity
     username: postgres
     password: postgrespassword
     driver-class-name: org.postgresql.Driver
@@ -76,3 +76,7 @@ app:
     same-site: Lax
   cors:
     allowed-origins: http://localhost:3000
+
+swiftdrop:
+  notification-service:
+    base-url: ${NOTIFICATION_SERVICE_URL:http://localhost:8085}

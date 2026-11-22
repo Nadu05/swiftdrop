@@ -157,13 +157,29 @@ function ResetPasswordForm() {
             color: '#b91c1c',
             fontSize: '0.85rem',
             display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
+            flexDirection: 'column',
+            gap: '0.35rem',
             marginBottom: '1.25rem',
           }}
         >
-          <AlertCircle size={16} />
-          <span>{apiError}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <AlertCircle size={16} />
+            <span>{apiError}</span>
+          </div>
+          {(apiError.toLowerCase().includes('token') || apiError.toLowerCase().includes('expired')) && (
+            <Link
+              href="/forgot-password"
+              style={{
+                marginLeft: '1.5rem',
+                color: '#2563eb',
+                fontWeight: 600,
+                fontSize: '0.8rem',
+                textDecoration: 'underline',
+              }}
+            >
+              Request a new reset link &rarr;
+            </Link>
+          )}
         </div>
       )}
 

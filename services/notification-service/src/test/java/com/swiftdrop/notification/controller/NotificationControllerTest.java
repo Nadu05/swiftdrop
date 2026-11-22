@@ -179,5 +179,25 @@ class NotificationControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Validation Failed"));
     }
+
+    @Test
+    void sendTestEmail_Success() throws Exception {
+        when(notificationService.sendTestEmail(any()))
+                .thenReturn(new com.swiftdrop.notification.dto.TestEmailResponse(
+                        true,
+                        "Email accepted by SMTP server and successfully dispatched",
+                        "test@example.com",
+                        "NTF-999999",
+                        "SENT",
+                        LocalDateTime.now()
+                ));
+
+        mockMvc.perform(post("/api/v1/notifications/test-email")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"recipientEmail\":\"test@example.com\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.recipientEmail").value("test@example.com"));
+    }
 }
 

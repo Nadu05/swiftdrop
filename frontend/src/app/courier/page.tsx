@@ -5,15 +5,12 @@ import Link from 'next/link';
 import {
   ArrowRight,
   Bike,
-  Calendar,
   CheckCircle2,
   Clock,
   Compass,
   Navigation,
   Package,
-  RefreshCw,
   Star,
-  Truck,
   Wallet,
 } from 'lucide-react';
 import AssignedJobCard from '@/components/courier/AssignedJobCard';
@@ -24,37 +21,15 @@ import {
   JobStatusBadge,
   LoadingState,
   StatCard,
-  formatDateTime,
   formatLkr,
   formatTime,
 } from '@/components/courier/CourierUI';
+import OverviewHeader from '@/components/dispatcher/overview/OverviewHeader';
 import { isActiveJob, isToday, useCourierData } from '@/hooks/api/use-courier';
 
-/**
- * SwiftDrop Courier Operations Dashboard
- * Routes: /courier/dashboard & /courier
- *
- * Displays:
- * - Operational Header with Date & Live Refresh
- * - Status & Vehicle Operations Strip
- * - Primary Operational Metrics (Assigned, Pickups, In Transit, Completed)
- * - Secondary Performance & Payout Summary
- * - Deliveries in Progress (Active Execution)
- * - Delivery Task List (New Dispatch Assignments)
- * - Finished & Delivered Today Summary Table
- */
 export default function CourierDashboardPage() {
   const { profile, setProfile, jobs, replaceJob, loading, error, reload } = useCourierData();
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  const [currentDate] = useState(() => {
-    return new Intl.DateTimeFormat('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    }).format(new Date());
-  });
 
   const handleManualRefresh = async () => {
     setIsRefreshing(true);
@@ -119,7 +94,7 @@ export default function CourierDashboardPage() {
 
   return (
     <div className="dispatcher-overview">
-      {/* 1. Header with Title & Live Refresh / Date / Availability Action */}
+      {/* 1. Header — matches OverviewHeader design system class pattern */}
       <header className="dispatcher-overview__header">
         <div className="dispatcher-overview__title-group">
           <h1 className="dispatcher-overview__title">Courier Operations Dashboard</h1>
@@ -130,8 +105,32 @@ export default function CourierDashboardPage() {
 
         <div className="dispatcher-overview__actions">
           <div className="dispatcher-overview__date-badge" title="Current operations date">
-            <Calendar size={15} className="dispatcher-overview__date-icon" aria-hidden="true" />
-            <span>{currentDate}</span>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="dispatcher-overview__date-icon"
+              aria-hidden="true"
+            >
+              <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+              <line x1="16" x2="16" y1="2" y2="6" />
+              <line x1="8" x2="8" y1="2" y2="6" />
+              <line x1="3" x2="21" y1="10" y2="10" />
+            </svg>
+            <span>
+              {new Intl.DateTimeFormat('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+              }).format(new Date())}
+            </span>
           </div>
 
           <button
@@ -141,13 +140,26 @@ export default function CourierDashboardPage() {
             disabled={isRefreshing || loading}
             aria-label="Refresh dashboard data"
           >
-            <RefreshCw
-              size={14}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
               className={`dispatcher-overview__refresh-icon ${
                 isRefreshing ? 'dispatcher-overview__refresh-icon--spinning' : ''
               }`}
               aria-hidden="true"
-            />
+            >
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+              <path d="M21 3v5h-5" />
+              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+              <path d="M8 16H3v5" />
+            </svg>
             <span>{isRefreshing ? 'Refreshing…' : 'Refresh'}</span>
           </button>
 
@@ -155,92 +167,75 @@ export default function CourierDashboardPage() {
         </div>
       </header>
 
-      {/* 2. Operations & Vehicle Status Attention Strip */}
-      <section
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '1rem',
-          padding: '0.85rem 1.25rem',
-          background: 'var(--ds-surface, #ffffff)',
-          border: '1px solid var(--ds-border, #e2e8f0)',
-          borderRadius: '12px',
-          boxShadow: '0 1px 2px rgba(15, 23, 42, 0.03)',
-        }}
-        aria-label="Courier status details"
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              padding: '0.3rem 0.65rem',
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              borderRadius: '8px',
-              fontSize: '0.8125rem',
-              color: '#334155',
-              fontWeight: 600,
-            }}
-          >
-            <Bike size={15} color="#2563eb" />
-            <span>
-              {profile.vehicleType} ({profile.vehiclePlate || 'Assigned'})
+      {/* 2. Courier Status & Vehicle Strip — using design system surface card style */}
+      <section className="dispatcher-table-card" aria-label="Courier status details">
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '1rem',
+            padding: '0.85rem 1.25rem',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            {/* Vehicle badge */}
+            <span className="sd-badge sd-badge--info">
+              <Bike size={13} style={{ marginRight: '0.3rem' }} />
+              {profile.vehicleType}
+              {profile.vehiclePlate ? ` · ${profile.vehiclePlate}` : ''}
+            </span>
+
+            {/* Hub badge */}
+            <span className="sd-badge sd-badge--success">
+              <Compass size={13} style={{ marginRight: '0.3rem' }} />
+              Hub: {profile.branchName}
+            </span>
+
+            {/* Online/Offline status */}
+            <span
+              className={`sd-badge ${
+                online
+                  ? 'sd-badge--success'
+                  : 'sd-badge--neutral'
+              }`}
+            >
+              {online ? 'Online & Available' : 'Offline'}
             </span>
           </div>
 
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              padding: '0.3rem 0.65rem',
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              borderRadius: '8px',
-              fontSize: '0.8125rem',
-              color: '#334155',
-              fontWeight: 600,
-            }}
-          >
-            <Compass size={15} color="#059669" />
-            <span>Hub: {profile.branchName}</span>
-          </div>
-        </div>
-
-        {/* Capacity utilization indicator */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.15rem' }}>
-            <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>
-              Current Load Capacity
-            </span>
-            <span style={{ fontSize: '0.8125rem', color: '#0f172a', fontWeight: 700 }}>
-              {activeJobs.length} / {profile.maxCapacity} Orders ({capacityPct}%)
-            </span>
-          </div>
-          <div
-            style={{
-              width: '80px',
-              height: '8px',
-              background: '#e2e8f0',
-              borderRadius: '999px',
-              overflow: 'hidden',
-            }}
-            title={`Capacity: ${capacityPct}%`}
-          >
+          {/* Capacity bar */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.15rem' }}>
+              <span className="dispatcher-stats-card__title" style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Load Capacity
+              </span>
+              <span style={{ fontSize: '0.8125rem', color: '#0f172a', fontWeight: 700 }}>
+                {activeJobs.length} / {profile.maxCapacity} ({capacityPct}%)
+              </span>
+            </div>
             <div
               style={{
-                width: `${capacityPct}%`,
-                height: '100%',
-                background:
-                  capacityPct > 80 ? '#ef4444' : capacityPct > 50 ? '#f59e0b' : '#2563eb',
+                width: '80px',
+                height: '8px',
+                background: '#e2e8f0',
                 borderRadius: '999px',
-                transition: 'width 0.3s ease',
+                overflow: 'hidden',
               }}
-            />
+              title={`Capacity: ${capacityPct}%`}
+            >
+              <div
+                style={{
+                  width: `${capacityPct}%`,
+                  height: '100%',
+                  background:
+                    capacityPct > 80 ? '#ef4444' : capacityPct > 50 ? '#f59e0b' : '#2563eb',
+                  borderRadius: '999px',
+                  transition: 'width 0.3s ease',
+                }}
+              />
+            </div>
           </div>
         </div>
       </section>
@@ -282,14 +277,7 @@ export default function CourierDashboardPage() {
       </section>
 
       {/* 4. Secondary Performance Summary Cards */}
-      <section
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-          gap: '1.25rem',
-        }}
-        aria-label="Courier performance summary"
-      >
+      <section className="dispatcher-stats-grid" aria-label="Courier performance summary">
         <StatCard
           label="Today's Payout Earnings"
           value={formatLkr(earningsToday)}
@@ -311,11 +299,7 @@ export default function CourierDashboardPage() {
       {/* 5. Deliveries In Progress (Active Jobs) */}
       {activeJobs.length > 0 && (
         <section
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1rem',
-          }}
+          style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
           aria-label="Active deliveries in progress"
         >
           <div
@@ -329,26 +313,12 @@ export default function CourierDashboardPage() {
           >
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+                <h2 className="dispatcher-overview__title" style={{ fontSize: '1.1rem', margin: 0 }}>
                   Deliveries In Progress ({activeJobs.length})
                 </h2>
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.25rem',
-                    padding: '0.15rem 0.5rem',
-                    borderRadius: '999px',
-                    background: '#eff6ff',
-                    color: '#1d4ed8',
-                    fontSize: '0.72rem',
-                    fontWeight: 700,
-                  }}
-                >
-                  ACTIVE
-                </span>
+                <span className="sd-badge sd-badge--info">ACTIVE</span>
               </div>
-              <p style={{ fontSize: '0.8125rem', color: '#64748b', margin: '0.2rem 0 0' }}>
+              <p className="dispatcher-overview__subtitle" style={{ margin: '0.2rem 0 0' }}>
                 Jobs you have accepted and are currently executing on your route.
               </p>
             </div>
@@ -384,11 +354,7 @@ export default function CourierDashboardPage() {
 
       {/* 6. Delivery Task List (New Assignments) */}
       <section
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '1rem',
-        }}
+        style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
         aria-label="New delivery assignments"
       >
         <div
@@ -402,27 +368,14 @@ export default function CourierDashboardPage() {
         >
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+              <h2 className="dispatcher-overview__title" style={{ fontSize: '1.1rem', margin: 0 }}>
                 Delivery Task List — New Assignments ({newJobs.length})
               </h2>
               {newJobs.length > 0 && (
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    padding: '0.15rem 0.5rem',
-                    borderRadius: '999px',
-                    background: '#fffbeb',
-                    color: '#b45309',
-                    fontSize: '0.72rem',
-                    fontWeight: 700,
-                  }}
-                >
-                  NEW
-                </span>
+                <span className="sd-badge sd-badge--warning">NEW</span>
               )}
             </div>
-            <p style={{ fontSize: '0.8125rem', color: '#64748b', margin: '0.2rem 0 0' }}>
+            <p className="dispatcher-overview__subtitle" style={{ margin: '0.2rem 0 0' }}>
               Jobs your branch dispatcher has assigned to you awaiting acceptance.
             </p>
           </div>
@@ -482,7 +435,7 @@ export default function CourierDashboardPage() {
             <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
               Completed &amp; Finished Today ({finishedToday.length})
             </h2>
-            <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0.2rem 0 0' }}>
+            <p className="dispatcher-overview__subtitle" style={{ margin: '0.2rem 0 0' }}>
               Delivered and processed parcels from your shifts today.
             </p>
           </div>

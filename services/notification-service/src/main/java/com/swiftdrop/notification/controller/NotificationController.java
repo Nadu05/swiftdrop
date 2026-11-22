@@ -3,7 +3,11 @@ package com.swiftdrop.notification.controller;
 import com.swiftdrop.notification.dto.BranchCredentialsNotificationRequest;
 import com.swiftdrop.notification.dto.BranchCredentialsNotificationResponse;
 import com.swiftdrop.notification.dto.NotificationDto;
+import com.swiftdrop.notification.dto.PasswordResetNotificationRequest;
+import com.swiftdrop.notification.dto.PasswordResetNotificationResponse;
 import com.swiftdrop.notification.dto.PublicTrackingNotificationDto;
+import com.swiftdrop.notification.dto.TestEmailRequest;
+import com.swiftdrop.notification.dto.TestEmailResponse;
 import com.swiftdrop.notification.security.NotificationUserPrincipal;
 import com.swiftdrop.notification.service.NotificationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -71,6 +75,20 @@ public class NotificationController {
             @Valid @RequestBody BranchCredentialsNotificationRequest request,
             @AuthenticationPrincipal NotificationUserPrincipal principal) {
         return ResponseEntity.ok(notificationService.sendBranchCredentials(request, principal));
+    }
+
+    @PostMapping("/password-reset")
+    @Operation(summary = "Send Password Reset email link (Internal / System)")
+    public ResponseEntity<PasswordResetNotificationResponse> sendPasswordReset(
+            @Valid @RequestBody PasswordResetNotificationRequest request) {
+        return ResponseEntity.ok(notificationService.sendPasswordReset(request));
+    }
+
+    @PostMapping("/test-email")
+    @Operation(summary = "Send diagnostic test email to verify SMTP configuration")
+    public ResponseEntity<TestEmailResponse> sendTestEmail(
+            @Valid @RequestBody TestEmailRequest request) {
+        return ResponseEntity.ok(notificationService.sendTestEmail(request));
     }
 }
 
