@@ -17,8 +17,6 @@ export type BranchStatus = 'ACTIVE' | 'INACTIVE';
 
 export type BranchStatusFilter = 'ALL' | BranchStatus;
 
-export type ServiceAreaStatus = 'ACTIVE' | 'INACTIVE';
-
 export type CredentialEmailStatus = 'PENDING' | 'SENT' | 'FAILED';
 
 /**
@@ -91,8 +89,6 @@ export interface BranchCreateRequest {
   city: string;
   phone: string;
   email: string;
-  latitude: number;
-  longitude: number;
   provinceId?: number | null;
   districtId?: number | null;
   dsDivisionId?: number | null;
@@ -117,26 +113,6 @@ export interface BranchUpdateRequest {
 }
 
 /**
- * Authoritative response DTO returned by Member 03's ServiceAreaController:
- * - GET /api/v1/organization/service-areas
- * - GET /api/v1/organization/service-areas/{id}
- * - GET /api/v1/organization/branches/{branchId}/service-areas
- */
-export interface ServiceAreaResponse {
-  id: number;
-  branchId: number;
-  branchCode: string;
-  branchName: string;
-  areaName: string;
-  centerLatitude: number;
-  centerLongitude: number;
-  maxRadiusKm: number;
-  status: ServiceAreaStatus;
-  createdAt: string;
-  updatedAt: string;
-}
-
-/**
  * Summary metrics derived strictly from the `BranchResponse[]` list.
  */
 export interface BranchSummaryMetrics {
@@ -147,19 +123,10 @@ export interface BranchSummaryMetrics {
 }
 
 /**
- * Organization Dashboard metrics derived strictly from `BranchResponse[]`
- * and `ServiceAreaResponse[]` backend responses.
- *
- * TODO (Future Backend Enhancement — Member 03 / Other Services):
- * Cross-domain Head Office metrics (such as pending merchant approvals,
- * organization-wide active order counts, or total staff accounts) are not
- * exposed by `organization-service` and are intentionally excluded so no
- * speculative or hardcoded numbers are shown.
+ * Organization Dashboard metrics derived strictly from `BranchResponse[]` backend responses.
  */
 export interface OrganizationDashboardMetrics extends BranchSummaryMetrics {
-  totalServiceAreas: number;
-  activeServiceAreas: number;
-  inactiveServiceAreas: number;
+  totalAssignedPostalAreas: number;
 }
 
 /**

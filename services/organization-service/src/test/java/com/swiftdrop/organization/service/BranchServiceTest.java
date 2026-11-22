@@ -106,9 +106,7 @@ class BranchServiceTest {
                 "Kollupitiya",
                 "Colombo",
                 "+94112345678",
-                "colombo@swiftdrop.lk",
-                6.9271,
-                79.8612
+                "colombo@swiftdrop.lk"
         );
         request.setPostalAreaIds(List.of(100L));
 
@@ -137,9 +135,7 @@ class BranchServiceTest {
                 null,
                 "Colombo",
                 "+94112345678",
-                null,
-                6.9271,
-                79.8612
+                "colombo@swiftdrop.lk"
         );
 
         when(repository.existsByCode("BR-COL-001")).thenReturn(true);

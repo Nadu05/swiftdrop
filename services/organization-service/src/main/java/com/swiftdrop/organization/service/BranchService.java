@@ -122,8 +122,6 @@ public class BranchService {
         branch.setCity(request.getCity());
         branch.setPhone(request.getPhone());
         branch.setEmail(request.getEmail());
-        branch.setLatitude(request.getLatitude());
-        branch.setLongitude(request.getLongitude());
         branch.setStatus(targetStatus);
         branch.setPostalCode(
                 request.getPostalCode() != null && !request.getPostalCode().isBlank()
@@ -201,7 +199,26 @@ public class BranchService {
         } else {
             branches = repository.findAllByOrderByNameAsc();
         }
-        return branches.stream().map(this::toResponse).toList();
+        if (branches.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> branchIds = branches.stream()
+                .map(Branch::getId)
+                .filter(java.util.Objects::nonNull)
+                .toList();
+
+        Map<Long, List<PostalAreaDto>> areasByBranchId = branchIds.isEmpty()
+                ? Map.of()
+                : branchPostalAreaRepository.findActiveByBranchIdInWithDetails(branchIds).stream()
+                        .collect(Collectors.groupingBy(
+                                bpa -> bpa.getBranch().getId(),
+                                Collectors.mapping(bpa -> toPostalAreaDto(bpa.getPostalArea()), Collectors.toList())
+                        ));
+
+        return branches.stream()
+                .map(branch -> toResponse(branch, areasByBranchId.getOrDefault(branch.getId(), List.of())))
+                .toList();
     }
 
     /**
@@ -215,7 +232,11 @@ public class BranchService {
     public BranchResponse findById(Long id) {
         Branch branch = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Branch", id));
-        return toResponse(branch);
+        List<PostalAreaDto> assignedAreas = branchPostalAreaRepository
+                .findActiveByBranchIdWithDetails(branch.getId()).stream()
+                .map(bpa -> toPostalAreaDto(bpa.getPostalArea()))
+                .toList();
+        return toResponse(branch, assignedAreas);
     }
 
     /**

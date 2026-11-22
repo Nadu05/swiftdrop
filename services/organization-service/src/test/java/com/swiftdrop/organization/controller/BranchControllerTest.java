@@ -48,9 +48,6 @@ class BranchControllerTest {
     @MockBean
     private BranchService branchService;
 
-    @MockBean
-    private com.swiftdrop.organization.service.ServiceAreaService serviceAreaService;
-
     private BranchResponse createSampleResponse() {
         return new BranchResponse(
                 1L,
@@ -80,9 +77,7 @@ class BranchControllerTest {
                 "Kollupitiya",
                 "Colombo",
                 "+94112345678",
-                "colombo@swiftdrop.lk",
-                6.9271,
-                79.8612
+                "colombo@swiftdrop.lk"
         );
 
         when(branchService.create(any(BranchCreateRequest.class))).thenReturn(createSampleResponse());
@@ -108,9 +103,7 @@ class BranchControllerTest {
                 null,
                 "Colombo",
                 "+94112345678",
-                null,
-                6.9271,
-                79.8612
+                "colombo@swiftdrop.lk"
         );
 
         when(branchService.create(any(BranchCreateRequest.class))).thenReturn(createSampleResponse());
@@ -127,7 +120,7 @@ class BranchControllerTest {
     @DisplayName("POST /branches should return 400 Bad Request when required fields are missing")
     void shouldReturn400WhenRequiredFieldsMissing() throws Exception {
         BranchCreateRequest invalidRequest = new BranchCreateRequest();
-        // Missing code, name, addressLine1, city, phone, latitude, longitude
+        // Missing code, name, addressLine1, city, phone, email
 
         mockMvc.perform(post("/branches")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -139,32 +132,7 @@ class BranchControllerTest {
                 .andExpect(jsonPath("$.fieldErrors.addressLine1").exists())
                 .andExpect(jsonPath("$.fieldErrors.city").exists())
                 .andExpect(jsonPath("$.fieldErrors.phone").exists())
-                .andExpect(jsonPath("$.fieldErrors.latitude").exists())
-                .andExpect(jsonPath("$.fieldErrors.longitude").exists());
-    }
-
-    @Test
-    @WithMockUser(roles = "ADMIN")
-    @DisplayName("POST /branches should return 400 Bad Request when coordinates are out of valid range")
-    void shouldReturn400WhenCoordinatesAreInvalid() throws Exception {
-        BranchCreateRequest invalidCoords = new BranchCreateRequest(
-                "BR-COL-001",
-                "Colombo Branch",
-                "Galle Road",
-                null,
-                "Colombo",
-                "+94112345678",
-                null,
-                95.5,   // invalid latitude > 90
-                195.0   // invalid longitude > 180
-        );
-
-        mockMvc.perform(post("/branches")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(invalidCoords)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.fieldErrors.latitude").exists())
-                .andExpect(jsonPath("$.fieldErrors.longitude").exists());
+                .andExpect(jsonPath("$.fieldErrors.email").exists());
     }
 
     @Test
@@ -178,9 +146,7 @@ class BranchControllerTest {
                 null,
                 "Colombo",
                 "+94112345678",
-                null,
-                6.9271,
-                79.8612
+                "colombo@swiftdrop.lk"
         );
 
         when(branchService.create(any(BranchCreateRequest.class)))
@@ -266,23 +232,6 @@ class BranchControllerTest {
     }
 
     @Test
-    @DisplayName("GET /branches/{branchId}/service-areas should return 200 OK with list of service areas")
-    void shouldReturnServiceAreasForBranch() throws Exception {
-        com.swiftdrop.organization.dto.ServiceAreaResponse saResponse = new com.swiftdrop.organization.dto.ServiceAreaResponse(
-                10L, 1L, "BR-COL-001", "Colombo Central Branch", "Kollupitiya Area",
-                6.9150, 79.8550, new java.math.BigDecimal("10.00"), "ACTIVE",
-                LocalDateTime.now(), LocalDateTime.now()
-        );
-
-        when(serviceAreaService.findByBranchId(1L, null)).thenReturn(List.of(saResponse));
-
-        mockMvc.perform(get("/branches/1/service-areas"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(10L))
-                .andExpect(jsonPath("$[0].areaName").value("Kollupitiya Area"));
-    }
-
-    @Test
     @DisplayName("POST /branches should return 401 Unauthorized when unauthenticated")
     void shouldReturn401WhenCreatingBranchUnauthenticated() throws Exception {
         mockMvc.perform(post("/branches")
@@ -325,7 +274,7 @@ class BranchControllerTest {
     @DisplayName("POST /branches and /api/v1/branches should return 403 Forbidden for BRANCH_MANAGER")
     void shouldReturn403WhenBranchManagerCreatesBranch() throws Exception {
         BranchCreateRequest request = new BranchCreateRequest(
-                "BR-MGR-01", "Manager Branch", "123 Main St", null, "Colombo", "+94112345678", null, 6.9271, 79.8612
+                "BR-MGR-01", "Manager Branch", "123 Main St", null, "Colombo", "+94112345678", "manager@swiftdrop.lk"
         );
         request.setPostalAreaIds(List.of(1L));
 
@@ -345,7 +294,7 @@ class BranchControllerTest {
     @DisplayName("POST /branches and /api/v1/branches should return 400 when ACTIVE branch has zero postal areas")
     void shouldReturn400WhenActiveBranchHasZeroPostalAreas() throws Exception {
         BranchCreateRequest request = new BranchCreateRequest(
-                "BR-EMPTY", "Empty Branch", "123 Main St", null, "Colombo", "+94112345678", null, 6.9271, 79.8612
+                "BR-EMPTY", "Empty Branch", "123 Main St", null, "Colombo", "+94112345678", "empty@swiftdrop.lk"
         );
         request.setPostalAreaIds(List.of());
 
@@ -370,7 +319,7 @@ class BranchControllerTest {
     @DisplayName("POST /branches and /api/v1/branches should return 409 Conflict when postal area is already assigned")
     void shouldReturn409WhenPostalAreaAlreadyAssigned() throws Exception {
         BranchCreateRequest request = new BranchCreateRequest(
-                "BR-CONF", "Conflict Branch", "123 Main St", null, "Colombo", "+94112345678", null, 6.9271, 79.8612
+                "BR-CONF", "Conflict Branch", "123 Main St", null, "Colombo", "+94112345678", "conflict@swiftdrop.lk"
         );
         request.setPostalAreaIds(List.of(10L));
 
