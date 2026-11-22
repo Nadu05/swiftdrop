@@ -30,12 +30,14 @@ services:
       <<: *rabbitmq-env
       SPRING_PROFILES_ACTIVE: docker
       SERVER_PORT: 8081
-      SPRING_DATASOURCE_URL: jdbc:postgresql://swiftdrop-postgres:5432/identity_db
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-${SERVICE_DB_PASSWORD:-${POSTGRES_ADMIN_PASSWORD:?Set POSTGRES_PASSWORD in .env}}}
-      FLYWAY_DB_URL: jdbc:postgresql://swiftdrop-postgres:5432/identity_db
-      FLYWAY_DB_USER: ${POSTGRES_USER:-postgres}
-      FLYWAY_DB_PASSWORD: ${POSTGRES_PASSWORD:-${SERVICE_DB_PASSWORD:-${POSTGRES_ADMIN_PASSWORD:?Set POSTGRES_PASSWORD in .env}}}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${NEON_HOST:?Set NEON_HOST in .env}:${NEON_PORT:-5432}/${IDENTITY_DB_NAME:-swiftdrop_identity}${NEON_SSL_MODE:-?sslmode=require}
+      SPRING_DATASOURCE_USERNAME: ${NEON_USER:?Set NEON_USER in .env}
+      SPRING_DATASOURCE_PASSWORD: ${NEON_PASSWORD:?Set NEON_PASSWORD in .env}
+      FLYWAY_DB_URL: jdbc:postgresql://${NEON_DIRECT_HOST:-${NEON_HOST}}:${NEON_PORT:-5432}/${IDENTITY_DB_NAME:-swiftdrop_identity}${NEON_SSL_MODE:-?sslmode=require}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-3600000}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      NOTIFICATION_SERVICE_URL: http://notification-service:8085
     ports:
       - "8081:8081"
 
@@ -129,12 +131,27 @@ services:
       <<: *rabbitmq-env
       SPRING_PROFILES_ACTIVE: docker
       SERVER_PORT: 8085
-      SPRING_DATASOURCE_URL: jdbc:postgresql://swiftdrop-postgres:5432/notification_db
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-${SERVICE_DB_PASSWORD:-${POSTGRES_ADMIN_PASSWORD:?Set POSTGRES_PASSWORD in .env}}}
-      FLYWAY_DB_URL: jdbc:postgresql://swiftdrop-postgres:5432/notification_db
-      FLYWAY_DB_USER: ${POSTGRES_USER:-postgres}
-      FLYWAY_DB_PASSWORD: ${POSTGRES_PASSWORD:-${SERVICE_DB_PASSWORD:-${POSTGRES_ADMIN_PASSWORD:?Set POSTGRES_PASSWORD in .env}}}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${NEON_HOST:?Set NEON_HOST in .env}:${NEON_PORT:-5432}/${NOTIFICATION_DB_NAME:-swiftdrop_notification}${NEON_SSL_MODE:-?sslmode=require}
+      SPRING_DATASOURCE_USERNAME: ${NEON_USER:?Set NEON_USER in .env}
+      SPRING_DATASOURCE_PASSWORD: ${NEON_PASSWORD:?Set NEON_PASSWORD in .env}
+      FLYWAY_DB_URL: jdbc:postgresql://${NEON_DIRECT_HOST:-${NEON_HOST}}:${NEON_PORT:-5432}/${NOTIFICATION_DB_NAME:-swiftdrop_notification}${NEON_SSL_MODE:-?sslmode=require}
+      SPRING_MAIL_ENABLED: ${SPRING_MAIL_ENABLED:-true}
+      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:-mailpit}
+      SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-1025}
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
+      SPRING_MAIL_SMTP_AUTH: ${SPRING_MAIL_SMTP_AUTH:-false}
+      SPRING_MAIL_SMTP_STARTTLS: ${SPRING_MAIL_SMTP_STARTTLS:-false}
+      SPRING_MAIL_FROM: ${SPRING_MAIL_FROM:-noreply@swiftdrop.lk}
+      APP_FRONTEND_BASE_URL: ${FRONTEND_URL:-http://localhost:3000}
+    ports:
+      - "${NOTIFICATION_SERVICE_PORT:-8085}:8085"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8085/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 120s
 
       # Mailpit
       SPRING_MAIL_HOST: swiftdrop-mailpit

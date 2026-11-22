@@ -18,10 +18,16 @@ public class RabbitMQConfig {
     public static final String IDENTITY_EXCHANGE = "swiftdrop.identity.exchange";
     public static final String IDENTITY_QUEUE = "swiftdrop.identity.queue";
     public static final String IDENTITY_ROUTING_KEY = "identity.event.#";
+    public static final String DOMAIN_EVENTS_EXCHANGE = "swiftdrop.events";
 
     @Bean
     public TopicExchange identityExchange() {
         return new TopicExchange(IDENTITY_EXCHANGE);
+    }
+
+    @Bean
+    public TopicExchange domainEventsExchange() {
+        return new TopicExchange(DOMAIN_EVENTS_EXCHANGE, true, false);
     }
 
     @Bean

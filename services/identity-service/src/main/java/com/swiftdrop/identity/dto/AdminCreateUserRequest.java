@@ -38,6 +38,8 @@ public class AdminCreateUserRequest {
 
     private String organizationId;
 
+    private Boolean mustChangePassword;
+
     public AdminCreateUserRequest() {}
 
     public AdminCreateUserRequest(String fullName, String email, String password, String phone,
@@ -77,5 +79,8 @@ public class AdminCreateUserRequest {
 
     public String getOrganizationId() { return organizationId; }
     public void setOrganizationId(String organizationId) { this.organizationId = organizationId; }
+
+    public Boolean getMustChangePassword() { return mustChangePassword; }
+    public void setMustChangePassword(Boolean mustChangePassword) { this.mustChangePassword = mustChangePassword; }
 }
 

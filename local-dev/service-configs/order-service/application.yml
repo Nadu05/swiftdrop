@@ -17,7 +17,7 @@ spring:
       - optional:file:../../.env[.properties]
       - optional:file:.env[.properties]
   datasource:
-    url: jdbc:postgresql://localhost:5437/swiftdrop_order
+    url: jdbc:postgresql://localhost:${POSTGRES_PORT:5433}/swiftdrop_order
     username: postgres
     password: postgrespassword
     driver-class-name: org.postgresql.Driver
@@ -38,7 +38,7 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
     validate-on-migrate: false
-    url: jdbc:postgresql://localhost:5437/swiftdrop_order
+    url: jdbc:postgresql://localhost:${POSTGRES_PORT:5433}/swiftdrop_order
     user: postgres
     password: postgrespassword
   rabbitmq:

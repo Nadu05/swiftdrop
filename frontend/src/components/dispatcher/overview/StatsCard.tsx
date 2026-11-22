@@ -41,11 +41,10 @@ export default function StatsCard({
       <div className="dispatcher-stats-card__bottom">
         {trend && (
           <span
-            className={`dispatcher-stats-card__trend ${
-              trend.isPositive
-                ? 'dispatcher-stats-card__trend--positive'
-                : 'dispatcher-stats-card__trend--negative'
-            }`}
+            className={`dispatcher-stats-card__trend ${trend.isPositive
+              ? 'dispatcher-stats-card__trend--positive'
+              : 'dispatcher-stats-card__trend--negative'
+              }`}
           >
             {trend.isPositive ? (
               <ArrowUpRight size={14} aria-hidden="true" />

@@ -12,12 +12,14 @@ import {
   ChartColumn,
   ClipboardList,
   LayoutDashboard,
+  LogOut,
   Store,
   Truck,
   Users,
   X,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
+import { useLogout } from '@/hooks/api/use-auth';
 import { resolveOrganizationPermissions } from '@/lib/auth/branch-admin-permissions';
 
 export interface OrganizationNavItem {
@@ -174,6 +176,7 @@ export interface OrganizationSidebarProps {
   isOpen: boolean;
   onClose: () => void;
   onNavigate: () => void;
+  onLogout?: () => void;
 }
 
 function OrganizationSidebar({
@@ -181,9 +184,12 @@ function OrganizationSidebar({
   isOpen,
   onClose,
   onNavigate,
+  onLogout,
 }: OrganizationSidebarProps) {
   const pathname = usePathname();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const logoutMutation = useLogout();
+  const handleLogout = onLogout ?? (() => logoutMutation.mutate());
 
   const user = useAuthStore((s) => s.user);
   const activeRole = useAuthStore((s) => s.activeRole);
@@ -316,9 +322,39 @@ function OrganizationSidebar({
         </nav>
 
         <div className="org-sidebar__footer">
+          <button
+            type="button"
+            className="org-sidebar__link org-sidebar__link--logout"
+            onClick={handleLogout}
+            disabled={logoutMutation.isPending}
+            title="Log out of SwiftDrop"
+            aria-label="Log out"
+          >
+            <LogOut className="org-sidebar__icon" size={17} aria-hidden="true" />
+            <span className="org-sidebar__label">
+              {logoutMutation.isPending ? 'Logging out...' : 'Log out'}
+            </span>
+          </button>
+
           <div className="org-sidebar__signed-in">
             <span className="org-sidebar__status-dot" aria-hidden="true" />
-            <span>{footerLabel}</span>
+            <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, lineHeight: 1.25 }}>
+              {user?.fullName && (
+                <span
+                  style={{
+                    color: '#e2e8f0',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {user.fullName}
+                </span>
+              )}
+              <span style={{ fontSize: '0.72rem', color: '#64748b' }}>{footerLabel}</span>
+            </div>
           </div>
         </div>
       </aside>

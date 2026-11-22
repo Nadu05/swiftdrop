@@ -5,12 +5,12 @@ import {
   mapBranchPostalAreasToDtos,
   submitBranchEditWithPostalAreas,
   validateBranchPostalAreasForMode,
-} from './branch-postal-coverage.ts';
+} from './branch-postal-coverage';
 import type {
   BranchPostalAreaResponse,
   BranchResponse,
   BranchUpdateRequest,
-} from '../../../types/organization.types.ts';
+} from '../../../types/organization.types';
 
 test('mapBranchPostalAreasToDtos maps postalAreaId to PostalAreaDto.id instead of junction id', () => {
   const assigned: BranchPostalAreaResponse[] = [

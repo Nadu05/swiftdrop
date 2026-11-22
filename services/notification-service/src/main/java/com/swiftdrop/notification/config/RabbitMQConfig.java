@@ -75,6 +75,11 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    public Binding identityEventsBinding(@Qualifier("queue") Queue queue, @Qualifier("exchange") TopicExchange exchange) {
+        return BindingBuilder.bind(queue).to(exchange).with("identity.#");
+    }
+
+    @Bean
     public Binding deadLetterBinding(
             @Qualifier("deadLetterQueue") Queue deadLetterQueue,
             @Qualifier("deadLetterExchange") DirectExchange deadLetterExchange) {

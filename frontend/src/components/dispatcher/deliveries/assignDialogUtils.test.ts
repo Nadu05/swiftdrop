@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveAssignDialogPresentation } from './assignDialogUtils.ts';
+import { resolveAssignDialogPresentation } from './assignDialogUtils';
 
 test('Pickup task presentation shows Assign Pickup Courier title and Pickup Location with pickupAddress and pickupCity instead of dropoffAddress', () => {
   const pickupOrder = {

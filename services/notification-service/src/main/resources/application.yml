@@ -52,6 +52,9 @@ spring:
           auth: ${SPRING_MAIL_SMTP_AUTH:false}
           starttls:
             enable: ${SPRING_MAIL_SMTP_STARTTLS:false}
+          connectiontimeout: ${SPRING_MAIL_CONNECTION_TIMEOUT:5000}
+          timeout: ${SPRING_MAIL_READ_TIMEOUT:5000}
+          writetimeout: ${SPRING_MAIL_WRITE_TIMEOUT:5000}
 
 management:
   endpoints:
@@ -79,5 +82,7 @@ app:
   jwt:
     secret: Y2hhbmdlLW1lLWluLXByb2R1Y3Rpb24tYW5kLXVzZS1hLXN0cm9uZy1zZWNyZXQtaGVyZS0xMjM0NTY3ODk=
   mail:
-    enabled: ${SPRING_MAIL_ENABLED:false}
+    enabled: ${SPRING_MAIL_ENABLED:true}
     from: ${SPRING_MAIL_FROM:noreply@swiftdrop.lk}
+  frontend:
+    base-url: ${APP_FRONTEND_BASE_URL:${FRONTEND_BASE_URL:http://localhost:3000}}
