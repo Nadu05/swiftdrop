@@ -113,13 +113,28 @@ public class SecurityConfig {
                         // Branch postal area coverage sync: Head Office Admin only
                         .requestMatchers(HttpMethod.PUT, "/branches/*/postal-areas", "/api/v1/branches/*/postal-areas")
                         .hasAnyRole("ADMIN", "HEAD_OFFICE_ADMIN")
-                        // Merchant approval / rejection: Head Office Admin only
+                        // Merchant approval / rejection / lifecycle decisions: Head Office Admin only
                         .requestMatchers(HttpMethod.POST,
                                 "/merchants/applications/*/approve",
                                 "/merchants/applications/*/reject",
+                                "/merchants/applications/*/request-info",
+                                "/merchants/applications/*/suspend",
+                                "/merchants/applications/*/reinstate",
+                                "/merchants/applications/*/terminate",
                                 "/api/v1/merchants/applications/*/approve",
-                                "/api/v1/merchants/applications/*/reject"
+                                "/api/v1/merchants/applications/*/reject",
+                                "/api/v1/merchants/applications/*/request-info",
+                                "/api/v1/merchants/applications/*/suspend",
+                                "/api/v1/merchants/applications/*/reinstate",
+                                "/api/v1/merchants/applications/*/terminate"
                         ).hasAnyRole("ADMIN", "HEAD_OFFICE_ADMIN")
+                        // Public safe application status lookup & S2S approval status verification
+                        .requestMatchers(HttpMethod.GET,
+                                "/merchants/applications/lookup",
+                                "/merchants/applications/status/*",
+                                "/api/v1/merchants/applications/lookup",
+                                "/api/v1/merchants/applications/status/*"
+                        ).permitAll()
                         // Merchant administrative listing & metrics: Head Office Admin or internal S2S
                         .requestMatchers(HttpMethod.GET,
                                 "/merchants/applications",

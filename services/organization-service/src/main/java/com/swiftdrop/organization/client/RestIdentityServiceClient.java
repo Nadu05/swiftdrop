@@ -168,4 +168,85 @@ public class RestIdentityServiceClient implements IdentityServiceClient {
             );
         }
     }
+
+    @Override
+    public void grantMerchantAccess(String userId, String organizationId) {
+        if (userId == null || userId.isBlank() || organizationId == null || organizationId.isBlank()) {
+            return;
+        }
+        try {
+            RestClient.RequestBodySpec roleReq = restClient.post()
+                    .uri("/api/v1/admin/users/{userId}/roles", userId.trim())
+                    .header(CorrelationIdHolder.HEADER_NAME, CorrelationIdHolder.currentOrNew())
+                    .contentType(MediaType.APPLICATION_JSON);
+            RestClientSupport.applyCallerAuth(roleReq);
+            roleReq.body(Map.of("roleName", "MERCHANT")).retrieve().toBodilessEntity();
+
+            RestClient.RequestBodySpec updateReq = restClient.put()
+                    .uri("/api/v1/admin/users/{userId}", userId.trim())
+                    .header(CorrelationIdHolder.HEADER_NAME, CorrelationIdHolder.currentOrNew())
+                    .contentType(MediaType.APPLICATION_JSON);
+            RestClientSupport.applyCallerAuth(updateReq);
+            updateReq.body(Map.of("organizationId", organizationId.trim())).retrieve().toBodilessEntity();
+
+            log.info("Granted MERCHANT role and linked organizationId={} for userId={}", organizationId, userId);
+        } catch (ResourceAccessException | RestClientResponseException ex) {
+            log.warn("Identity Service merchant role/org link call failed for userId={} org={}: {}",
+                    userId, organizationId, ex.getMessage());
+        }
+    }
+
+    @Override
+    public Optional<com.swiftdrop.organization.dto.MerchantProvisionedOAuthDto> provisionMerchantOAuthClient(
+            String merchantId,
+            String merchantName,
+            java.util.List<String> scopes) {
+        if (merchantId == null || merchantId.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("merchantId", merchantId.trim());
+            payload.put("merchantName", merchantName != null ? merchantName.trim() : merchantId.trim());
+            if (scopes != null && !scopes.isEmpty()) {
+                payload.put("scopes", scopes);
+            }
+            RestClient.RequestBodySpec req = restClient.post()
+                    .uri("/api/v1/admin/oauth-clients/provision")
+                    .header(CorrelationIdHolder.HEADER_NAME, CorrelationIdHolder.currentOrNew())
+                    .contentType(MediaType.APPLICATION_JSON);
+            RestClientSupport.applyCallerAuth(req);
+
+            com.swiftdrop.organization.dto.MerchantProvisionedOAuthDto provisioned = req
+                    .body(payload)
+                    .retrieve()
+                    .body(com.swiftdrop.organization.dto.MerchantProvisionedOAuthDto.class);
+            return Optional.ofNullable(provisioned);
+        } catch (ResourceAccessException | RestClientResponseException ex) {
+            log.warn("Identity Service OAuth client provisioning failed for merchant {}: {}",
+                    merchantId, ex.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    @Override
+    public void revokeMerchantOAuthClients(String merchantId, String reason) {
+        if (merchantId == null || merchantId.isBlank()) {
+            return;
+        }
+        try {
+            RestClient.RequestBodySpec req = restClient.post()
+                    .uri("/api/v1/admin/oauth-clients/merchant/{merchantId}/revoke-all", merchantId.trim())
+                    .header(CorrelationIdHolder.HEADER_NAME, CorrelationIdHolder.currentOrNew())
+                    .contentType(MediaType.APPLICATION_JSON);
+            RestClientSupport.applyCallerAuth(req);
+            req.body(Map.of("reason", reason != null ? reason : "Merchant suspended or terminated"))
+                    .retrieve()
+                    .toBodilessEntity();
+            log.info("Revoked OAuth 2.0 clients in Identity Service for merchant {}", merchantId);
+        } catch (ResourceAccessException | RestClientResponseException ex) {
+            log.warn("Identity Service OAuth client revocation failed for merchant {}: {}",
+                    merchantId, ex.getMessage());
+        }
+    }
 }

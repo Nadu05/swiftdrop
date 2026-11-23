@@ -17,6 +17,9 @@ import type {
   MerchantApplicationRejectRequest,
   MerchantApplicationResponse,
   MerchantApprovalSummaryResponse,
+  MerchantPickupLocationRequest,
+  MerchantPickupLocationResponse,
+  MerchantProfileUpdateRequest,
   OrganizationDashboardMetrics,
   PostalAreaDto,
   ProvinceDto,
@@ -40,6 +43,7 @@ const BRANCHES_BASE_PATH = '/api/v1/organization/branches';
 const BRANCH_RESOLUTION_PATH = '/api/v1/organization/branches/resolve';
 const ROUTE_BRANCH_RESOLUTION_PATH = '/api/v1/organization/branches/resolve-route';
 const MERCHANT_APPLICATIONS_BASE_PATH = '/api/v1/organization/merchants/applications';
+const MERCHANT_PICKUP_LOCATIONS_BASE_PATH = '/api/v1/organization/merchants/pickup-locations';
 const LOCATIONS_BASE_PATH = '/api/v1/organization/locations';
 
 /**
@@ -762,6 +766,177 @@ export async function searchPostalAreas(params?: {
   } catch (error) {
     throw buildOrganizationApiError(error, 'Failed to search postal areas.');
   }
+}
+
+export async function updateMyMerchantProfile(
+  payload: MerchantProfileUpdateRequest
+): Promise<MerchantApplicationResponse> {
+  return withOrganizationApiError(async () => {
+    const response = await apiClient.patch<MerchantApplicationResponse>(
+      `${MERCHANT_APPLICATIONS_BASE_PATH}/my/profile`,
+      payload
+    );
+    return response.data;
+  }, 'Unable to update your merchant business profile.');
+}
+
+export async function listMerchantPickupLocations(): Promise<MerchantPickupLocationResponse[]> {
+  return withOrganizationApiError(async () => {
+    const response = await apiClient.get<MerchantPickupLocationResponse[]>(
+      MERCHANT_PICKUP_LOCATIONS_BASE_PATH
+    );
+    return Array.isArray(response.data) ? response.data : [];
+  }, 'Unable to load merchant pickup locations.');
+}
+
+export async function createMerchantPickupLocation(
+  payload: MerchantPickupLocationRequest
+): Promise<MerchantPickupLocationResponse> {
+  return withOrganizationApiError(async () => {
+    const response = await apiClient.post<MerchantPickupLocationResponse>(
+      MERCHANT_PICKUP_LOCATIONS_BASE_PATH,
+      payload
+    );
+    return response.data;
+  }, 'Unable to create pickup location.');
+}
+
+export async function updateMerchantPickupLocation(
+  id: number,
+  payload: MerchantPickupLocationRequest
+): Promise<MerchantPickupLocationResponse> {
+  return withOrganizationApiError(async () => {
+    const response = await apiClient.put<MerchantPickupLocationResponse>(
+      `${MERCHANT_PICKUP_LOCATIONS_BASE_PATH}/${id}`,
+      payload
+    );
+    return response.data;
+  }, `Unable to update pickup location #${id}.`);
+}
+
+export async function setDefaultMerchantPickupLocation(
+  id: number
+): Promise<MerchantPickupLocationResponse> {
+  return withOrganizationApiError(async () => {
+    const response = await apiClient.patch<MerchantPickupLocationResponse>(
+      `${MERCHANT_PICKUP_LOCATIONS_BASE_PATH}/${id}/default`
+    );
+    return response.data;
+  }, `Unable to set pickup location #${id} as default.`);
+}
+
+export async function toggleMerchantPickupLocationStatus(
+  id: number,
+  active: boolean
+): Promise<MerchantPickupLocationResponse> {
+  return withOrganizationApiError(async () => {
+    const response = await apiClient.patch<MerchantPickupLocationResponse>(
+      `${MERCHANT_PICKUP_LOCATIONS_BASE_PATH}/${id}/status`,
+      { active }
+    );
+    return response.data;
+  }, `Unable to update status for pickup location #${id}.`);
+}
+
+export async function deleteMerchantPickupLocation(id: number): Promise<void> {
+  return withOrganizationApiError(async () => {
+    await apiClient.delete(`${MERCHANT_PICKUP_LOCATIONS_BASE_PATH}/${id}`);
+  }, `Unable to delete pickup location #${id}.`);
+}
+
+export async function requestMoreInfoMerchantApplication(
+  id: string,
+  message: string
+): Promise<MerchantApplicationResponse> {
+  return withOrganizationApiError(async () => {
+    const response = await apiClient.post<MerchantApplicationResponse>(
+      `${MERCHANT_APPLICATIONS_BASE_PATH}/${encodeURIComponent(id)}/request-info`,
+      { message }
+    );
+    return response.data;
+  }, `Unable to request additional information for ${id}.`);
+}
+
+export async function resubmitMerchantApplication(
+  id: string,
+  payload?: MerchantProfileUpdateRequest
+): Promise<MerchantApplicationResponse> {
+  return withOrganizationApiError(async () => {
+    const response = await apiClient.post<MerchantApplicationResponse>(
+      `${MERCHANT_APPLICATIONS_BASE_PATH}/${encodeURIComponent(id)}/resubmit`,
+      payload || {}
+    );
+    return response.data;
+  }, `Unable to resubmit merchant application ${id}.`);
+}
+
+export async function suspendMerchantApplication(
+  id: string,
+  reason: string
+): Promise<MerchantApplicationResponse> {
+  return withOrganizationApiError(async () => {
+    const response = await apiClient.post<MerchantApplicationResponse>(
+      `${MERCHANT_APPLICATIONS_BASE_PATH}/${encodeURIComponent(id)}/suspend`,
+      { reason }
+    );
+    return response.data;
+  }, `Unable to suspend merchant ${id}.`);
+}
+
+export async function reinstateMerchantApplication(
+  id: string,
+  notes?: string
+): Promise<MerchantApplicationResponse> {
+  return withOrganizationApiError(async () => {
+    const response = await apiClient.post<MerchantApplicationResponse>(
+      `${MERCHANT_APPLICATIONS_BASE_PATH}/${encodeURIComponent(id)}/reinstate`,
+      notes ? { notes } : {}
+    );
+    return response.data;
+  }, `Unable to reinstate merchant ${id}.`);
+}
+
+export async function uploadMerchantDocument(
+  applicationId: string,
+  file: File,
+  documentType = 'BR_CERTIFICATE'
+): Promise<void> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('documentType', documentType);
+  return withOrganizationApiError(async () => {
+    await apiClient.post(
+      `${MERCHANT_APPLICATIONS_BASE_PATH}/${encodeURIComponent(applicationId)}/documents`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+  }, 'Unable to upload business registration document.');
+}
+
+export function getMerchantDocumentDownloadUrl(applicationId: string, docId: string): string {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+  return `${baseUrl}${MERCHANT_APPLICATIONS_BASE_PATH}/${encodeURIComponent(applicationId)}/documents/${encodeURIComponent(docId)}/download`;
+}
+
+export async function lookupMerchantApplicationStatus(
+  reference: string,
+  email: string
+): Promise<{
+  applicationReference: string;
+  businessName: string;
+  status: string;
+  statusLabel: string;
+  submittedAt?: string | null;
+  reviewedAt?: string | null;
+  infoRequestMessage?: string | null;
+  rejectionReason?: string | null;
+}> {
+  return withOrganizationApiError(async () => {
+    const response = await apiClient.get(`${MERCHANT_APPLICATIONS_BASE_PATH}/lookup`, {
+      params: { reference: reference.trim(), email: email.trim() },
+    });
+    return response.data;
+  }, 'No merchant application matched the provided reference and email.');
 }
 
 export const organizationApi = {

@@ -24,6 +24,9 @@ public class MerchantApplicationResponse {
     private String reviewedBy;
     private String reviewedAt;
     private String reviewNotes;
+    private String infoRequestMessage;
+    private String suspensionReason;
+    private MerchantProvisionedOAuthDto provisionedCredentials;
     private List<MerchantApplicationDocumentDto> documents;
     private List<MerchantApplicationHistoryDto> history;
 
@@ -155,5 +158,16 @@ public class MerchantApplicationResponse {
 
     public List<MerchantApplicationHistoryDto> getHistory() { return history; }
     public void setHistory(List<MerchantApplicationHistoryDto> history) { this.history = history; }
+
+    public String getInfoRequestMessage() { return infoRequestMessage; }
+    public void setInfoRequestMessage(String infoRequestMessage) { this.infoRequestMessage = infoRequestMessage; }
+
+    public String getSuspensionReason() { return suspensionReason; }
+    public void setSuspensionReason(String suspensionReason) { this.suspensionReason = suspensionReason; }
+
+    public MerchantProvisionedOAuthDto getProvisionedCredentials() { return provisionedCredentials; }
+    public void setProvisionedCredentials(MerchantProvisionedOAuthDto provisionedCredentials) {
+        this.provisionedCredentials = provisionedCredentials;
+    }
 }
 

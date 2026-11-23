@@ -7,15 +7,38 @@ public record OrderUserPrincipal(
         String email,
         String organizationId,
         List<String> roles,
-        Long branchId
+        Long branchId,
+        List<String> scopes
 ) {
+    public OrderUserPrincipal(
+            String userId,
+            String email,
+            String organizationId,
+            List<String> roles,
+            Long branchId
+    ) {
+        this(userId, email, organizationId, roles, branchId, List.of());
+    }
+
     public OrderUserPrincipal(
             String userId,
             String email,
             String organizationId,
             List<String> roles
     ) {
-        this(userId, email, organizationId, roles, null);
+        this(userId, email, organizationId, roles, null, List.of());
+    }
+
+    /**
+     * Checks OAuth 2.0 scope authorization.
+     * - For standard user session JWTs (`scopes` is empty), scope checks pass through to role-based RBAC.
+     * - For OAuth 2.0 Client Credentials tokens (`scopes` is non-empty), the exact required scope must be present.
+     */
+    public boolean hasScope(String requiredScope) {
+        if (scopes == null || scopes.isEmpty()) {
+            return true;
+        }
+        return scopes.stream().anyMatch(s -> s.equalsIgnoreCase(requiredScope));
     }
 
     public boolean hasRole(String role) {

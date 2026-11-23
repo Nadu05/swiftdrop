@@ -18,6 +18,11 @@ import {
   approveMerchantApplication,
   rejectMerchantApplication,
 } from '@/components/dispatcher/merchant-approvals/merchantApprovalApi';
+import {
+  requestMoreInfoMerchantApplication,
+  suspendMerchantApplication,
+  reinstateMerchantApplication,
+} from '@/api/services/organization.api';
 import type { MerchantApplication } from '@/components/dispatcher/merchant-approvals/types';
 
 export default function OrganizationMerchantApplicationReviewPage() {
@@ -33,6 +38,14 @@ export default function OrganizationMerchantApplicationReviewPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [provisionedCreds, setProvisionedCreds] = useState<{
+    clientId: string;
+    clientSecret: string;
+    tokenEndpoint: string;
+    scopes: string[];
+  } | null>(null);
+  const [infoMessage, setInfoMessage] = useState('');
+  const [suspendReason, setSuspendReason] = useState('');
 
   const loadApp = useCallback(async () => {
     if (!applicationId) return;
@@ -57,11 +70,16 @@ export default function OrganizationMerchantApplicationReviewPage() {
     setActionSuccess(null);
     setIsProcessing(true);
     try {
-      const updated = await approveMerchantApplication(application.id, {
+      const updated: any = await approveMerchantApplication(application.id, {
         reviewNotes: reviewNotes.trim() || 'Approved by Head Office Administration.',
       });
       setApplication(updated as unknown as MerchantApplication);
-      setActionSuccess(`Merchant application ${application.id} has been APPROVED.`);
+      if (updated?.provisionedCredentials?.clientSecret) {
+        setProvisionedCreds(updated.provisionedCredentials);
+      }
+      setActionSuccess(
+        `Merchant application ${application.id} has been APPROVED and OAuth 2.0 credentials were provisioned.`
+      );
       setReviewNotes('');
     } catch (err: any) {
       setActionError(
@@ -182,6 +200,123 @@ export default function OrganizationMerchantApplicationReviewPage() {
           <CheckCircle2 size={16} />
           <span>{actionSuccess}</span>
         </div>
+      )}
+
+      {provisionedCreds && (
+        <div
+          style={{
+            padding: '1.15rem 1.25rem',
+            marginBottom: '1.25rem',
+            borderRadius: '12px',
+            background: '#0b1528',
+            border: '1px solid #10b981',
+            color: '#e2e8f0',
+            fontSize: '0.82rem',
+          }}
+        >
+          <div style={{ fontWeight: 800, color: '#34d399', marginBottom: '0.4rem' }}>
+            OAuth 2.0 Merchant Credentials Provisioned (Copy Client Secret Now — Shown Once)
+          </div>
+          <div style={{ display: 'grid', gap: '0.35rem', fontFamily: 'monospace' }}>
+            <div><strong>Client ID:</strong> {provisionedCreds.clientId}</div>
+            <div style={{ color: '#6ee7b7' }}><strong>Client Secret:</strong> {provisionedCreds.clientSecret}</div>
+            <div><strong>Token Endpoint:</strong> {provisionedCreds.tokenEndpoint}</div>
+            <div><strong>Scopes:</strong> {provisionedCreds.scopes?.join(', ')}</div>
+          </div>
+        </div>
+      )}
+
+      {application && (application.status === 'PENDING' || application.status === 'APPROVED' || (application.status as string) === 'SUSPENDED') && (
+        <article className="dispatcher-card" style={{ padding: '1rem 1.25rem', marginBottom: '1.25rem' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
+            {application.status === 'PENDING' && (
+              <>
+                <input
+                  value={infoMessage}
+                  onChange={(e) => setInfoMessage(e.target.value)}
+                  placeholder="Request additional info message..."
+                  style={{ flex: '1 1 240px', padding: '0.45rem 0.75rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.82rem' }}
+                />
+                <button
+                  type="button"
+                  disabled={isProcessing || !infoMessage.trim()}
+                  onClick={async () => {
+                    setIsProcessing(true);
+                    setActionError(null);
+                    try {
+                      const updated = await requestMoreInfoMerchantApplication(application.id, infoMessage.trim());
+                      setApplication(updated as unknown as MerchantApplication);
+                      setInfoMessage('');
+                      setActionSuccess('Additional information requested from merchant.');
+                    } catch (err: any) {
+                      setActionError(err?.message || 'Unable to request additional information.');
+                    } finally {
+                      setIsProcessing(false);
+                    }
+                  }}
+                  style={{ padding: '0.45rem 0.9rem', borderRadius: '8px', background: '#d97706', color: '#fff', fontWeight: 600, fontSize: '0.8rem', border: 'none', cursor: 'pointer' }}
+                >
+                  Request Additional Info
+                </button>
+              </>
+            )}
+
+            {application.status === 'APPROVED' && (
+              <>
+                <input
+                  value={suspendReason}
+                  onChange={(e) => setSuspendReason(e.target.value)}
+                  placeholder="Suspension reason (revokes active OAuth credentials)..."
+                  style={{ flex: '1 1 240px', padding: '0.45rem 0.75rem', borderRadius: '8px', border: '1px solid #fca5a5', fontSize: '0.82rem' }}
+                />
+                <button
+                  type="button"
+                  disabled={isProcessing || !suspendReason.trim()}
+                  onClick={async () => {
+                    setIsProcessing(true);
+                    setActionError(null);
+                    try {
+                      const updated = await suspendMerchantApplication(application.id, suspendReason.trim());
+                      setApplication(updated as unknown as MerchantApplication);
+                      setSuspendReason('');
+                      setActionSuccess('Merchant suspended and active OAuth 2.0 credentials revoked.');
+                    } catch (err: any) {
+                      setActionError(err?.message || 'Unable to suspend merchant.');
+                    } finally {
+                      setIsProcessing(false);
+                    }
+                  }}
+                  style={{ padding: '0.45rem 0.9rem', borderRadius: '8px', background: '#dc2626', color: '#fff', fontWeight: 600, fontSize: '0.8rem', border: 'none', cursor: 'pointer' }}
+                >
+                  Suspend Merchant
+                </button>
+              </>
+            )}
+
+            {(application.status as string) === 'SUSPENDED' && (
+              <button
+                type="button"
+                disabled={isProcessing}
+                onClick={async () => {
+                  setIsProcessing(true);
+                  setActionError(null);
+                  try {
+                    const updated = await reinstateMerchantApplication(application.id, 'Reinstated by System Administrator');
+                    setApplication(updated as unknown as MerchantApplication);
+                    setActionSuccess('Merchant reinstated to APPROVED.');
+                  } catch (err: any) {
+                    setActionError(err?.message || 'Unable to reinstate merchant.');
+                  } finally {
+                    setIsProcessing(false);
+                  }
+                }}
+                style={{ padding: '0.45rem 0.9rem', borderRadius: '8px', background: '#059669', color: '#fff', fontWeight: 600, fontSize: '0.8rem', border: 'none', cursor: 'pointer' }}
+              >
+                Reinstate Merchant
+              </button>
+            )}
+          </div>
+        </article>
       )}
 
       {isLoading ? (

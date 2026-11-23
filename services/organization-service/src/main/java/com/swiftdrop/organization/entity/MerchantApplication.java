@@ -82,6 +82,12 @@ public class MerchantApplication {
     @Column(name = "reviewed_at")
     private LocalDateTime reviewedAt;
 
+    @Column(name = "info_request_message", length = 1000)
+    private String infoRequestMessage;
+
+    @Column(name = "suspension_reason", length = 1000)
+    private String suspensionReason;
+
     @Column(name = "submitted_at", nullable = false, updatable = false)
     private LocalDateTime submittedAt;
 
@@ -184,5 +190,11 @@ public class MerchantApplication {
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    public String getInfoRequestMessage() { return infoRequestMessage; }
+    public void setInfoRequestMessage(String infoRequestMessage) { this.infoRequestMessage = infoRequestMessage; }
+
+    public String getSuspensionReason() { return suspensionReason; }
+    public void setSuspensionReason(String suspensionReason) { this.suspensionReason = suspensionReason; }
 }
 

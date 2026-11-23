@@ -85,7 +85,19 @@ public class OrderJwtService {
 
         Long branchId = extractLongClaim(claims, "branchId");
 
-        return new OrderUserPrincipal(userId, email, organizationId, roles, branchId);
+        List<String> scopes = new ArrayList<>();
+        Object rawScope = claims.get("scope");
+        if (rawScope instanceof Collection<?> collection) {
+            for (Object item : collection) {
+                if (item != null) scopes.add(item.toString());
+            }
+        } else if (rawScope instanceof String scopeStr && !scopeStr.isBlank()) {
+            for (String tokenScope : scopeStr.trim().split("\\s+")) {
+                if (!tokenScope.isBlank()) scopes.add(tokenScope);
+            }
+        }
+
+        return new OrderUserPrincipal(userId, email, organizationId, roles, branchId, scopes);
     }
 
     private Long extractLongClaim(Claims claims, String claimName) {

@@ -18,14 +18,19 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * REST controller for merchant onboarding and Head Office Admin approval workflows.
+ * REST controller for merchant onboarding and Head Office Admin approval
+ * workflows.
  *
- * <p>Dual-mapped to support both direct service access ({@code /api/v1/merchants/applications})
- * and API Gateway routed access ({@code /merchants/applications}) where {@code StripPrefix=3}
- * strips {@code /api/v1/organization}.</p>
+ * <p>
+ * Dual-mapped to support both direct service access
+ * ({@code /api/v1/merchants/applications})
+ * and API Gateway routed access ({@code /merchants/applications}) where
+ * {@code StripPrefix=3}
+ * strips {@code /api/v1/organization}.
+ * </p>
  */
 @RestController
-@RequestMapping({"/api/v1/merchants/applications", "/merchants/applications"})
+@RequestMapping({ "/api/v1/merchants/applications", "/merchants/applications" })
 @Tag(name = "Merchant Applications", description = "Merchant onboarding and Head Office approval endpoints")
 public class MerchantApplicationController {
 
@@ -78,6 +83,24 @@ public class MerchantApplicationController {
         return ResponseEntity.ok(merchantApplicationService.findByApplicantUserId(userId));
     }
 
+    @PatchMapping("/my/profile")
+    @Operation(summary = "Update permitted non-sensitive business profile fields for the authenticated merchant")
+    public ResponseEntity<MerchantApplicationResponse> updateMyProfile(
+            @Valid @RequestBody MerchantProfileUpdateRequest request,
+            Authentication authentication) {
+        String userId = extractUserId(authentication);
+        String orgId = (authentication != null && authentication.getPrincipal() instanceof OrganizationUserPrincipal p)
+                ? p.organizationId()
+                : null;
+        return ResponseEntity.ok(merchantApplicationService.updateMyProfile(request, userId, orgId));
+    }
+
+    @GetMapping("/status/{identifier}")
+    @Operation(summary = "Check whether a merchant organization code or applicant userId is APPROVED")
+    public ResponseEntity<MerchantApprovalStatusResponse> checkApprovalStatus(@PathVariable String identifier) {
+        return ResponseEntity.ok(merchantApplicationService.checkApprovalStatus(identifier));
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Get merchant application details by ID or application code")
     public ResponseEntity<MerchantApplicationResponse> findById(
@@ -87,13 +110,15 @@ public class MerchantApplicationController {
         if (!hasGlobalMerchantReadAccess(authentication)) {
             String callerEmail = extractEmail(authentication);
             String contactEmail = response.getContactPerson() != null ? response.getContactPerson().getEmail() : null;
-            boolean emailMatch = callerEmail != null && contactEmail != null && callerEmail.equalsIgnoreCase(contactEmail);
+            boolean emailMatch = callerEmail != null && contactEmail != null
+                    && callerEmail.equalsIgnoreCase(contactEmail);
             String callerId = extractUserId(authentication);
             boolean orgMatch = authentication != null
                     && authentication.getPrincipal() instanceof OrganizationUserPrincipal p
                     && p.organizationId() != null
                     && (p.organizationId().equalsIgnoreCase(response.getId())
-                        || (response.getNumericId() != null && p.organizationId().equals(String.valueOf(response.getNumericId()))));
+                            || (response.getNumericId() != null
+                                    && p.organizationId().equals(String.valueOf(response.getNumericId()))));
             if (!emailMatch && !orgMatch && (callerId == null || !callerId.equalsIgnoreCase(contactEmail))) {
                 throw new AccessDeniedException("You do not have permission to view this merchant application");
             }
@@ -111,8 +136,7 @@ public class MerchantApplicationController {
         String adminEmail = extractEmail(authentication);
         String adminUserId = extractUserId(authentication);
         MerchantApplicationResponse response = merchantApplicationService.approveApplication(
-                id, request, adminEmail, adminUserId
-        );
+                id, request, adminEmail, adminUserId);
         return ResponseEntity.ok(response);
     }
 
@@ -126,13 +150,104 @@ public class MerchantApplicationController {
         String adminEmail = extractEmail(authentication);
         String adminUserId = extractUserId(authentication);
         MerchantApplicationResponse response = merchantApplicationService.rejectApplication(
-                id, request, adminEmail, adminUserId
-        );
+                id, request, adminEmail, adminUserId);
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/{id}/request-info")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HEAD_OFFICE_ADMIN')")
+    @Operation(summary = "Request additional information from a merchant applicant")
+    public ResponseEntity<MerchantApplicationResponse> requestMoreInfo(
+            @PathVariable String id,
+            @RequestBody java.util.Map<String, String> body,
+            Authentication authentication) {
+        String message = body != null ? body.get("message") : null;
+        return ResponseEntity.ok(merchantApplicationService.requestMoreInfo(
+                id, message, extractEmail(authentication), extractUserId(authentication)));
+    }
+
+    @PostMapping("/{id}/resubmit")
+    @Operation(summary = "Resubmit a MORE_INFORMATION_REQUIRED application back to PENDING")
+    public ResponseEntity<MerchantApplicationResponse> resubmitApplication(
+            @PathVariable String id,
+            @Valid @RequestBody(required = false) MerchantProfileUpdateRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(merchantApplicationService.resubmitApplication(
+                id, request, extractUserId(authentication), extractEmail(authentication)));
+    }
+
+    @PostMapping("/{id}/suspend")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HEAD_OFFICE_ADMIN')")
+    @Operation(summary = "Suspend an APPROVED merchant and revoke its active OAuth credentials")
+    public ResponseEntity<MerchantApplicationResponse> suspendMerchant(
+            @PathVariable String id,
+            @RequestBody java.util.Map<String, String> body,
+            Authentication authentication) {
+        String reason = body != null ? body.get("reason") : null;
+        return ResponseEntity.ok(merchantApplicationService.suspendMerchant(
+                id, reason, extractEmail(authentication), extractUserId(authentication)));
+    }
+
+    @PostMapping("/{id}/reinstate")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HEAD_OFFICE_ADMIN')")
+    @Operation(summary = "Reinstate a SUSPENDED merchant back to APPROVED")
+    public ResponseEntity<MerchantApplicationResponse> reinstateMerchant(
+            @PathVariable String id,
+            @RequestBody(required = false) java.util.Map<String, String> body,
+            Authentication authentication) {
+        String notes = body != null ? body.get("notes") : null;
+        return ResponseEntity.ok(merchantApplicationService.reinstateMerchant(
+                id, notes, extractEmail(authentication), extractUserId(authentication)));
+    }
+
+    @PostMapping("/{id}/terminate")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HEAD_OFFICE_ADMIN')")
+    @Operation(summary = "Permanently terminate a merchant and revoke its OAuth credentials")
+    public ResponseEntity<MerchantApplicationResponse> terminateMerchant(
+            @PathVariable String id,
+            @RequestBody java.util.Map<String, String> body,
+            Authentication authentication) {
+        String reason = body != null ? body.get("reason") : null;
+        return ResponseEntity.ok(merchantApplicationService.terminateMerchant(
+                id, reason, extractEmail(authentication), extractUserId(authentication)));
+    }
+
+    @PostMapping(value = "/{id}/documents", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Upload a business registration document (PDF/PNG/JPG, max 5MB)")
+    public ResponseEntity<MerchantApplicationDocumentDto> uploadDocument(
+            @PathVariable String id,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+            @RequestParam(value = "documentType", defaultValue = "BR_CERTIFICATE") String documentType)
+            throws java.io.IOException {
+        MerchantApplicationDocumentDto uploaded = merchantApplicationService.uploadDocument(
+                id, documentType, file.getOriginalFilename(), file.getContentType(), file.getBytes());
+        return ResponseEntity.status(HttpStatus.CREATED).body(uploaded);
+    }
+
+    @GetMapping("/{id}/documents/{docId}/download")
+    @Operation(summary = "Download an uploaded merchant business document")
+    public ResponseEntity<byte[]> downloadDocument(
+            @PathVariable String id,
+            @PathVariable Long docId) {
+        com.swiftdrop.organization.entity.MerchantDocument doc = merchantApplicationService.downloadDocument(id, docId);
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + doc.getFileName().replace("\"", "") + "\"")
+                .contentType(org.springframework.http.MediaType.parseMediaType(doc.getContentType()))
+                .body(doc.getContent());
+    }
+
+    @GetMapping("/lookup")
+    @Operation(summary = "Public application status lookup by reference number and email")
+    public ResponseEntity<java.util.Map<String, Object>> publicLookup(
+            @RequestParam String reference,
+            @RequestParam String email) {
+        return ResponseEntity.ok(merchantApplicationService.publicLookup(reference, email));
+    }
+
     private boolean hasGlobalMerchantReadAccess(Authentication authentication) {
-        if (authentication == null) return false;
+        if (authentication == null)
+            return false;
         if (authentication.getPrincipal() instanceof OrganizationUserPrincipal p && p.isGlobalAdmin()) {
             return true;
         }
@@ -144,7 +259,8 @@ public class MerchantApplicationController {
     }
 
     private String extractUserId(Authentication authentication) {
-        if (authentication == null) return null;
+        if (authentication == null)
+            return null;
         Object principal = authentication.getPrincipal();
         if (principal instanceof OrganizationUserPrincipal orgPrincipal) {
             return orgPrincipal.userId();
@@ -156,7 +272,8 @@ public class MerchantApplicationController {
     }
 
     private String extractEmail(Authentication authentication) {
-        if (authentication == null) return null;
+        if (authentication == null)
+            return null;
         Object principal = authentication.getPrincipal();
         if (principal instanceof OrganizationUserPrincipal orgPrincipal) {
             return orgPrincipal.email();
@@ -167,4 +284,3 @@ public class MerchantApplicationController {
         return authentication.getName();
     }
 }
-

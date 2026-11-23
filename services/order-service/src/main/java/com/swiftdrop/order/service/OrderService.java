@@ -194,6 +194,9 @@ public class OrderService {
             order.setCustomerUserId(principal.userId());
             order.setCustomerEmail(principal.email());
             if (orderSourceType == OrderSourceType.MERCHANT) {
+                if (!principal.isGlobalAdmin() && !principal.hasScope("merchant:orders:write")) {
+                    throw new AccessDeniedException("OAuth token is missing required scope: merchant:orders:write");
+                }
                 String principalOrg = principal.organizationId() != null && !principal.organizationId().isBlank()
                         ? principal.organizationId().trim()
                         : principal.userId();
@@ -410,6 +413,9 @@ public class OrderService {
         } else if (principal.hasRole("COURIER")) {
             orders = orderRepository.findByAssignedCourierIdOrderByCreatedAtDesc(principal.userId());
         } else if (principal.hasRole("MERCHANT")) {
+            if (!principal.hasScope("merchant:orders:read")) {
+                throw new AccessDeniedException("OAuth token is missing required scope: merchant:orders:read");
+            }
             String orgId = principal.organizationId() != null ? principal.organizationId() : principal.userId();
             orders = orderRepository.findByMerchantOrganizationIdOrderByCreatedAtDesc(orgId);
         } else {

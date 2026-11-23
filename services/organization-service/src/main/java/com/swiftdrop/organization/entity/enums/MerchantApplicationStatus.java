@@ -2,8 +2,11 @@ package com.swiftdrop.organization.entity.enums;
 
 public enum MerchantApplicationStatus {
     PENDING("Pending Review"),
+    MORE_INFORMATION_REQUIRED("More Information Required"),
     APPROVED("Approved"),
-    REJECTED("Rejected");
+    REJECTED("Rejected"),
+    SUSPENDED("Suspended"),
+    TERMINATED("Terminated");
 
     private final String label;
 
@@ -20,10 +23,12 @@ public enum MerchantApplicationStatus {
             return null;
         }
         String normalized = raw.trim().toUpperCase();
-        if ("PENDING_REVIEW".equals(normalized) || "CORRECTIONS_REQUESTED".equals(normalized)) {
+        if ("PENDING_REVIEW".equals(normalized)) {
             return PENDING;
+        }
+        if ("CORRECTIONS_REQUESTED".equals(normalized)) {
+            return MORE_INFORMATION_REQUIRED;
         }
         return MerchantApplicationStatus.valueOf(normalized);
     }
 }
-

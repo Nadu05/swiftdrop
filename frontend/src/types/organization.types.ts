@@ -181,7 +181,13 @@ export interface RouteBranchResolutionResponse {
 /**
  * Merchant Application Status & Category types aligned with Organization Service V4 schema.
  */
-export type MerchantApplicationStatusType = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type MerchantApplicationStatusType =
+  | 'PENDING'
+  | 'MORE_INFORMATION_REQUIRED'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'SUSPENDED'
+  | 'TERMINATED';
 
 export type MerchantBusinessCategoryType =
   | 'GROCERY_FOOD'
@@ -268,6 +274,17 @@ export interface MerchantApplicationResponse {
   reviewedBy?: string | null;
   reviewedAt?: string | null;
   reviewNotes?: string | null;
+  infoRequestMessage?: string | null;
+  suspensionReason?: string | null;
+  provisionedCredentials?: {
+    id?: number;
+    clientId: string;
+    clientSecret: string;
+    merchantId: string;
+    tokenEndpoint: string;
+    scopes: string[];
+    status: string;
+  } | null;
   documents: MerchantApplicationDocumentDto[];
   history: MerchantApplicationHistoryDto[];
 }
@@ -278,6 +295,49 @@ export interface MerchantApprovalSummaryResponse {
   approvedThisMonth: number;
   rejectedThisMonth: number;
   totalSubmissions: number;
+}
+
+export interface MerchantPickupLocationResponse {
+  id: number;
+  merchantOrganizationId: string;
+  locationName: string;
+  contactPerson: string;
+  contactPhone: string;
+  addressLine1: string;
+  addressLine2?: string | null;
+  city: string;
+  district?: string | null;
+  postalCode: string;
+  pickupInstructions?: string | null;
+  default: boolean;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MerchantPickupLocationRequest {
+  locationName: string;
+  contactPerson: string;
+  contactPhone: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  district?: string;
+  postalCode: string;
+  pickupInstructions?: string;
+  isDefault?: boolean;
+  isActive?: boolean;
+}
+
+export interface MerchantProfileUpdateRequest {
+  contactFullName?: string;
+  contactDesignation?: string;
+  contactPhone?: string;
+  streetAddress?: string;
+  city?: string;
+  district?: string;
+  postalCode?: string;
+  expectedDailyVolume?: string;
 }
 
 export interface ProvinceDto {

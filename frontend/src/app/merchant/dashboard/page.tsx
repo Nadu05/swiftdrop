@@ -4,20 +4,24 @@ import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Store,
-  Package,
-  Clock,
-  CheckCircle2,
   AlertTriangle,
-  PlusCircle,
-  Search,
-  RefreshCw,
+  ArrowRight,
   ArrowUpRight,
+  Building2,
+  Calendar,
+  CheckCircle2,
+  Clock,
   Compass,
   FileText,
+  Loader2,
+  MapPin,
+  Package,
+  PlusCircle,
+  RefreshCw,
+  Search,
   ShieldAlert,
-  Building2,
 } from 'lucide-react';
+import StatsCard from '@/components/dispatcher/overview/StatsCard';
 import { useAuthStore } from '@/store/auth.store';
 import { getCustomerOrders } from '@/api/services/orders.api';
 import { fetchMyMerchantApplications } from '@/api/services/organization.api';
@@ -26,24 +30,76 @@ import type { MerchantApplicationResponse } from '@/types/organization.types';
 
 const ACTIVE_ORDER_STATUSES = [
   'BOOKED',
+  'CREATED',
+  'CONFIRMED',
   'PENDING_ASSIGNMENT',
+  'PICKUP_ASSIGNED',
   'COURIER_ASSIGNED',
   'PICKED_UP',
-  'IN_TRANSIT',
+  'AT_ORIGIN_BRANCH',
   'AT_ORIGIN_HUB',
+  'IN_TRANSIT',
+  'AT_DESTINATION_BRANCH',
   'AT_DESTINATION_HUB',
   'OUT_FOR_DELIVERY',
 ];
+
+const EXCEPTION_ORDER_STATUSES = [
+  'FAILED',
+  'DELIVERY_FAILED',
+  'CANCELLED',
+  'RETURN_TO_SENDER',
+  'RETURNED_TO_SENDER',
+];
+
+function getStatusBadgeModifier(status: string): string {
+  const s = (status || '').toUpperCase();
+  if (s === 'DELIVERED') {
+    return 'merchant-status-badge--delivered';
+  }
+  if (EXCEPTION_ORDER_STATUSES.includes(s)) {
+    return 'merchant-status-badge--exception';
+  }
+  if (['CREATED', 'CONFIRMED', 'BOOKED', 'PENDING_ASSIGNMENT'].includes(s)) {
+    return 'merchant-status-badge--created';
+  }
+  return 'merchant-status-badge--active';
+}
+
+function formatDate(dateStr?: string | null): string {
+  if (!dateStr) return '—';
+  try {
+    return new Date(dateStr).toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  } catch {
+    return dateStr;
+  }
+}
 
 export default function MerchantDashboardPage() {
   const user = useAuthStore((s) => s.user);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
+  const currentDate = useMemo(
+    () =>
+      new Intl.DateTimeFormat('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      }).format(new Date()),
+    []
+  );
+
   // 1. Check merchant onboarding application status from Organization Service
   const {
     data: applications = [],
     isLoading: appsLoading,
+    isFetching: appsFetching,
     isError: appsError,
     refetch: refetchApps,
   } = useQuery<MerchantApplicationResponse[]>({
@@ -57,6 +113,7 @@ export default function MerchantDashboardPage() {
   const {
     data: orders = [],
     isLoading: ordersLoading,
+    isFetching: ordersFetching,
     isError: ordersError,
     error: ordersErrorObj,
     refetch: refetchOrders,
@@ -67,26 +124,32 @@ export default function MerchantDashboardPage() {
     retry: false,
   });
 
-  // Determine if the merchant has a pending or rejected onboarding application
-  const latestApp = applications[0] || null;
+  const isRefreshing = appsFetching || ordersFetching;
+
+  const approvedApp = applications.find((a) => a.status === 'APPROVED') || null;
+  const latestApp = approvedApp || applications[0] || null;
   const isPendingApproval =
     latestApp &&
-    latestApp.status === 'PENDING' &&
-    !applications.some((a) => a.status === 'APPROVED');
+    (latestApp.status === 'PENDING' || latestApp.status === 'MORE_INFORMATION_REQUIRED') &&
+    !approvedApp;
   const isRejectedApproval =
     latestApp &&
-    latestApp.status === 'REJECTED' &&
-    !applications.some((a) => a.status === 'APPROVED');
+    (latestApp.status === 'REJECTED' ||
+      latestApp.status === 'SUSPENDED' ||
+      latestApp.status === 'TERMINATED') &&
+    !approvedApp;
 
   // Compute shipment metrics from real Order Service data
   const metrics = useMemo(() => {
     const totalOrders = orders.length;
     const pendingDeliveries = orders.filter((o) =>
-      ACTIVE_ORDER_STATUSES.includes(o.status)
+      ACTIVE_ORDER_STATUSES.includes((o.status || '').toUpperCase())
     ).length;
-    const completedDeliveries = orders.filter((o) => o.status === 'DELIVERED').length;
+    const completedDeliveries = orders.filter(
+      (o) => (o.status || '').toUpperCase() === 'DELIVERED'
+    ).length;
     const failedOrCancelled = orders.filter((o) =>
-      ['FAILED', 'DELIVERY_FAILED', 'CANCELLED', 'RETURNED_TO_SENDER'].includes(o.status)
+      EXCEPTION_ORDER_STATUSES.includes((o.status || '').toUpperCase())
     ).length;
 
     return {
@@ -99,11 +162,12 @@ export default function MerchantDashboardPage() {
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
+      const normalizedStatus = (order.status || '').toUpperCase();
       const matchesStatus =
         statusFilter === 'ALL' ||
-        (statusFilter === 'PENDING' && ACTIVE_ORDER_STATUSES.includes(order.status)) ||
-        (statusFilter === 'COMPLETED' && order.status === 'DELIVERED') ||
-        order.status === statusFilter;
+        (statusFilter === 'PENDING' && ACTIVE_ORDER_STATUSES.includes(normalizedStatus)) ||
+        (statusFilter === 'COMPLETED' && normalizedStatus === 'DELIVERED') ||
+        normalizedStatus === statusFilter;
 
       const q = searchQuery.trim().toLowerCase();
       if (!q) return matchesStatus;
@@ -117,299 +181,375 @@ export default function MerchantDashboardPage() {
     });
   }, [orders, statusFilter, searchQuery]);
 
-  // Phase 4 requirement: If a merchant account is pending approval, present the
-  // onboarding/approval status view instead of granting full operational access.
+  // Approval-gated onboarding status view for unapproved / pending / rejected / suspended merchants
   if (!appsLoading && (isPendingApproval || isRejectedApproval)) {
+    const isWarningState = Boolean(isPendingApproval);
     return (
-      <div className="max-w-3xl mx-auto py-8 space-y-6">
-        <div
-          className={`rounded-2xl border p-8 shadow-xl ${
-            isPendingApproval
-              ? 'bg-amber-500/10 border-amber-500/30'
-              : 'bg-rose-500/10 border-rose-500/30'
+      <div className="merchant-dashboard merchant-dashboard--narrow">
+        <header className="merchant-page-header">
+          <div className="merchant-page-header__title-group">
+            <h1 className="merchant-page-header__title">Merchant Onboarding Status</h1>
+            <p className="merchant-page-header__subtitle">
+              Track your business verification and Head Office approval progress.
+            </p>
+          </div>
+          <div className="merchant-page-header__actions">
+            <button
+              type="button"
+              onClick={() => refetchApps()}
+              disabled={appsFetching}
+              className="merchant-secondary-btn"
+            >
+              <RefreshCw
+                size={16}
+                className={appsFetching ? 'dispatcher-overview__refresh-icon--spinning' : undefined}
+                aria-hidden="true"
+              />
+              <span>{appsFetching ? 'Checking…' : 'Refresh Status'}</span>
+            </button>
+          </div>
+        </header>
+
+        <section
+          className={`merchant-surface-card merchant-onboarding-card ${
+            isWarningState
+              ? 'merchant-onboarding-card--warning'
+              : 'merchant-onboarding-card--danger'
           }`}
         >
-          <div className="flex items-start gap-4">
+          <div className="merchant-onboarding-card__layout">
             <div
-              className={`p-3 rounded-xl ${
-                isPendingApproval
-                  ? 'bg-amber-500/20 text-amber-400'
-                  : 'bg-rose-500/20 text-rose-400'
+              className={`merchant-onboarding-card__icon ${
+                isWarningState
+                  ? 'merchant-onboarding-card__icon--warning'
+                  : 'merchant-onboarding-card__icon--danger'
               }`}
             >
-              {isPendingApproval ? (
-                <Clock className="h-7 w-7" />
-              ) : (
-                <ShieldAlert className="h-7 w-7" />
-              )}
+              {isWarningState ? <Clock size={24} /> : <ShieldAlert size={24} />}
             </div>
-            <div className="space-y-2 flex-1">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-indigo-300">
-                  Merchant Onboarding Status
-                </span>
+
+            <div className="merchant-onboarding-card__body">
+              <div className="merchant-onboarding-card__top">
+                <span className="merchant-onboarding-card__eyebrow">Application Review</span>
                 <span
-                  className={`px-3 py-1 rounded-full text-xs font-bold ${
-                    isPendingApproval
-                      ? 'bg-amber-500/20 text-amber-300'
-                      : 'bg-rose-500/20 text-rose-300'
+                  className={`merchant-status-badge ${
+                    isWarningState
+                      ? 'merchant-status-badge--active'
+                      : 'merchant-status-badge--exception'
                   }`}
                 >
-                  {latestApp.status}
+                  {latestApp.statusLabel || latestApp.status.replace(/_/g, ' ')}
                 </span>
               </div>
-              <h1 className="text-2xl font-extrabold text-white">
-                {isPendingApproval
-                  ? 'Your Merchant Application is Under Review'
-                  : 'Merchant Application Requires Attention'}
-              </h1>
-              <p className="text-sm text-slate-300 leading-relaxed">
-                {isPendingApproval
-                  ? 'Head Office Administration is currently verifying your business registration and operating branch details. Full merchant shipment dispatch will unlock automatically once approved.'
-                  : `Your merchant application (${latestApp.id}) was not approved. Reason: ${
-                      latestApp.rejectionReason || 'Please contact Head Office support.'
-                    }`}
+
+              <h2 className="merchant-onboarding-card__title">
+                {latestApp.status === 'MORE_INFORMATION_REQUIRED'
+                  ? 'Additional Information Requested'
+                  : isWarningState
+                    ? 'Your Merchant Application is Under Review'
+                    : latestApp.status === 'SUSPENDED'
+                      ? 'Merchant Account Suspended'
+                      : 'Merchant Application Requires Attention'}
+              </h2>
+
+              <p className="merchant-onboarding-card__desc">
+                {latestApp.status === 'MORE_INFORMATION_REQUIRED'
+                  ? latestApp.infoRequestMessage ||
+                    'Head Office Administration requested additional details before approving your application.'
+                  : isWarningState
+                    ? 'Head Office Administration is currently verifying your business registration and operating branch details. Full merchant shipment dispatch and API access will unlock automatically once approved.'
+                    : `Your merchant application (${latestApp.id}) is currently ${latestApp.status.toLowerCase()}. Reason: ${
+                        latestApp.rejectionReason ||
+                        latestApp.suspensionReason ||
+                        'Please contact Head Office support.'
+                      }`}
               </p>
 
-              <div className="mt-4 p-4 rounded-xl bg-slate-950/70 border border-white/10 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div className="merchant-onboarding-card__meta-grid">
                 <div>
-                  <span className="text-slate-400 block">Application Code</span>
-                  <span className="font-mono font-bold text-white">{latestApp.id}</span>
+                  <span className="merchant-onboarding-card__meta-label">Application Code</span>
+                  <span className="merchant-onboarding-card__meta-value merchant-onboarding-card__meta-value--mono">
+                    {latestApp.id}
+                  </span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block">Business Name</span>
-                  <span className="font-bold text-white">{latestApp.businessName}</span>
+                  <span className="merchant-onboarding-card__meta-label">Business Name</span>
+                  <span className="merchant-onboarding-card__meta-value">
+                    {latestApp.businessName}
+                  </span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block">Category</span>
-                  <span className="text-slate-200">{latestApp.categoryLabel || latestApp.category}</span>
+                  <span className="merchant-onboarding-card__meta-label">Category</span>
+                  <span className="merchant-onboarding-card__meta-value">
+                    {latestApp.categoryLabel || latestApp.category}
+                  </span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block">Submitted Date</span>
-                  <span className="text-slate-200">{latestApp.submittedAt}</span>
+                  <span className="merchant-onboarding-card__meta-label">Submitted Date</span>
+                  <span className="merchant-onboarding-card__meta-value">
+                    {formatDate(latestApp.submittedAt)}
+                  </span>
                 </div>
               </div>
 
-              <div className="pt-4 flex flex-wrap gap-3">
+              <div className="merchant-onboarding-card__actions">
                 <button
                   type="button"
                   onClick={() => refetchApps()}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold cursor-pointer"
+                  className="merchant-primary-btn"
                 >
-                  <RefreshCw className="h-3.5 w-3.5" />
+                  <RefreshCw size={15} aria-hidden="true" />
                   <span>Refresh Approval Status</span>
                 </button>
-                <Link
-                  href="/tracking"
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-white/15 text-slate-200 hover:bg-white/5 text-xs font-semibold"
-                >
-                  <Compass className="h-3.5 w-3.5" />
+                <Link href="/merchant/application-status" className="merchant-secondary-btn">
+                  <FileText size={15} aria-hidden="true" />
+                  <span>View Application Details</span>
+                </Link>
+                <Link href="/merchant/tracking" className="merchant-secondary-btn">
+                  <Compass size={15} aria-hidden="true" />
                   <span>Track Existing Parcels</span>
                 </Link>
               </div>
             </div>
           </div>
-        </div>
+        </section>
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      {/* Header Banner */}
-      <div className="rounded-2xl bg-gradient-to-r from-[#111e3b] via-[#0d1830] to-[#0a1326] border border-indigo-500/25 p-6 sm:p-7 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
-        <div className="space-y-1.5">
-          <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-indigo-400">
-            <Store className="h-4 w-4" />
-            <span>Merchant Partner Operations</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
+    <div className="merchant-dashboard">
+      {/* 1. Unified Page Header */}
+      <header className="merchant-page-header">
+        <div className="merchant-page-header__title-group">
+          <h1 className="merchant-page-header__title">Merchant Operations Dashboard</h1>
+          <p className="merchant-page-header__subtitle">
             Welcome back, {user?.fullName || 'Merchant Partner'}
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-300">
-            Manage outbound merchant shipments, monitor pending and completed deliveries, and create new dispatch orders.
+            {latestApp?.businessName ? ` · ${latestApp.businessName}` : ''} — monitor outbound
+            shipments, deliveries, and dispatch orders.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="merchant-page-header__actions">
+          <div className="merchant-date-badge" title="Current operations date">
+            <Calendar size={15} className="merchant-date-badge__icon" aria-hidden="true" />
+            <span>{currentDate}</span>
+          </div>
+
           <button
             type="button"
+            className="merchant-secondary-btn"
             onClick={() => {
               refetchOrders();
               refetchApps();
             }}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-white/15 bg-slate-900/70 hover:bg-slate-800 text-slate-200 text-xs font-semibold cursor-pointer"
+            disabled={isRefreshing}
+            aria-label="Sync merchant shipments"
           >
-            <RefreshCw className="h-3.5 w-3.5" />
-            <span>Sync Shipments</span>
+            <RefreshCw
+              size={15}
+              className={isRefreshing ? 'dispatcher-overview__refresh-icon--spinning' : undefined}
+              aria-hidden="true"
+            />
+            <span>{isRefreshing ? 'Syncing…' : 'Sync Shipments'}</span>
           </button>
-          <Link
-            href="/book"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs sm:text-sm font-bold shadow-lg shadow-indigo-600/30"
-          >
-            <PlusCircle className="h-4 w-4" />
+
+          <Link href="/merchant/orders/create" className="merchant-primary-btn">
+            <PlusCircle size={16} aria-hidden="true" />
             <span>Create New Order</span>
           </Link>
         </div>
-      </div>
+      </header>
 
-      {/* Approved Organization Badge (if present) */}
+      {/* 2. Verified Merchant Partner Hero Card (Matches Customer Dashboard Hero Card) */}
       {latestApp && latestApp.status === 'APPROVED' && (
-        <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/25 px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-xs">
-          <div className="flex items-center gap-2.5 text-emerald-300">
-            <Building2 className="h-4 w-4 shrink-0" />
-            <span>
-              Verified Merchant Organization:{' '}
-              <strong className="text-white">{latestApp.businessName}</strong> ({latestApp.id})
-            </span>
+        <section
+          className="merchant-surface-card merchant-hero-card"
+          aria-label="Verified merchant details"
+        >
+          <div className="merchant-hero-card__left">
+            <div className="merchant-hero-card__avatar" aria-hidden="true">
+              <Building2 size={24} />
+            </div>
+            <div className="merchant-hero-card__info">
+              <div className="merchant-hero-card__badges">
+                <span className="merchant-badge merchant-badge--verified">
+                  <CheckCircle2 size={13} aria-hidden="true" />
+                  Approved Partner
+                </span>
+                <span className="merchant-badge merchant-badge--code">{latestApp.id}</span>
+              </div>
+              <h2 className="merchant-hero-card__name">{latestApp.businessName}</h2>
+              <div className="merchant-hero-card__meta">
+                <span>{latestApp.categoryLabel || latestApp.category}</span>
+                {latestApp.businessAddress?.city && (
+                  <>
+                    <span className="merchant-hero-card__dot">·</span>
+                    <MapPin size={14} color="#94a3b8" aria-hidden="true" />
+                    <span>{latestApp.businessAddress.city}</span>
+                  </>
+                )}
+                {latestApp.businessAddress?.nearestBranch && (
+                  <>
+                    <span className="merchant-hero-card__dot">·</span>
+                    <span>Hub: {latestApp.businessAddress.nearestBranch}</span>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
-          <span className="font-semibold text-emerald-400">APPROVED PARTNER</span>
-        </div>
+
+          <div className="merchant-hero-card__right">
+            <div className="merchant-hero-stats-pill">
+              <div className="merchant-pill-stat">
+                <span className="merchant-pill-stat__label">Total Orders</span>
+                <span className="merchant-pill-stat__value">
+                  {ordersLoading ? '…' : metrics.totalOrders}
+                </span>
+              </div>
+              <div className="merchant-pill-divider" />
+              <div className="merchant-pill-stat">
+                <span className="merchant-pill-stat__label">Active</span>
+                <span className="merchant-pill-stat__value merchant-pill-stat__value--active">
+                  {ordersLoading ? '…' : metrics.pendingDeliveries}
+                </span>
+              </div>
+              <div className="merchant-pill-divider" />
+              <div className="merchant-pill-stat">
+                <span className="merchant-pill-stat__label">Delivered</span>
+                <span className="merchant-pill-stat__value merchant-pill-stat__value--success">
+                  {ordersLoading ? '…' : metrics.completedDeliveries}
+                </span>
+              </div>
+            </div>
+
+            <Link href="/merchant/profile/business" className="merchant-profile-link">
+              <span>Business Profile</span>
+              <ArrowUpRight size={15} aria-hidden="true" />
+            </Link>
+          </div>
+        </section>
       )}
 
       {appsError && (
-        <div className="rounded-xl bg-amber-500/10 border border-amber-500/25 px-4 py-2.5 text-xs text-amber-300">
-          Organization Service merchant profile status is temporarily unreachable; displaying live Order Service shipments.
+        <div className="merchant-alert-banner" role="status">
+          <AlertTriangle size={18} className="merchant-alert-banner__icon" aria-hidden="true" />
+          <span>
+            Organization Service merchant profile status is temporarily unreachable; displaying live
+            Order Service shipments.
+          </span>
         </div>
       )}
 
-      {/* KPI Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="rounded-2xl bg-[#0c1829] border border-white/10 p-5 flex items-start justify-between">
-          <div>
-            <span className="text-xs font-semibold text-slate-400">Total Orders</span>
-            <div className="text-3xl font-extrabold text-white mt-2">
-              {ordersLoading ? '…' : ordersError ? 'Unavailable' : metrics.totalOrders}
-            </div>
-            <span className="text-[11px] text-slate-400 mt-1 block">
-              All booked merchant parcels
-            </span>
-          </div>
-          <div className="p-3 rounded-xl bg-indigo-500/15 text-indigo-400">
-            <Package className="h-5 w-5" />
-          </div>
-        </div>
+      {/* 3. KPI Summary Grid (reusing shared SwiftDrop StatsCard component) */}
+      <section className="dispatcher-stats-grid" aria-label="Merchant shipment statistics">
+        <StatsCard
+          title="Total Orders"
+          value={ordersLoading ? '…' : ordersError ? 'Unavailable' : metrics.totalOrders}
+          description="All booked merchant parcels"
+          icon={Package}
+          iconColor="#2563eb"
+          iconBg="#eff6ff"
+        />
+        <StatsCard
+          title="Pending Deliveries"
+          value={ordersLoading ? '…' : ordersError ? 'Unavailable' : metrics.pendingDeliveries}
+          description="In transit or awaiting pickup"
+          icon={Clock}
+          iconColor="#d97706"
+          iconBg="#fffbeb"
+        />
+        <StatsCard
+          title="Completed Deliveries"
+          value={ordersLoading ? '…' : ordersError ? 'Unavailable' : metrics.completedDeliveries}
+          description="Verified proof of delivery"
+          icon={CheckCircle2}
+          iconColor="#16a34a"
+          iconBg="#f0fdf4"
+        />
+        <StatsCard
+          title="Exceptions / RTS"
+          value={ordersLoading ? '…' : ordersError ? 'Unavailable' : metrics.failedOrCancelled}
+          description="Failed, cancelled, or returned"
+          icon={AlertTriangle}
+          iconColor="#dc2626"
+          iconBg="#fef2f2"
+        />
+      </section>
 
-        <div className="rounded-2xl bg-[#0c1829] border border-white/10 p-5 flex items-start justify-between">
-          <div>
-            <span className="text-xs font-semibold text-slate-400">Pending Deliveries</span>
-            <div className="text-3xl font-extrabold text-amber-400 mt-2">
-              {ordersLoading ? '…' : ordersError ? 'Unavailable' : metrics.pendingDeliveries}
-            </div>
-            <span className="text-[11px] text-slate-400 mt-1 block">
-              In transit or awaiting pickup
-            </span>
+      {/* 4. Merchant Quick Actions */}
+      <section className="merchant-quick-grid" aria-label="Merchant quick actions">
+        <Link href="/merchant/orders/create" className="merchant-quick-card">
+          <div className="merchant-quick-card__icon merchant-quick-card__icon--blue">
+            <PlusCircle size={20} aria-hidden="true" />
           </div>
-          <div className="p-3 rounded-xl bg-amber-500/15 text-amber-400">
-            <Clock className="h-5 w-5" />
-          </div>
-        </div>
-
-        <div className="rounded-2xl bg-[#0c1829] border border-white/10 p-5 flex items-start justify-between">
-          <div>
-            <span className="text-xs font-semibold text-slate-400">Completed Deliveries</span>
-            <div className="text-3xl font-extrabold text-emerald-400 mt-2">
-              {ordersLoading ? '…' : ordersError ? 'Unavailable' : metrics.completedDeliveries}
-            </div>
-            <span className="text-[11px] text-slate-400 mt-1 block">
-              Verified proof of delivery
-            </span>
-          </div>
-          <div className="p-3 rounded-xl bg-emerald-500/15 text-emerald-400">
-            <CheckCircle2 className="h-5 w-5" />
-          </div>
-        </div>
-
-        <div className="rounded-2xl bg-[#0c1829] border border-white/10 p-5 flex items-start justify-between">
-          <div>
-            <span className="text-xs font-semibold text-slate-400">Exceptions / RTS</span>
-            <div className="text-3xl font-extrabold text-rose-400 mt-2">
-              {ordersLoading ? '…' : ordersError ? 'Unavailable' : metrics.failedOrCancelled}
-            </div>
-            <span className="text-[11px] text-slate-400 mt-1 block">
-              Failed, cancelled, or returned
-            </span>
-          </div>
-          <div className="p-3 rounded-xl bg-rose-500/15 text-rose-400">
-            <AlertTriangle className="h-5 w-5" />
-          </div>
-        </div>
-      </div>
-
-      {/* Order Creation Shortcuts & Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Link
-          href="/book"
-          className="p-5 rounded-2xl bg-[#0c1829] border border-indigo-500/25 hover:border-indigo-400/50 transition-all flex items-center justify-between group"
-        >
-          <div>
-            <div className="text-sm font-bold text-white group-hover:text-indigo-300">
-              Dispatch New Shipment
-            </div>
-            <div className="text-xs text-slate-400 mt-1">
-              Calculate rates and book a courier pickup
+          <div className="merchant-quick-card__content">
+            <div className="merchant-quick-card__title">Dispatch New Shipment</div>
+            <div className="merchant-quick-card__desc">
+              Calculate rates, select pickup location &amp; book courier
             </div>
           </div>
-          <PlusCircle className="h-5 w-5 text-indigo-400 shrink-0" />
+          <ArrowRight size={16} className="merchant-quick-card__arrow" aria-hidden="true" />
         </Link>
 
-        <Link
-          href="/bookings"
-          className="p-5 rounded-2xl bg-[#0c1829] border border-white/10 hover:border-sky-400/40 transition-all flex items-center justify-between group"
-        >
-          <div>
-            <div className="text-sm font-bold text-white group-hover:text-sky-300">
-              Full Shipment Ledger &amp; Receipts
-            </div>
-            <div className="text-xs text-slate-400 mt-1">
-              Download commercial receipts and view POD details
+        <Link href="/merchant/orders" className="merchant-quick-card">
+          <div className="merchant-quick-card__icon merchant-quick-card__icon--green">
+            <FileText size={20} aria-hidden="true" />
+          </div>
+          <div className="merchant-quick-card__content">
+            <div className="merchant-quick-card__title">Full Shipment Ledger</div>
+            <div className="merchant-quick-card__desc">
+              Search orders, inspect details, and manage cancellations
             </div>
           </div>
-          <FileText className="h-5 w-5 text-sky-400 shrink-0" />
+          <ArrowRight size={16} className="merchant-quick-card__arrow" aria-hidden="true" />
         </Link>
 
-        <Link
-          href="/tracking"
-          className="p-5 rounded-2xl bg-[#0c1829] border border-white/10 hover:border-emerald-400/40 transition-all flex items-center justify-between group"
-        >
-          <div>
-            <div className="text-sm font-bold text-white group-hover:text-emerald-300">
-              Live Milestone Tracker
-            </div>
-            <div className="text-xs text-slate-400 mt-1">
+        <Link href="/merchant/tracking" className="merchant-quick-card">
+          <div className="merchant-quick-card__icon merchant-quick-card__icon--cyan">
+            <Compass size={20} aria-hidden="true" />
+          </div>
+          <div className="merchant-quick-card__content">
+            <div className="merchant-quick-card__title">Live Milestone Tracker</div>
+            <div className="merchant-quick-card__desc">
               Monitor real-time hub scans and delivery events
             </div>
           </div>
-          <Compass className="h-5 w-5 text-emerald-400 shrink-0" />
+          <ArrowRight size={16} className="merchant-quick-card__arrow" aria-hidden="true" />
         </Link>
-      </div>
+      </section>
 
-      {/* Shipment Management Table */}
-      <div className="rounded-2xl bg-[#0c1829] border border-white/10 overflow-hidden shadow-xl">
-        <div className="p-5 border-b border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* 5. Recent Merchant Shipments Table */}
+      <section className="merchant-surface-card" aria-label="Recent merchant shipments">
+        <div className="merchant-table-card__header">
           <div>
-            <h2 className="text-base font-bold text-white">Shipment Management Overview</h2>
-            <p className="text-xs text-slate-400">
+            <h2 className="merchant-table-card__title">
+              <Clock size={18} color="#2563eb" aria-hidden="true" />
+              <span>Shipment Management Overview</span>
+            </h2>
+            <p className="merchant-table-card__subtitle">
               Real-time feed of your merchant orders from the SwiftDrop Order Service
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
-            <div className="relative">
-              <Search className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <div className="merchant-table-card__controls">
+            <div className="merchant-search-box">
+              <Search size={16} className="merchant-search-box__icon" aria-hidden="true" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search tracking #, recipient, city…"
-                className="pl-9 pr-3 py-2 rounded-xl bg-slate-950 border border-white/10 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-400"
+                aria-label="Search merchant shipments"
+                className="merchant-search-box__input"
               />
             </div>
 
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 rounded-xl bg-slate-950 border border-white/10 text-xs text-slate-200 focus:outline-none"
+              aria-label="Filter shipments by status"
+              className="merchant-filter-select"
             >
               <option value="ALL">All Statuses</option>
               <option value="PENDING">Pending / Active</option>
@@ -420,103 +560,109 @@ export default function MerchantDashboardPage() {
         </div>
 
         {ordersError ? (
-          <div className="p-8 text-center space-y-2">
-            <AlertTriangle className="h-8 w-8 text-amber-400 mx-auto" />
-            <div className="text-sm font-bold text-white">Order Service Unavailable</div>
-            <p className="text-xs text-slate-400 max-w-md mx-auto">
+          <div className="merchant-state-panel">
+            <div className="merchant-state-panel__icon merchant-state-panel__icon--warning">
+              <AlertTriangle size={24} aria-hidden="true" />
+            </div>
+            <h3 className="merchant-state-panel__title">Order Service Unavailable</h3>
+            <p className="merchant-state-panel__desc">
               {(ordersErrorObj as Error)?.message ||
                 'Could not fetch merchant orders from the backend Order Service.'}
             </p>
           </div>
         ) : ordersLoading ? (
-          <div className="p-8 text-center text-xs text-slate-400">
-            Loading merchant shipments from Order Service…
+          <div className="merchant-state-panel">
+            <Loader2
+              size={30}
+              color="#2563eb"
+              className="dispatcher-overview__refresh-icon--spinning"
+              aria-hidden="true"
+            />
+            <h3 className="merchant-state-panel__title">Loading merchant shipments…</h3>
+            <p className="merchant-state-panel__desc">
+              Synchronizing your latest merchant orders from the Order Service.
+            </p>
           </div>
         ) : filteredOrders.length === 0 ? (
-          <div className="p-10 text-center space-y-3">
-            <Package className="h-9 w-9 text-slate-500 mx-auto" />
-            <div className="text-sm font-bold text-white">No shipments found</div>
-            <p className="text-xs text-slate-400 max-w-md mx-auto">
+          <div className="merchant-state-panel">
+            <div className="merchant-state-panel__icon">
+              <Package size={26} aria-hidden="true" />
+            </div>
+            <h3 className="merchant-state-panel__title">No shipments found</h3>
+            <p className="merchant-state-panel__desc">
               {orders.length === 0
                 ? 'You have not created any merchant delivery orders yet. Click "Create New Order" to dispatch your first parcel.'
                 : 'No shipments match your current search or status filter.'}
             </p>
             {orders.length === 0 && (
-              <Link
-                href="/book"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-semibold"
-              >
-                <PlusCircle className="h-4 w-4" />
+              <Link href="/merchant/orders/create" className="merchant-primary-btn">
+                <PlusCircle size={16} aria-hidden="true" />
                 <span>Create First Shipment</span>
               </Link>
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
+          <div className="merchant-table-wrap">
+            <table className="merchant-table">
               <thead>
-                <tr className="border-b border-white/10 bg-slate-950/60 text-slate-400 uppercase tracking-wider text-[11px]">
-                  <th className="py-3.5 px-4">Tracking #</th>
-                  <th className="py-3.5 px-4">Recipient &amp; Destination</th>
-                  <th className="py-3.5 px-4">Parcel</th>
-                  <th className="py-3.5 px-4">Charge</th>
-                  <th className="py-3.5 px-4">Status</th>
-                  <th className="py-3.5 px-4 text-right">Actions</th>
+                <tr>
+                  <th>Tracking #</th>
+                  <th>Recipient &amp; Destination</th>
+                  <th>Parcel</th>
+                  <th>Charge</th>
+                  <th>Status</th>
+                  <th className="merchant-table__actions-head">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5">
+              <tbody>
                 {filteredOrders.slice(0, 15).map((order) => (
-                  <tr key={order.id} className="hover:bg-white/[0.02]">
-                    <td className="py-3.5 px-4 font-mono font-bold text-indigo-300">
-                      {order.trackingNumber}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <div className="font-semibold text-white">
+                  <tr key={order.id}>
+                    <td className="merchant-table__tracking">{order.trackingNumber}</td>
+                    <td>
+                      <div className="merchant-table__primary">
                         {order.dropoffContactName || 'Recipient'}
                       </div>
-                      <div className="text-[11px] text-slate-400">
+                      <div className="merchant-table__secondary">
                         {order.dropoffCity || order.dropoffAddress || '—'}
                       </div>
                     </td>
-                    <td className="py-3.5 px-4 text-slate-300">
-                      <div>{order.parcelDescription || order.parcelSize || 'Parcel'}</div>
-                      <div className="text-[11px] text-slate-500">
+                    <td>
+                      <div className="merchant-table__primary">
+                        {order.parcelDescription || order.parcelSize || 'Parcel'}
+                      </div>
+                      <div className="merchant-table__secondary">
                         {order.weightKg ?? 0} kg &bull; {order.pickupMethod || 'STANDARD'}
                       </div>
                     </td>
-                    <td className="py-3.5 px-4 font-semibold text-white">
+                    <td className="merchant-table__charge">
                       {order.currency || 'LKR'}{' '}
                       {Number(order.deliveryFee ?? 0).toLocaleString()}
                     </td>
-                    <td className="py-3.5 px-4">
+                    <td>
                       <span
-                        className={`inline-flex px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                          order.status === 'DELIVERED'
-                            ? 'bg-emerald-500/15 text-emerald-400'
-                            : ['CANCELLED', 'FAILED', 'RETURNED_TO_SENDER'].includes(order.status)
-                            ? 'bg-rose-500/15 text-rose-400'
-                            : 'bg-amber-500/15 text-amber-300'
-                        }`}
+                        className={`merchant-status-badge ${getStatusBadgeModifier(order.status)}`}
                       >
-                        {order.status}
+                        {order.status.replace(/_/g, ' ')}
                       </span>
                     </td>
-                    <td className="py-3.5 px-4 text-right space-x-2">
-                      <Link
-                        href={`/tracking?trackingNumber=${encodeURIComponent(
-                          order.trackingNumber
-                        )}`}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-500/15 text-indigo-300 hover:bg-indigo-500/25 font-semibold"
-                      >
-                        <span>Track</span>
-                        <ArrowUpRight className="h-3 w-3" />
-                      </Link>
-                      <Link
-                        href={`/bookings/${order.id}`}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-white/10 text-slate-300 hover:bg-white/5 font-semibold"
-                      >
-                        <span>Details</span>
-                      </Link>
+                    <td className="merchant-table__actions-cell">
+                      <div className="merchant-table__actions">
+                        <Link
+                          href={`/merchant/tracking?trackingNumber=${encodeURIComponent(
+                            order.trackingNumber
+                          )}`}
+                          className="merchant-action-chip merchant-action-chip--primary"
+                        >
+                          <span>Track</span>
+                          <ArrowUpRight size={13} aria-hidden="true" />
+                        </Link>
+                        <Link
+                          href={`/merchant/orders/${order.id}`}
+                          className="merchant-action-chip"
+                        >
+                          <span>Details</span>
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -524,7 +670,7 @@ export default function MerchantDashboardPage() {
             </table>
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }
